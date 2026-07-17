@@ -23,11 +23,25 @@ import { setChildOrder, setStateOrder } from './crud/reorder'
 import { createFolderEntity, renameFolderEntity, moveFolderEntity } from './crud/folderEntity'
 import { renameCascade, unlinkTier } from './crud/cascade'
 import { rewriteBlockConnections } from './blocks'
-import { trashWithTimestamp, pathExists, readJsonObject, mutateJson, atomicWriteBinary, atomicWriteFile } from './io/atomicWrite'
+import {
+  trashWithTimestamp,
+  pathExists,
+  readJsonObject,
+  mutateJson,
+  atomicWriteBinary,
+  atomicWriteFile,
+} from './io/atomicWrite'
 import { serializeOnFile } from './io/fileLock'
 import { splitEnvelope, mergeFrontmatter, readFrontmatterFields } from './io/pageFile'
 import { basenameNoMd } from './coerce'
-import { contextTierDir, nexusConfig, SIDECAR_FILENAME, NEXUS_CONFIG_FILES, type ContextTier, type SidecarKind } from './paths'
+import {
+  contextTierDir,
+  nexusConfig,
+  SIDECAR_FILENAME,
+  NEXUS_CONFIG_FILES,
+  type ContextTier,
+  type SidecarKind,
+} from './paths'
 import { ensureIdentity } from './identity'
 import { updateSettings } from './settings'
 import { newId } from './ids'
@@ -44,7 +58,11 @@ export interface MutateDeps {
   trashToSystem: (absPath: string) => Promise<void>
 }
 
-const CONTEXT_TIER: Record<'area' | 'topic' | 'project', 1 | 2 | 3> = { area: 1, topic: 2, project: 3 }
+const CONTEXT_TIER: Record<'area' | 'topic' | 'project', 1 | 2 | 3> = {
+  area: 1,
+  topic: 2,
+  project: 3,
+}
 const CONTEXT_KIND_BY_TIER: Record<1 | 2 | 3, SidecarKind> = { 1: 'area', 2: 'topic', 3: 'project' }
 const TIER_DIR: Record<1 | 2 | 3, ContextTier> = { 1: 'areas', 2: 'topics', 3: 'projects' }
 
@@ -74,7 +92,12 @@ function decodeImageDataUrl(dataUrl: string): { ext: string; buffer: Buffer } | 
  *  returns the nexus-relative path, or null if the data URL isn't a supported image. A FRESH
  *  filename per write is deliberate: a stable name gave every image the same URL, so the
  *  renderer's <img> served the browser-cached previous image on Change/replace. */
-async function writeImageAsset(root: string, assetKey: string, dataUrl: string, prefix: string): Promise<string | null> {
+async function writeImageAsset(
+  root: string,
+  assetKey: string,
+  dataUrl: string,
+  prefix: string,
+): Promise<string | null> {
   const decoded = decodeImageDataUrl(dataUrl)
   if (!decoded) return null
   const file = `${prefix}-${Math.random().toString(36).slice(2, 10)}.${decoded.ext}`
@@ -101,7 +124,10 @@ function relay<T>(r: Result<T>): MutateResult {
   return r.ok ? { ok: true } : { ok: false, error: r.error }
 }
 
-const fault = (message: string): MutateResult => ({ ok: false, error: { code: 'operation-failed', message } })
+const fault = (message: string): MutateResult => ({
+  ok: false,
+  error: { code: 'operation-failed', message },
+})
 
 /**
  * Create with a base name, disambiguating on collision: base, "base 2", "base 3", … The
@@ -110,7 +136,7 @@ const fault = (message: string): MutateResult => ({ ok: false, error: { code: 'o
  */
 async function createDisambiguated(
   baseName: string,
-  attempt: (name: string) => Promise<Result<{ id: string; path: string }>>
+  attempt: (name: string) => Promise<Result<{ id: string; path: string }>>,
 ): Promise<Result<{ id: string; path: string }>> {
   let last = await attempt(baseName)
   for (let n = 2; n <= 50 && !last.ok && last.error.code === 'exists'; n++) {
@@ -146,7 +172,10 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
       if (!parent.ok) return relay(parent)
       const r = await createDisambiguated(req.name, (name) => createPage(parent.value, name))
       if (!r.ok) return relay(r)
-      return { ok: true, created: { id: r.value.id, path: relJoin(req.parentPath, basename(r.value.path)) } }
+      return {
+        ok: true,
+        created: { id: r.value.id, path: relJoin(req.parentPath, basename(r.value.path)) },
+      }
     }
 
     case 'createContainer': {
@@ -163,19 +192,27 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
       // surface ever meets an empty views[]. The ULID mints here in main (the sentinel can't).
       extra.views = [{ ...mintDefaultView([]), id: `${VIEW_ID_PREFIX}${newId()}` }]
       const r = await createDisambiguated(req.name, (name) =>
-        createFolderEntity(parent.value, req.kind, name, extra)
+        createFolderEntity(parent.value, req.kind, name, extra),
       )
       if (!r.ok) return relay(r)
-      return { ok: true, created: { id: r.value.id, path: relJoin(req.parentPath, basename(r.value.path)) } }
+      return {
+        ok: true,
+        created: { id: r.value.id, path: relJoin(req.parentPath, basename(r.value.path)) },
+      }
     }
 
     case 'createContext': {
       // The tier dir is main-derived (under root by construction), so it bypasses the
       // renderer-path guard; createFolderEntity mkdir's it (recursive) if absent.
       const dir = contextTierDir(root, TIER_DIR[req.tier])
-      const r = await createDisambiguated(req.name, (name) => createFolderEntity(dir, CONTEXT_KIND_BY_TIER[req.tier], name))
+      const r = await createDisambiguated(req.name, (name) =>
+        createFolderEntity(dir, CONTEXT_KIND_BY_TIER[req.tier], name),
+      )
       if (!r.ok) return relay(r)
-      return { ok: true, created: { id: r.value.id, path: `.nexus/${TIER_DIR[req.tier]}/${basename(r.value.path)}` } }
+      return {
+        ok: true,
+        created: { id: r.value.id, path: `.nexus/${TIER_DIR[req.tier]}/${basename(r.value.path)}` },
+      }
     }
 
     case 'rename': {
@@ -299,7 +336,10 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
           if (req.dataUrl) {
             const rel = await writeImageAsset(root, id, req.dataUrl, 'banner')
             if (!rel) return fault('Unsupported image data.')
-            await atomicWriteFile(resolved.value, mergeFrontmatter(existing, { cover: rel }, ['cover'], body))
+            await atomicWriteFile(
+              resolved.value,
+              mergeFrontmatter(existing, { cover: rel }, ['cover'], body),
+            )
             if (prev && prev !== rel) await rm(join(root, prev), { force: true }).catch(() => {})
           } else {
             await atomicWriteFile(resolved.value, mergeFrontmatter(existing, {}, ['cover'], body))
@@ -341,16 +381,24 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
         // Locked on the config path — the block-doc writers share this file (homepage.json
         // carries layout/blocks), and two unlocked read-merge-writes lose whole keys.
         await serializeOnFile(cfgPath, () =>
-          mutateJson<Record<string, unknown>>(cfgPath, () => fallback, (cur) => ({ ...cur, banner: rel }))
+          mutateJson<Record<string, unknown>>(
+            cfgPath,
+            () => fallback,
+            (cur) => ({ ...cur, banner: rel }),
+          ),
         )
         if (prev && prev !== rel) await rm(join(root, prev), { force: true }).catch(() => {})
       } else {
         await serializeOnFile(cfgPath, () =>
-          mutateJson<Record<string, unknown>>(cfgPath, () => fallback, (cur) => {
-            const next = { ...cur }
-            delete next.banner
-            return next
-          })
+          mutateJson<Record<string, unknown>>(
+            cfgPath,
+            () => fallback,
+            (cur) => {
+              const next = { ...cur }
+              delete next.banner
+              return next
+            },
+          ),
         )
         if (prev) await rm(join(root, prev), { force: true }).catch(() => {})
       }
@@ -377,12 +425,16 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
         fallback = { id }
       }
       await serializeOnFile(cfgPath, () =>
-        mutateJson<Record<string, unknown>>(cfgPath, () => fallback, (cur) => {
-          const next = { ...cur }
-          if (req.hidden) next.heading_icon_hidden = true
-          else delete next.heading_icon_hidden
-          return next
-        })
+        mutateJson<Record<string, unknown>>(
+          cfgPath,
+          () => fallback,
+          (cur) => {
+            const next = { ...cur }
+            if (req.hidden) next.heading_icon_hidden = true
+            else delete next.heading_icon_hidden
+            return next
+          },
+        ),
       )
       return { ok: true }
     }
@@ -422,7 +474,7 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
           if (req.icon) next.icon = req.icon
           else delete next.icon
           return next
-        }
+        },
       )
       return { ok: true }
     }
@@ -443,7 +495,10 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
         const { body } = splitEnvelope(existing)
         const fields = readFrontmatterFields(existing)
         const properties = applyPropertyValue(fields.properties, req.propertyId, req.value)
-        await atomicWriteFile(resolved.value, mergeFrontmatter(existing, { properties }, ['properties'], body))
+        await atomicWriteFile(
+          resolved.value,
+          mergeFrontmatter(existing, { properties }, ['properties'], body),
+        )
         return { ok: true }
       })
     }

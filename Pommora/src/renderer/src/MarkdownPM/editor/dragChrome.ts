@@ -27,13 +27,15 @@ export const shadeField = StateField.define<DecorationSet>({
       if (e.value === null) deco = Decoration.none
       else {
         const ranges: Range<Decoration>[] = []
-        forEachLine(tr.state.doc, e.value.from, e.value.to, (line) => ranges.push(shadeLine.range(line.from)))
+        forEachLine(tr.state.doc, e.value.from, e.value.to, (line) =>
+          ranges.push(shadeLine.range(line.from)),
+        )
         deco = Decoration.set(ranges)
       }
     }
     return deco
   },
-  provide: (f) => EditorView.decorations.from(f)
+  provide: (f) => EditorView.decorations.from(f),
 })
 
 // Imperative accent insertion line over the editor — no floating ghost (the in-place shade shows what's
@@ -46,9 +48,11 @@ export class Overlay {
     if (!this.line) {
       const l = document.createElement('div')
       l.setAttribute('aria-hidden', 'true')
-      l.style.cssText = 'position:fixed;height:2px;border-radius:2px;background:var(--accent);pointer-events:none;z-index:1000'
+      l.style.cssText =
+        'position:fixed;height:2px;border-radius:2px;background:var(--accent);pointer-events:none;z-index:1000'
       const dot = document.createElement('span')
-      dot.style.cssText = 'position:absolute;left:-3px;top:-2.5px;width:7px;height:7px;border-radius:50%;background:var(--accent)'
+      dot.style.cssText =
+        'position:absolute;left:-3px;top:-2.5px;width:7px;height:7px;border-radius:50%;background:var(--accent)'
       l.appendChild(dot)
       document.body.appendChild(l)
       this.line = l

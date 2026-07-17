@@ -7,7 +7,13 @@ import { ACTIVATION } from '../../design-system/interactions/shared'
 import { parseListMarkerPrefixed as parseListMarker } from '../detect'
 import { Overlay, forEachLine, setShade, shadeField } from './dragChrome'
 import { lineElementAt } from './lineDom'
-import { subBlockAt, dropChanges, checkboxToggleChange, type SubBlock, type Slot } from './listDragModel'
+import {
+  subBlockAt,
+  dropChanges,
+  checkboxToggleChange,
+  type SubBlock,
+  type Slot,
+} from './listDragModel'
 
 interface Gesture {
   pid: number
@@ -45,7 +51,11 @@ function lineRightEdge(view: EditorView, from: number, fallback: number): number
   const n = lineElementAt(view, from)
   if (!n || (!n.classList.contains('md-callout') && !n.classList.contains('md-bq'))) return fallback
   const cs = getComputedStyle(n)
-  return n.getBoundingClientRect().right - parseFloat(cs.paddingRight || '0') - parseFloat(cs.borderRightWidth || '0')
+  return (
+    n.getBoundingClientRect().right -
+    parseFloat(cs.paddingRight || '0') -
+    parseFloat(cs.borderRightWidth || '0')
+  )
 }
 
 function collectCands(view: EditorView, block: SubBlock): Cand[] {
@@ -63,7 +73,15 @@ function collectCands(view: EditorView, block: SubBlock): Cand[] {
       const cEnd = view.coordsAtPos(line.to)
       const cMarker = view.coordsAtPos(line.from + lm.markerStart)
       if (cTop && cEnd) {
-        out.push({ from: line.from, to: line.to, top: cTop.top, bottom: cEnd.bottom, left: (cMarker ?? cTop).left, right: lineRightEdge(view, line.from, gutterRight), indent: line.text.slice(0, lm.markerStart) })
+        out.push({
+          from: line.from,
+          to: line.to,
+          top: cTop.top,
+          bottom: cEnd.bottom,
+          left: (cMarker ?? cTop).left,
+          right: lineRightEdge(view, line.from, gutterRight),
+          indent: line.text.slice(0, lm.markerStart),
+        })
       }
     })
   }
@@ -73,7 +91,12 @@ function collectCands(view: EditorView, block: SubBlock): Cand[] {
 
 // Cheap per-move hit-test against the cached candidates — all viewport coords (matching the pointer's
 // clientY and the position:fixed line). Picks the row under the pointer, before/after by its vertical half.
-function slotFrom(cands: Cand[], clientY: number, block: SubBlock, docLen: number): ResolvedSlot | null {
+function slotFrom(
+  cands: Cand[],
+  clientY: number,
+  block: SubBlock,
+  docLen: number,
+): ResolvedSlot | null {
   // Each candidate offers two insertion boundaries — before it (its top edge) and after it (its bottom
   // edge). Snap to whichever boundary is vertically CLOSEST to the pointer, so a paragraph between two
   // bullets splits to the nearer bullet's edge instead of one bullet owning the whole gap.
@@ -82,7 +105,7 @@ function slotFrom(cands: Cand[], clientY: number, block: SubBlock, docLen: numbe
   for (const c of cands) {
     for (const b of [
       { at: c.from, y: c.top, c },
-      { at: c.to < docLen ? c.to + 1 : docLen, y: c.bottom, c }
+      { at: c.to < docLen ? c.to + 1 : docLen, y: c.bottom, c },
     ]) {
       const d = Math.abs(clientY - b.y)
       if (d < bestDist) {
@@ -93,7 +116,13 @@ function slotFrom(cands: Cand[], clientY: number, block: SubBlock, docLen: numbe
   }
   if (best === null) return null
   if (best.at >= block.from && best.at <= block.to + 1) return null // landing inside the dragged block → no slot
-  return { at: best.at, lineLeft: best.c.left, lineTop: best.y, lineWidth: Math.max(best.c.right - best.c.left, 40), indent: best.c.indent }
+  return {
+    at: best.at,
+    lineLeft: best.c.left,
+    lineTop: best.y,
+    lineWidth: Math.max(best.c.right - best.c.left, 40),
+    indent: best.c.indent,
+  }
 }
 
 // A glyph CLICK (press released without crossing ACTIVATION): checkbox → toggle; bullet / number → caret.
@@ -138,12 +167,13 @@ export const listDragExtension: Extension = [
         active: false,
         overlay: new Overlay(),
         cands: [],
-        slot: null
+        slot: null,
       }
 
       const onMove = (ev: PointerEvent): void => {
         if (!gesture.active) {
-          if (Math.hypot(ev.clientX - gesture.startX, ev.clientY - gesture.startY) < ACTIVATION) return
+          if (Math.hypot(ev.clientX - gesture.startX, ev.clientY - gesture.startY) < ACTIVATION)
+            return
           gesture.active = true
           document.body.style.cursor = 'grabbing'
           try {
@@ -191,6 +221,6 @@ export const listDragExtension: Extension = [
       host.addEventListener('pointerup', onUp)
       host.addEventListener('pointercancel', onCancel)
       return true
-    }
-  })
+    },
+  }),
 ]

@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { SegmentedSymbol, type Segment } from '@renderer/design-system/components/Segmented-Controls'
+import {
+  SegmentedSymbol,
+  type Segment,
+} from '@renderer/design-system/components/Segmented-Controls'
 import { useDismiss } from '@renderer/design-system/components/Popover'
 import { ToolbarTrio } from './ToolbarTrio'
 import { ViewDropdown } from './ViewDropdown'
@@ -21,7 +24,7 @@ type TrioPanel = 'navigation' | 'settings'
  */
 export function Toolbar({
   inspectorOpen,
-  onToggleInspector
+  onToggleInspector,
 }: {
   inspectorOpen: boolean
   onToggleInspector: () => void
@@ -67,12 +70,22 @@ export function Toolbar({
   // Back/Forward walk the store's navigation history (disabled at each end).
   const backForward: Segment[] = [
     { icon: 'chevron-left', title: 'Back', onClick: goBack, disabled: !canGoBack },
-    { icon: 'chevron-right', title: 'Forward', onClick: goForward, disabled: !canGoForward }
+    { icon: 'chevron-right', title: 'Forward', onClick: goForward, disabled: !canGoForward },
   ]
   const trio: Segment[] = [
-    { icon: 'map', title: 'Navigation', onClick: () => toggle('navigation'), active: panel === 'navigation' },
-    { icon: 'sliders-horizontal', title: 'Settings', onClick: () => toggle('settings'), active: panel === 'settings' },
-    { icon: 'panel-right', title: 'Inspector', onClick: onToggleInspector, active: inspectorOpen }
+    {
+      icon: 'map',
+      title: 'Navigation',
+      onClick: () => toggle('navigation'),
+      active: panel === 'navigation',
+    },
+    {
+      icon: 'sliders-horizontal',
+      title: 'Settings',
+      onClick: () => toggle('settings'),
+      active: panel === 'settings',
+    },
+    { icon: 'panel-right', title: 'Inspector', onClick: onToggleInspector, active: inspectorOpen },
   ]
 
   return (
@@ -85,15 +98,18 @@ export function Toolbar({
         <ViewDropdown />
         <div className="app-toolbar-cluster app-toolbar-cluster--trio" ref={trioRef}>
           <ToolbarTrio segments={trio} />
-        {/* Beak aim: the dropdowns hang right-aligned under the trio, so each notch is measured from
+          {/* Beak aim: the dropdowns hang right-aligned under the trio, so each notch is measured from
             the pane's right edge to its trigger's center — Navigation at 5/6 of the trio's width,
             Settings at dead center (3 equal segments). */}
-        {navP.mounted && (
-          <NavPane closing={navP.closing} notchInsetRight={trioW ? (trioW * 5) / 6 : undefined} />
-        )}
-        {settingsP.mounted && (
-          <SettingsDropdown closing={settingsP.closing} notchInsetRight={trioW ? trioW / 2 : undefined} />
-        )}
+          {navP.mounted && (
+            <NavPane closing={navP.closing} notchInsetRight={trioW ? (trioW * 5) / 6 : undefined} />
+          )}
+          {settingsP.mounted && (
+            <SettingsDropdown
+              closing={settingsP.closing}
+              notchInsetRight={trioW ? trioW / 2 : undefined}
+            />
+          )}
         </div>
       </div>
     </div>

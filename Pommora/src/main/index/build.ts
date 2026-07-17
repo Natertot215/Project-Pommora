@@ -36,7 +36,7 @@ import {
   upsertAgendaEvent,
   replaceContextLinks,
   replaceConnections,
-  replaceBlockConnections
+  replaceBlockConnections,
 } from './upsert'
 
 const EPOCH = '1970-01-01T00:00:00.000Z'
@@ -45,7 +45,11 @@ const str = (v: unknown): string => (typeof v === 'string' ? v : '')
 /** Effective modified_at, matching Swift's load-time resolution: the stored stamp wins,
  *  else the file's own mtime (so adopted entities lacking a stamp sort by real recency
  *  instead of 1970), else created_at, else epoch. Only stats when the stamp is absent. */
-async function resolveModifiedAt(stored: unknown, fallbackFile: string, created?: unknown): Promise<string> {
+async function resolveModifiedAt(
+  stored: unknown,
+  fallbackFile: string,
+  created?: unknown,
+): Promise<string> {
   const storedStr = str(stored)
   if (storedStr) return storedStr
   try {
@@ -54,7 +58,8 @@ async function resolveModifiedAt(stored: unknown, fallbackFile: string, created?
     return str(created) || EPOCH
   }
 }
-const strArr = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [])
+const strArr = (v: unknown): string[] =>
+  Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []
 
 interface ContextData {
   id: string
@@ -105,12 +110,12 @@ async function collectNexusData(nexusRoot: string): Promise<NexusData> {
   const contexts: ContextData[] = [
     ...tree.contexts.areas.map((a) => ({ id: a.id, tier: 1, title: a.title, icon: a.icon })),
     ...tree.contexts.topics.map((t) => ({ id: t.id, tier: 2, title: t.title, icon: t.icon })),
-    ...tree.contexts.projects.map((p) => ({ id: p.id, tier: 3, title: p.title, icon: p.icon }))
+    ...tree.contexts.projects.map((p) => ({ id: p.id, tier: 3, title: p.title, icon: p.icon })),
   ]
 
   const allCollections: CollectionNode[] = [
     ...(tree.collections ?? []),
-    ...tree.userSections.flatMap((s) => s.collections ?? [])
+    ...tree.userSections.flatMap((s) => s.collections ?? []),
   ]
   const collections: CollectionData[] = []
   const sets: SetData[] = []
@@ -122,7 +127,7 @@ async function collectNexusData(nexusRoot: string): Promise<NexusData> {
   const walkSet = async (
     node: SetNode,
     topCollectionId: string,
-    parent: { collectionId?: string; setId?: string }
+    parent: { collectionId?: string; setId?: string },
   ): Promise<void> => {
     const ssc = await readSidecar(join(nexusRoot, node.path), 'set', pageSetSidecar)
     sets.push({
@@ -131,10 +136,14 @@ async function collectNexusData(nexusRoot: string): Promise<NexusData> {
       parentSetId: parent.setId,
       title: node.title,
       icon: node.icon,
-      modifiedAt: await resolveModifiedAt(ssc?.modified_at, join(nexusRoot, node.path, SIDECAR_FILENAME.set)),
-      schemaVersion: ssc?.schema_version
+      modifiedAt: await resolveModifiedAt(
+        ssc?.modified_at,
+        join(nexusRoot, node.path, SIDECAR_FILENAME.set),
+      ),
+      schemaVersion: ssc?.schema_version,
     })
-    for (const page of node.pages) pages.push(await readPageData(nexusRoot, page, topCollectionId, node.id))
+    for (const page of node.pages)
+      pages.push(await readPageData(nexusRoot, page, topCollectionId, node.id))
     for (const child of node.sets ?? []) await walkSet(child, topCollectionId, { setId: node.id })
   }
 
@@ -144,8 +153,11 @@ async function collectNexusData(nexusRoot: string): Promise<NexusData> {
       id: coll.id,
       title: coll.title,
       icon: coll.icon,
-      modifiedAt: await resolveModifiedAt(csc?.modified_at, join(nexusRoot, coll.path, SIDECAR_FILENAME.collection)),
-      schemaVersion: csc?.schema_version
+      modifiedAt: await resolveModifiedAt(
+        csc?.modified_at,
+        join(nexusRoot, coll.path, SIDECAR_FILENAME.collection),
+      ),
+      schemaVersion: csc?.schema_version,
     })
     for (const page of coll.pages) pages.push(await readPageData(nexusRoot, page, coll.id))
     for (const set of coll.sets) await walkSet(set, coll.id, { collectionId: coll.id })
@@ -158,7 +170,7 @@ async function readPageData(
   nexusRoot: string,
   page: { id: string; title: string; icon?: string; path: string },
   collectionId: string,
-  setId?: string
+  setId?: string,
 ): Promise<PageData> {
   const abs = join(nexusRoot, page.path)
   let content = ''
@@ -177,7 +189,7 @@ async function readPageData(
     properties: fm.properties ?? {},
     modifiedAt: await resolveModifiedAt(fm.modified_at, abs, fm.created_at),
     tiers: readTiers(fm),
-    body: splitEnvelope(content).body
+    body: splitEnvelope(content).body,
   }
 }
 
@@ -186,7 +198,14 @@ async function readPageData(
 function configOf(def: PropertyDefinition): Record<string, unknown> {
   const d = def as Record<string, unknown>
   const c: Record<string, unknown> = {}
-  for (const k of ['number_format', 'date_includes_time', 'select_options', 'status_groups', 'context_target', 'accept']) {
+  for (const k of [
+    'number_format',
+    'date_includes_time',
+    'select_options',
+    'status_groups',
+    'context_target',
+    'accept',
+  ]) {
     if (d[k] !== undefined) c[k] = d[k]
   }
   return c
@@ -221,7 +240,12 @@ function readTiers(fm: Record<string, unknown>): Record<number, string[]> {
 }
 
 /** One context_links row per tier value — shared by pages + agenda items. */
-function tierLinks(sourceId: string, sourceKind: string, tiers: Record<number, string[]>, modifiedAt: string) {
+function tierLinks(
+  sourceId: string,
+  sourceKind: string,
+  tiers: Record<number, string[]>,
+  modifiedAt: string,
+) {
   return TIER_LEVELS.flatMap((tier) =>
     tiers[tier].map((targetId) => ({
       id: `${sourceId}:${tierPropertyId(tier)}:${targetId}`,
@@ -229,8 +253,8 @@ function tierLinks(sourceId: string, sourceKind: string, tiers: Record<number, s
       targetId,
       targetKind: TIER_TARGET_KIND[tier] ?? 'context',
       propertyId: tierPropertyId(tier),
-      modifiedAt
-    }))
+      modifiedAt,
+    })),
   )
 }
 
@@ -243,7 +267,9 @@ async function collectAgenda(nexusRoot: string): Promise<AgendaData> {
   const events: AgendaItemData[] = []
   let dirs: string[]
   try {
-    dirs = (await readdir(nexusRoot, { withFileTypes: true })).filter((e) => e.isDirectory()).map((e) => e.name)
+    dirs = (await readdir(nexusRoot, { withFileTypes: true }))
+      .filter((e) => e.isDirectory())
+      .map((e) => e.name)
   } catch {
     return { tasks, events }
   }
@@ -276,10 +302,16 @@ async function collectAgenda(nexusRoot: string): Promise<AgendaData> {
         icon: typeof item.icon === 'string' ? item.icon : undefined,
         properties: item.properties ?? {},
         modifiedAt: await resolveModifiedAt(item.modified_at, join(folder, f), item.created_at),
-        tiers: readTiers(item)
+        tiers: readTiers(item),
       }
-      if (isTask) tasks.push({ ...common, dueAt: typeof item.due_at === 'string' ? item.due_at : undefined })
-      else events.push({ ...common, startAt: str(item.start_at) || EPOCH, endAt: str(item.end_at) || EPOCH })
+      if (isTask)
+        tasks.push({ ...common, dueAt: typeof item.due_at === 'string' ? item.due_at : undefined })
+      else
+        events.push({
+          ...common,
+          startAt: str(item.start_at) || EPOCH,
+          endAt: str(item.end_at) || EPOCH,
+        })
     }
   }
   return { tasks, events }
@@ -308,8 +340,8 @@ export async function buildIndex(db: Db, nexusRoot: string): Promise<void> {
         type: def.type,
         config: configOf(def),
         position,
-        modifiedAt: nowIso()
-      })
+        modifiedAt: nowIso(),
+      }),
     )
     for (const s of data.sets) upsertSet(db, s)
     for (const p of data.pages) {
@@ -325,7 +357,7 @@ export async function buildIndex(db: Db, nexusRoot: string): Promise<void> {
           targetTitle: e.normalizedTitle,
           multiplicity: e.multiplicity,
           resolved: e.status === 'resolved',
-          modifiedAt: p.modifiedAt
+          modifiedAt: p.modifiedAt,
         }))
       replaceConnections(db, p.id, conns)
     }
@@ -339,7 +371,7 @@ export async function buildIndex(db: Db, nexusRoot: string): Promise<void> {
         targetTitle: e.normalizedTitle,
         multiplicity: e.multiplicity,
         resolved: e.status === 'resolved',
-        modifiedAt: blk.modifiedAt
+        modifiedAt: blk.modifiedAt,
       }))
       replaceBlockConnections(db, blk.id, conns)
     }

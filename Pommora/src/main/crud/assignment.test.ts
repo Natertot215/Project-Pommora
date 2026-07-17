@@ -64,9 +64,14 @@ it('a Remove racing an Assign on ONE collection never loses either write (breake
   // pC unassigned WITH its cache block intact, pB assigned.
   for (let round = 0; round < 20; round++) {
     await Promise.all([removeProperty(notes, pC), assignProperty(root, notes, pB)])
-    const sc = (await readSidecar(notes, 'collection', pageCollectionSidecar)) as Record<string, unknown>
+    const sc = (await readSidecar(notes, 'collection', pageCollectionSidecar)) as Record<
+      string,
+      unknown
+    >
     const assigned = (sc.properties as string[]) ?? []
-    const cached = (sc.property_cache as Record<string, { values: Record<string, unknown> }> | undefined)?.[pC]
+    const cached = (
+      sc.property_cache as Record<string, { values: Record<string, unknown> }> | undefined
+    )?.[pC]
     expect(assigned).toContain(pB)
     expect(assigned).not.toContain(pC)
     expect(Object.values(cached?.values ?? {})).toEqual([7])

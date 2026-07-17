@@ -14,7 +14,7 @@
   /* The double-T I-beam: black with a white outline so it reads on any background; hotspot on the stem. */
   --caret-cursor:
     url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="14" height="24"><g fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M7 5.6V18.4M4.4 4L7 5.6L9.6 4M4.4 20L7 18.4L9.6 20" stroke="%23fff" stroke-width="3"/><path d="M7 5.6V18.4M4.4 4L7 5.6L9.6 4M4.4 20L7 18.4L9.6 20" stroke="%23000" stroke-width="1.4"/></g></svg>')
-      7 12,
+    7 12,
     text;
 }
 
@@ -22,24 +22,24 @@
    uses the full `.cm-editor .cm-scroller .cm-content` path to out-specify CM's baseTheme, same as caret-color. */
 .cm-editor .cm-scroller .cm-content,
 input:not([type]),
-input[type='text'],
-input[type='search'],
-input[type='url'],
-input[type='tel'],
+input[type="text"],
+input[type="search"],
+input[type="url"],
+input[type="tel"],
 textarea,
-[contenteditable='true'] {
+[contenteditable="true"] {
   cursor: var(--caret-cursor);
 }
 
 /* Native fields: hide the browser caret — nativeCaret.ts paints the drawn bar over them (same visual as the
    CM caret, just a JS position source). Scoped to the text types the overlay handles; others keep theirs. */
 input:not([type]),
-input[type='text'],
-input[type='search'],
-input[type='url'],
-input[type='tel'],
+input[type="text"],
+input[type="search"],
+input[type="url"],
+input[type="tel"],
 textarea,
-[contenteditable='true'] {
+[contenteditable="true"] {
   caret-color: transparent;
 }
 
@@ -59,14 +59,30 @@ textarea,
 /* Equal halves: solid 0→42%, quick fade, fully off 50→92%, quick fade back — on and off last the same.
    Two identical keyframes so caret.ts can swap names to restart the cycle on caret move (no reflow). */
 @keyframes mdpm-blink {
-  0%, 42% { opacity: 1; }
-  50%, 92% { opacity: var(--caret-dim, 0); }
-  100% { opacity: 1; }
+  0%,
+  42% {
+    opacity: 1;
+  }
+  50%,
+  92% {
+    opacity: var(--caret-dim, 0);
+  }
+  100% {
+    opacity: 1;
+  }
 }
 @keyframes mdpm-blink2 {
-  0%, 42% { opacity: 1; }
-  50%, 92% { opacity: var(--caret-dim, 0); }
-  100% { opacity: 1; }
+  0%,
+  42% {
+    opacity: 1;
+  }
+  50%,
+  92% {
+    opacity: var(--caret-dim, 0);
+  }
+  100% {
+    opacity: 1;
+  }
 }
 
 /* RectangleMarker sizes the stem (height = line box, width via CSS); we centre it on the text position. */

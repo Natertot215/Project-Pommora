@@ -1,8 +1,19 @@
-import { type MouseEvent, type RefObject, useCallback, useLayoutEffect, useMemo, useState } from 'react'
+import {
+  type MouseEvent,
+  type RefObject,
+  useCallback,
+  useLayoutEffect,
+  useMemo,
+  useState,
+} from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { PickerMenu } from '@renderer/design-system/components/PickerMenu/PickerMenu'
 import { Icon } from '@renderer/design-system/symbols'
-import { lucideGlyph, searchIcons, type IconEntry } from '@renderer/design-system/symbols/AllSymbols'
+import {
+  lucideGlyph,
+  searchIcons,
+  type IconEntry,
+} from '@renderer/design-system/symbols/AllSymbols'
 import { reorder, SortableZone, useDragItem } from '@renderer/design-system/interactions/drag'
 import { useSession } from '@renderer/store'
 import { cx } from '@renderer/design-system/cx'
@@ -30,7 +41,14 @@ interface Props {
  * right-click Favorite menu is the native Electron menu. Selection fires `onSelect`, then the shell
  * retracts.
  */
-export function IconPicker({ open, onClose, triggerRef, value, onSelect, direction = 'down' }: Props): React.JSX.Element | null {
+export function IconPicker({
+  open,
+  onClose,
+  triggerRef,
+  value,
+  onSelect,
+  direction = 'down',
+}: Props): React.JSX.Element | null {
   const favorites = useSession((st) => st.personalization.favoriteIcons)
   const setPersonalization = useSession((st) => st.setPersonalization)
   const favs = favorites ?? []
@@ -43,7 +61,7 @@ export function IconPicker({ open, onClose, triggerRef, value, onSelect, directi
       onSelect?.(id)
       onClose()
     },
-    [onSelect, onClose]
+    [onSelect, onClose],
   )
 
   const toggleFav = useCallback(
@@ -51,18 +69,18 @@ export function IconPicker({ open, onClose, triggerRef, value, onSelect, directi
       const next = favs.includes(id) ? favs.filter((f) => f !== id) : [...favs, id]
       setPersonalization('favoriteIcons', next.length ? next : undefined)
     },
-    [favs, setPersonalization]
+    [favs, setPersonalization],
   )
   const reorderFavs = useCallback(
     (a: string, o: string) => {
       const next = reorder(
         favs.map((id) => ({ id })),
         a,
-        o
+        o,
       ).map((x) => x.id)
       setPersonalization('favoriteIcons', next)
     },
-    [favs, setPersonalization]
+    [favs, setPersonalization],
   )
 
   // Right-click ⇒ the native Favorite/Remove menu (main-owned); the renderer applies the toggle.
@@ -72,7 +90,7 @@ export function IconPicker({ open, onClose, triggerRef, value, onSelect, directi
       const res = await window.nexus.iconFavoriteMenu(favs.includes(id))
       if (res === 'toggle') toggleFav(id)
     },
-    [favs, toggleFav]
+    [favs, toggleFav],
   )
 
   // Virtualized grid: rows of `cols`. Defaults to 6 (Nathan's target width) so icons ALWAYS render —
@@ -110,14 +128,29 @@ export function IconPicker({ open, onClose, triggerRef, value, onSelect, directi
     getScrollElement: () => scrollEl,
     estimateSize: () => CELL,
     overscan: 6,
-    scrollMargin
+    scrollMargin,
   })
 
   const beak = { down: s.beakDown, up: s.beakUp, left: s.beakLeft, right: s.beakRight }[direction]
 
   return (
-    <PickerMenu open={open} onDismiss={onClose} triggerRef={triggerRef} direction={direction} center notchHeight={7} bareSurface contentClassName={cx(s.content, beak)}>
-      <input className={s.search} placeholder="Search" value={query} spellCheck={false} onChange={(e) => setQuery(e.target.value)} />
+    <PickerMenu
+      open={open}
+      onDismiss={onClose}
+      triggerRef={triggerRef}
+      direction={direction}
+      center
+      notchHeight={7}
+      bareSurface
+      contentClassName={cx(s.content, beak)}
+    >
+      <input
+        className={s.search}
+        placeholder="Search"
+        value={query}
+        spellCheck={false}
+        onChange={(e) => setQuery(e.target.value)}
+      />
       {favs.length === 0 && <div className={s.separator} />}
 
       <div ref={setScrollEl} className={cx(s.grid, 'overflow-eclipse-y')}>
@@ -126,7 +159,13 @@ export function IconPicker({ open, onClose, triggerRef, value, onSelect, directi
             <div className={cx(s.favScroll, 'overflow-eclipse')}>
               <SortableZone items={favs} layout="grid" onReorder={reorderFavs}>
                 {favs.map((id) => (
-                  <FavCell key={id} id={id} selected={id === value} onPick={pick} onContext={openContext} />
+                  <FavCell
+                    key={id}
+                    id={id}
+                    selected={id === value}
+                    onPick={pick}
+                    onContext={openContext}
+                  />
                 ))}
               </SortableZone>
             </div>
@@ -137,9 +176,19 @@ export function IconPicker({ open, onClose, triggerRef, value, onSelect, directi
           {rowVirt.getVirtualItems().map((vr) => {
             const start = vr.index * cols
             return (
-              <div key={vr.key} className={s.row} style={{ height: CELL, transform: `translateY(${vr.start - scrollMargin}px)` }}>
+              <div
+                key={vr.key}
+                className={s.row}
+                style={{ height: CELL, transform: `translateY(${vr.start - scrollMargin}px)` }}
+              >
                 {filtered.slice(start, start + cols).map((entry) => (
-                  <GridCell key={entry.id} entry={entry} selected={entry.id === value} onPick={pick} onContext={openContext} />
+                  <GridCell
+                    key={entry.id}
+                    entry={entry}
+                    selected={entry.id === value}
+                    onPick={pick}
+                    onContext={openContext}
+                  />
                 ))}
               </div>
             )
@@ -154,7 +203,7 @@ function GridCell({
   entry,
   selected,
   onPick,
-  onContext
+  onContext,
 }: {
   entry: IconEntry
   selected: boolean
@@ -179,7 +228,7 @@ function FavCell({
   id,
   selected,
   onPick,
-  onContext
+  onContext,
 }: {
   id: string
   selected: boolean

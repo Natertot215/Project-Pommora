@@ -18,11 +18,11 @@ describe('codec', () => {
             ratios: [2, 2],
             children: [
               { kind: 'tile', id: 'a', h: 100 },
-              { kind: 'tile', id: 'b', h: 100 }
-            ]
-          }
-        }
-      ]
+              { kind: 'tile', id: 'b', h: 100 },
+            ],
+          },
+        },
+      ],
     }
     const l = decodeLayout(raw)
     expect(l && validateLayout(l)).toEqual([])
@@ -38,11 +38,11 @@ describe('codec', () => {
             ratios: [1],
             children: [
               { kind: 'tile', id: 'a', h: 100 },
-              { kind: 'tile', id: 'b', h: 100 }
-            ]
-          }
-        }
-      ]
+              { kind: 'tile', id: 'b', h: 100 },
+            ],
+          },
+        },
+      ],
     }
     expect(decodeLayout(raw)?.bands[0]?.node).toMatchObject({ ratios: [0.5, 0.5] })
   })
@@ -53,10 +53,10 @@ describe('codec', () => {
         {
           node: {
             kind: 'column',
-            children: [{ kind: 'row', ratios: [1], children: [{ kind: 'tile', id: 'a', h: -9 }] }]
-          }
-        }
-      ]
+            children: [{ kind: 'row', ratios: [1], children: [{ kind: 'tile', id: 'a', h: -9 }] }],
+          },
+        },
+      ],
     }
     const l = decodeLayout(raw)
     expect(l?.bands[0]?.node).toEqual({ kind: 'tile', id: 'a', h: 32 })
@@ -71,11 +71,11 @@ describe('codec', () => {
             ratios: [1e308, 1e308],
             children: [
               { kind: 'tile', id: 'a', h: 100 },
-              { kind: 'tile', id: 'b', h: 100 }
-            ]
-          }
-        }
-      ]
+              { kind: 'tile', id: 'b', h: 100 },
+            ],
+          },
+        },
+      ],
     }
     const l = decodeLayout(raw)
     expect(l?.bands[0]?.node).toMatchObject({ ratios: [0.5, 0.5] })
@@ -86,8 +86,8 @@ describe('codec', () => {
     const dup = {
       bands: [
         { node: { kind: 'tile', id: 'a', h: 100 } },
-        { node: { kind: 'tile', id: 'a', h: 100 } }
-      ]
+        { node: { kind: 'tile', id: 'a', h: 100 } },
+      ],
     }
     expect(decodeLayout(dup)?.bands).toHaveLength(1)
 
@@ -99,11 +99,11 @@ describe('codec', () => {
             ratios: [0.5, 0.5],
             children: [
               { kind: 'tile', id: 'x', h: 80 },
-              { kind: 'tile', id: 'x', h: 80 }
-            ]
-          }
-        }
-      ]
+              { kind: 'tile', id: 'x', h: 80 },
+            ],
+          },
+        },
+      ],
     }
     expect(decodeLayout(inRow)?.bands[0]?.node).toEqual({ kind: 'tile', id: 'x', h: 80 })
   })
@@ -117,7 +117,9 @@ describe('codec', () => {
   it('salvages a broken tile height instead of rejecting — hand-edits happen', () => {
     const l = decodeLayout({ bands: [{ node: { kind: 'tile', id: 'a', h: Number.NaN } }] })
     expect(l?.bands[0]?.node).toEqual({ kind: 'tile', id: 'a', h: 32 })
-    expect(decodeLayout({ bands: [{ node: { kind: 'tile', id: 'b', h: null } }] })?.bands).toHaveLength(1)
+    expect(
+      decodeLayout({ bands: [{ node: { kind: 'tile', id: 'b', h: null } }] })?.bands,
+    ).toHaveLength(1)
   })
 
   it('one malformed node never wipes the document — survivors keep their space', () => {
@@ -132,11 +134,11 @@ describe('codec', () => {
             ratios: [0.5, 0.5],
             children: [
               { kind: 'tile', id: 'good2', h: 80 },
-              { kind: 'tile', id: 'bad-child', h: 'tall' }
-            ]
-          }
-        }
-      ]
+              { kind: 'tile', id: 'bad-child', h: 'tall' },
+            ],
+          },
+        },
+      ],
     }
     const l = decodeLayout(raw)
     expect(l).not.toBeNull()
@@ -154,8 +156,8 @@ describe('codec', () => {
       {
         bands: [
           { node: { kind: 'tile', id: 'a', h: 100 } },
-          { node: { kind: 'tile', id: 'a', h: 100 } }
-        ]
+          { node: { kind: 'tile', id: 'a', h: 100 } },
+        ],
       },
       {
         bands: [
@@ -165,11 +167,11 @@ describe('codec', () => {
               ratios: [3, 0, 1],
               children: [
                 { kind: 'tile', id: 'p', h: 1 },
-                { kind: 'tile', id: 'q', h: 500 }
-              ]
-            }
-          }
-        ]
+                { kind: 'tile', id: 'q', h: 500 },
+              ],
+            },
+          },
+        ],
       },
       {
         bands: [
@@ -182,14 +184,14 @@ describe('codec', () => {
                   kind: 'column',
                   children: [
                     { kind: 'tile', id: 'n1', h: 40 },
-                    { kind: 'tile', id: 'n2', h: 40 }
-                  ]
-                }
-              ]
-            }
-          }
-        ]
-      }
+                    { kind: 'tile', id: 'n2', h: 40 },
+                  ],
+                },
+              ],
+            },
+          },
+        ],
+      },
     ]
     for (const raw of fixtures) {
       const decoded = decodeLayout(raw)

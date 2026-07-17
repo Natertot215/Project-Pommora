@@ -37,7 +37,7 @@ export const PANE_FROST: FrostParams = {
   innerRing: 0.08,
   lowerRim: 0.08,
   depth: 12,
-  rimBlur: 18
+  rimBlur: 18,
 }
 
 /** 0..1 → 2-digit hex alpha (colors authored as hex per the project rule). */
@@ -58,8 +58,8 @@ export function frostStyle(p: FrostParams): CSSProperties {
       `inset 0 1px 0 #FFFFFF${hexA(p.topSpecular)}`,
       `inset 0 0 0 1px #FFFFFF${hexA(p.innerRing)}`,
       `inset 0 -${p.depth}px ${p.rimBlur}px -${p.depth}px #FFFFFF${hexA(p.lowerRim)}`,
-      shadowStandardVar
-    ].join(', ')
+      shadowStandardVar,
+    ].join(', '),
   }
 }
 

@@ -22,7 +22,7 @@ export const SIDECAR_FILENAME: Record<SidecarKind, string> = {
   collection: '_pagecollection.json',
   set: '_pageset.json',
   taskConfig: '_taskconfig.json',
-  eventConfig: '_eventconfig.json'
+  eventConfig: '_eventconfig.json',
 }
 
 export function nexusDir(root: string): string {
@@ -61,7 +61,7 @@ export const NEXUS_CONFIG_FILES = {
   linkTitles: 'linkTitles.json',
   navRecents: 'navRecents.json',
   navFavorites: 'navFavorites.json',
-  tabs: 'tabs.json'
+  tabs: 'tabs.json',
 } as const
 
 /** The `.nexus/` files that are per-machine display state or a regeneratable accelerator, never
@@ -73,5 +73,5 @@ export const DEVICE_LOCAL_NEXUS_FILES: ReadonlySet<string> = new Set([
   NEXUS_CONFIG_FILES.activeViews,
   NEXUS_CONFIG_FILES.viewOrders,
   NEXUS_CONFIG_FILES.tableHeadingColumns,
-  NEXUS_CONFIG_FILES.linkTitles
+  NEXUS_CONFIG_FILES.linkTitles,
 ])

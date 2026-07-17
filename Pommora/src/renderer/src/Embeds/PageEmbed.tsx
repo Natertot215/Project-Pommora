@@ -21,7 +21,7 @@ export function PageEmbed({
   editing,
   onBeginEdit,
   connections,
-  locked = false
+  locked = false,
 }: {
   /** Nexus-relative path to the `.md` — the page's address for load + save. */
   path: string

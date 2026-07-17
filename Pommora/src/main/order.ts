@@ -15,11 +15,11 @@ export interface Orderable {
 export function resolveOrder<T extends Orderable>(
   items: T[],
   order: string[] | undefined,
-  fallback: 'id' | 'title' = 'id'
+  fallback: 'id' | 'title' = 'id',
 ): T[] {
   if (!order || order.length === 0) {
     return [...items].sort((a, b) =>
-      fallback === 'title' ? a.title.localeCompare(b.title) : a.id.localeCompare(b.id)
+      fallback === 'title' ? a.title.localeCompare(b.title) : a.id.localeCompare(b.id),
     )
   }
 

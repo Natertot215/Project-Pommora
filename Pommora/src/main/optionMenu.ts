@@ -3,22 +3,29 @@ import type { BrowserWindow, MenuItemConstructorOptions } from 'electron'
 import { optionMenuModel, type OptionMenuAction, type OptionMenuContext } from '@shared/optionMenu'
 
 /** Confirm copy per destructive action. */
-const CONFIRM: Record<'option:remove' | 'option:clear', { button: string; message: (n: string) => string; detail: string }> = {
+const CONFIRM: Record<
+  'option:remove' | 'option:clear',
+  { button: string; message: (n: string) => string; detail: string }
+> = {
   'option:remove': {
     button: 'Remove',
     message: (n) => `Remove “${n}”?`,
-    detail: 'The option is deleted from the property and its value stripped from every page that had it.'
+    detail:
+      'The option is deleted from the property and its value stripped from every page that had it.',
   },
   'option:clear': {
     button: 'Clear',
     message: (n) => `Clear “${n}” from every page?`,
-    detail: 'The option stays; only its assigned values are removed.'
-  }
+    detail: 'The option stays; only its assigned values are removed.',
+  },
 }
 
 /** Pop the option menu natively. Remove/Clear run their confirm HERE and resolve only on confirm —
  *  the renderer never sees an unconfirmed strip. resolve(null) covers a dismissed menu or a cancel. */
-export function popOptionMenu(win: BrowserWindow, ctx: OptionMenuContext): Promise<OptionMenuAction | null> {
+export function popOptionMenu(
+  win: BrowserWindow,
+  ctx: OptionMenuContext,
+): Promise<OptionMenuAction | null> {
   return new Promise<OptionMenuAction | null>((resolve) => {
     let acted = false
     let separated = false
@@ -43,10 +50,10 @@ export function popOptionMenu(win: BrowserWindow, ctx: OptionMenuContext): Promi
             defaultId: 0,
             cancelId: 1,
             message: copy.message(ctx.name),
-            detail: copy.detail
+            detail: copy.detail,
           })
           resolve(response === 0 ? it.action : null)
-        }
+        },
       })
     }
     const menu = Menu.buildFromTemplate(items)
@@ -54,7 +61,7 @@ export function popOptionMenu(win: BrowserWindow, ctx: OptionMenuContext): Promi
       window: win,
       callback: () => {
         if (!acted) resolve(null)
-      }
+      },
     })
   })
 }

@@ -8,7 +8,7 @@ import {
   chipLabelMelt,
   chipLabelText,
   chipRemovable,
-  chipRemove
+  chipRemove,
 } from '@renderer/design-system/tokens'
 import type { ChipColorName } from '@renderer/design-system/tokens/chip.css'
 import { Icon } from '@renderer/design-system/symbols'
@@ -35,7 +35,7 @@ export function Chip({
   label,
   shape = 'pill',
   icon,
-  onRemove
+  onRemove,
 }: {
   color: ChipColorName
   label: string
@@ -55,7 +55,13 @@ export function Chip({
 /** The chip label, shared by every chip surface. A removable chip renders the text THREE times —
  *  the crisp copy plus its pre-masked melt and blur twins — so hovering the × zone smears the tail
  *  beneath it through opacity swaps alone (see the reveal note in chip.css.ts). */
-export function ChipLabel({ label, removable }: { label: string; removable: boolean }): React.JSX.Element {
+export function ChipLabel({
+  label,
+  removable,
+}: {
+  label: string
+  removable: boolean
+}): React.JSX.Element {
   return (
     <span className={chipLabelWrap}>
       <span className={chipLabelText}>{label}</span>

@@ -23,7 +23,16 @@ interface Props {
   iconHidden?: boolean
 }
 
-export function DetailTitleHeader({ title, icon, iconRef, onRename, requestMenu, onEditIcon, onToggleIcon, iconHidden }: Props): React.JSX.Element {
+export function DetailTitleHeader({
+  title,
+  icon,
+  iconRef,
+  onRename,
+  requestMenu,
+  onEditIcon,
+  onToggleIcon,
+  iconHidden,
+}: Props): React.JSX.Element {
   const [editing, setEditing] = useState(false)
   const [value, setValue] = useState(title)
   const reverting = useRef(false) // Escape sets this so the blur it triggers doesn't commit

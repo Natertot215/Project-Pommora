@@ -5,9 +5,19 @@ import type { CSSProperties } from 'react'
 // engines model genuinely different interactions (in-place transform vs portal overlay), so their
 // drag-state and commit machinery stay separate; only these shared primitives are hoisted here.
 
-export type Box = { left: number; top: number; width: number; height: number; cx: number; cy: number }
+export type Box = {
+  left: number
+  top: number
+  width: number
+  height: number
+  cx: number
+  cy: number
+}
 export type DropState = 'idle' | 'dragging' | 'dropping' | 'pending'
-export type Modifier = (t: { x: number; y: number }, ctx: { activeRect: Box; bounds: Box | null }) => { x: number; y: number }
+export type Modifier = (
+  t: { x: number; y: number },
+  ctx: { activeRect: Box; bounds: Box | null },
+) => { x: number; y: number }
 
 export type DragNotify = {
   onDragStart?: (e: { activeId: string }) => void
@@ -42,7 +52,14 @@ export const SETTLE_FALLBACK = 80 // ms slack past the transition for the commit
 /** Measure an element into a Box (with centre), in viewport coordinates. */
 export function toBox(el: HTMLElement): Box {
   const r = el.getBoundingClientRect()
-  return { left: r.left, top: r.top, width: r.width, height: r.height, cx: r.left + r.width / 2, cy: r.top + r.height / 2 }
+  return {
+    left: r.left,
+    top: r.top,
+    width: r.width,
+    height: r.height,
+    cx: r.left + r.width / 2,
+    cy: r.top + r.height / 2,
+  }
 }
 
 /** Integer-ish px for transforms — `.toFixed(1)` keeps sub-pixel sharpness on Retina without blur. */

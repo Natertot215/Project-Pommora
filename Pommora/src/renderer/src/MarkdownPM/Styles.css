@@ -3,7 +3,7 @@
    the .cm-content font, --glyph-scale — follows in lockstep, giving one smooth zoom in/out. inherits so
    it cascades from the tile into the editor shell. */
 @property --block-zoom {
-  syntax: '<number>';
+  syntax: "<number>";
   inherits: true;
   initial-value: 1;
 }
@@ -138,11 +138,13 @@
 
 /* Banner state: full-width cover band at the container-banner height, title overlaid bottom-left,
    its bottom edge the full-width divider. */
-   
+
 .mdpm-banner {
   position: relative;
   height: 230px;
-  border-bottom: var(--border-heading); /* the shared heading↔body seam (same token as the table heading + collection banner) */
+  border-bottom: var(
+    --border-heading
+  ); /* the shared heading↔body seam (same token as the table heading + collection banner) */
 }
 .mdpm-banner-img {
   display: block;
@@ -176,7 +178,7 @@
   position: relative;
 }
 .mdpm-editor .cm-line.md-foldable::before {
-  content: '';
+  content: "";
   position: absolute;
   /* Centered in the gutter strip — the anchor self-adjusts to glyph + gutter size. */
   left: calc(-1 * var(--fold-gutter) + (var(--fold-gutter) - var(--fold-chevron-size)) / 2);
@@ -225,7 +227,7 @@
   position: relative;
 }
 .mdpm-editor .cm-line.md-block-handle::before {
-  content: '';
+  content: "";
   position: absolute;
   left: calc(-1 * var(--fold-gutter) + (var(--fold-gutter) - 14px * var(--glyph-scale)) / 2);
   /* Centre on the FIRST visual row's text (half the 1.6 line-height − half the 14px grip), so it lines up
@@ -271,10 +273,10 @@
   padding-top: 0.6em;
 }
 .mdpm-editor .cm-line:has(.md-h3) {
-  padding-top: 0.50em;
+  padding-top: 0.5em;
 }
 .mdpm-editor .cm-line:has(.md-h4) {
-  padding-top: 0.30em;
+  padding-top: 0.3em;
 }
 .mdpm-editor .cm-line:has(.md-h5) {
   padding-top: 0.25em;
@@ -285,7 +287,8 @@
 /* A heading on the very first body line has no preceding content, so its top padding only inflates the
    gap below the divider/banner that the header's 16px already provides. Strip it on the first line, all
    levels (H1 included — the 16px does the spacing). */
-.mdpm-editor .cm-content > .cm-line:first-child:has(:is(.md-h1, .md-h2, .md-h3, .md-h4, .md-h5, .md-h6)) {
+.mdpm-editor .cm-content
+  > .cm-line:first-child:has(:is(.md-h1, .md-h2, .md-h3, .md-h4, .md-h5, .md-h6)) {
   padding-top: 0;
 }
 
@@ -412,8 +415,12 @@
      x anti-aliases it to a different apparent shade per type — round() keeps every rail one colour. */
   left: round(
     calc(
-      var(--li-origin, 0px) + (var(--rail-level, 0) + 1) * var(--list-indent) + var(--rail-x, 0px) -
-        var(--outliner-width) / 2
+      var(--li-origin, 0px) +
+      (var(--rail-level, 0) + 1) *
+      var(--list-indent) +
+      var(--rail-x, 0px) -
+      var(--outliner-width) /
+      2
     ),
     1px
   );
@@ -570,7 +577,7 @@
   color: var(--label-control);
 }
 .mdpm-editor .cm-line.md-bq::after {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   background: var(--bg-color);
@@ -583,7 +590,7 @@
   padding-left: 16px;
 }
 .mdpm-editor .cm-line.md-bq::before {
-  content: '';
+  content: "";
   position: absolute;
   left: 0;
   top: 0;
@@ -642,7 +649,7 @@
   padding-right: var(--callout-pad);
 }
 .mdpm-editor .cm-line.md-callout::before {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   border-left: var(--callout-bw) solid var(--callout-border);
@@ -695,7 +702,7 @@
 }
 .mdpm-editor .cm-line.md-callout.md-cb::after,
 .mdpm-editor .cm-line.md-bq.md-cb::after {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0 var(--li-origin);
   background: var(--cb-bg);
@@ -726,7 +733,7 @@
   padding-left: calc(var(--callout-pad) + var(--nq-bar) + var(--nq-gap));
 }
 .mdpm-editor .cm-line.md-callout.md-bq-in::after {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0 var(--callout-pad);
   background: var(--fill-tertiary);
@@ -777,7 +784,7 @@
 .mdpm-editor .cm-line.md-callout-first::after {
   --grip-x: -18px;
   --grip-y: 4px;
-  content: '';
+  content: "";
   position: absolute;
   left: var(--grip-x);
   top: calc(var(--callout-gap) + var(--grip-y));
@@ -808,7 +815,7 @@
   padding-right: 12px;
 }
 .mdpm-editor .cm-line.md-cb::after {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   background: var(--cb-bg);

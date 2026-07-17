@@ -7,7 +7,12 @@ describe('blockZoom', () => {
   })
 
   it('derives cls (padded, 1.0 has none), and both spellings', () => {
-    expect(zoomStep(1)).toMatchObject({ factor: DEFAULT_ZOOM, cls: '', inline: '1x', label: '1.00x' })
+    expect(zoomStep(1)).toMatchObject({
+      factor: DEFAULT_ZOOM,
+      cls: '',
+      inline: '1x',
+      label: '1.00x',
+    })
     expect(zoomStep(0.85)).toMatchObject({ cls: 'blk-zoom-085', inline: '0.85x', label: '0.85x' })
     expect(zoomStep(0.5)).toMatchObject({ cls: 'blk-zoom-050', inline: '0.5x', label: '0.50x' })
     expect(zoomStep(1.25).cls).toBe('blk-zoom-125')

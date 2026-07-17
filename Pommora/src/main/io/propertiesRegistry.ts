@@ -42,7 +42,7 @@ export function orderedDefs(reg: RegistryFile): PropertyDefinition[] {
     ...reg.order.map((id) => reg.defs[id]),
     ...Object.entries(reg.defs)
       .filter(([key]) => !listed.has(key))
-      .map(([, d]) => d)
+      .map(([, d]) => d),
   ].filter((d): d is PropertyDefinition => d !== undefined)
 }
 
@@ -63,7 +63,7 @@ let chain: Promise<unknown> = Promise.resolve()
  *  leave disk untouched, e.g. a validation failure) plus the caller's result. */
 export function mutateRegistry<T>(
   root: string,
-  fn: (registry: RegistryFile) => { next?: RegistryFile; result: T }
+  fn: (registry: RegistryFile) => { next?: RegistryFile; result: T },
 ): Promise<T> {
   const run = chain.then(async () => {
     const { next, result } = fn(await readRegistry(root))

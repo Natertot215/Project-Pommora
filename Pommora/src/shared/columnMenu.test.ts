@@ -10,23 +10,29 @@ describe('styleMenuItems', () => {
     expect(rows.map((r) => [r.label, r.value])).toEqual([
       ['Pill', 'pill'],
       ['Capsule', 'capsule'],
-      ['Checkbox', 'checkbox']
+      ['Checkbox', 'checkbox'],
     ])
     expect(rows.find((r) => r.value === 'capsule')?.checked).toBe(true)
     expect(rows.every((r) => r.key === 'look')).toBe(true)
   })
 
   it('checkbox offers Checkbox/Switch; url Title/Full Link; file Filename/Full Path', () => {
-    expect(items('checkbox', { look: 'checkbox' }).map((r) => r.label)).toEqual(['Checkbox', 'Switch'])
+    expect(items('checkbox', { look: 'checkbox' }).map((r) => r.label)).toEqual([
+      'Checkbox',
+      'Switch',
+    ])
     expect(items('url', { look: 'full' }).map((r) => r.label)).toEqual(['Title', 'Full Link'])
-    expect(items('file', { look: 'filename' }).map((r) => r.label)).toEqual(['Filename', 'Full Path'])
+    expect(items('file', { look: 'filename' }).map((r) => r.label)).toEqual([
+      'Filename',
+      'Full Path',
+    ])
   })
 
   it('number offers the Number/Bar look radios', () => {
     const rows = items('number', { look: 'bar' })
     expect(rows.map((r) => [r.label, r.key, r.value, r.checked])).toEqual([
       ['Number', 'look', 'number', false],
-      ['Bar', 'look', 'bar', true]
+      ['Bar', 'look', 'bar', true],
     ])
   })
 
@@ -43,24 +49,28 @@ describe('styleMenuItems', () => {
       ['weekday', 'Hidden', 'none'],
       ['time_format', '12 Hours', 'twelveHour'],
       ['time_format', '24 Hours', 'twentyFourHour'],
-      ['time_format', 'Hidden', 'none']
+      ['time_format', 'Hidden', 'none'],
     ])
     expect(rows.find((r) => r.key === 'weekday' && r.value === 'long')?.separatorBefore).toBe(true)
-    expect(rows.find((r) => r.key === 'time_format' && r.value === 'twelveHour')?.separatorBefore).toBe(true)
+    expect(
+      rows.find((r) => r.key === 'time_format' && r.value === 'twelveHour')?.separatorBefore,
+    ).toBe(true)
     expect(rows.filter((r) => r.checked).map((r) => [r.key, r.value])).toEqual([
       ['date_format', 'full'],
       ['weekday', 'none'],
-      ['time_format', 'none']
+      ['time_format', 'none'],
     ])
   })
 
   it('offers the Relative date radio and Full/Short/Hidden weekday radios', () => {
     const rows = items('datetime', { date_format: 'full', time_format: 'none', weekday: 'none' })
-    expect(rows.find((r) => r.key === 'date_format' && r.value === 'relative')?.label).toBe('Relative')
+    expect(rows.find((r) => r.key === 'date_format' && r.value === 'relative')?.label).toBe(
+      'Relative',
+    )
     expect(rows.filter((r) => r.key === 'weekday').map((r) => [r.label, r.value])).toEqual([
       ['Full', 'long'],
       ['Short', 'short'],
-      ['Hidden', 'none']
+      ['Hidden', 'none'],
     ])
   })
 
@@ -78,7 +88,10 @@ describe('styleMenuItems', () => {
 describe('parseStyleAction', () => {
   it('round-trips a style action string', () => {
     expect(parseStyleAction('style:look:capsule')).toEqual({ key: 'look', value: 'capsule' })
-    expect(parseStyleAction('style:date_format:monthDayYear')).toEqual({ key: 'date_format', value: 'monthDayYear' })
+    expect(parseStyleAction('style:date_format:monthDayYear')).toEqual({
+      key: 'date_format',
+      value: 'monthDayYear',
+    })
   })
 
   it('accepts a weekday action', () => {

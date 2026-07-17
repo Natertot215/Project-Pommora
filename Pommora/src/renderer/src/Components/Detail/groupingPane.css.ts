@@ -34,15 +34,15 @@ export const railRow = style({
     left: `calc(${RAIL_X} - var(--list-outline-width) / 2)`,
     width: 'var(--list-outline-width)',
     borderRadius: 'var(--list-outline-radius)',
-    background: 'var(--list-outline-color)'
-  }
+    background: 'var(--list-outline-color)',
+  },
 })
 
 /** The Group By row's trailing value — Control-size (the PickerControl trigger's weight class), a
  *  step LARGER than the menus' Footnote detail so the pane's lead value reads at full strength. */
 export const groupByValue = style([
   text.control.standard,
-  { color: c.label.control, display: 'inline-flex', alignItems: 'center', gap: '4px' }
+  { color: c.label.control, display: 'inline-flex', alignItems: 'center', gap: '4px' },
 ])
 
 /** Scope class for the pane's rows: every grouping picker's value reads label-control, a step
@@ -55,7 +55,11 @@ const MIDDLE_MAX_HEIGHT = '280px'
 
 /** The scrollable order region between the dividers — wears the shared vertical eclipse fade
  *  (the bare `overflow-eclipse-y` class rides in the component, the Icon Picker precedent). */
-export const middle = style({ position: 'relative', maxHeight: MIDDLE_MAX_HEIGHT, overflowY: 'auto' })
+export const middle = style({
+  position: 'relative',
+  maxHeight: MIDDLE_MAX_HEIGHT,
+  overflowY: 'auto',
+})
 
 /** The list insertion line — the global drag primitives (--drag-line / --drop-line-thickness). */
 export const dropLine = style({
@@ -65,9 +69,12 @@ export const dropLine = style({
   height: 'var(--drop-line-thickness, 2px)',
   borderRadius: 'var(--drop-line-thickness, 2px)',
   background: 'var(--drag-line)',
-  pointerEvents: 'none'
+  pointerEvents: 'none',
 })
 
 /** A preview group heading (the muted footing tone) with its chips beneath. */
-export const previewHeading = style([text.footnote.emphasized, { color: c.label.secondary, padding: '6px 8px 2px' }])
+export const previewHeading = style([
+  text.footnote.emphasized,
+  { color: c.label.secondary, padding: '6px 8px 2px' },
+])
 export const chipRow = style({ display: 'flex', alignItems: 'center', padding: '3px 8px' })

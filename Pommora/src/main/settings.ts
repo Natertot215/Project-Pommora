@@ -5,7 +5,12 @@
 // app with no conflict (the identity half is ensureIdentity).
 
 import { mkdir } from 'node:fs/promises'
-import { coerceViewScale, DEFAULT_LABELS, type NexusLabels, type SubfieldConfig } from '@shared/types'
+import {
+  coerceViewScale,
+  DEFAULT_LABELS,
+  type NexusLabels,
+  type SubfieldConfig,
+} from '@shared/types'
 import { readJsonObject, writeJson } from './io/atomicWrite'
 import { serializeOnFile } from './io/fileLock'
 import { swiftISODate } from './identity'
@@ -25,7 +30,7 @@ function labelsToDisk(l: NexusLabels): Record<string, unknown> {
     page_collection: { singular: l.pageCollection.singular, plural: l.pageCollection.plural },
     page_set: { singular: l.pageSet.singular, plural: l.pageSet.plural },
     agenda_task: { singular: l.agendaTask.singular, plural: l.agendaTask.plural },
-    agenda_event: { singular: l.agendaEvent.singular, plural: l.agendaEvent.plural }
+    agenda_event: { singular: l.agendaEvent.singular, plural: l.agendaEvent.plural },
   }
 }
 
@@ -39,7 +44,7 @@ export function defaultSettingsSeed(): Record<string, unknown> {
     show_page_icon: false,
     excluded_folders: [],
     profile_subtitle: '',
-    modified_at: swiftISODate()
+    modified_at: swiftISODate(),
   }
 }
 
@@ -58,8 +63,10 @@ export function ensureSettings(root: string): Promise<void> {
     }
     const patch: Record<string, unknown> = {}
     if (typeof existing.version !== 'number') patch.version = 1
-    if (typeof existing.defaults_version !== 'number') patch.defaults_version = SWIFT_DEFAULTS_VERSION
-    if (!existing.labels || typeof existing.labels !== 'object') patch.labels = labelsToDisk(DEFAULT_LABELS)
+    if (typeof existing.defaults_version !== 'number')
+      patch.defaults_version = SWIFT_DEFAULTS_VERSION
+    if (!existing.labels || typeof existing.labels !== 'object')
+      patch.labels = labelsToDisk(DEFAULT_LABELS)
     if (typeof existing.modified_at !== 'string') patch.modified_at = swiftISODate()
     if (Object.keys(patch).length > 0) await writeJson(path, { ...existing, ...patch })
   })
@@ -70,7 +77,7 @@ export function ensureSettings(root: string): Promise<void> {
  *  starts from the full seed (parity with the prior mutateJson fallback). */
 export function updateSettings(
   root: string,
-  mutate: (current: Record<string, unknown>) => Record<string, unknown>
+  mutate: (current: Record<string, unknown>) => Record<string, unknown>,
 ): Promise<void> {
   const path = nexusConfig(root, NEXUS_CONFIG_FILES.settings)
   return serializeOnFile(path, async () => {
@@ -85,7 +92,10 @@ export function updateSettings(
 export async function readDefaultViewScale(root: string): Promise<number> {
   const existing = await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.settings))
   const p = existing?.personalization
-  const raw = p && typeof p === 'object' && !Array.isArray(p) ? (p as Record<string, unknown>).defaultViewScale : undefined
+  const raw =
+    p && typeof p === 'object' && !Array.isArray(p)
+      ? (p as Record<string, unknown>).defaultViewScale
+      : undefined
   return coerceViewScale(raw)
 }
 
@@ -97,7 +107,7 @@ export async function readSubfield(root: string): Promise<SubfieldConfig | null>
   const s = sub as Record<string, unknown>
   return {
     order: s.order && typeof s.order === 'object' ? (s.order as SubfieldConfig['order']) : {},
-    expanded: typeof s.expanded === 'boolean' ? s.expanded : true
+    expanded: typeof s.expanded === 'boolean' ? s.expanded : true,
   }
 }
 
@@ -110,11 +120,17 @@ export async function writeSubfield(root: string, config: SubfieldConfig): Promi
 /** Merge one personalization key into `settings.json` `personalization` (serialized; foreign +
  *  sibling keys preserved). An `undefined` value resets the key to its built-in default — JSON
  *  omits it on write. The read-side coercion + renderer apply-map own validation. */
-export async function writePersonalization(root: string, key: string, value: unknown): Promise<void> {
+export async function writePersonalization(
+  root: string,
+  key: string,
+  value: unknown,
+): Promise<void> {
   await ensureSettings(root)
   await updateSettings(root, (cur) => {
     const p =
-      cur.personalization != null && typeof cur.personalization === 'object' && !Array.isArray(cur.personalization)
+      cur.personalization != null &&
+      typeof cur.personalization === 'object' &&
+      !Array.isArray(cur.personalization)
         ? (cur.personalization as Record<string, unknown>)
         : {}
     return { ...cur, personalization: { ...p, [key]: value } }

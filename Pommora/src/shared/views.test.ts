@@ -1,6 +1,14 @@
 import { describe, it, expect } from 'vitest'
 import fixture from './__fixtures__/collection-with-status.json'
-import { savedView, decodeGroupConfig, decodeSubGroup, mintDefaultView, mintNewView, type FilterGroup, type FilterRule } from './views'
+import {
+  savedView,
+  decodeGroupConfig,
+  decodeSubGroup,
+  mintDefaultView,
+  mintNewView,
+  type FilterGroup,
+  type FilterRule,
+} from './views'
 import { pageCollectionSidecar } from './schemas'
 import { RESERVED_PROPERTY_ID } from './properties'
 
@@ -15,7 +23,7 @@ describe('SavedView decode', () => {
       order_mode: 'manual',
       order: ['in_progress', 'opt_open', 'not_started', 'done'],
       empty_placement: 'bottom',
-      hide_empty_groups: false
+      hide_empty_groups: false,
     })
     expect(v.sort).toEqual([{ property_id: 'prop_status', direction: 'descending' }])
   })
@@ -33,7 +41,7 @@ describe('SavedView decode', () => {
       property_order: [],
       hidden_properties: [],
       hide_page_icons: true,
-      hide_borders: true
+      hide_borders: true,
     })
     expect(v.hide_page_icons).toBe(true)
     expect(v.hide_borders).toBe(true)
@@ -46,7 +54,7 @@ describe('SavedView decode', () => {
       type: 'table',
       property_order: [],
       hidden_properties: [],
-      group: { kind: 'galaxy', property_id: 'p' }
+      group: { kind: 'galaxy', property_id: 'p' },
     })
     expect(v.group).toEqual({ kind: 'structural' })
   })
@@ -58,21 +66,33 @@ describe('SavedView decode', () => {
       type: 'table',
       property_order: [],
       hidden_properties: [],
-      group: { property_id: 'p' }
+      group: { property_id: 'p' },
     })
     expect(v.group).toEqual({
       kind: 'property',
       property_id: 'p',
       order_mode: 'configured',
       empty_placement: 'bottom',
-      hide_empty_groups: false
+      hide_empty_groups: false,
     })
   })
 
   it('round-trips group_order and drops non-string entries alone (element-filtering, not whole-array catch)', () => {
-    const base = { id: 'view_g', name: 'G', type: 'table', property_order: [], hidden_properties: [] }
-    expect(savedView.parse({ ...base, group_order: ['s1', 's2'] }).group_order).toEqual(['s1', 's2'])
-    expect(savedView.parse({ ...base, group_order: ['s1', 42, 's2'] }).group_order).toEqual(['s1', 's2'])
+    const base = {
+      id: 'view_g',
+      name: 'G',
+      type: 'table',
+      property_order: [],
+      hidden_properties: [],
+    }
+    expect(savedView.parse({ ...base, group_order: ['s1', 's2'] }).group_order).toEqual([
+      's1',
+      's2',
+    ])
+    expect(savedView.parse({ ...base, group_order: ['s1', 42, 's2'] }).group_order).toEqual([
+      's1',
+      's2',
+    ])
     expect(savedView.parse(base).group_order).toBeUndefined()
   })
 
@@ -83,7 +103,7 @@ describe('SavedView decode', () => {
       type: 'table',
       property_order: [],
       hidden_properties: [],
-      group_order: 'nonsense'
+      group_order: 'nonsense',
     })
     expect(v.group_order).toEqual([])
   })
@@ -102,8 +122,8 @@ describe('sort criterion custom order', () => {
       ...base,
       sort: [
         { property_id: 'p1', direction: 'ascending', order: ['a', 'b'] },
-        { property_id: 'p2', direction: 'descending' }
-      ]
+        { property_id: 'p2', direction: 'descending' },
+      ],
     })
     expect(v.sort?.[0].order).toEqual(['a', 'b'])
     expect(v.sort?.[1].order).toBeUndefined()
@@ -118,12 +138,22 @@ describe('view-level grouping fields', () => {
       structural_order_mode: 'location',
       ungrouped_placement: 'top',
       date_separator: 'slash',
-      sub_group: { property_id: 'p1', order_mode: 'manual', order: ['a', 'b'], date_granularity: 'week' }
+      sub_group: {
+        property_id: 'p1',
+        order_mode: 'manual',
+        order: ['a', 'b'],
+        date_granularity: 'week',
+      },
     })
     expect(v.structural_order_mode).toBe('location')
     expect(v.ungrouped_placement).toBe('top')
     expect(v.date_separator).toBe('slash')
-    expect(v.sub_group).toEqual({ property_id: 'p1', order_mode: 'manual', order: ['a', 'b'], date_granularity: 'week' })
+    expect(v.sub_group).toEqual({
+      property_id: 'p1',
+      order_mode: 'manual',
+      order: ['a', 'b'],
+      date_granularity: 'week',
+    })
   })
   it('a legacy view decodes with all four absent', () => {
     const v = savedView.parse(base)
@@ -133,7 +163,11 @@ describe('view-level grouping fields', () => {
     expect(v.date_separator).toBeUndefined()
   })
   it('malformed fields drop without poisoning the view', () => {
-    const v = savedView.parse({ ...base, structural_order_mode: 'nope', sub_group: { order_mode: 'manual' } })
+    const v = savedView.parse({
+      ...base,
+      structural_order_mode: 'nope',
+      sub_group: { order_mode: 'manual' },
+    })
     expect(v.structural_order_mode).toBeUndefined()
     expect(v.sub_group).toBeUndefined()
   })
@@ -141,7 +175,7 @@ describe('view-level grouping fields', () => {
     expect(decodeSubGroup({ property_id: 'p1', order: ['a', 7, 'b'] })).toEqual({
       property_id: 'p1',
       order_mode: 'configured',
-      order: ['a', 'b']
+      order: ['a', 'b'],
     })
   })
 })
@@ -186,7 +220,7 @@ describe('mint seam', () => {
       'prop_b',
       RESERVED_PROPERTY_ID.tier1,
       RESERVED_PROPERTY_ID.tier2,
-      RESERVED_PROPERTY_ID.tier3
+      RESERVED_PROPERTY_ID.tier3,
     ])
   })
   it('mintDefaultView stays all-shown with the table glyph', () => {
@@ -212,11 +246,11 @@ describe('filter codec', () => {
             match: 'any',
             rules: [
               { property_id: 'prop_tags', op: 'contains_any', values: ['a', 'b'] },
-              { match: 'all', rules: [{ property_id: 'prop_sel', op: 'is', value: 'x' }] }
-            ]
-          }
-        ]
-      }
+              { match: 'all', rules: [{ property_id: 'prop_sel', op: 'is', value: 'x' }] },
+            ],
+          },
+        ],
+      },
     })
     const group = view.filter as FilterGroup
     expect(group.match).toBe('none')

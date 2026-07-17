@@ -48,7 +48,10 @@ export function findSet(tree: NexusTree | null, id: string): SetNode | undefined
 
 /** The Collection that owns a Set's inherited schema — the top Collection whose set tree contains
  *  `setId` (a Set has no schema of its own; properties live only on the Collection). */
-export function findCollectionForSet(tree: NexusTree | null, setId: string): CollectionNode | undefined {
+export function findCollectionForSet(
+  tree: NexusTree | null,
+  setId: string,
+): CollectionNode | undefined {
   if (!tree) return undefined
   const has = (sets: SetNode[] | undefined): boolean => {
     for (const set of sets ?? []) {
@@ -79,16 +82,46 @@ export function isDepth1Set(tree: NexusTree | null, setId: string): boolean {
 export function findContext(tree: NexusTree | null, id: string): BannerOwner | null {
   if (!tree) return null
   const area = tree.contexts.areas.find((n) => n.id === id)
-  if (area) return { path: area.path, kind: 'area', name: area.title, banner: area.banner, icon: area.icon, headingIconHidden: area.headingIconHidden }
+  if (area)
+    return {
+      path: area.path,
+      kind: 'area',
+      name: area.title,
+      banner: area.banner,
+      icon: area.icon,
+      headingIconHidden: area.headingIconHidden,
+    }
   const topic = tree.contexts.topics.find((n) => n.id === id)
-  if (topic) return { path: topic.path, kind: 'topic', name: topic.title, banner: topic.banner, icon: topic.icon, headingIconHidden: topic.headingIconHidden }
+  if (topic)
+    return {
+      path: topic.path,
+      kind: 'topic',
+      name: topic.title,
+      banner: topic.banner,
+      icon: topic.icon,
+      headingIconHidden: topic.headingIconHidden,
+    }
   const project = tree.contexts.projects.find((n) => n.id === id)
   if (project)
-    return { path: project.path, kind: 'project', name: project.title, banner: project.banner, icon: project.icon, headingIconHidden: project.headingIconHidden }
+    return {
+      path: project.path,
+      kind: 'project',
+      name: project.title,
+      banner: project.banner,
+      icon: project.icon,
+      headingIconHidden: project.headingIconHidden,
+    }
   return null
 }
 
 /** The banner owner for a page container (Collection or Set) — same shape; kind from the node. */
 export function containerOwner(node: CollectionNode | SetNode): BannerOwner {
-  return { path: node.path, kind: node.kind, name: node.title, banner: node.banner, icon: node.icon, headingIconHidden: node.headingIconHidden }
+  return {
+    path: node.path,
+    kind: node.kind,
+    name: node.title,
+    banner: node.banner,
+    icon: node.icon,
+    headingIconHidden: node.headingIconHidden,
+  }
 }

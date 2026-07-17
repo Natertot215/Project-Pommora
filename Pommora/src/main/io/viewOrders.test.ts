@@ -45,12 +45,17 @@ describe('per-machine view-order cache (.nexus/viewOrders.json)', () => {
 
   it('drops non-string members on read (lenient)', async () => {
     await mkdir(join(root, '.nexus'), { recursive: true })
-    await writeFile(join(root, '.nexus', 'viewOrders.json'), JSON.stringify({ view_a: ['p1', 2, null, 'p2'] }))
+    await writeFile(
+      join(root, '.nexus', 'viewOrders.json'),
+      JSON.stringify({ view_a: ['p1', 2, null, 'p2'] }),
+    )
     expect((await readViewOrders(root))['view_a']).toEqual(['p1', 'p2'])
   })
 
   it('serializes overlapping writes so none is lost (no read-merge-write race)', async () => {
-    await Promise.all(Array.from({ length: 20 }, (_, i) => writeViewOrders(root, `view_${i}`, [`p${i}`])))
+    await Promise.all(
+      Array.from({ length: 20 }, (_, i) => writeViewOrders(root, `view_${i}`, [`p${i}`])),
+    )
     const all = await readViewOrders(root)
     for (let i = 0; i < 20; i++) expect(all[`view_${i}`]).toEqual([`p${i}`])
   })

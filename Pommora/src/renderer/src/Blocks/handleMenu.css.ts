@@ -21,18 +21,17 @@ export const row = style({
     '&&': {
       fontSize: font.scale.control.size,
       lineHeight: font.scale.control.line,
-      color: c.label.control
-    }
-  }
+      color: c.label.control,
+    },
+  },
 })
 
 /** A structurally-present but inert row (a view embed's Source — sources are per-view, G-14). */
 export const rowDisabled = style({
   selectors: {
-    '&&': { opacity: 0.4, pointerEvents: 'none' }
-  }
+    '&&': { opacity: 0.4, pointerEvents: 'none' },
+  },
 })
-
 
 // ── KNOB — the picker's height ceiling: a drill list grows to this, then its body
 // scrolls (MenuScrollFrame owns the cap; header + footer stay pinned).
@@ -51,14 +50,17 @@ export const footerAction = style([
     padding: '2px 4px',
     borderRadius: '5px',
     cursor: 'default',
-    selectors: { '&:hover': { background: colorVars.color.state.hover } }
-  }
+    selectors: { '&:hover': { background: colorVars.color.state.hover } },
+  },
 ])
 
 /** The footing lock action — a left-pinned labeled toggle (lock icon + "Lock"/"Unlock"): label-secondary
  *  text (footerAction), a step-quieter label-tertiary icon, and the footerAction hover. No pressed/
  *  selected state — it never mutes on lock (only the actions above do). */
-export const footerLockAction = style([footerAction, { display: 'inline-flex', alignItems: 'center', gap: '5px' }])
+export const footerLockAction = style([
+  footerAction,
+  { display: 'inline-flex', alignItems: 'center', gap: '5px' },
+])
 export const lockIcon = style({ selectors: { '&&': { color: c.label.tertiary } } })
 
 /** The page-embed title field (G-16) — the source page's identity as a bordered "field" reading like an
@@ -81,18 +83,35 @@ export const titleField = style({
   textAlign: 'left',
   cursor: 'pointer',
   overflow: 'hidden',
-  selectors: { '&:hover': { background: c.state.hover } }
+  selectors: { '&:hover': { background: c.state.hover } },
 })
-export const titleFieldRow = style({ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' })
+export const titleFieldRow = style({
+  display: 'flex',
+  alignItems: 'center',
+  gap: '6px',
+  overflow: 'hidden',
+})
 /** Page title — control type + tone, matching the menu's rows (truncateHoverScroll caps long titles). */
 export const titleFieldText = style([
   truncateHoverScroll,
-  { flex: 1, minWidth: 0, fontSize: font.scale.control.size, lineHeight: font.scale.control.line, color: c.label.control }
+  {
+    flex: 1,
+    minWidth: 0,
+    fontSize: font.scale.control.size,
+    lineHeight: font.scale.control.line,
+    color: c.label.control,
+  },
 ])
 /** Location sub-line — footnote (a step under the title), label-secondary. */
 export const titleFieldLoc = style([
   truncateHoverScroll,
-  { flex: 1, minWidth: 0, fontSize: font.scale.footnote.size, lineHeight: font.scale.footnote.line, color: c.label.secondary }
+  {
+    flex: 1,
+    minWidth: 0,
+    fontSize: font.scale.footnote.size,
+    lineHeight: font.scale.footnote.line,
+    color: c.label.secondary,
+  },
 ])
 export const titleFieldIcon = style({ selectors: { '&&': { color: c.label.secondary } } })
 export const titleFieldLocIcon = style({ selectors: { '&&': { color: c.label.tertiary } } })
@@ -113,10 +132,10 @@ export const scaleTrailing = style({
   border: 'none',
   background: 'none',
   cursor: 'default',
-  color: c.label.tertiary
+  color: c.label.tertiary,
 })
 export const scaleValue = style({
   fontSize: font.scale.footnote.size,
   lineHeight: font.scale.footnote.line,
-  color: c.label.secondary
+  color: c.label.secondary,
 })

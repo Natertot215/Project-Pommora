@@ -20,7 +20,7 @@ export const valueControl = style({
   border: 'none',
   background: 'none',
   cursor: 'default',
-  selectors: { '&&': { color: colorVars.color.label.secondary } }
+  selectors: { '&&': { color: colorVars.color.label.secondary } },
 })
 
 /** The in-place caret — bare, at the value's own control metrics so the caret is sized to the text (not
@@ -35,6 +35,6 @@ export const valueCaret = style([
     outline: 'none',
     padding: 0,
     background: 'transparent',
-    color: colorVars.color.label.secondary
-  }
+    color: colorVars.color.label.secondary,
+  },
 ])

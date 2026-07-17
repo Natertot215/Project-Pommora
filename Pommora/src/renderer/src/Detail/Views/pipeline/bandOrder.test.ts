@@ -7,10 +7,20 @@ const sg = (key: string, children?: ResolvedGroup[]): ResolvedGroup => ({
   kind: 'structural-set',
   items: [],
   ...(children ? { children } : {}),
-  isCollapsed: false
+  isCollapsed: false,
 })
-const ungrouped: ResolvedGroup = { key: '_ungrouped', kind: 'ungrouped', items: [], isCollapsed: false }
-const prop = (key: string): ResolvedGroup => ({ key, kind: 'property', items: [], isCollapsed: false })
+const ungrouped: ResolvedGroup = {
+  key: '_ungrouped',
+  kind: 'ungrouped',
+  items: [],
+  isCollapsed: false,
+}
+const prop = (key: string): ResolvedGroup => ({
+  key,
+  kind: 'property',
+  items: [],
+  isCollapsed: false,
+})
 const keys = (gs: ResolvedGroup[]): string[] => gs.map((g) => g.key)
 
 describe('orderGroups', () => {

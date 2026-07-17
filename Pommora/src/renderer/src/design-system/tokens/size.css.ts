@@ -19,8 +19,8 @@ const iconScale = createGlobalTheme(':root', {
     sm: '14px',
     md: '16px',
     lg: '18px',
-    xl: '20px'
-  }
+    xl: '20px',
+  },
 })
 
 // Per-component size aliases. Keyed `button-*` so a call site reads `size="button-large"`;
@@ -34,7 +34,7 @@ const controlScale = createGlobalTheme(':root', {
       radius: '8px',
       segmentRadius: '4px',
       dividerHeight: '14px',
-      icon: iconScale.icon.sm
+      icon: iconScale.icon.sm,
     },
     'button-medium': {
       height: '28px',
@@ -43,7 +43,7 @@ const controlScale = createGlobalTheme(':root', {
       radius: '10px',
       segmentRadius: '5px',
       dividerHeight: '18px',
-      icon: iconScale.icon.md
+      icon: iconScale.icon.md,
     },
     'button-large': {
       height: '32px',
@@ -52,15 +52,15 @@ const controlScale = createGlobalTheme(':root', {
       radius: '12px',
       segmentRadius: '6px',
       dividerHeight: '14px',
-      icon: iconScale.icon.md
-    }
-  }
+      icon: iconScale.icon.md,
+    },
+  },
 })
 
 /** One token object: `size.icon.md`, `size.control['button-large'].height`, … */
 export const size = {
   icon: iconScale.icon,
-  control: controlScale.control
+  control: controlScale.control,
 }
 
 /** Icon-ladder step names — the values `<Icon size="…" />` accepts. */

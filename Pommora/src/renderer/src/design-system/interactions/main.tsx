@@ -8,5 +8,5 @@ import { Interactions } from './Interactions'
 createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
     <Interactions />
-  </React.StrictMode>
+  </React.StrictMode>,
 )

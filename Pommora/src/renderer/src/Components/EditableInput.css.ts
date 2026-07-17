@@ -10,7 +10,7 @@ export const autoSizeMirror = style({
   gridArea: '1 / 1',
   visibility: 'hidden',
   whiteSpace: 'pre',
-  pointerEvents: 'none'
+  pointerEvents: 'none',
 })
 
 export const autoSizeInput = style({ gridArea: '1 / 1', width: '100%', minWidth: 0 })

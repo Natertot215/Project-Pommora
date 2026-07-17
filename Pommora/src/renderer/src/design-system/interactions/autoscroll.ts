@@ -27,9 +27,10 @@ export function scrollableInAxis(
   overflowX: string,
   overflowY: string,
   dims: { scrollWidth: number; clientWidth: number; scrollHeight: number; clientHeight: number },
-  axis: Axis
+  axis: Axis,
 ): boolean {
-  const y = (overflowY === 'auto' || overflowY === 'scroll') && dims.scrollHeight > dims.clientHeight
+  const y =
+    (overflowY === 'auto' || overflowY === 'scroll') && dims.scrollHeight > dims.clientHeight
   const x = (overflowX === 'auto' || overflowX === 'scroll') && dims.scrollWidth > dims.clientWidth
   if (axis === 'y') return y
   if (axis === 'x') return x
@@ -51,7 +52,12 @@ export function findScroller(el: HTMLElement | null, axis: Axis = 'xy'): HTMLEle
 /** Desired scroll velocity (px/sec, signed) for one axis: negative toward `lo`, positive toward `hi`,
  *  0 outside the edge band. A point past the edge (depth > edge) reads as max ramp — no viewport clamp
  *  needed. Pre-acceleration, pre-limit. */
-export function edgeVelocity(lo: number, hi: number, p: number, { edge, speed, ramp }: Params): number {
+export function edgeVelocity(
+  lo: number,
+  hi: number,
+  p: number,
+  { edge, speed, ramp }: Params,
+): number {
   const ramped = (depth: number): number => speed * Math.min(1, depth / edge) ** ramp
   if (p < lo + edge) return -ramped(lo + edge - p)
   if (p > hi - edge) return ramped(p - (hi - edge))
@@ -92,7 +98,7 @@ export function gateIntent(intent: Intent, vx: number, vy: number): { vx: number
   if (vx <= 0) intent.right = true
   return {
     vx: (vx < 0 && !intent.left) || (vx > 0 && !intent.right) ? 0 : vx,
-    vy: (vy < 0 && !intent.up) || (vy > 0 && !intent.down) ? 0 : vy
+    vy: (vy < 0 && !intent.up) || (vy > 0 && !intent.down) ? 0 : vy,
   }
 }
 
@@ -143,7 +149,7 @@ function readParams(el: HTMLElement): Params {
     ramp: num('--autoscroll-ramp', 2),
     accelStart: num('--autoscroll-accel-start', 0.5),
     accelMax: num('--autoscroll-accel-max', 1.5),
-    accelDist: num('--autoscroll-accel-distance', 600)
+    accelDist: num('--autoscroll-accel-distance', 600),
   }
 }
 
@@ -178,7 +184,7 @@ export function startAutoScroll(cfg: StartCfg): () => void {
       window.removeEventListener('blur', onBackstop)
       document.removeEventListener('visibilitychange', onBackstop)
       window.removeEventListener('pointercancel', onBackstop)
-    }
+    },
   }
   live.raf = requestAnimationFrame(tick)
   const mine = live
@@ -209,8 +215,16 @@ function tick(ts: number): void {
   // the run so the next scroll eases in fresh; a sustained scroll accelerates with the distance covered.
   if (vx === 0 && vy === 0) L.dist = 0
   const accel = accelFactor(L.dist, L.params)
-  vx = clampToLimit(vx * accel, L.scroller.scrollLeft, L.scroller.scrollWidth - L.scroller.clientWidth)
-  vy = clampToLimit(vy * accel, L.scroller.scrollTop, L.scroller.scrollHeight - L.scroller.clientHeight)
+  vx = clampToLimit(
+    vx * accel,
+    L.scroller.scrollLeft,
+    L.scroller.scrollWidth - L.scroller.clientWidth,
+  )
+  vy = clampToLimit(
+    vy * accel,
+    L.scroller.scrollTop,
+    L.scroller.scrollHeight - L.scroller.clientHeight,
+  )
   const sx = stepPixels(vx, dt, L.frac.x)
   const sy = stepPixels(vy, dt, L.frac.y)
   L.frac.x = sx.frac

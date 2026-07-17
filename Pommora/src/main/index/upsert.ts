@@ -18,14 +18,14 @@ const json = (v: unknown): string => JSON.stringify(v ?? {})
 
 export function upsertCollection(
   db: Db,
-  r: { id: string; title: string; icon?: string; modifiedAt: string; schemaVersion?: number }
+  r: { id: string; title: string; icon?: string; modifiedAt: string; schemaVersion?: number },
 ): void {
   upsertRow(db, 'page_collections', {
     id: r.id,
     title: r.title,
     icon: r.icon ?? null,
     modified_at: r.modifiedAt,
-    schema_version: r.schemaVersion ?? 1
+    schema_version: r.schemaVersion ?? 1,
   })
 }
 
@@ -40,7 +40,7 @@ export function upsertSet(
     icon?: string
     modifiedAt: string
     schemaVersion?: number
-  }
+  },
 ): void {
   upsertRow(db, 'page_sets', {
     id: r.id,
@@ -49,7 +49,7 @@ export function upsertSet(
     title: r.title,
     icon: r.icon ?? null,
     modified_at: r.modifiedAt,
-    schema_version: r.schemaVersion ?? 1
+    schema_version: r.schemaVersion ?? 1,
   })
 }
 
@@ -63,7 +63,7 @@ export function upsertPage(
     icon?: string
     properties?: unknown
     modifiedAt: string
-  }
+  },
 ): void {
   upsertRow(db, 'pages', {
     id: r.id,
@@ -72,20 +72,27 @@ export function upsertPage(
     title: r.title,
     icon: r.icon ?? null,
     properties: json(r.properties),
-    modified_at: r.modifiedAt
+    modified_at: r.modifiedAt,
   })
 }
 
 export function upsertContext(
   db: Db,
-  r: { id: string; tier: number; title: string; icon?: string }
+  r: { id: string; tier: number; title: string; icon?: string },
 ): void {
   upsertRow(db, 'contexts', { id: r.id, tier: r.tier, title: r.title, icon: r.icon ?? null })
 }
 
 export function upsertAgendaTask(
   db: Db,
-  r: { id: string; title: string; icon?: string; dueAt?: string; properties?: unknown; modifiedAt: string }
+  r: {
+    id: string
+    title: string
+    icon?: string
+    dueAt?: string
+    properties?: unknown
+    modifiedAt: string
+  },
 ): void {
   upsertRow(db, 'agenda_tasks', {
     id: r.id,
@@ -93,13 +100,21 @@ export function upsertAgendaTask(
     icon: r.icon ?? null,
     due_at: r.dueAt ?? null,
     properties: json(r.properties),
-    modified_at: r.modifiedAt
+    modified_at: r.modifiedAt,
   })
 }
 
 export function upsertAgendaEvent(
   db: Db,
-  r: { id: string; title: string; icon?: string; startAt: string; endAt: string; properties?: unknown; modifiedAt: string }
+  r: {
+    id: string
+    title: string
+    icon?: string
+    startAt: string
+    endAt: string
+    properties?: unknown
+    modifiedAt: string
+  },
 ): void {
   upsertRow(db, 'agenda_events', {
     id: r.id,
@@ -108,7 +123,7 @@ export function upsertAgendaEvent(
     start_at: r.startAt,
     end_at: r.endAt,
     properties: json(r.properties),
-    modified_at: r.modifiedAt
+    modified_at: r.modifiedAt,
   })
 }
 
@@ -121,7 +136,7 @@ export function upsertPropertyDefinition(
     config?: unknown
     position: number
     modifiedAt: string
-  }
+  },
 ): void {
   upsertRow(db, 'property_definitions', {
     id: r.id,
@@ -129,7 +144,7 @@ export function upsertPropertyDefinition(
     type: r.type,
     config: json(r.config),
     position: r.position,
-    modified_at: r.modifiedAt
+    modified_at: r.modifiedAt,
   })
 }
 
@@ -137,7 +152,14 @@ export function upsertPropertyDefinition(
 export function replaceContextLinks(
   db: Db,
   sourceId: string,
-  links: { id: string; sourceKind: string; targetId: string; targetKind: string; propertyId: string; modifiedAt: string }[]
+  links: {
+    id: string
+    sourceKind: string
+    targetId: string
+    targetKind: string
+    propertyId: string
+    modifiedAt: string
+  }[],
 ): void {
   db.prepare('DELETE FROM context_links WHERE source_id = ?').run(sourceId)
   for (const l of links) {
@@ -148,16 +170,29 @@ export function replaceContextLinks(
       target_id: l.targetId,
       target_kind: l.targetKind,
       property_id: l.propertyId,
-      modified_at: l.modifiedAt
+      modified_at: l.modifiedAt,
     })
   }
 }
 
-type ConnInput = { id: string; targetId?: string; targetTitle: string; multiplicity: number; resolved: boolean; modifiedAt: string }
+type ConnInput = {
+  id: string
+  targetId?: string
+  targetTitle: string
+  multiplicity: number
+  resolved: boolean
+  modifiedAt: string
+}
 
 /** Replace one source's body connections (delete-then-insert per source). target is always a page
  *  (target_id null while phantom); source_kind + surface distinguish a page body from a block body. */
-function replaceConnectionsFor(db: Db, sourceId: string, sourceKind: string, surface: string, conns: ConnInput[]): void {
+function replaceConnectionsFor(
+  db: Db,
+  sourceId: string,
+  sourceKind: string,
+  surface: string,
+  conns: ConnInput[],
+): void {
   db.prepare('DELETE FROM connections WHERE source_id = ?').run(sourceId)
   for (const c of conns) {
     upsertRow(db, 'connections', {
@@ -171,7 +206,7 @@ function replaceConnectionsFor(db: Db, sourceId: string, sourceKind: string, sur
       multiplicity: c.multiplicity,
       weight: 1.0,
       resolved: c.resolved ? 1 : 0,
-      modified_at: c.modifiedAt
+      modified_at: c.modifiedAt,
     })
   }
 }

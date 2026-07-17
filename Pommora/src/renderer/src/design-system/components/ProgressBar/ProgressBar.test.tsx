@@ -20,7 +20,8 @@ afterEach(() => {
 const mount = (fill: number): void => {
   act(() => root.render(<ProgressBar fill={fill} />))
 }
-const width = (): string => (host.querySelector('[role="progressbar"] > *') as HTMLElement).style.width
+const width = (): string =>
+  (host.querySelector('[role="progressbar"] > *') as HTMLElement).style.width
 
 describe('ProgressBar', () => {
   it('maps a mid fill to a percent width', () => {

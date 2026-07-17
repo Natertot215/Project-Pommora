@@ -2,7 +2,13 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtemp, rm, readFile, writeFile, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { atomicWriteFile, writeJson, mutateJson, stableStringify, trashWithTimestamp } from './atomicWrite'
+import {
+  atomicWriteFile,
+  writeJson,
+  mutateJson,
+  stableStringify,
+  trashWithTimestamp,
+} from './atomicWrite'
 
 let dir: string
 beforeEach(async () => {
@@ -29,7 +35,7 @@ describe('stableStringify', () => {
 
   it('sorts nested object keys but preserves array order', () => {
     expect(stableStringify({ z: { y: 1, x: 2 }, list: [3, 1, 2] })).toBe(
-      '{\n  "list": [\n    3,\n    1,\n    2\n  ],\n  "z": {\n    "x": 2,\n    "y": 1\n  }\n}'
+      '{\n  "list": [\n    3,\n    1,\n    2\n  ],\n  "z": {\n    "x": 2,\n    "y": 1\n  }\n}',
     )
   })
 })
@@ -53,7 +59,7 @@ describe('mutateJson', () => {
     const result = await mutateJson<{ count: number; keep?: string }>(
       p,
       () => ({ count: 0 }),
-      (cur) => ({ ...cur, count: cur.count + 1 })
+      (cur) => ({ ...cur, count: cur.count + 1 }),
     )
     expect(result.count).toBe(2)
     expect(JSON.parse(await readFile(p, 'utf8'))).toEqual({ count: 2, keep: 'me' })
@@ -64,7 +70,7 @@ describe('mutateJson', () => {
     const result = await mutateJson<{ items: string[] }>(
       p,
       () => ({ items: [] }),
-      (cur) => ({ items: [...cur.items, 'x'] })
+      (cur) => ({ items: [...cur.items, 'x'] }),
     )
     expect(result).toEqual({ items: ['x'] })
   })
@@ -75,7 +81,7 @@ describe('mutateJson', () => {
     const result = await mutateJson<{ n: number }>(
       p,
       () => ({ n: 9 }),
-      (cur) => ({ n: cur.n + 1 })
+      (cur) => ({ n: cur.n + 1 }),
     )
     expect(result).toEqual({ n: 10 })
   })

@@ -15,7 +15,11 @@ export function navKey(t: NavTarget): string {
 }
 
 /** Record a visit: dedupe by key, move-to-front, then roll off the oldest beyond `cap`. */
-export function recordRecent(recents: RecentEntry[], target: NavTarget, cap = RECENTS_CAP): RecentEntry[] {
+export function recordRecent(
+  recents: RecentEntry[],
+  target: NavTarget,
+  cap = RECENTS_CAP,
+): RecentEntry[] {
   const key = navKey(target)
   return capRecents([{ ...target }, ...recents.filter((r) => navKey(r) !== key)], cap)
 }

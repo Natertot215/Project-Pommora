@@ -20,15 +20,24 @@ afterEach(async () => {
   await rm(root, { recursive: true, force: true })
 })
 
-const rels = (paths: string[]) => paths.map((p) => relative(root, p).split(/[/\\]/).join('/')).sort()
+const rels = (paths: string[]) =>
+  paths.map((p) => relative(root, p).split(/[/\\]/).join('/')).sort()
 
 describe('listMarkdownFiles', () => {
   it('lists .md recursively (only .md), absolute paths', async () => {
-    expect(rels(await listMarkdownFiles(root))).toEqual(['.nexus/c.md', '.trash/d.md', 'a.md', 'sub/b.md'])
+    expect(rels(await listMarkdownFiles(root))).toEqual([
+      '.nexus/c.md',
+      '.trash/d.md',
+      'a.md',
+      'sub/b.md',
+    ])
   })
 
   it('skips named top-level dirs', async () => {
-    expect(rels(await listMarkdownFiles(root, { skipTopLevel: ['.nexus', '.trash'] }))).toEqual(['a.md', 'sub/b.md'])
+    expect(rels(await listMarkdownFiles(root, { skipTopLevel: ['.nexus', '.trash'] }))).toEqual([
+      'a.md',
+      'sub/b.md',
+    ])
   })
 
   it('returns [] for a missing dir', async () => {

@@ -23,7 +23,7 @@ export const track = style({
   padding: 0,
   flex: '0 0 auto',
   cursor: 'default',
-  transition: `background ${ease}`
+  transition: `background ${ease}`,
 })
 
 export const trackOn = style({ background: tintAt('var(--accent)', TINT_STEPS.primary) })
@@ -37,7 +37,7 @@ export const knob = style({
   display: 'flex', // drops the inline-block baseline descender so translateY centres the glass exactly
   transform: 'translateY(-50%)',
   transition: `transform ${ease}`,
-  selectors: { [`${trackOn} &`]: { transform: 'translate(22px, -50%)' } }
+  selectors: { [`${trackOn} &`]: { transform: 'translate(22px, -50%)' } },
 })
 
 export const knobFill = style({
@@ -45,7 +45,7 @@ export const knobFill = style({
   width: '26px',
   height: '18px',
   borderRadius: '9px',
-  background: control
+  background: control,
 })
 
 // Both ticks: centred, label-control, fade on the same beat as the slide; one shows per state.
@@ -53,7 +53,7 @@ const tickBase = style({
   position: 'absolute',
   top: '50%',
   borderRadius: '100px',
-  transition: `opacity ${ease}`
+  transition: `opacity ${ease}`,
 })
 
 export const tickLine = style([
@@ -65,8 +65,8 @@ export const tickLine = style([
     height: '10px',
     background: control,
     opacity: 0,
-    selectors: { [`${trackOn} &`]: { opacity: 1 } }
-  }
+    selectors: { [`${trackOn} &`]: { opacity: 1 } },
+  },
 ])
 
 export const tickCircle = style([
@@ -78,8 +78,8 @@ export const tickCircle = style([
     height: '6px',
     border: `1.5px solid ${control}`,
     opacity: 1,
-    selectors: { [`${trackOn} &`]: { opacity: 0 } }
-  }
+    selectors: { [`${trackOn} &`]: { opacity: 0 } },
+  },
 ])
 
 export const disabled = style({ opacity: 0.4 })

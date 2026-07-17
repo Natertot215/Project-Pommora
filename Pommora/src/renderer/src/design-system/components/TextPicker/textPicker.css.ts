@@ -14,7 +14,7 @@ export const content = style({
   paddingRight: '4px !important',
   paddingBottom: '4px !important',
   paddingLeft: '4px !important',
-  alignItems: 'flex-start' // the field left-anchors in the pane so its caret sits at the left edge, never centred
+  alignItems: 'flex-start', // the field left-anchors in the pane so its caret sits at the left edge, never centred
 })
 
 /** The rename field — the shared input-field chrome at CalendarPicker's caret metrics (control size;
@@ -34,9 +34,11 @@ export const suffixField = style([
     boxShadow: 'inset 0 0 0 1px transparent',
     transition: `box-shadow ${duration.fast} ${easing.standard}`,
     selectors: {
-      '&:focus-within': { boxShadow: `inset 0 0 0 1px ${tintAt('var(--accent)', TINT_STEPS.secondary)}` }
-    }
-  }
+      '&:focus-within': {
+        boxShadow: `inset 0 0 0 1px ${tintAt('var(--accent)', TINT_STEPS.secondary)}`,
+      },
+    },
+  },
 ])
 
 /** The bare inner value input — no chrome (the wrapper owns the fill + stroke); fills the space left of
@@ -60,7 +62,7 @@ export const suffixInput = style({
   fontWeight: font.weight.emphasized,
   color: c.label.primary,
   vars: { '--edge-fade': '12px' },
-  selectors: { '&::-webkit-scrollbar': { display: 'none' } }
+  selectors: { '&::-webkit-scrollbar': { display: 'none' } },
 })
 
 /** The "/ N" out-of hint pinned to the field's right — emphasized label-tertiary, never scrolling. */
@@ -70,7 +72,7 @@ export const trailing = style({
   color: c.label.tertiary,
   fontSize: font.scale.control.size,
   fontWeight: font.weight.emphasized,
-  lineHeight: font.scale.control.line
+  lineHeight: font.scale.control.line,
 })
 
 export const input = style([
@@ -98,8 +100,8 @@ export const input = style([
     selectors: {
       '&:focus, &:focus-visible': {
         outline: 'none',
-        boxShadow: `inset 0 0 0 1px ${tintAt('var(--accent)', TINT_STEPS.secondary)}`
-      }
-    }
-  }
+        boxShadow: `inset 0 0 0 1px ${tintAt('var(--accent)', TINT_STEPS.secondary)}`,
+      },
+    },
+  },
 ])

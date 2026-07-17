@@ -29,25 +29,74 @@ export type Index = {
  *  depth 1, nested under their tier disclosure (Areas / Topics / Projects) at depth 0. */
 export function buildIndex(tree: NexusTree): Index {
   const byId = new Map<string, Entry>()
-  const addPages = (pages: PageNode[], parentId: string, parentPath: string, depth: number): void => {
-    for (const p of pages) byId.set(p.id, { id: p.id, kind: 'page', path: p.path, depth, parentId, parentPath, pageIds: [], containerIds: [] })
+  const addPages = (
+    pages: PageNode[],
+    parentId: string,
+    parentPath: string,
+    depth: number,
+  ): void => {
+    for (const p of pages)
+      byId.set(p.id, {
+        id: p.id,
+        kind: 'page',
+        path: p.path,
+        depth,
+        parentId,
+        parentPath,
+        pageIds: [],
+        containerIds: [],
+      })
   }
   const walkSet = (s: SetNode, parentId: string, parentPath: string, depth: number): void => {
     const subs = s.sets ?? []
-    byId.set(s.id, { id: s.id, kind: 'set', path: s.path, depth, parentId, parentPath, pageIds: s.pages.map((p) => p.id), containerIds: subs.map((x) => x.id) })
+    byId.set(s.id, {
+      id: s.id,
+      kind: 'set',
+      path: s.path,
+      depth,
+      parentId,
+      parentPath,
+      pageIds: s.pages.map((p) => p.id),
+      containerIds: subs.map((x) => x.id),
+    })
     addPages(s.pages, s.id, s.path, depth + 1)
     for (const sub of subs) walkSet(sub, s.id, s.path, depth + 1)
   }
   const walkCollection = (c: CollectionNode): void => {
-    byId.set(c.id, { id: c.id, kind: 'collection', path: c.path, depth: 0, parentId: null, parentPath: null, pageIds: c.pages.map((p) => p.id), containerIds: c.sets.map((s) => s.id) })
+    byId.set(c.id, {
+      id: c.id,
+      kind: 'collection',
+      path: c.path,
+      depth: 0,
+      parentId: null,
+      parentPath: null,
+      pageIds: c.pages.map((p) => p.id),
+      containerIds: c.sets.map((s) => s.id),
+    })
     addPages(c.pages, c.id, c.path, 1)
     for (const s of c.sets) walkSet(s, c.id, c.path, 1)
   }
-  const collections = [...(tree.collections ?? []), ...tree.userSections.flatMap((s) => s.collections ?? [])]
+  const collections = [
+    ...(tree.collections ?? []),
+    ...tree.userSections.flatMap((s) => s.collections ?? []),
+  ]
   for (const c of collections) walkCollection(c)
 
-  const addContexts = (nodes: ReadonlyArray<{ id: string; path: string }>, kind: Kind): string[] => {
-    for (const n of nodes) byId.set(n.id, { id: n.id, kind, path: n.path, depth: 1, parentId: null, parentPath: null, pageIds: [], containerIds: [] })
+  const addContexts = (
+    nodes: ReadonlyArray<{ id: string; path: string }>,
+    kind: Kind,
+  ): string[] => {
+    for (const n of nodes)
+      byId.set(n.id, {
+        id: n.id,
+        kind,
+        path: n.path,
+        depth: 1,
+        parentId: null,
+        parentPath: null,
+        pageIds: [],
+        containerIds: [],
+      })
     return nodes.map((n) => n.id)
   }
   return {
@@ -55,7 +104,7 @@ export function buildIndex(tree: NexusTree): Index {
     collectionIds: collections.map((c) => c.id),
     areaIds: addContexts(tree.contexts.areas, 'area'),
     topicIds: addContexts(tree.contexts.topics, 'topic'),
-    projectIds: addContexts(tree.contexts.projects, 'project')
+    projectIds: addContexts(tree.contexts.projects, 'project'),
   }
 }
 
@@ -79,11 +128,11 @@ export function slotInGroup(
   group: string[],
   over: MeasuredRow,
   clientY: number,
-  draggedId: string
+  draggedId: string,
 ): { beforeId: string | null; edge: number } {
   const before = clientY < over.mid
   const pos = group.indexOf(over.id)
-  const beforeId = before ? over.id : group.slice(pos + 1).find((id) => id !== draggedId) ?? null
+  const beforeId = before ? over.id : (group.slice(pos + 1).find((id) => id !== draggedId) ?? null)
   return { beforeId, edge: before ? over.top : over.bottom }
 }
 
@@ -97,9 +146,9 @@ export function setContainerOf(entry: Entry, idx: Index): Entry | null {
     case 'collection':
       return entry
     case 'set':
-      return entry.parentId ? idx.byId.get(entry.parentId) ?? null : null
+      return entry.parentId ? (idx.byId.get(entry.parentId) ?? null) : null
     case 'page': {
-      const parent = entry.parentId ? idx.byId.get(entry.parentId) ?? null : null
+      const parent = entry.parentId ? (idx.byId.get(entry.parentId) ?? null) : null
       if (!parent) return null
       return parent.kind === 'collection' || parent.kind === 'set' ? parent : null
     }

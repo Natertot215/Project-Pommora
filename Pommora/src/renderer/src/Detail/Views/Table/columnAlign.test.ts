@@ -8,11 +8,18 @@ const schema: PropertyDefinition[] = [
   { id: 'prop_multi', name: 'Tags', type: 'multi_select' },
   { id: 'prop_n', name: 'Count', type: 'number' },
   { id: 'prop_url', name: 'Link', type: 'url' },
-  { id: 'prop_date', name: 'Due', type: 'datetime' }
+  { id: 'prop_date', name: 'Due', type: 'datetime' },
 ]
 
 function view(over: Partial<SavedView>): SavedView {
-  return savedView.parse({ id: 'view_x', name: 'V', type: 'table', property_order: [], hidden_properties: [], ...over })
+  return savedView.parse({
+    id: 'view_x',
+    name: 'V',
+    type: 'table',
+    property_order: [],
+    hidden_properties: [],
+    ...over,
+  })
 }
 
 describe('defaultAlignFor', () => {

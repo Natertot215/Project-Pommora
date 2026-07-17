@@ -12,7 +12,9 @@ import { StatusCapsule } from './StatusCapsule'
 /** A pickable option — status options flatten out of their groups, select/multi read
  *  `select_options`. Values are shown regardless of name (a seed-shaped option is still a real
  *  value); the groups themselves are containers, never pickable chips. */
-const optionsOf = (def: PropertyDefinition): Array<{ value: string; label: string; color?: string }> => {
+const optionsOf = (
+  def: PropertyDefinition,
+): Array<{ value: string; label: string; color?: string }> => {
   return def.type === 'status' ? statusOptions(def) : (def.select_options ?? [])
 }
 
@@ -39,7 +41,7 @@ export function PropertyPicker({
   look,
   contextOptions,
   onCommit,
-  onDismiss
+  onDismiss,
 }: {
   def: PropertyDefinition
   current: PropertyValue | null
@@ -62,8 +64,12 @@ export function PropertyPicker({
 
   const pick = (value: string): void => {
     if (multi) {
-      const next = selected.includes(value) ? selected.filter((v) => v !== value) : [...selected, value]
-      onCommit(contextOptions ? { kind: 'context', value: next } : { kind: 'multiSelect', value: next })
+      const next = selected.includes(value)
+        ? selected.filter((v) => v !== value)
+        : [...selected, value]
+      onCommit(
+        contextOptions ? { kind: 'context', value: next } : { kind: 'multiSelect', value: next },
+      )
       return
     }
     onCommit(def.type === 'status' ? { kind: 'status', value } : { kind: 'select', value })
@@ -72,31 +78,35 @@ export function PropertyPicker({
 
   return (
     <PickerMenu open={open} onDismiss={onDismiss} triggerRef={triggerRef} solid>
-        {options.length === 0 ? (
-          // An empty option list (a Select/Multi with all options removed) — the spacer keeps the
-          // notch pane's proportions so it doesn't collapse into a degenerate beak. Tune here.
-          <div style={{ minWidth: 96, height: 24 }} />
-        ) : (
-          options.map((o) => {
-            const capsule = def.type === 'status' && (look === 'checkbox' || look === 'capsule')
-            const group = capsule ? statusGroupOf(o.value, def) : undefined
-            return (
-              <PickerOption key={o.value} selected={selected.includes(o.value)} onClick={() => pick(o.value)}>
-                {capsule ? (
-                  <StatusCapsule color={o.color} group={group} />
-                ) : contextOptions ? (
-                  <ContextChip color={chipColorFor(o.color)} title={o.label} />
-                ) : (
-                  <Chip
-                    color={chipColorFor(o.color)}
-                    label={o.label}
-                    shape={chipShapeForType(def.type)}
-                  />
-                )}
-              </PickerOption>
-            )
-          })
-        )}
-      </PickerMenu>
+      {options.length === 0 ? (
+        // An empty option list (a Select/Multi with all options removed) — the spacer keeps the
+        // notch pane's proportions so it doesn't collapse into a degenerate beak. Tune here.
+        <div style={{ minWidth: 96, height: 24 }} />
+      ) : (
+        options.map((o) => {
+          const capsule = def.type === 'status' && (look === 'checkbox' || look === 'capsule')
+          const group = capsule ? statusGroupOf(o.value, def) : undefined
+          return (
+            <PickerOption
+              key={o.value}
+              selected={selected.includes(o.value)}
+              onClick={() => pick(o.value)}
+            >
+              {capsule ? (
+                <StatusCapsule color={o.color} group={group} />
+              ) : contextOptions ? (
+                <ContextChip color={chipColorFor(o.color)} title={o.label} />
+              ) : (
+                <Chip
+                  color={chipColorFor(o.color)}
+                  label={o.label}
+                  shape={chipShapeForType(def.type)}
+                />
+              )}
+            </PickerOption>
+          )
+        })
+      )}
+    </PickerMenu>
   )
 }

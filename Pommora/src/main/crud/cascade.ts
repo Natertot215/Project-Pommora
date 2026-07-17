@@ -27,7 +27,7 @@ const SKIP_TOP_LEVEL = ['.nexus', '.trash']
 export async function renameCascade(
   nexusRoot: string,
   oldTitle: string,
-  newTitle: string
+  newTitle: string,
 ): Promise<Result<{ touched: string[] }>> {
   const oldKey = normalizeTitle(oldTitle)
   const touched: string[] = []
@@ -51,7 +51,7 @@ export async function renameCascade(
 export async function unlinkTier(
   nexusRoot: string,
   contextId: string,
-  tier: number
+  tier: number,
 ): Promise<Result<{ touched: string[] }>> {
   if (tier < 1 || tier > 3) return fail('invalid-tier', `Tier ${tier} is not 1–3.`)
   const field = tierFieldName(tier)
@@ -62,7 +62,12 @@ export async function unlinkTier(
       if (!Array.isArray(arr) || !arr.includes(contextId)) return null
       const next = arr.filter((x) => x !== contextId)
       const body = splitEnvelope(content).body
-      return mergeFrontmatter(content, { [field]: next, modified_at: nowIso() }, [field, 'modified_at'], body)
+      return mergeFrontmatter(
+        content,
+        { [field]: next, modified_at: nowIso() },
+        [field, 'modified_at'],
+        body,
+      )
     })
     if (wrote) touched.push(file)
   }

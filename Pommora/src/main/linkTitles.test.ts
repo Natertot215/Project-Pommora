@@ -58,7 +58,9 @@ describe('makeTitleScanner — decoding a title across chunk boundaries', () => 
   })
   it('stops and returns the title the moment </title> arrives (no need for stream end)', () => {
     const scanner = makeTitleScanner()
-    expect(scanner.push(Buffer.from('<html><head><title>Done</title><body>lots more...', 'utf8'))).toBe('Done')
+    expect(
+      scanner.push(Buffer.from('<html><head><title>Done</title><body>lots more...', 'utf8')),
+    ).toBe('Done')
   })
   it('keeps reading (undefined) until the closing tag', () => {
     const scanner = makeTitleScanner()

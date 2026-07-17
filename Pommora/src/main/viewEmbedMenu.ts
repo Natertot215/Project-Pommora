@@ -10,7 +10,11 @@ export type EmbedTitleMenuAction = 'toggle-icon' | 'hide-title' | `size-${number
 
 const TITLE_SIZES = [1, 2, 3, 4, 5, 6] as const
 
-export function popEmbedTitleMenu(win: BrowserWindow, iconShown: boolean, level: number): Promise<EmbedTitleMenuAction | null> {
+export function popEmbedTitleMenu(
+  win: BrowserWindow,
+  iconShown: boolean,
+  level: number,
+): Promise<EmbedTitleMenuAction | null> {
   return popReturningMenu<EmbedTitleMenuAction>(win, (pick) => [
     { label: iconShown ? 'Hide Icon' : 'Show Icon', click: pick('toggle-icon') },
     {
@@ -19,31 +23,49 @@ export function popEmbedTitleMenu(win: BrowserWindow, iconShown: boolean, level:
         label: `Heading ${n}`,
         type: 'checkbox' as const,
         checked: level === n,
-        click: pick(`size-${n}`)
-      }))
+        click: pick(`size-${n}`),
+      })),
     },
     { type: 'separator' as const },
-    { label: 'Hide Title', click: pick('hide-title') }
+    { label: 'Hide Title', click: pick('hide-title') },
   ])
 }
 
-export type EmbedAreaMenuAction = 'toggle-pill-titles' | 'show-title' | 'new-view' | 'style-dropdown' | 'style-toolbar'
+export type EmbedAreaMenuAction =
+  | 'toggle-pill-titles'
+  | 'show-title'
+  | 'new-view'
+  | 'style-dropdown'
+  | 'style-toolbar'
 
 export function popEmbedAreaMenu(
   win: BrowserWindow,
-  current: { viewButton: ViewButton; viewStyle: ViewStyle; titleShown: boolean }
+  current: { viewButton: ViewButton; viewStyle: ViewStyle; titleShown: boolean },
 ): Promise<EmbedAreaMenuAction | null> {
   return popReturningMenu<EmbedAreaMenuAction>(win, (pick) => [
-    { label: current.viewButton === 'labeled' ? 'Hide Titles' : 'Show Titles', click: pick('toggle-pill-titles') },
+    {
+      label: current.viewButton === 'labeled' ? 'Hide Titles' : 'Show Titles',
+      click: pick('toggle-pill-titles'),
+    },
     ...(current.titleShown ? [] : [{ label: 'Show Title', click: pick('show-title') }]),
     { label: 'New View', click: pick('new-view') },
     { type: 'separator' as const },
     {
       label: 'Style',
       submenu: [
-        { label: 'Dropdown', type: 'checkbox' as const, checked: current.viewStyle === 'dropdown', click: pick('style-dropdown') },
-        { label: 'Toolbar', type: 'checkbox' as const, checked: current.viewStyle === 'toolbar', click: pick('style-toolbar') }
-      ]
-    }
+        {
+          label: 'Dropdown',
+          type: 'checkbox' as const,
+          checked: current.viewStyle === 'dropdown',
+          click: pick('style-dropdown'),
+        },
+        {
+          label: 'Toolbar',
+          type: 'checkbox' as const,
+          checked: current.viewStyle === 'toolbar',
+          click: pick('style-toolbar'),
+        },
+      ],
+    },
   ])
 }

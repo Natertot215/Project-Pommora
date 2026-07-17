@@ -3,7 +3,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
-import { firePointer, pressEscape, stubPointerCapture, stubRect } from '@renderer/testing/pointerHarness'
+import {
+  firePointer,
+  pressEscape,
+  stubPointerCapture,
+  stubRect,
+} from '@renderer/testing/pointerHarness'
 import { TableRowDnd, useTableRowDrag } from './tableDnd'
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -22,7 +27,7 @@ let reassignSpy: ReturnType<typeof vi.fn<(activeId: string, targetGroupKey: stri
 const ROWS = [
   { id: 'r1', groupKey: 'g' },
   { id: 'r2', groupKey: 'g' },
-  { id: 'r3', groupKey: 'g' }
+  { id: 'r3', groupKey: 'g' },
 ]
 
 beforeEach(async () => {
@@ -44,7 +49,7 @@ beforeEach(async () => {
         <Row id="r1" />
         <Row id="r2" />
         <Row id="r3" />
-      </TableRowDnd>
+      </TableRowDnd>,
     )
   })
   const content = host.querySelector('.table-dnd')

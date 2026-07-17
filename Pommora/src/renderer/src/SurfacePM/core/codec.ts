@@ -75,7 +75,7 @@ function salvageLayout(raw: unknown): { bands: Array<{ node: SalvagedNode }> } |
     bands: bands
       .map((b) => salvageNode((b as { node?: unknown } | null)?.node))
       .filter((n): n is SalvagedNode => n !== null)
-      .map((node) => ({ node }))
+      .map((node) => ({ node })),
   }
 }
 

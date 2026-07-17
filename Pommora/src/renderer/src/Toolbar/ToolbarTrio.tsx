@@ -1,4 +1,7 @@
-import { SegmentedSymbol, type Segment } from '@renderer/design-system/components/Segmented-Controls'
+import {
+  SegmentedSymbol,
+  type Segment,
+} from '@renderer/design-system/components/Segmented-Controls'
 
 /**
  * The trailing Navigation · Settings · Inspector trio. The glass pill is a SEPARATE in-flow layer from

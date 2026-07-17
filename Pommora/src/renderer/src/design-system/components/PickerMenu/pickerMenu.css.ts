@@ -9,7 +9,7 @@ export const anchor = style({
   top: 'calc(100% + 6px)',
   left: '50%',
   transform: 'translateX(-50%)',
-  zIndex: 20
+  zIndex: 20,
 })
 /** Upward-opening variant — the pane hangs ABOVE its trigger (beak-down NotchedPane). */
 export const anchorUp = style({
@@ -17,7 +17,7 @@ export const anchorUp = style({
   bottom: 'calc(100% + 6px)',
   left: '50%',
   transform: 'translateX(-50%)',
-  zIndex: 20
+  zIndex: 20,
 })
 /** The self-managed top layer — a fixed body-portal position (set inline from the measured trigger)
  *  so the pane escapes any clipping ancestor (the settings dropdown's frost clip). */
@@ -36,13 +36,13 @@ export const surface = style({
   paddingTop: 'calc(var(--notch-h, 0px) + 6px)',
   display: 'flex',
   flexDirection: 'column',
-  gap: '2px'
+  gap: '2px',
 })
 /** Beak-down twin: the notch band moves to the bottom gutter. Composed after `surface` so its
  *  padding wins. */
 export const surfaceUp = style({
   paddingTop: '6px',
-  paddingBottom: 'calc(var(--notch-h, 0px) + 6px)'
+  paddingBottom: 'calc(var(--notch-h, 0px) + 6px)',
 })
 
 // The portal escapes any label-tone context, so the option must set its OWN type + colour (else it
@@ -61,11 +61,11 @@ export const option = style([
     borderRadius: '8px',
     color: c.label.control,
     cursor: 'default',
-    selectors: { '&:hover': { background: c.state.hover } }
-  }
+    selectors: { '&:hover': { background: c.state.hover } },
+  },
 ])
 
 export const optionSelected = style({
   background: c.state.selected,
-  selectors: { '&:hover': { background: c.state.selected } }
+  selectors: { '&:hover': { background: c.state.selected } },
 })

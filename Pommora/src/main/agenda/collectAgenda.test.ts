@@ -17,11 +17,21 @@ beforeAll(() => {
   const tasks = join(root, 'Tasks')
   d(tasks)
   w(join(tasks, '_taskconfig.json'), '{}')
-  w(join(tasks, 'Buy milk.task.json'), JSON.stringify({ id: 't1', due_at: '2026-07-10T09:00:00.000Z' }))
+  w(
+    join(tasks, 'Buy milk.task.json'),
+    JSON.stringify({ id: 't1', due_at: '2026-07-10T09:00:00.000Z' }),
+  )
   const events = join(root, 'Events')
   d(events)
   w(join(events, '_eventconfig.json'), '{}')
-  w(join(events, 'Standup.event.json'), JSON.stringify({ id: 'e1', start_at: '2026-07-08T15:00:00.000Z', end_at: '2026-07-08T15:30:00.000Z' }))
+  w(
+    join(events, 'Standup.event.json'),
+    JSON.stringify({
+      id: 'e1',
+      start_at: '2026-07-08T15:00:00.000Z',
+      end_at: '2026-07-08T15:30:00.000Z',
+    }),
+  )
   // A plain folder with no agenda sidecar must be ignored.
   d(join(root, 'Notes'))
 })

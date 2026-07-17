@@ -11,21 +11,21 @@ const def: PropertyDefinition = {
       id: 'upcoming',
       label: 'Upcoming',
       color: 'gray',
-      options: [{ value: 'not_started', label: 'Not started', group_id: 'upcoming' }]
+      options: [{ value: 'not_started', label: 'Not started', group_id: 'upcoming' }],
     },
     {
       id: 'in_progress',
       label: 'In Progress',
       color: 'blue',
-      options: [{ value: 'active', label: 'Active', group_id: 'in_progress' }]
+      options: [{ value: 'active', label: 'Active', group_id: 'in_progress' }],
     },
     {
       id: 'done',
       label: 'Done',
       color: 'green',
-      options: [{ value: 'complete', label: 'Complete', group_id: 'done' }]
-    }
-  ]
+      options: [{ value: 'complete', label: 'Complete', group_id: 'done' }],
+    },
+  ],
 }
 
 describe('statusGroupOf', () => {
@@ -42,7 +42,7 @@ describe('statusGroupOf', () => {
 })
 
 describe('nextCycleValue', () => {
-  it('advances group→group, writing each group\'s first-in-order option', () => {
+  it("advances group→group, writing each group's first-in-order option", () => {
     expect(nextCycleValue('not_started', def)).toBe('active')
     expect(nextCycleValue('active', def)).toBe('complete')
   })
@@ -59,13 +59,18 @@ describe('nextCycleValue', () => {
   it('skips a group with no options', () => {
     const gappy: PropertyDefinition = {
       ...def,
-      status_groups: def.status_groups?.map((g) => (g.id === 'in_progress' ? { ...g, options: [] } : g))
+      status_groups: def.status_groups?.map((g) =>
+        g.id === 'in_progress' ? { ...g, options: [] } : g,
+      ),
     }
     expect(nextCycleValue('not_started', gappy)).toBe('complete')
   })
 
   it('returns null when no group holds any option', () => {
-    const empty: PropertyDefinition = { ...def, status_groups: def.status_groups?.map((g) => ({ ...g, options: [] })) }
+    const empty: PropertyDefinition = {
+      ...def,
+      status_groups: def.status_groups?.map((g) => ({ ...g, options: [] })),
+    }
     expect(nextCycleValue('x', empty)).toBeNull()
   })
 
@@ -74,9 +79,15 @@ describe('nextCycleValue', () => {
       ...def,
       status_groups: def.status_groups?.map((g) =>
         g.id === 'in_progress'
-          ? { ...g, options: [{ value: 'first_ip', label: 'F', group_id: 'in_progress' as const }, ...g.options] }
-          : g
-      )
+          ? {
+              ...g,
+              options: [
+                { value: 'first_ip', label: 'F', group_id: 'in_progress' as const },
+                ...g.options,
+              ],
+            }
+          : g,
+      ),
     }
     expect(nextCycleValue('not_started', wide)).toBe('first_ip')
   })

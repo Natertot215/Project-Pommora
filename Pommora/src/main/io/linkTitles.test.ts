@@ -34,7 +34,7 @@ describe('link-title cache (.nexus/linkTitles.json)', () => {
     await mkdir(join(root, '.nexus'), { recursive: true })
     await writeFile(
       storeFile(root),
-      JSON.stringify({ 'https://ok.com': 'Good', 'https://num.com': 42, 'https://empty.com': '' })
+      JSON.stringify({ 'https://ok.com': 'Good', 'https://num.com': 42, 'https://empty.com': '' }),
     )
     expect(await readLinkTitles(root)).toEqual({ 'https://ok.com': 'Good' })
   })

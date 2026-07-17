@@ -15,14 +15,21 @@ import type { ResolveContext } from './resolveContext'
 export function findOption(
   columnId: string,
   value: string,
-  schema: PropertyDefinition[]
+  schema: PropertyDefinition[],
 ): { label: string; color?: string } | undefined {
   const def = schema.find((d) => d.id === columnId)
-  return def?.select_options?.find((o) => o.value === value) ?? statusOptions(def).find((o) => o.value === value)
+  return (
+    def?.select_options?.find((o) => o.value === value) ??
+    statusOptions(def).find((o) => o.value === value)
+  )
 }
 
 /** A select/status option's label for a stored value (undefined if unknown). */
-export function optionLabel(columnId: string, value: string, schema: PropertyDefinition[]): string | undefined {
+export function optionLabel(
+  columnId: string,
+  value: string,
+  schema: PropertyDefinition[],
+): string | undefined {
   return findOption(columnId, value, schema)?.label
 }
 
@@ -59,7 +66,7 @@ export function groupLabel(
   group: ResolvedGroup,
   view: SavedView,
   ctx: ResolveContext,
-  setNames: Map<string, string>
+  setNames: Map<string, string>,
 ): string {
   if (group.kind === 'ungrouped') return ''
   if (group.kind === 'structural-set') return setNames.get(group.key) ?? group.key

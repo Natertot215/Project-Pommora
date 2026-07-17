@@ -12,7 +12,13 @@ import { normalizeTitle } from '@shared/connections'
 import { scanConnections } from './connections/scan'
 import { rewriteConnections } from './connections/rewrite'
 import { newId } from './ids'
-import { atomicWriteFile, mutateJson, pathExists, readJsonObject, trashWithTimestamp } from './io/atomicWrite'
+import {
+  atomicWriteFile,
+  mutateJson,
+  pathExists,
+  readJsonObject,
+  trashWithTimestamp,
+} from './io/atomicWrite'
 import { serializeOnFile } from './io/fileLock'
 import { blockHostDir, nexusConfig, NEXUS_CONFIG_FILES } from './paths'
 
@@ -38,7 +44,7 @@ export function blockFilePath(root: string, host: BlockHostRef, tileId: string):
 async function mutateDoc(
   root: string,
   host: BlockHostRef,
-  fn: (cur: Record<string, unknown>) => Record<string, unknown>
+  fn: (cur: Record<string, unknown>) => Record<string, unknown>,
 ): Promise<void> {
   const path = blockHostConfig(root, host)
   await serializeOnFile(path, () => mutateJson<Record<string, unknown>>(path, () => ({}), fn))
@@ -55,7 +61,7 @@ async function healSplitDoc(root: string, host: BlockHostRef): Promise<void> {
     ...cur,
     ...('layout' in sidecar ? { layout: sidecar.layout } : {}),
     ...('blocks' in sidecar ? { blocks: sidecar.blocks } : {}),
-    ...('blocks_locked' in sidecar ? { blocks_locked: sidecar.blocks_locked } : {})
+    ...('blocks_locked' in sidecar ? { blocks_locked: sidecar.blocks_locked } : {}),
   }))
   await rm(sidecarPath, { force: true })
 }
@@ -66,11 +72,15 @@ export async function readBlockDoc(root: string, host: BlockHostRef): Promise<Bl
   return {
     layout: raw?.layout,
     blocks: Array.isArray(raw?.blocks) ? raw.blocks : [],
-    locked: raw?.blocks_locked === true
+    locked: raw?.blocks_locked === true,
   }
 }
 
-export async function writeBlockDoc(root: string, host: BlockHostRef, patch: BlockDocPatch): Promise<void> {
+export async function writeBlockDoc(
+  root: string,
+  host: BlockHostRef,
+  patch: BlockDocPatch,
+): Promise<void> {
   await mutateDoc(root, host, (cur) => {
     const next = { ...cur }
     if ('layout' in patch) next.layout = patch.layout
@@ -100,7 +110,11 @@ export async function createMarkdownBlock(root: string, host: BlockHostRef): Pro
 /** Drop a tile's entry; a markdown tile's backing `.md` goes to `.trash` (E-5). Foreign
  *  entries are never touched (E-1). The renderer splices the layout leaf FIRST — if this
  *  op is what fails, the leftover is an entry-less invisible orphan, never a dead box. */
-export async function removeBlockTile(root: string, host: BlockHostRef, tileId: string): Promise<void> {
+export async function removeBlockTile(
+  root: string,
+  host: BlockHostRef,
+  tileId: string,
+): Promise<void> {
   let wasMarkdown = false
   await mutateDoc(root, host, (cur) => {
     const blocks = Array.isArray(cur.blocks) ? cur.blocks : []
@@ -127,7 +141,12 @@ async function trashTileFile(root: string, host: BlockHostRef, tileId: string): 
 /** Linking IS the one conversion (G-7, markdown → embed): the RAW entry spreads so
  *  foreign keys + chrome survive (E-1), the backing `.md` trashes recoverably (E-5),
  *  and the embedded source is never touched. */
-async function flipTile(root: string, host: BlockHostRef, tileId: string, patch: Record<string, unknown>): Promise<void> {
+async function flipTile(
+  root: string,
+  host: BlockHostRef,
+  tileId: string,
+  patch: Record<string, unknown>,
+): Promise<void> {
   let wasMarkdown = false
   await mutateDoc(root, host, (cur) => {
     const blocks = Array.isArray(cur.blocks) ? cur.blocks : []
@@ -142,7 +161,12 @@ async function flipTile(root: string, host: BlockHostRef, tileId: string, patch:
   if (wasMarkdown) await trashTileFile(root, host, tileId)
 }
 
-export async function convertTileToPage(root: string, host: BlockHostRef, tileId: string, pageId: string): Promise<void> {
+export async function convertTileToPage(
+  root: string,
+  host: BlockHostRef,
+  tileId: string,
+  pageId: string,
+): Promise<void> {
   await flipTile(root, host, tileId, { type: 'page', page_id: pageId })
 }
 
@@ -159,7 +183,12 @@ function remintConfigIds(views: unknown[]): unknown[] {
 }
 
 /** Link View: the entry becomes a view embed carrying the COPIED config(s) (D-12), each re-minted. */
-export async function convertTileToView(root: string, host: BlockHostRef, tileId: string, views: unknown[]): Promise<void> {
+export async function convertTileToView(
+  root: string,
+  host: BlockHostRef,
+  tileId: string,
+  views: unknown[],
+): Promise<void> {
   await flipTile(root, host, tileId, { type: 'view', views: remintConfigIds(views), active: 0 })
 }
 
@@ -167,7 +196,11 @@ export async function convertTileToView(root: string, host: BlockHostRef, tileId
  *  survive, E-1); a markdown tile's body file copies FIRST (a crash leaks an orphan
  *  file, never an entry without one); a view tile's copied configs re-mint their
  *  payload-local ids (they key per-machine state — two tiles must never share one). */
-export async function duplicateBlockTile(root: string, host: BlockHostRef, tileId: string): Promise<string | null> {
+export async function duplicateBlockTile(
+  root: string,
+  host: BlockHostRef,
+  tileId: string,
+): Promise<string | null> {
   const doc = await readBlockDoc(root, host)
   const src = doc.blocks.find((b) => knownBlock(b)?.id === tileId)
   const entry = src ? knownBlock(src) : null
@@ -184,12 +217,16 @@ export async function duplicateBlockTile(root: string, host: BlockHostRef, tileI
   }
   await mutateDoc(root, host, (cur) => ({
     ...cur,
-    blocks: [...(Array.isArray(cur.blocks) ? cur.blocks : []), copy]
+    blocks: [...(Array.isArray(cur.blocks) ? cur.blocks : []), copy],
   }))
   return id
 }
 
-export async function readMarkdownBlock(root: string, host: BlockHostRef, tileId: string): Promise<string | null> {
+export async function readMarkdownBlock(
+  root: string,
+  host: BlockHostRef,
+  tileId: string,
+): Promise<string | null> {
   try {
     return await readFile(blockFilePath(root, host, tileId), 'utf8')
   } catch {
@@ -199,7 +236,12 @@ export async function readMarkdownBlock(root: string, host: BlockHostRef, tileId
 
 /** Pure body write — no frontmatter envelope, no stamp (D-11: block files stay bare).
  *  Locked on the file so a future rename-cascade rewrite can't clobber a live edit. */
-export async function writeMarkdownBlock(root: string, host: BlockHostRef, tileId: string, body: string): Promise<void> {
+export async function writeMarkdownBlock(
+  root: string,
+  host: BlockHostRef,
+  tileId: string,
+  body: string,
+): Promise<void> {
   const file = blockFilePath(root, host, tileId)
   await serializeOnFile(file, () => atomicWriteFile(file, body))
 }
@@ -227,7 +269,9 @@ async function markdownBlockFiles(root: string): Promise<{ id: string; file: str
 
 /** Every markdown block's body + mtime — the block half of the link index reads from here. A
  *  blocks[] entry whose file is missing is skipped, never fatal to the build. */
-export async function listBlockBodies(root: string): Promise<{ id: string; body: string; modifiedAt: string }[]> {
+export async function listBlockBodies(
+  root: string,
+): Promise<{ id: string; body: string; modifiedAt: string }[]> {
   const out: { id: string; body: string; modifiedAt: string }[] = []
   for (const { id, file } of await markdownBlockFiles(root)) {
     let body: string
@@ -254,7 +298,11 @@ export async function listBlockBodies(root: string): Promise<{ id: string; body:
  *  each under its own file lock (the same lock a live block edit takes). renameCascade can't reach
  *  these — they're id-less and .nexus-resident — so this runs beside it. Best-effort and per-file:
  *  re-runnable, never cross-file atomic; a failure leaves the page renamed and blocks stale. */
-export async function rewriteBlockConnections(root: string, oldTitle: string, newTitle: string): Promise<void> {
+export async function rewriteBlockConnections(
+  root: string,
+  oldTitle: string,
+  newTitle: string,
+): Promise<void> {
   const oldKey = normalizeTitle(oldTitle)
   for (const { file } of await markdownBlockFiles(root)) {
     await serializeOnFile(file, async () => {

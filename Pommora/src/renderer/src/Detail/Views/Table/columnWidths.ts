@@ -30,7 +30,7 @@ const WIDTHS: Record<string, ColumnWidth> = {
   number: { min: 50, default: 100, max: 350 },
   datetime: { min: 90, default: 140, max: 250 },
   last_edited_time: { min: 90, default: 120, max: 250 },
-  created: { min: 90, default: 120, max: 250 }
+  created: { min: 90, default: 120, max: 250 },
 }
 
 const FALLBACK: ColumnWidth = { min: 80, default: 140, max: UNCAPPED }
@@ -41,7 +41,7 @@ const FALLBACK: ColumnWidth = { min: 80, default: 140, max: UNCAPPED }
 // cell padding overflows the 45px checkbox min; status is the scaffold (checkbox < capsule < pill).
 const STYLE_MIN: Record<string, Partial<Record<string, number>>> = {
   checkbox: { switch: 70 },
-  status: { checkbox: 45, capsule: 65, pill: 80 }
+  status: { checkbox: 45, capsule: 65, pill: 80 },
 }
 
 /** The {min, default, max} width for a column, keyed by its declared type (`_created_at` special-cased,
@@ -67,7 +67,12 @@ export function minWidthFor(columnId: string, schema: PropertyDefinition[], look
 }
 
 /** Clamp a (resized) width to a column's [min, max] — the min is style-aware via `minWidthFor`. */
-export function clampWidth(width: number, columnId: string, schema: PropertyDefinition[], look?: string): number {
+export function clampWidth(
+  width: number,
+  columnId: string,
+  schema: PropertyDefinition[],
+  look?: string,
+): number {
   const { max } = widthFor(columnId, schema)
   return Math.max(minWidthFor(columnId, schema, look), Math.min(max, width))
 }

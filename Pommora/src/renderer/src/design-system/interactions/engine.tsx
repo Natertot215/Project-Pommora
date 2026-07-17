@@ -7,13 +7,24 @@ import {
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
-  type ReactNode
+  type ReactNode,
 } from 'react'
 import { useFeel, type Feel } from './feel'
 import { findScroller, startAutoScroll } from './autoscroll'
 import { announce, ensureInstructions, INSTRUCTIONS_ID } from './a11y'
 import { ARROW_DIRS, keyboardNext } from './keyboard'
-import { ACTIVATION, HYSTERESIS, SETTLE_FALLBACK, px, toBox, type Box, type DragItem, type DragNotify, type DropState, type Modifier } from './shared'
+import {
+  ACTIVATION,
+  HYSTERESIS,
+  SETTLE_FALLBACK,
+  px,
+  toBox,
+  type Box,
+  type DragItem,
+  type DragNotify,
+  type DropState,
+  type Modifier,
+} from './shared'
 
 // The single-zone drag engine. Replaces dnd-kit behind the seam for every standalone
 // surface (list, grid, table, each tree level). Principles, grounded in the dnd-kit dissection:
@@ -127,8 +138,12 @@ export function Zone({
     scroller: null as HTMLElement | null,
     scroll0X: 0,
     scroll0Y: 0,
-    handlers: null as null | { move: (e: PointerEvent) => void; up: () => void; cancel: () => void },
-    kdown: null as null | ((e: KeyboardEvent) => void)
+    handlers: null as null | {
+      move: (e: PointerEvent) => void
+      up: () => void
+      cancel: () => void
+    },
+    kdown: null as null | ((e: KeyboardEvent) => void),
   })
 
   // The auto-scroll loop this Zone started (instance-scoped stopper). detach() calls it rather than the
@@ -164,7 +179,8 @@ export function Zone({
       x = Math.max(bnd.left - ar.left, Math.min(x, bnd.left + bnd.width - (ar.left + ar.width)))
       y = Math.max(bnd.top - ar.top, Math.min(y, bnd.top + bnd.height - (ar.top + ar.height)))
     }
-    if (o.modifiers && ar) for (const m of o.modifiers) ({ x, y } = m({ x, y }, { activeRect: ar, bounds: bnd }))
+    if (o.modifiers && ar)
+      for (const m of o.modifiers) ({ x, y } = m({ x, y }, { activeRect: ar, bounds: bnd }))
     return { x, y }
   }
 
@@ -172,7 +188,9 @@ export function Zone({
   const track = (cx: number, cy: number): void => {
     const d = drag.current
     if (!d.active) return
-    const comp = d.scroller ? { x: d.scroller.scrollLeft - d.scroll0X, y: d.scroller.scrollTop - d.scroll0Y } : { x: 0, y: 0 }
+    const comp = d.scroller
+      ? { x: d.scroller.scrollLeft - d.scroll0X, y: d.scroller.scrollTop - d.scroll0Y }
+      : { x: 0, y: 0 }
     const { x: dx, y: dy } = constrain(cx - d.startX, cy - d.startY)
     // Closest-center with the container's scroll delta folded in; strict `<` + in-order = DOM-order tie-break.
     const px = d.rects[d.activeIdx].cx + dx + comp.x
@@ -229,7 +247,7 @@ export function Zone({
           scroller: d.scroller,
           dragEl: d.el,
           axis: 'xy',
-          onScrolled: () => track(drag.current.lastX, drag.current.lastY)
+          onScrolled: () => track(drag.current.lastX, drag.current.lastY),
         })
       }
     }
@@ -292,14 +310,23 @@ export function Zone({
 
   // Decide-then-animate, shared by pointer drop and keyboard drop. `kbd` carries the announce +
   // focus-restore context when the drop came from the keyboard.
-  const resolveDrop = (over: number, activeIdx: number, activeId2: string, kbd: { label: string; n: number; el: HTMLElement | null } | null): void => {
+  const resolveDrop = (
+    over: number,
+    activeIdx: number,
+    activeId2: string,
+    kbd: { label: string; n: number; el: HTMLElement | null } | null,
+  ): void => {
     const overId = idsRef.current[over]
     const apply = (ok: boolean): void =>
       settle(ok ? over : activeIdx, () => {
         if (ok) cbRef.current.onReorder?.(activeId2, overId)
         notifyRef.current.onDragEnd?.({ activeId: activeId2, overId: ok ? overId : null })
         if (kbd) {
-          announce(ok ? `Dropped ${kbd.label} at position ${over + 1} of ${kbd.n}.` : `${kbd.label} returned to its original position.`)
+          announce(
+            ok
+              ? `Dropped ${kbd.label} at position ${over + 1} of ${kbd.n}.`
+              : `${kbd.label} returned to its original position.`,
+          )
           requestAnimationFrame(() => kbd.el?.focus())
         }
       })
@@ -354,7 +381,7 @@ export function Zone({
       scroll0X: 0,
       scroll0Y: 0,
       handlers,
-      kdown: null
+      kdown: null,
     }
     try {
       el.setPointerCapture(e.pointerId)
@@ -423,7 +450,7 @@ export function Zone({
       scroll0X: 0,
       scroll0Y: 0,
       handlers: null,
-      kdown
+      kdown,
     }
     setActiveId(id)
     setRects(measured)
@@ -440,17 +467,47 @@ export function Zone({
   useEffect(() => ensureInstructions(), [])
 
   const value = useMemo<ZoneValue>(
-    () => ({ ids, feel, activeId, overIndex, delta, scrollComp, rects, dropState, keyboard, disabled, swap, itemRole, register, begin, liftKeyboard }),
+    () => ({
+      ids,
+      feel,
+      activeId,
+      overIndex,
+      delta,
+      scrollComp,
+      rects,
+      dropState,
+      keyboard,
+      disabled,
+      swap,
+      itemRole,
+      register,
+      begin,
+      liftKeyboard,
+    }),
     // register reads only refs; begin/liftKeyboard also close over `disabled` (in deps). Recreating
     // them each render with current values is intentional — not memoized, so identity churn is fine.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [ids, feel, activeId, overIndex, delta, scrollComp, rects, dropState, keyboard, disabled, swap, itemRole]
+    [
+      ids,
+      feel,
+      activeId,
+      overIndex,
+      delta,
+      scrollComp,
+      rects,
+      dropState,
+      keyboard,
+      disabled,
+      swap,
+      itemRole,
+    ],
   )
   return <ZoneCtx.Provider value={value}>{children}</ZoneCtx.Provider>
 }
 
 function resolveBounds(kind: 'parent' | 'window' | undefined, rects: Box[]): Box | null {
-  if (kind === 'window') return { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight, cx: 0, cy: 0 }
+  if (kind === 'window')
+    return { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight, cx: 0, cy: 0 }
   if (kind === 'parent' && rects.length) {
     const left = Math.min(...rects.map((r) => r.left))
     const top = Math.min(...rects.map((r) => r.top))
@@ -472,7 +529,23 @@ export function reflow(rects: Box[], overIndex: number, activeIdx: number, index
 export function useZoneItem(id: string): DragItem {
   const ctx = useContext(ZoneCtx)
   if (!ctx) throw new Error('useDragItem must be used inside a <SortableZone>')
-  const { ids, feel, activeId, overIndex, delta, scrollComp, rects, dropState, keyboard, disabled, swap, itemRole, register, begin, liftKeyboard } = ctx
+  const {
+    ids,
+    feel,
+    activeId,
+    overIndex,
+    delta,
+    scrollComp,
+    rects,
+    dropState,
+    keyboard,
+    disabled,
+    swap,
+    itemRole,
+    register,
+    begin,
+    liftKeyboard,
+  } = ctx
   const index = ids.indexOf(id)
   const isDragging = activeId === id
   const activeIdx = activeId ? ids.indexOf(activeId) : -1
@@ -484,13 +557,14 @@ export function useZoneItem(id: string): DragItem {
       // otherwise it follows the pointer + scroll compensation. (On the slot, no comp — the slot
       // scrolled with the item, so they cancel.)
       const onSlot = keyboard || dropState === 'dropping'
-      const t = onSlot ? rects[overIndex] ?? rects[activeIdx] : null
+      const t = onSlot ? (rects[overIndex] ?? rects[activeIdx]) : null
       const x = t ? t.left - rects[activeIdx].left : delta.x + scrollComp.x
       const y = t ? t.top - rects[activeIdx].top : delta.y + scrollComp.y
       transform = `translate3d(${px(x)}, ${px(y)}, 0)`
     } else if (swap) {
       // Swap mode: only the over item moves, exchanging into the active item's slot.
-      if (index === overIndex) transform = `translate3d(${px(rects[activeIdx].left - rects[index].left)}, ${px(rects[activeIdx].top - rects[index].top)}, 0)`
+      if (index === overIndex)
+        transform = `translate3d(${px(rects[activeIdx].left - rects[index].left)}, ${px(rects[activeIdx].top - rects[index].top)}, 0)`
     } else {
       // Shift mode: everyone shifts to open/close the gap, computed by reflow (list/row/grid).
       const t = reflow(rects, overIndex, activeIdx, index)
@@ -513,7 +587,7 @@ export function useZoneItem(id: string): DragItem {
       transition: animate ? `transform ${feel.duration}ms ${feel.easing}` : undefined,
       zIndex: isDragging ? 10 : undefined,
       position: 'relative',
-      touchAction: 'none'
+      touchAction: 'none',
     },
     handle: {
       onPointerDown: (e: ReactPointerEvent) => begin(id, e),
@@ -529,8 +603,8 @@ export function useZoneItem(id: string): DragItem {
       'aria-describedby': INSTRUCTIONS_ID,
       // aria-pressed only on button-role items (dnd-kit gates it the same way — invalid on a roleless <tr>).
       'aria-pressed': itemRole != null && isDragging ? true : undefined,
-      'aria-disabled': disabled || undefined
+      'aria-disabled': disabled || undefined,
     },
-    isDragging
+    isDragging,
   }
 }

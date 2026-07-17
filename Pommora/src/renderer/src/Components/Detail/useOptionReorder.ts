@@ -6,12 +6,24 @@ import { ACTIVATION, suppressNextClick } from '@renderer/design-system/interacti
 // place and a drop-line marks the target gap. Escape aborts. The drop calls onReorder(value, toIndex)
 // where toIndex is in the without-the-dragged coordinate space (matching optionModel.reorderOption).
 
-type Handlers = { move: (e: PointerEvent) => void; up: () => void; cancel: () => void; key: (e: KeyboardEvent) => void }
-type Gesture = { value: string; sx: number; sy: number; active: boolean; index: number; handlers: Handlers }
+type Handlers = {
+  move: (e: PointerEvent) => void
+  up: () => void
+  cancel: () => void
+  key: (e: KeyboardEvent) => void
+}
+type Gesture = {
+  value: string
+  sx: number
+  sy: number
+  active: boolean
+  index: number
+  handlers: Handlers
+}
 
 export function useOptionReorder(
   order: string[],
-  onReorder: (value: string, toIndex: number) => void
+  onReorder: (value: string, toIndex: number) => void,
 ): {
   containerRef: (el: HTMLDivElement | null) => void
   registerRow: (value: string, el: HTMLElement | null) => void
@@ -76,7 +88,8 @@ export function useOptionReorder(
     const top =
       index >= rects.length
         ? (rects[rects.length - 1]?.bottom ?? containerTop) - containerTop
-        : (index === 0 ? rects[0].top : (rects[index - 1].bottom + rects[index].top) / 2) - containerTop
+        : (index === 0 ? rects[0].top : (rects[index - 1].bottom + rects[index].top) / 2) -
+          containerTop
     return { index, top }
   }
 

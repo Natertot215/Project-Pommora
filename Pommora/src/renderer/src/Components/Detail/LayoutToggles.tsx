@@ -18,7 +18,7 @@ import { ICON, switchScale, toggleRow } from './settingsPane.css'
  */
 export function LayoutToggles({
   source,
-  view
+  view,
 }: {
   source: CollectionNode | SetNode
   view: SavedView

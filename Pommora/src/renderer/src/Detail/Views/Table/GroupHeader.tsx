@@ -3,7 +3,12 @@ import type { ResolvedGroup } from '@shared/types'
 import type { SavedView } from '@shared/views'
 import { chipBox, chipColor, text } from '@renderer/design-system/tokens'
 import { cx } from '@renderer/design-system/cx'
-import { Icon, asRenderableIcon, defaultEntityIcon, iconNameOr } from '@renderer/design-system/symbols'
+import {
+  Icon,
+  asRenderableIcon,
+  defaultEntityIcon,
+  iconNameOr,
+} from '@renderer/design-system/symbols'
 import { Chip, chipShapeForType } from '@renderer/Components/Chip'
 import { chipColorFor } from '@renderer/design-system/tokens/colorMap'
 import { declaredType } from '../pipeline/value'
@@ -24,7 +29,7 @@ function groupGlyph(
   ctx: ResolveContext,
   setNames: Map<string, string>,
   setIcons: Map<string, string | undefined>,
-  setPath: string | undefined
+  setPath: string | undefined,
 ): ReactNode {
   // Structural Set/folder group (E-3): the Set's own icon (or the folder default), immune to Hide Page
   // Icons — it names the container, not a page — then the Set title.
@@ -33,7 +38,11 @@ function groupGlyph(
     return (
       <span className="group-name">
         <Icon name={iconNameOr(setIcons.get(group.key), defaultEntityIcon('set'))} size={13} />
-        {setPath ? <RenamableTitle path={setPath} kind="set" title={title} className="band-title-input" /> : title}
+        {setPath ? (
+          <RenamableTitle path={setPath} kind="set" title={title} className="band-title-input" />
+        ) : (
+          title
+        )}
       </span>
     )
   }
@@ -53,14 +62,23 @@ function groupGlyph(
     case 'status':
     case 'select': {
       const opt = findOption(propId, value, ctx.schema)
-      return <Chip color={chipColorFor(opt?.color)} label={opt?.label ?? value} shape={chipShapeForType(groupType)} />
+      return (
+        <Chip
+          color={chipColorFor(opt?.color)}
+          label={opt?.label ?? value}
+          shape={chipShapeForType(groupType)}
+        />
+      )
     }
     case 'checkbox': {
       const on = value === 'true'
       const color = ctx.schema.find((d) => d.id === propId)?.checkbox_color
       return (
         <span className="group-name">
-          <span className={cx(chipBox, on ? undefined : chipColor.default)} style={checkboxBoxStyle(on, color)}>
+          <span
+            className={cx(chipBox, on ? undefined : chipColor.default)}
+            style={checkboxBoxStyle(on, color)}
+          >
             {on ? <Icon name="check" size={12} strokeWidth={3} /> : null}
           </span>
           {on ? 'On' : 'Off'}
@@ -71,8 +89,15 @@ function groupGlyph(
       const icon = asRenderableIcon(ctx.schema.find((d) => d.id === propId)?.icon)
       const style = view.column_styles?.[propId]
       const granularity =
-        (view.group?.kind === 'property' ? view.group.date_granularity : view.sub_group?.date_granularity) ?? 'month'
-      const label = formatBucketLabel(value, granularity, style?.date_format ?? 'full', view.date_separator ?? 'dash')
+        (view.group?.kind === 'property'
+          ? view.group.date_granularity
+          : view.sub_group?.date_granularity) ?? 'month'
+      const label = formatBucketLabel(
+        value,
+        granularity,
+        style?.date_format ?? 'full',
+        view.date_separator ?? 'dash',
+      )
       return (
         <span className="group-name">
           {icon ? <Icon name={icon} size={13} /> : null}
@@ -100,7 +125,7 @@ export function GroupHeader({
   setPath,
   onOpen,
   collapsed,
-  onToggle
+  onToggle,
 }: {
   group: ResolvedGroup
   view: SavedView
@@ -117,17 +142,27 @@ export function GroupHeader({
   onToggle: () => void
 }): React.JSX.Element {
   const { ref, handle, isDragging, isNestTarget } = useBandDrag(group.key)
-  const outsideRename = (e: React.MouseEvent): boolean => !(e.target as HTMLElement).closest?.('input')
+  const outsideRename = (e: React.MouseEvent): boolean =>
+    !(e.target as HTMLElement).closest?.('input')
   return (
     <span
       ref={ref}
-      className={cx('group-header', text.body.emphasized, isDragging && 'band-dragging', isNestTarget && 'band-nest-target')}
+      className={cx(
+        'group-header',
+        text.body.emphasized,
+        isDragging && 'band-dragging',
+        isNestTarget && 'band-nest-target',
+      )}
       onContextMenu={
         setPath
           ? (e) => {
               e.preventDefault()
               e.stopPropagation()
-              void window.nexus.contextMenu({ kind: 'set', path: setPath, title: setNames.get(group.key) ?? group.key })
+              void window.nexus.contextMenu({
+                kind: 'set',
+                path: setPath,
+                title: setNames.get(group.key) ?? group.key,
+              })
             }
           : undefined
       }

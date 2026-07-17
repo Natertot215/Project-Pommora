@@ -12,7 +12,8 @@ import { readJsonObject, writeJson } from './atomicWrite'
 /** page id → indices of that page's tables with a heading column. */
 export type TableHeadingColState = Record<string, number[]>
 
-const storePath = (root: string): string => nexusConfig(root, NEXUS_CONFIG_FILES.tableHeadingColumns)
+const storePath = (root: string): string =>
+  nexusConfig(root, NEXUS_CONFIG_FILES.tableHeadingColumns)
 
 /** Lenient read: absent / corrupt → `{}`; keeps only non-negative-integer arrays. */
 export async function readTableHeadingColumns(root: string): Promise<TableHeadingColState> {
@@ -28,7 +29,11 @@ export async function readTableHeadingColumns(root: string): Promise<TableHeadin
 }
 
 /** Set (or, with no indices, clear) a page's heading-column tables. */
-export async function writeTableHeadingColumns(root: string, pageId: string, indices: number[]): Promise<void> {
+export async function writeTableHeadingColumns(
+  root: string,
+  pageId: string,
+  indices: number[],
+): Promise<void> {
   const current = await readTableHeadingColumns(root)
   if (indices.length === 0) delete current[pageId]
   else current[pageId] = indices

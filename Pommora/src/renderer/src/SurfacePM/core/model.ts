@@ -71,7 +71,7 @@ function nodeAt(layout: SurfaceLayout, ref: NodePath): LayoutNode | undefined {
 
 export function findTile(
   layout: SurfaceLayout,
-  tileId: string
+  tileId: string,
 ): { band: number; path: number[] } | undefined {
   const walk = (node: LayoutNode, path: number[]): number[] | undefined => {
     if (node.kind === 'tile') return node.id === tileId ? path : undefined
@@ -131,7 +131,8 @@ export function validateLayout(layout: SurfaceLayout): string[] {
       if (!(node.h > 0)) problems.push(`${where}: non-positive tile height`)
       return
     }
-    if (node.children.length < 2) problems.push(`${where}: split with ${node.children.length} child`)
+    if (node.children.length < 2)
+      problems.push(`${where}: split with ${node.children.length} child`)
     if (node.kind === 'row') {
       if (node.ratios.length !== node.children.length)
         problems.push(`${where}: ${node.ratios.length} ratios for ${node.children.length} children`)

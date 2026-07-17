@@ -15,7 +15,7 @@ import { solidColorCss } from './solidColor'
 export function LinkCell({
   raw,
   def,
-  showFullLink
+  showFullLink,
 }: {
   raw: string
   def: PropertyDefinition | undefined

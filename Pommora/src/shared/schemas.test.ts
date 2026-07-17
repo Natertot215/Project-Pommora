@@ -1,10 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import {
-  pageCollectionSidecar,
-  pageSetSidecar,
-  areaSidecar,
-  topicSidecar
-} from './schemas'
+import { pageCollectionSidecar, pageSetSidecar, areaSidecar, topicSidecar } from './schemas'
 
 describe('folder sidecar schemas', () => {
   it('parses a minimal page collection (only id required)', () => {
@@ -35,7 +30,7 @@ describe('folder sidecar schemas', () => {
       id: 'C1',
       properties: ['prop_p1', 'prop_p2'],
       set_order: ['s1'],
-      page_order: ['p1']
+      page_order: ['p1'],
     }
     expect(pageCollectionSidecar.parse(v)).toMatchObject(v)
   })
@@ -51,7 +46,7 @@ describe('context sidecar schemas', () => {
     expect(areaSidecar.parse({ id: 'A1', tier: 1, color: 'blue' })).toMatchObject({
       id: 'A1',
       tier: 1,
-      color: 'blue'
+      color: 'blue',
     })
     expect(topicSidecar.parse({ id: 'TP1', tier: 2 })).toMatchObject({ id: 'TP1', tier: 2 })
   })

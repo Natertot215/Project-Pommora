@@ -6,7 +6,7 @@ import {
   blockMoveChanges,
   renumberOrderedRun,
   checkboxToggleChange,
-  type Slot
+  type Slot,
 } from './listDragModel'
 
 /** Drop the item whose line contains `grab` so it starts at the line containing `dropLine` — returns the
@@ -202,21 +202,21 @@ describe('blockMoveChanges (blank-separated block move)', () => {
   it('does not lazily-continue a list when a block drops under it (no blank below the list)', () => {
     const doc = '- a\n- b\npara X\n\nmover'
     expect(apply(doc, { from: doc.indexOf('mover'), to: doc.length }, doc.indexOf('para X'))).toBe(
-      '- a\n- b\n\nmover\n\npara X'
+      '- a\n- b\n\nmover\n\npara X',
     )
   })
 
   it('does not merge two paragraphs when a block drops between glued blocks', () => {
     const doc = 'head para\n- list item\n\nmover'
-    expect(apply(doc, { from: doc.indexOf('mover'), to: doc.length }, doc.indexOf('- list item'))).toBe(
-      'head para\n\nmover\n\n- list item'
-    )
+    expect(
+      apply(doc, { from: doc.indexOf('mover'), to: doc.length }, doc.indexOf('- list item')),
+    ).toBe('head para\n\nmover\n\n- list item')
   })
 
   it('heals the hole so moving a block out from between two glued blocks does not fuse them', () => {
     const doc = 'alpha\n- a\n- b\n\nbeta'
     expect(apply(doc, { from: doc.indexOf('- a'), to: doc.indexOf('- b') + 3 }, doc.length)).toBe(
-      'alpha\n\nbeta\n\n- a\n- b'
+      'alpha\n\nbeta\n\n- a\n- b',
     )
   })
 

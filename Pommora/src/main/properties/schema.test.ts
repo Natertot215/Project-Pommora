@@ -1,9 +1,20 @@
 import { describe, it, expect } from 'vitest'
-import { parseDefinitions, droppingUserContexts, validateName, validateDefinition, validateOptionValues } from './schema'
+import {
+  parseDefinitions,
+  droppingUserContexts,
+  validateName,
+  validateDefinition,
+  validateOptionValues,
+} from './schema'
 import type { PropertyDefinition } from '@shared/properties'
 
-const def = (over: Partial<PropertyDefinition> & { id: string; name: string; type: PropertyDefinition['type'] }) =>
-  over as PropertyDefinition
+const def = (
+  over: Partial<PropertyDefinition> & {
+    id: string
+    name: string
+    type: PropertyDefinition['type']
+  },
+) => over as PropertyDefinition
 
 describe('parseDefinitions', () => {
   it('parses valid entries and drops malformed / retired-type ones', () => {
@@ -11,7 +22,7 @@ describe('parseDefinitions', () => {
       { id: 'p1', name: 'Score', type: 'number' },
       { id: 'p2', name: 'When', type: 'date' }, // retired type → fails the enum → dropped
       { name: 'missing id', type: 'number' }, // dropped
-      'garbage' // dropped
+      'garbage', // dropped
     ])
     expect(out.map((d) => d.id)).toEqual(['p1'])
   })
@@ -27,7 +38,7 @@ describe('droppingUserContexts', () => {
     const out = droppingUserContexts([
       def({ id: 'prop_x', name: 'Link', type: 'context' }),
       def({ id: '_tier1', name: 'Areas', type: 'context' }),
-      def({ id: 'prop_y', name: 'Score', type: 'number' })
+      def({ id: 'prop_y', name: 'Score', type: 'number' }),
     ])
     expect(out.map((d) => d.id)).toEqual(['_tier1', 'prop_y'])
   })
@@ -50,8 +61,12 @@ describe('validateDefinition', () => {
   const existing = [def({ id: 'p1', name: 'Stage', type: 'status' })]
 
   it('blocks reserved ids and duplicate ids', () => {
-    expect(validateDefinition(def({ id: '_status', name: 'X', type: 'number' }), existing).ok).toBe(false)
-    expect(validateDefinition(def({ id: 'p1', name: 'New', type: 'number' }), existing).ok).toBe(false)
+    expect(validateDefinition(def({ id: '_status', name: 'X', type: 'number' }), existing).ok).toBe(
+      false,
+    )
+    expect(validateDefinition(def({ id: 'p1', name: 'New', type: 'number' }), existing).ok).toBe(
+      false,
+    )
   })
 
   it('rejects duplicate select option values', () => {
@@ -61,19 +76,28 @@ describe('validateDefinition', () => {
       type: 'select',
       select_options: [
         { value: 'a', label: 'A' },
-        { value: 'a', label: 'A2' }
-      ]
+        { value: 'a', label: 'A2' },
+      ],
     })
     expect(validateDefinition(dupOpts, existing).ok).toBe(false)
   })
 
   it('allows a zero-option select (no floor)', () => {
-    expect(validateDefinition(def({ id: 'p2', name: 'Tag', type: 'select', select_options: [] }), existing).ok).toBe(true)
-    expect(validateDefinition(def({ id: 'p4', name: 'Tag3', type: 'select' }), existing).ok).toBe(true)
+    expect(
+      validateDefinition(
+        def({ id: 'p2', name: 'Tag', type: 'select', select_options: [] }),
+        existing,
+      ).ok,
+    ).toBe(true)
+    expect(validateDefinition(def({ id: 'p4', name: 'Tag3', type: 'select' }), existing).ok).toBe(
+      true,
+    )
   })
 
   it('accepts a valid new property', () => {
-    expect(validateDefinition(def({ id: 'p9', name: 'Score', type: 'number' }), existing).ok).toBe(true)
+    expect(validateDefinition(def({ id: 'p9', name: 'Score', type: 'number' }), existing).ok).toBe(
+      true,
+    )
   })
 })
 

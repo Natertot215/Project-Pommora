@@ -20,19 +20,23 @@ export function tierLabel(level: number, labels: NexusLabels): string {
 export const TIER_LEVEL_BY_ID: Record<string, number> = {
   [RESERVED_PROPERTY_ID.tier1]: 1,
   [RESERVED_PROPERTY_ID.tier2]: 2,
-  [RESERVED_PROPERTY_ID.tier3]: 3
+  [RESERVED_PROPERTY_ID.tier3]: 3,
 }
 
 // Built-in reserved columns with fixed English labels (tiers are configurable, handled above).
 const RESERVED_LABEL: Record<string, string> = {
   [RESERVED_PROPERTY_ID.title]: 'Title',
   [RESERVED_PROPERTY_ID.createdAt]: 'Created',
-  [RESERVED_PROPERTY_ID.modifiedAt]: 'Modified'
+  [RESERVED_PROPERTY_ID.modifiedAt]: 'Modified',
 }
 
 /** A column id → its header label: tiers via the per-Nexus labels, built-ins via fixed labels, user
  *  props via the schema def's `name`, an unknown id via the id itself (never throws). */
-export function columnLabel(columnId: string, schema: PropertyDefinition[], labels: NexusLabels): string {
+export function columnLabel(
+  columnId: string,
+  schema: PropertyDefinition[],
+  labels: NexusLabels,
+): string {
   const tier = TIER_LEVEL_BY_ID[columnId]
   if (tier) return tierLabel(tier, labels)
   return RESERVED_LABEL[columnId] ?? schema.find((d) => d.id === columnId)?.name ?? columnId

@@ -31,8 +31,12 @@
        heavier bottom seam, and short centered segment dividers between columns (vs the data rows'
        full-height hairlines). Each aliases a design-system token. — */
   --heading-fill: var(--fill-quinary); /* faint band behind the header, sets it off the body */
-  --heading-text: var(--label-control); /* header label colour — the global on-control label token */
-  --heading-divider: var(--border-heading); /* the heading↔body bottom seam (the global heading-seam token) */
+  --heading-text: var(
+    --label-control
+  ); /* header label colour — the global on-control label token */
+  --heading-divider: var(
+    --border-heading
+  ); /* the heading↔body bottom seam (the global heading-seam token) */
   --heading-segment: var(--label-tertiary); /* the short inter-column bar on the heading row */
   --heading-segment-height: 16px; /* bar length — shorter than the row (segmented-control feel) */
   --heading-segment-width: 1.5px; /* bar thickness */
@@ -40,16 +44,24 @@
 
   /* — Group sections — */
   --group-gap-top: 16px; /* vertical gap above a group header (separates sections) */
-  --subband-gap-top: var(--cell-padding-y); /* a sub-group bucket header sits at data-row height, not band height */
+  --subband-gap-top: var(
+    --cell-padding-y
+  ); /* a sub-group bucket header sits at data-row height, not band height */
 
   /* — Column resize — */
   --resizer-width: 8px; /* width of the invisible drag hit-strip at a column's right edge */
 
   /* — Drag — */
-  --col-highlight: var(--state-selected); /* the lifted COLUMN reads as selected mid-drag (not ghosted — ghost is for rows) */
-  --col-drag-band: var(--bg-window); /* opaque backing so the dragged column glides as one solid band, not see-through */
+  --col-highlight: var(
+    --state-selected
+  ); /* the lifted COLUMN reads as selected mid-drag (not ghosted — ghost is for rows) */
+  --col-drag-band: var(
+    --bg-window
+  ); /* opaque backing so the dragged column glides as one solid band, not see-through */
   --col-shift-ease: var(--duration-fast) var(--ease-standard); /* neighbour columns slide to open the gap on this curve */
-  --drag-muted: var(--state-ghost); /* the picked-up row fades to the ghost opacity — muted in place, never displaced (B-2) */
+  --drag-muted: var(
+    --state-ghost
+  ); /* the picked-up row fades to the ghost opacity — muted in place, never displaced (B-2) */
   /* The insertion line (--drag-line + --drop-line-thickness + --drop-dot-size) is a GLOBAL drag primitive
      in theme-vars.css.ts, not a table-scoped knob: its .table-drop-line class is also used by the
      settings-pane property reorder, which renders outside .table-view, so those vars must resolve there. */

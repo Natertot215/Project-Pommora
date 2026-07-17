@@ -9,7 +9,7 @@ import {
   clearOption,
   renameStatusOption,
   removeStatusOption,
-  clearStatusOption
+  clearStatusOption,
 } from './optionOps'
 import { createProperty, editProperty } from './registryProperty'
 import { assignProperty } from './assignment'
@@ -27,8 +27,15 @@ afterEach(async () => {
   await rm(root, { recursive: true, force: true })
 })
 
-async function mkSelect(options: { value: string; label: string; color?: string }[]): Promise<string> {
-  const c = await createProperty(root, { id: '', name: 'Tags', type: 'select', select_options: options } as PropertyDefinition)
+async function mkSelect(
+  options: { value: string; label: string; color?: string }[],
+): Promise<string> {
+  const c = await createProperty(root, {
+    id: '',
+    name: 'Tags',
+    type: 'select',
+    select_options: options,
+  } as PropertyDefinition)
   if (!c.ok) throw new Error('createProperty failed')
   return c.value.id
 }
@@ -46,7 +53,11 @@ async function pageHolding(id: string, value: string): Promise<string> {
 
 /** A Status property seeded Open / Active / Done (upcoming / in_progress / done groups). */
 async function mkStatus(): Promise<string> {
-  const c = await createProperty(root, { id: '', name: 'Stage', type: 'status' } as PropertyDefinition)
+  const c = await createProperty(root, {
+    id: '',
+    name: 'Stage',
+    type: 'status',
+  } as PropertyDefinition)
   if (!c.ok) throw new Error('createProperty failed')
   return c.value.id
 }
@@ -80,7 +91,7 @@ describe('setOptions', () => {
     const id = await mkSelect([{ value: 'A', label: 'A' }])
     const r = await setOptions(root, id, [
       { value: 'A', label: 'A' },
-      { value: 'A', label: 'A' }
+      { value: 'A', label: 'A' },
     ])
     expect(r.ok).toBe(false)
   })
@@ -109,7 +120,9 @@ describe('setOptions', () => {
       await gate
       order.push('schema-op')
     })
-    const fast = setOptions(root, id, [{ value: 'B', label: 'B' }]).then(() => order.push('setOptions'))
+    const fast = setOptions(root, id, [{ value: 'B', label: 'B' }]).then(() =>
+      order.push('setOptions'),
+    )
     await new Promise((r) => setTimeout(r, 50))
     release()
     await Promise.all([slow, fast])
@@ -119,7 +132,11 @@ describe('setOptions', () => {
 
 describe('option ops reject non-select/multi properties', () => {
   it('all four ops fail on a status property and never corrupt it', async () => {
-    const c = await createProperty(root, { id: '', name: 'Stage', type: 'status' } as PropertyDefinition)
+    const c = await createProperty(root, {
+      id: '',
+      name: 'Stage',
+      type: 'status',
+    } as PropertyDefinition)
     if (!c.ok) throw new Error('createProperty failed')
     const id = c.value.id
     expect((await setOptions(root, id, [{ value: 'X', label: 'X' }])).ok).toBe(false)
@@ -139,7 +156,9 @@ describe('renameOption', () => {
 
     const r = await renameOption(root, id, 'Urgent', 'Critical')
     expect(r.ok).toBe(true)
-    expect((await readRegistry(root)).defs[id].select_options).toEqual([{ value: 'Critical', label: 'Critical' }])
+    expect((await readRegistry(root)).defs[id].select_options).toEqual([
+      { value: 'Critical', label: 'Critical' },
+    ])
     const content = await readFile(page, 'utf8')
     expect(content).toContain('Critical')
     expect(content).not.toContain('Urgent')
@@ -148,7 +167,7 @@ describe('renameOption', () => {
   it('rejects a rename that collides with an existing title (no page writes)', async () => {
     const id = await mkSelect([
       { value: 'A', label: 'A' },
-      { value: 'B', label: 'B' }
+      { value: 'B', label: 'B' },
     ])
     const page = await pageHolding(id, 'A')
     const r = await renameOption(root, id, 'A', 'B')
@@ -165,7 +184,7 @@ describe('removeOption', () => {
   it('deletes the def option and strips its value from pages', async () => {
     const id = await mkSelect([
       { value: 'A', label: 'A' },
-      { value: 'B', label: 'B' }
+      { value: 'B', label: 'B' },
     ])
     const page = await pageHolding(id, 'A')
 

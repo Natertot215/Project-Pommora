@@ -20,7 +20,7 @@ interface Props {
  */
 export const PageHeader = forwardRef<HTMLDivElement, Props>(function PageHeader(
   { path, title, cover, onRename, onEditIcon },
-  ref
+  ref,
 ) {
   const mutate = useSession((s) => s.mutate)
   const reloadPage = useSession((s) => s.reloadPage)

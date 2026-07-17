@@ -45,7 +45,12 @@ function optionOrderIndex(def: PropertyDefinition): Record<string, number> {
   return index
 }
 
-function rank(row: ViewRow, propertyId: string, order: Record<string, number>, schema: PropertyDefinition[]): number {
+function rank(
+  row: ViewRow,
+  propertyId: string,
+  order: Record<string, number>,
+  schema: PropertyDefinition[],
+): number {
   const v = resolveFieldValue(row, propertyId, schema)
   const key = v.kind === 'select' || v.kind === 'status' ? v.value : undefined
   return key !== undefined && order[key] !== undefined ? order[key] : Number.MAX_SAFE_INTEGER
@@ -115,7 +120,11 @@ function buildCriterion(c: SortCriterion, schema: PropertyDefinition[]): Resolve
       // A Custom criterion ranks by its own order (unknowns last); direction is moot for it.
       if (c.order?.length) {
         const order = Object.fromEntries(c.order.map((v, i) => [v, i]))
-        return { extract: (r) => rank(r, c.property_id, order, schema), less: numericLess, ascending: true }
+        return {
+          extract: (r) => rank(r, c.property_id, order, schema),
+          less: numericLess,
+          ascending: true,
+        }
       }
       const def = schema.find((d) => d.id === c.property_id)
       const order = def ? optionOrderIndex(def) : {}
@@ -141,7 +150,10 @@ function buildCriterion(c: SortCriterion, schema: PropertyDefinition[]): Resolve
 /** The EFFECTIVE criteria count — only what buildCriterion resolves (a deleted property or tier
  *  criterion sorts by nothing). TableView's drag/manual-order gates read this, never the raw array
  *  length, so a dead criterion can't retire row reorder. */
-export function resolvedSortCount(sort: SortCriterion[] | undefined, schema: PropertyDefinition[]): number {
+export function resolvedSortCount(
+  sort: SortCriterion[] | undefined,
+  schema: PropertyDefinition[],
+): number {
   return (sort ?? []).filter((c) => buildCriterion(c, schema) !== null).length
 }
 
@@ -151,7 +163,7 @@ export function resolvedSortCount(sort: SortCriterion[] | undefined, schema: Pro
 export function makeSorter(
   sort: SortCriterion[] | undefined,
   schema: PropertyDefinition[],
-  manualOrder?: string[]
+  manualOrder?: string[],
 ): ((rows: ViewRow[]) => ViewRow[]) | null {
   const resolved = (sort ?? [])
     .map((c) => buildCriterion(c, schema))
@@ -159,7 +171,9 @@ export function makeSorter(
   // The per-machine manual order (viewOrders) is the LOWEST-priority tiebreaker (D-6): it reorders
   // only rows already equal on every real sort key, and is the sole comparator when a view is grouped
   // but unsorted. A row absent from the manual order ranks last (appended after the placed ones).
-  const manualIndex = manualOrder?.length ? new Map(manualOrder.map((id, i) => [id, i] as const)) : null
+  const manualIndex = manualOrder?.length
+    ? new Map(manualOrder.map((id, i) => [id, i] as const))
+    : null
   if (resolved.length === 0 && !manualIndex) return null
 
   return (rows) => {
@@ -167,7 +181,7 @@ export function makeSorter(
       offset,
       row,
       keys: resolved.map((rc) => rc.extract(row)),
-      manual: manualIndex ? (manualIndex.get(row.id) ?? Number.MAX_SAFE_INTEGER) : 0
+      manual: manualIndex ? (manualIndex.get(row.id) ?? Number.MAX_SAFE_INTEGER) : 0,
     }))
     decorated.sort((a, b) => {
       for (let i = 0; i < resolved.length; i++) {

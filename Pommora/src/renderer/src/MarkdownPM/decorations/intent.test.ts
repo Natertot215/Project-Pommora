@@ -39,25 +39,35 @@ describe('decoration intents', () => {
     const t = '## Title'
     const intents = decorationsFor(t, tokenize(t), new Set(), 99) // caret off the line
     // whole-line size class so the ## grows with the level
-    expect(intents.some((d) => d.kind === 'class' && d.className === 'md-h2' && d.from === 0 && d.to === t.length)).toBe(
-      true
-    )
+    expect(
+      intents.some(
+        (d) => d.kind === 'class' && d.className === 'md-h2' && d.from === 0 && d.to === t.length,
+      ),
+    ).toBe(true)
     expect(intents.some((d) => d.kind === 'class' && d.className === 'md-hmarker')).toBe(true)
   })
 
   it('strikethrough → md-strike on content', () => {
     const t = '~~gone~~'
     const tokens = tokenize(t)
-    expect(decorationsFor(t, tokens, new Set(), 99).some((d) => d.kind === 'class' && d.className === 'md-strike')).toBe(
-      true
-    )
+    expect(
+      decorationsFor(t, tokens, new Set(), 99).some(
+        (d) => d.kind === 'class' && d.className === 'md-strike',
+      ),
+    ).toBe(true)
   })
 
   it('dash bullet, caret off the line → • widget replaces just the dash (in-flow)', () => {
     const t = '- item'
     const intents = decorationsFor(t, tokenize(t), new Set(), 99)
-    expect(intents.some((d) => d.kind === 'line' && d.className === 'md-li' && d.level === 0)).toBe(true)
-    expect(intents.some((d) => d.kind === 'widget' && d.spec.type === 'bullet' && d.from === 0 && d.to === 1)).toBe(true)
+    expect(intents.some((d) => d.kind === 'line' && d.className === 'md-li' && d.level === 0)).toBe(
+      true,
+    )
+    expect(
+      intents.some(
+        (d) => d.kind === 'widget' && d.spec.type === 'bullet' && d.from === 0 && d.to === 1,
+      ),
+    ).toBe(true)
   })
 
   it('dash bullet, caret in the CONTENT (just in the line) → still • widget, never raw', () => {
@@ -77,18 +87,34 @@ describe('decoration intents', () => {
     const t = '3. third'
     const intents = decorationsFor(t, tokenize(t), new Set(), 99)
     expect(
-      intents.some((d) => d.kind === 'class' && d.className === 'md-ol-marker md-control md-li-glyph' && d.from === 0 && d.to === 2)
+      intents.some(
+        (d) =>
+          d.kind === 'class' &&
+          d.className === 'md-ol-marker md-control md-li-glyph' &&
+          d.from === 0 &&
+          d.to === 2,
+      ),
     ).toBe(true)
-    expect(intents.some((d) => d.kind === 'line' && d.className === 'md-li md-li-ordered')).toBe(true)
+    expect(intents.some((d) => d.kind === 'line' && d.className === 'md-li md-li-ordered')).toBe(
+      true,
+    )
     expect(intents.some((d) => d.kind === 'widget')).toBe(false)
   })
 
   it.each([
     ['arrow', '→ step'],
-    ['plus', '+ step']
+    ['plus', '+ step'],
   ])('%s list → marker kept as literal source (recolour + drag-handle class), no widget, bullet spacing', (_n, t) => {
     const intents = decorationsFor(t, tokenize(t), new Set(), 99)
-    expect(intents.some((d) => d.kind === 'class' && d.className === 'md-control md-li-glyph' && d.from === 0 && d.to === 1)).toBe(true)
+    expect(
+      intents.some(
+        (d) =>
+          d.kind === 'class' &&
+          d.className === 'md-control md-li-glyph' &&
+          d.from === 0 &&
+          d.to === 1,
+      ),
+    ).toBe(true)
     expect(intents.some((d) => d.kind === 'line' && d.className === 'md-li')).toBe(true)
     expect(intents.some((d) => d.kind === 'widget')).toBe(false)
   })
@@ -128,7 +154,7 @@ describe('decoration intents', () => {
   it('multi-line blockquote → only the outer lines round (first vs last)', () => {
     const t = '> a\n> b'
     const lines = decorationsFor(t, tokenize(t), new Set(), 99).filter(
-      (d): d is Extract<typeof d, { kind: 'line' }> => d.kind === 'line'
+      (d): d is Extract<typeof d, { kind: 'line' }> => d.kind === 'line',
     )
     expect(lines).toHaveLength(2)
     expect(lines[0].className).toBe('md-bq md-bq-first')
@@ -155,7 +181,9 @@ describe('decoration intents', () => {
 describe('callout box chrome + nested constructs', () => {
   const doc = '> [!callout] hi\n> - item\n> ## head\n> ---'
   const intents = decorationsFor(doc, tokenize(doc), new Set(), 0)
-  const lineClasses = intents.filter((d): d is Extract<typeof d, { kind: 'line' }> => d.kind === 'line').map((d) => d.className)
+  const lineClasses = intents
+    .filter((d): d is Extract<typeof d, { kind: 'line' }> => d.kind === 'line')
+    .map((d) => d.className)
 
   it('every line gets the box line-class (first/last)', () => {
     expect(lineClasses.some((c) => c.includes('md-callout-first'))).toBe(true)
@@ -177,7 +205,10 @@ describe('callout box chrome + nested constructs', () => {
     const t = '```\n> ```\nstill code\n```'
     const ints = decorationsFor(t, tokenize(t), new Set(), 99) // caret off the block
     // all of lines 1-2 are code CONTENT (no md-cb-last until the final ```), so exactly one open + one close
-    const cbLines = ints.filter((d): d is Extract<typeof d, { kind: 'line' }> => d.kind === 'line' && d.className.includes('md-cb'))
+    const cbLines = ints.filter(
+      (d): d is Extract<typeof d, { kind: 'line' }> =>
+        d.kind === 'line' && d.className.includes('md-cb'),
+    )
     expect(cbLines.filter((d) => d.className.includes('md-cb-first'))).toHaveLength(1)
     expect(cbLines.filter((d) => d.className.includes('md-cb-last'))).toHaveLength(1)
     expect(cbLines).toHaveLength(4) // 4 lines, all one block
@@ -185,14 +216,19 @@ describe('callout box chrome + nested constructs', () => {
   it('an unclosed fence inside a callout does not leak code styling onto the non-quote lines below', () => {
     const t = '> [!callout] head\n> ```\nplain below\nmore plain'
     const ints = decorationsFor(t, tokenize(t), new Set(), 99)
-    const cbLines = ints.filter((d): d is Extract<typeof d, { kind: 'line' }> => d.kind === 'line' && d.className.includes('md-cb'))
+    const cbLines = ints.filter(
+      (d): d is Extract<typeof d, { kind: 'line' }> =>
+        d.kind === 'line' && d.className.includes('md-cb'),
+    )
     // only the `> ``` open line is a code line; the non-quote lines below are NOT code
     expect(cbLines).toHaveLength(1)
   })
   it('a blockquote nested inside a callout renders as an inset quote (md-bq-in), not flat body', () => {
     const t = '> [!callout] head\n> > quoted one\n> > quoted two\n> body'
     const ints = decorationsFor(t, tokenize(t), new Set(), 99)
-    const classes = ints.filter((d): d is Extract<typeof d, { kind: 'line' }> => d.kind === 'line').map((d) => d.className)
+    const classes = ints
+      .filter((d): d is Extract<typeof d, { kind: 'line' }> => d.kind === 'line')
+      .map((d) => d.className)
     expect(classes.some((c) => c.includes('md-bq-in-first'))).toBe(true)
     expect(classes.some((c) => c.includes('md-bq-in-last'))).toBe(true)
     expect(classes.filter((c) => c.includes('md-bq-in')).length).toBe(2) // both quote lines
@@ -202,7 +238,9 @@ describe('callout box chrome + nested constructs', () => {
   it('a multi-DEPTH nested-quote run is ONE block — exactly one first + one last, no notch mid-block', () => {
     const t = '> [!callout] head\n> > a\n> >> b\n> > c\n> body'
     const ints = decorationsFor(t, tokenize(t), new Set(), 99)
-    const classes = ints.filter((d): d is Extract<typeof d, { kind: 'line' }> => d.kind === 'line').map((d) => d.className)
+    const classes = ints
+      .filter((d): d is Extract<typeof d, { kind: 'line' }> => d.kind === 'line')
+      .map((d) => d.className)
     expect(classes.filter((c) => c.includes('md-bq-in-first'))).toHaveLength(1)
     expect(classes.filter((c) => c.includes('md-bq-in-last'))).toHaveLength(1)
     expect(classes.filter((c) => c.includes('md-bq-in')).length).toBe(3) // a, b, c all in the run
@@ -210,7 +248,9 @@ describe('callout box chrome + nested constructs', () => {
   it('a fenced code block inside a callout composes the box chrome with the code class', () => {
     const t = '> [!callout] head\n> ```js\n> code\n> ```'
     const ints = decorationsFor(t, tokenize(t), new Set(), 0)
-    const classes = ints.filter((d): d is Extract<typeof d, { kind: 'line' }> => d.kind === 'line').map((d) => d.className)
+    const classes = ints
+      .filter((d): d is Extract<typeof d, { kind: 'line' }> => d.kind === 'line')
+      .map((d) => d.className)
     expect(classes).toContain('md-cb md-cb-first') // the ```js line
     expect(classes.some((c) => c.startsWith('md-callout') && !c.includes('md-cb'))).toBe(true) // box chrome present
     // every fence line is also a callout line (the box wraps the code)

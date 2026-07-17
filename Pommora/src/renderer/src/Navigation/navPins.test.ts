@@ -3,7 +3,8 @@ import type { PinEntry } from '@shared/types'
 import { pinFor, reorderTo, cleanPinTarget } from './navPins'
 import { navKey } from './navRecents'
 
-const p = (id: string, order: number): PinEntry => ({ kind: 'page', id, path: `/${id}`, order }) as PinEntry
+const p = (id: string, order: number): PinEntry =>
+  ({ kind: 'page', id, path: `/${id}`, order }) as PinEntry
 
 describe('navPins', () => {
   it('appends a new pin above the current max order', () => {
@@ -28,6 +29,8 @@ describe('navPins', () => {
   })
 
   it('strips order/deleted down to a clean target', () => {
-    expect(cleanPinTarget({ kind: 'page', id: 'a', path: '/a', order: 3, deleted: false } as PinEntry)).toEqual({ kind: 'page', id: 'a', path: '/a' })
+    expect(
+      cleanPinTarget({ kind: 'page', id: 'a', path: '/a', order: 3, deleted: false } as PinEntry),
+    ).toEqual({ kind: 'page', id: 'a', path: '/a' })
   })
 })

@@ -25,7 +25,7 @@ import type {
   Personalization,
   SidebarMode,
   TopicNode,
-  UserSection
+  UserSection,
 } from '@shared/types'
 import {
   ACCENT_COLORS,
@@ -35,7 +35,7 @@ import {
   DEFAULT_LABELS,
   DEFAULT_TIME_FORMAT,
   ENTITY_ICON_KINDS,
-  coerceViewScale
+  coerceViewScale,
 } from '@shared/types'
 import { savedView, type SavedView } from '@shared/views'
 import { coerceOpenIn, coerceViewButton, coerceViewStyle } from '@shared/schemas'
@@ -52,7 +52,7 @@ import {
   NEXUS_CONFIG_FILES,
   nexusConfig,
   nexusDir,
-  SIDECAR_FILENAME
+  SIDECAR_FILENAME,
 } from './paths'
 
 type Json = Record<string, unknown>
@@ -80,9 +80,13 @@ function resolveAccent(raw: string | undefined): AccentSetting {
 // (absent/invalid → undefined = the built-in default). Accent is resolved separately into
 // tree.accent (back-compat with the legacy top-level accent_color), so it isn't surfaced here.
 export function readPersonalization(raw: unknown): Personalization {
-  const p = raw != null && typeof raw === 'object' && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {}
+  const p =
+    raw != null && typeof raw === 'object' && !Array.isArray(raw)
+      ? (raw as Record<string, unknown>)
+      : {}
   const bool = (v: unknown): boolean | undefined => (typeof v === 'boolean' ? v : undefined)
-  const placement = (v: unknown): FolderPlacement | undefined => (v === 'top' || v === 'bottom' ? v : undefined)
+  const placement = (v: unknown): FolderPlacement | undefined =>
+    v === 'top' || v === 'bottom' ? v : undefined
   const mode = (v: unknown): SidebarMode | undefined =>
     v === 'collections' || v === 'contexts' || v === 'agenda' ? v : undefined
   const ribbonOrder = Array.isArray(p.ribbonOrder)
@@ -103,7 +107,9 @@ export function readPersonalization(raw: unknown): Personalization {
     : []
   return {
     connectionColor:
-      conn === 'accent' || (conn != null && ACCENT_COLOR_SET.has(conn)) ? (conn as ConnectionColorSetting) : undefined,
+      conn === 'accent' || (conn != null && ACCENT_COLOR_SET.has(conn))
+        ? (conn as ConnectionColorSetting)
+        : undefined,
     hideChevrons: bool(p.hideChevrons),
     outlinerLines: bool(p.outlinerLines),
     navCloseOnSelect: bool(p.navCloseOnSelect),
@@ -114,7 +120,7 @@ export function readPersonalization(raw: unknown): Personalization {
     sidebarMode: mode(p.sidebarMode),
     revealTabBarOnHover: bool(p.revealTabBarOnHover),
     ribbonOrder: ribbonOrder.length ? ribbonOrder : undefined,
-    defaultViewScale: coerceViewScale(p.defaultViewScale)
+    defaultViewScale: coerceViewScale(p.defaultViewScale),
   }
 }
 
@@ -122,7 +128,10 @@ export function readPersonalization(raw: unknown): Personalization {
 // malformed entry falls back to the built-in binding instead of poisoning the map.
 export function readCommands(raw: unknown): Record<string, string> {
   const commands = { ...DEFAULT_COMMANDS }
-  const c = raw != null && typeof raw === 'object' && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {}
+  const c =
+    raw != null && typeof raw === 'object' && !Array.isArray(raw)
+      ? (raw as Record<string, unknown>)
+      : {}
   for (const [key, value] of Object.entries(c)) {
     if (typeof value === 'string' && value.length > 0) commands[key] = value
   }
@@ -136,7 +145,10 @@ function readLabels(raw: unknown): NexusLabels {
     v != null && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {}
   const pair = (v: unknown, fallback: LabelPair): LabelPair => {
     const o = obj(v)
-    return { singular: asString(o.singular) ?? fallback.singular, plural: asString(o.plural) ?? fallback.plural }
+    return {
+      singular: asString(o.singular) ?? fallback.singular,
+      plural: asString(o.plural) ?? fallback.plural,
+    }
   }
   const L = obj(raw)
   // Migrate a legacy `sidebar_sections.{areas,topics}` blob into the area/topic tier plurals when the
@@ -152,7 +164,7 @@ function readLabels(raw: unknown): NexusLabels {
     pageCollection: pair(L.page_collection, DEFAULT_LABELS.pageCollection),
     pageSet: pair(L.page_set, DEFAULT_LABELS.pageSet),
     agendaTask: pair(L.agenda_task, DEFAULT_LABELS.agendaTask),
-    agendaEvent: pair(L.agenda_event, DEFAULT_LABELS.agendaEvent)
+    agendaEvent: pair(L.agenda_event, DEFAULT_LABELS.agendaEvent),
   }
 }
 
@@ -193,7 +205,7 @@ async function readPage(absFile: string, relFile: string): Promise<PageNode> {
       id: asString(fm.id) ?? adoptedId(relFile),
       title: basenameNoMd(basename(absFile)),
       icon: asString(fm.icon),
-      path: relFile
+      path: relFile,
     }
   })
 }
@@ -235,7 +247,7 @@ async function readChildSets(
   relDir: string,
   sidecarMode: boolean,
   excluded: string[],
-  fb: Fallback
+  fb: Fallback,
 ): Promise<SetNode[]> {
   const sets: SetNode[] = []
   for (const e of await listEntries(absDir)) {
@@ -253,7 +265,7 @@ async function readSet(
   name: string,
   sidecarMode: boolean,
   excluded: string[],
-  fb: Fallback
+  fb: Fallback,
 ): Promise<SetNode> {
   const meta = sidecarMode ? ((await readSidecar(join(absDir, SIDECAR_FILENAME.set))) ?? {}) : {}
   const sets = await readChildSets(absDir, relDir, sidecarMode, excluded, fb)
@@ -270,7 +282,7 @@ async function readSet(
     pages: resolveOrder(pages, asStringArray(meta.page_order), fb),
     views: parseViews(meta.views),
     viewButton: coerceViewButton(meta.view_button),
-    viewStyle: coerceViewStyle(meta.view_style)
+    viewStyle: coerceViewStyle(meta.view_style),
   }
 }
 
@@ -278,7 +290,7 @@ async function readSet(
  *  (a def deleted but an assignment not yet reconciled must not become an undefined hole). */
 export function resolveAssignedSchema(
   ids: unknown,
-  registry: PropertyRegistry
+  registry: PropertyRegistry,
 ): PropertyDefinition[] | undefined {
   if (!Array.isArray(ids)) return undefined
   const defs = ids
@@ -295,7 +307,7 @@ async function readPageCollection(
   sidecarMode: boolean,
   excluded: string[],
   fb: Fallback,
-  registry: PropertyRegistry
+  registry: PropertyRegistry,
 ): Promise<CollectionNode> {
   const meta = sidecarMode
     ? ((await readSidecar(join(absDir, SIDECAR_FILENAME.collection))) ?? {})
@@ -316,7 +328,7 @@ async function readPageCollection(
     views: parseViews(meta.views),
     openIn: coerceOpenIn(meta.open_in),
     viewButton: coerceViewButton(meta.view_button),
-    viewStyle: coerceViewStyle(meta.view_style)
+    viewStyle: coerceViewStyle(meta.view_style),
   }
 }
 
@@ -329,7 +341,7 @@ async function readTier<T extends AreaNode | TopicNode | ProjectNode>(
   sidecarMode: boolean,
   excluded: string[],
   order: string[] | undefined,
-  fb: Fallback
+  fb: Fallback,
 ): Promise<T[]> {
   const dir = contextTierDir(root, tier)
   const sidecar = SIDECAR_FILENAME[kind]
@@ -348,7 +360,7 @@ async function readTier<T extends AreaNode | TopicNode | ProjectNode>(
       // (distinct from the adoptedId seed above, which is layout-agnostic by design).
       path: `.nexus/${tier}/${e.name}`,
       banner: asString(sc?.banner),
-      headingIconHidden: sc?.heading_icon_hidden === true
+      headingIconHidden: sc?.heading_icon_hidden === true,
     } as T
     if (kind === 'area') {
       const c = sc?.color
@@ -389,19 +401,25 @@ async function walkNexus(root: string): Promise<NexusTree> {
       : {}
   // Accent's new home is personalization.accent; the legacy top-level accent_color is the back-compat
   // fallback for un-migrated nexuses (G-4). resolveAccent normalizes either into an AccentSetting.
-  const accent = resolveAccent(asString(rawPersonalization.accent) ?? asString(settings.accent_color))
+  const accent = resolveAccent(
+    asString(rawPersonalization.accent) ?? asString(settings.accent_color),
+  )
   const personalization = readPersonalization(rawPersonalization)
   const commands = readCommands(settings.commands)
-  const timeFormat = settings.time_format === 'twentyFourHour' ? 'twentyFourHour' : DEFAULT_TIME_FORMAT
+  const timeFormat =
+    settings.time_format === 'twentyFourHour' ? 'twentyFourHour' : DEFAULT_TIME_FORMAT
   // Profile image + subtitle live in settings (Swift parity), not nexus.json. profileImage is a
   // nexus-relative asset path the renderer serves via nexus-asset://; subtitle is plain text.
   const profileImage = asString(settings.profile_image) ?? null
   const profileIcon = asString(settings.profile_icon)
   const profileSubtitle = asString(settings.profile_subtitle) ?? ''
   const state = (await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.state))) ?? {}
-  const savedConfig = (await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.savedConfig))) ?? {}
-  const sectionsConfig = (await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.sidebarSections))) ?? {}
-  const homepageConfig = (await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.homepage))) ?? {}
+  const savedConfig =
+    (await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.savedConfig))) ?? {}
+  const sectionsConfig =
+    (await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.sidebarSections))) ?? {}
+  const homepageConfig =
+    (await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.homepage))) ?? {}
   const navviewConfig = (await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.navview))) ?? {}
   const registry = await readRegistry(root)
 
@@ -419,21 +437,45 @@ async function walkNexus(root: string): Promise<NexusTree> {
     [
       { key: 'homepage', title: 'Homepage', icon: 'house' },
       { key: 'calendar', title: 'Calendar', icon: 'calendar' },
-      { key: 'recents', title: 'Recents', icon: 'clock' }
+      { key: 'recents', title: 'Recents', icon: 'clock' },
     ] as const
   ).map((s) => ({
     kind: 'saved',
     id: `saved-${s.key}`,
     key: s.key,
     title: savedLabelByKey.get(s.key) ?? s.title,
-    icon: s.icon
+    icon: s.icon,
   }))
 
   // Contexts (sidecar mode only; absent for raw folders like ~/test).
   const contexts = {
-    projects: await readTier<ProjectNode>(root, 'projects', 'project', sidecarMode, excluded, asStringArray(state.project_order), fb),
-    topics: await readTier<TopicNode>(root, 'topics', 'topic', sidecarMode, excluded, asStringArray(state.topic_order), fb),
-    areas: await readTier<AreaNode>(root, 'areas', 'area', sidecarMode, excluded, asStringArray(state.area_order), fb)
+    projects: await readTier<ProjectNode>(
+      root,
+      'projects',
+      'project',
+      sidecarMode,
+      excluded,
+      asStringArray(state.project_order),
+      fb,
+    ),
+    topics: await readTier<TopicNode>(
+      root,
+      'topics',
+      'topic',
+      sidecarMode,
+      excluded,
+      asStringArray(state.topic_order),
+      fb,
+    ),
+    areas: await readTier<AreaNode>(
+      root,
+      'areas',
+      'area',
+      sidecarMode,
+      excluded,
+      asStringArray(state.area_order),
+      fb,
+    ),
   }
 
   // Top-level Collections (gated by `_pagecollection.json`; raw mode treats every root folder
@@ -448,13 +490,19 @@ async function walkNexus(root: string): Promise<NexusTree> {
       (await pathExists(join(abs, SIDECAR_FILENAME.taskConfig))) ||
       (await pathExists(join(abs, SIDECAR_FILENAME.eventConfig)))
     if (hasAgendaSidecar) continue
-    const isCollection = sidecarMode ? await pathExists(join(abs, SIDECAR_FILENAME.collection)) : true
-    if (isCollection) allCollections.push(await readPageCollection(abs, e.name, e.name, sidecarMode, excluded, fb, registry.defs))
+    const isCollection = sidecarMode
+      ? await pathExists(join(abs, SIDECAR_FILENAME.collection))
+      : true
+    if (isCollection)
+      allCollections.push(
+        await readPageCollection(abs, e.name, e.name, sidecarMode, excluded, fb, registry.defs),
+      )
   }
   const orderedCollections = resolveOrder(allCollections, asStringArray(state.collection_order), fb)
 
   // Partition into user sections vs ungrouped (sidebar-sections keys by `collectionIDs`).
-  const rawSections = (sectionsConfig.sections as { id: string; label: string; collectionIDs?: string[] }[]) ?? []
+  const rawSections =
+    (sectionsConfig.sections as { id: string; label: string; collectionIDs?: string[] }[]) ?? []
   const claimed = new Set<string>()
   const userSections: UserSection[] = rawSections.map((s) => {
     const collections = (s.collectionIDs ?? [])
@@ -470,7 +518,7 @@ async function walkNexus(root: string): Promise<NexusTree> {
     homepage: {
       banner: asString(homepageConfig.banner),
       locked: homepageConfig.blocks_locked === true,
-      headingIconHidden: homepageConfig.heading_icon_hidden === true
+      headingIconHidden: homepageConfig.heading_icon_hidden === true,
     },
     navView: { banner: asString(navviewConfig.banner) },
     saved,
@@ -482,6 +530,6 @@ async function walkNexus(root: string): Promise<NexusTree> {
     timeFormat,
     personalization,
     commands,
-    registry: orderedDefs(registry)
+    registry: orderedDefs(registry),
   }
 }

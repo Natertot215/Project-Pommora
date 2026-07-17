@@ -25,7 +25,7 @@ describe('regions', () => {
       '| a | b |\n|---|---|\n| 1 | 2 |',
       '| h1 | h2 | h3 |\n| :--- | :-: | ---: |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |',
       '| a\\|b | c |\n| ---- | -- |\n| x | y |', // escaped pipe + uneven dash widths
-      '| only header |\n| --- |' // header-only, no body rows
+      '| only header |\n| --- |', // header-only, no body rows
     ]) {
       const [r] = tableRegions(table)
       expect(modelFromRegion(r)).toEqual(parseTable(table))

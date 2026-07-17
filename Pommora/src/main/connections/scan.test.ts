@@ -1,7 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import { scanConnections } from './scan'
 
-const titles = (body: string) => scanConnections(body).map((c) => c.normalizedTitle).sort()
+const titles = (body: string) =>
+  scanConnections(body)
+    .map((c) => c.normalizedTitle)
+    .sort()
 
 describe('scanConnections', () => {
   it('extracts page links and normalizes their titles', () => {
@@ -22,7 +25,10 @@ describe('scanConnections', () => {
   })
 
   it('tolerates internal brackets in a title (a `]` is content unless it closes the pair)', () => {
-    expect(titles('see [[Notes [WIP] final]] and [[A [x] B]]')).toEqual(['a [x] b', 'notes [wip] final'])
+    expect(titles('see [[Notes [WIP] final]] and [[A [x] B]]')).toEqual([
+      'a [x] b',
+      'notes [wip] final',
+    ])
     expect(titles('[[A]] then [[B]]')).toEqual(['a', 'b']) // adjacent links still split
   })
 

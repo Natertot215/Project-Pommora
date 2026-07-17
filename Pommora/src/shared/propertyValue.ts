@@ -115,7 +115,7 @@ export function encodePropertyValue(value: PropertyValue): unknown {
       return null
     case 'lastEditedTime':
       throw new Error(
-        'PropertyValue.lastEditedTime is virtual and must not be persisted; derive from modified_at at read time.'
+        'PropertyValue.lastEditedTime is virtual and must not be persisted; derive from modified_at at read time.',
       )
   }
 }
@@ -152,7 +152,7 @@ export function isBlankValue(value: PropertyValue | null): boolean {
 export function applyPropertyValue(
   current: unknown,
   propertyId: string,
-  value: PropertyValue | null
+  value: PropertyValue | null,
 ): Record<string, unknown> {
   const next: Record<string, unknown> = isPlainObject(current) ? { ...current } : {}
   if (value === null || isBlankValue(value)) delete next[propertyId]

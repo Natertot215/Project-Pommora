@@ -37,7 +37,7 @@ describe('AgendaMode', () => {
     stubList({
       ok: true,
       tasks: [{ id: 't1', title: 'Buy milk', kind: 'task' }],
-      events: [{ id: 'e1', title: 'Standup', kind: 'event' }]
+      events: [{ id: 'e1', title: 'Standup', kind: 'event' }],
     })
     await mount()
     const text = host.textContent ?? ''

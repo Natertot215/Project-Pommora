@@ -14,7 +14,7 @@ export const content = style({
   gap: 8,
   padding: 8,
   width: 'var(--icon-picker-w, 224px)',
-  boxSizing: 'border-box'
+  boxSizing: 'border-box',
 })
 
 // The beak eats into the gutter on the edge it rides, so add its depth (`--notch-h`) back to that
@@ -45,15 +45,15 @@ export const search = style({
   selectors: {
     '&::placeholder': { color: vars.color.label.tertiary },
     // Tint-secondary outline highlight only while the caret is in the field.
-    '&:focus': { borderColor: tintAt('var(--accent)', TINT_STEPS.secondary) }
-  }
+    '&:focus': { borderColor: tintAt('var(--accent)', TINT_STEPS.secondary) },
+  },
 })
 
 export const separator = style({
   width: '100%',
   height: 1,
   flex: '0 0 auto',
-  background: vars.color.separator.border
+  background: vars.color.separator.border,
 })
 
 /** Favorites: a rounded, outlined box — a second input field holding the favorite icons. Its
@@ -66,7 +66,7 @@ export const favorites = style({
   padding: '2px 4px',
   border: `1.5px solid ${vars.color.separator.border}`,
   borderRadius: 8,
-  overflow: 'hidden'
+  overflow: 'hidden',
 })
 
 /** The inner horizontal, drag-reorderable strip — scrolls with the bare `overflow-eclipse` fade (not
@@ -78,7 +78,7 @@ export const favScroll = style({
   overflowY: 'hidden',
   scrollbarWidth: 'none',
   vars: { '--edge-fade': '16px' },
-  selectors: { '&::-webkit-scrollbar': { display: 'none' } }
+  selectors: { '&::-webkit-scrollbar': { display: 'none' } },
 })
 
 /** The vertical scroll region — holds the favorites strip AND the full-set grid, so favorites scroll
@@ -95,7 +95,7 @@ export const grid = style({
   overflowX: 'hidden',
   scrollbarWidth: 'none',
   vars: { '--edge-fade': '20px' },
-  selectors: { '&::-webkit-scrollbar': { display: 'none' } }
+  selectors: { '&::-webkit-scrollbar': { display: 'none' } },
 })
 
 /** The virtualized icon list inside the scroll region — its height is the full virtual extent; rows are
@@ -116,11 +116,11 @@ export const cell = style({
   color: vars.color.label.control,
   cursor: 'pointer',
   selectors: {
-    '&:hover': { background: vars.color.fill.secondary }
-  }
+    '&:hover': { background: vars.color.fill.secondary },
+  },
 })
 
 export const cellSelected = style({
   color: 'var(--accent)',
-  background: tintAt('var(--accent)', TINT_STEPS.quaternary)
+  background: tintAt('var(--accent)', TINT_STEPS.quaternary),
 })

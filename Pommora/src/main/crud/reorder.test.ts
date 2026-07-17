@@ -44,12 +44,18 @@ describe('setContainerOrder', () => {
   it('persists page_order to a container sidecar, preserving other keys', async () => {
     const c = await createFolderEntity(root, 'collection', 'Notes', { icon: 'box' })
     if (!c.ok) throw new Error('setup failed')
-    const r = await setContainerOrder(c.value.path, 'collection', pageCollectionSidecar, 'page_order', ['p2', 'p1'])
+    const r = await setContainerOrder(
+      c.value.path,
+      'collection',
+      pageCollectionSidecar,
+      'page_order',
+      ['p2', 'p1'],
+    )
     expect(r.ok).toBe(true)
     expect(await readSidecar(c.value.path, 'collection', pageCollectionSidecar)).toMatchObject({
       id: c.value.id,
       icon: 'box',
-      page_order: ['p2', 'p1']
+      page_order: ['p2', 'p1'],
     })
   })
 })
@@ -60,7 +66,9 @@ describe('setChildOrder', () => {
     if (!s.ok) throw new Error('setup failed')
     const r = await setChildOrder(s.value.path, 'page_order', ['p3', 'p1', 'p2'])
     expect(r.ok).toBe(true)
-    expect(await readSidecar(s.value.path, 'set', pageSetSidecar)).toMatchObject({ page_order: ['p3', 'p1', 'p2'] })
+    expect(await readSidecar(s.value.path, 'set', pageSetSidecar)).toMatchObject({
+      page_order: ['p3', 'p1', 'p2'],
+    })
   })
 
   it('writes set_order to a collection sidecar', async () => {
@@ -68,7 +76,9 @@ describe('setChildOrder', () => {
     if (!c.ok) throw new Error('setup failed')
     const r = await setChildOrder(c.value.path, 'set_order', ['s2', 's1'])
     expect(r.ok).toBe(true)
-    expect(await readSidecar(c.value.path, 'collection', pageCollectionSidecar)).toMatchObject({ set_order: ['s2', 's1'] })
+    expect(await readSidecar(c.value.path, 'collection', pageCollectionSidecar)).toMatchObject({
+      set_order: ['s2', 's1'],
+    })
   })
 
   it('is a tolerated no-op for a folder with no recognized sidecar', async () => {
@@ -82,7 +92,7 @@ describe('setChildOrder', () => {
     if (!c.ok) throw new Error('setup failed')
     await setChildOrder(c.value.path, 'set_order', ['s1', 'adopted-cafe', 's2'])
     expect(await readSidecar(c.value.path, 'collection', pageCollectionSidecar)).toMatchObject({
-      set_order: ['s1', 's2']
+      set_order: ['s1', 's2'],
     })
   })
 })

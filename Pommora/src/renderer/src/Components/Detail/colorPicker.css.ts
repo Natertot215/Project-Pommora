@@ -7,7 +7,7 @@ const solid = colorVars.color.solid
 export const grid = style({
   display: 'grid',
   gridTemplateColumns: 'repeat(2, 16px)',
-  gap: '4px'
+  gap: '4px',
 })
 
 /** Each swatch's solid, published as `--sw` and DRY'd off the shared colour tokens so a new palette
@@ -22,7 +22,7 @@ export const swatchColor = styleVariants({
   blue: { vars: { '--sw': solid.blue } },
   purple: { vars: { '--sw': solid.purple } },
   lavender: { vars: { '--sw': solid.lavender } },
-  grey: { vars: { '--sw': solid.grey } }
+  grey: { vars: { '--sw': solid.grey } },
 })
 
 export const swatch = style({
@@ -32,5 +32,5 @@ export const swatch = style({
   border: 'none',
   padding: 0,
   cursor: 'default',
-  background: 'var(--sw)'
+  background: 'var(--sw)',
 })

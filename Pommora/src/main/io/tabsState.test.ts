@@ -3,7 +3,12 @@ import { mkdtemp, rm, readFile, mkdir, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { Tab, TabSet } from '@shared/types'
-import { flushTabsWrites, hasPendingTabsWrites, readTabsState, scheduleTabsWrite } from './tabsState'
+import {
+  flushTabsWrites,
+  hasPendingTabsWrites,
+  readTabsState,
+  scheduleTabsWrite,
+} from './tabsState'
 
 let root: string
 beforeEach(async () => {
@@ -37,7 +42,12 @@ describe('tabs sidecar — read', () => {
     const set: TabSet = {
       tabs: [
         pageTab('t1', 'a'),
-        { id: 't2', target: { kind: 'context', id: 'c1' }, navStack: [{ kind: 'homepage' }, { kind: 'context', id: 'c1' }], navIndex: 1 },
+        {
+          id: 't2',
+          target: { kind: 'context', id: 'c1' },
+          navStack: [{ kind: 'homepage' }, { kind: 'context', id: 'c1' }],
+          navIndex: 1,
+        },
         { id: 'n', target: { kind: 'newtab' }, navStack: [], navIndex: -1 },
       ],
       activeTabId: 't2',
@@ -66,7 +76,12 @@ describe('tabs sidecar — read', () => {
     const read = await readTabsState(root)
     expect(read?.tabs).toEqual([
       good,
-      { id: 't3', target: { kind: 'context', id: 'c' }, navStack: [{ kind: 'context', id: 'c' }], navIndex: 0 },
+      {
+        id: 't3',
+        target: { kind: 'context', id: 'c' },
+        navStack: [{ kind: 'context', id: 'c' }],
+        navIndex: 0,
+      },
     ])
     expect(read?.activeTabId).toBe('t1')
   })
@@ -76,7 +91,14 @@ describe('tabs sidecar — read', () => {
     await writeFile(
       tabsFile(),
       JSON.stringify({
-        tabs: [{ id: 't1', target: { kind: 'homepage' }, navStack: [{ kind: 'newtab' }, { kind: 'homepage' }], navIndex: 1 }],
+        tabs: [
+          {
+            id: 't1',
+            target: { kind: 'homepage' },
+            navStack: [{ kind: 'newtab' }, { kind: 'homepage' }],
+            navIndex: 1,
+          },
+        ],
         activeTabId: 't1',
       }),
       'utf8',

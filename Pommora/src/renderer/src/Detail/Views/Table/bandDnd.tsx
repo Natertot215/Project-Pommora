@@ -6,12 +6,16 @@ import {
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
-  type ReactNode
+  type ReactNode,
 } from 'react'
 import { createPortal } from 'react-dom'
 import { text } from '@renderer/design-system/tokens'
 import { cx } from '@renderer/design-system/cx'
-import { ACTIVATION, DROP_LINE_INSET, suppressNextClick } from '@renderer/design-system/interactions/shared'
+import {
+  ACTIVATION,
+  DROP_LINE_INSET,
+  suppressNextClick,
+} from '@renderer/design-system/interactions/shared'
 import { findScroller, startAutoScroll } from '@renderer/design-system/interactions/autoscroll'
 import type { MeasuredRow } from '@renderer/Sidebar/sidebarDndModel'
 import { type Band, type BandIndex, type BandSlot, bandSlot, buildBandIndex } from './bandDndModel'
@@ -22,18 +26,36 @@ import { type Band, type BandIndex, type BandSlot, bandSlot, buildBandIndex } fr
 // routed by the slot's implied parent vs the dragged band's current parent) — the caller never
 // re-derives it.
 
-
 export type BandDrop =
   | { kind: 'reorder'; beforeId: string | null }
   | { kind: 'reparent'; targetParentId: string | null; beforeId: string | null }
 
-type DragState = { id: string | null; ghostX: number; ghostY: number; slot: BandSlot | null; lineTop: number }
+type DragState = {
+  id: string | null
+  ghostX: number
+  ghostY: number
+  slot: BandSlot | null
+  lineTop: number
+}
 const IDLE: DragState = { id: null, ghostX: 0, ghostY: 0, slot: null, lineTop: 0 }
 
-type Handlers = { move: (e: PointerEvent) => void; up: () => void; cancel: () => void; key: (e: KeyboardEvent) => void }
+type Handlers = {
+  move: (e: PointerEvent) => void
+  up: () => void
+  cancel: () => void
+  key: (e: KeyboardEvent) => void
+}
 type Gesture =
   | { kind: 'idle' }
-  | { kind: 'pending' | 'active'; id: string; el: HTMLElement; pid: number; startX: number; startY: number; handlers: Handlers }
+  | {
+      kind: 'pending' | 'active'
+      id: string
+      el: HTMLElement
+      pid: number
+      startX: number
+      startY: number
+      handlers: Handlers
+    }
 
 type Value = {
   draggingId: string | null
@@ -47,7 +69,7 @@ export function BandDnd({
   bands,
   labelFor,
   onDrop,
-  children
+  children,
 }: {
   /** The visible band list (flattenBands over the live collapsed set) — snapshot state during a drag. */
   bands: Band[]
@@ -137,7 +159,15 @@ export function BandDnd({
     const el = els.current.get(id)
     if (!el) return
     const handlers: Handlers = { move: onMove, up: onUp, cancel: onCancel, key: onKey }
-    gesture.current = { kind: 'pending', id, el, pid: e.pointerId, startX: e.clientX, startY: e.clientY, handlers }
+    gesture.current = {
+      kind: 'pending',
+      id,
+      el,
+      pid: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      handlers,
+    }
     // Window listeners drive the whole gesture — the glyph is small, so the first move usually
     // leaves it. Capture defers to activation so a sub-threshold press stays inert (a documented
     // no-op: the glyph has no click action to lose).
@@ -165,7 +195,13 @@ export function BandDnd({
       // held-still drag as the bands scroll.
       const sc = findScroller(g.el, 'y')
       if (sc) {
-        stopScroll.current = startAutoScroll({ getPoint: () => lastPoint.current, scroller: sc, dragEl: g.el, axis: 'y', onScrolled: resolveSlot })
+        stopScroll.current = startAutoScroll({
+          getPoint: () => lastPoint.current,
+          scroller: sc,
+          dragEl: g.el,
+          axis: 'y',
+          onScrolled: resolveSlot,
+        })
       }
     }
     lastPoint.current = { x: e.clientX, y: e.clientY }
@@ -185,7 +221,13 @@ export function BandDnd({
     if (!snap) return
     const slot = bandSlot(snap.index, lastPoint.current.y, g.id, snap.boxBottom)
     live.current = slot
-    setDrag({ id: g.id, ghostX: lastPoint.current.x + 12, ghostY: lastPoint.current.y + 8, slot, lineTop: slot ? slot.lineY - snap.boxTop : 0 })
+    setDrag({
+      id: g.id,
+      ghostX: lastPoint.current.x + 12,
+      ghostY: lastPoint.current.y + 8,
+      slot,
+      lineTop: slot ? slot.lineY - snap.boxTop : 0,
+    })
   }
   function onUp(): void {
     detach()
@@ -198,9 +240,16 @@ export function BandDnd({
     const dragged = snapshot.current?.index.byId.get(g.id)
     if (slot && dragged) {
       const drop = onDropRef.current
-      if (slot.nestInto) drop(g.id, { kind: 'reparent', targetParentId: slot.nestInto, beforeId: null })
-      else if (slot.impliedParentId === dragged.parentId) drop(g.id, { kind: 'reorder', beforeId: slot.beforeId })
-      else drop(g.id, { kind: 'reparent', targetParentId: slot.impliedParentId, beforeId: slot.beforeId })
+      if (slot.nestInto)
+        drop(g.id, { kind: 'reparent', targetParentId: slot.nestInto, beforeId: null })
+      else if (slot.impliedParentId === dragged.parentId)
+        drop(g.id, { kind: 'reorder', beforeId: slot.beforeId })
+      else
+        drop(g.id, {
+          kind: 'reparent',
+          targetParentId: slot.impliedParentId,
+          beforeId: slot.beforeId,
+        })
       suppressNextClick() // the drop's release must not also fire the glyph's toggle
     }
     reset()
@@ -217,7 +266,7 @@ export function BandDnd({
 
   const value = useMemo<Value>(
     () => ({ draggingId: drag.id, nestTargetId: drag.slot?.nestInto ?? null, registerBand, begin }),
-    [drag.id, drag.slot?.nestInto] // eslint-disable-line react-hooks/exhaustive-deps
+    [drag.id, drag.slot?.nestInto], // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   return (
@@ -225,17 +274,25 @@ export function BandDnd({
       <div ref={box} className="band-dnd">
         {children}
         {drag.slot && !drag.slot.nestInto && (
-          <div className="table-drop-line" aria-hidden style={{ top: drag.lineTop, left: DROP_LINE_INSET, right: DROP_LINE_INSET }}>
+          <div
+            className="table-drop-line"
+            aria-hidden
+            style={{ top: drag.lineTop, left: DROP_LINE_INSET, right: DROP_LINE_INSET }}
+          >
             <span className="table-drop-dot" />
           </div>
         )}
       </div>
       {drag.id &&
         createPortal(
-          <div aria-hidden className={cx('band-drag-ghost', text.body.standard)} style={{ top: drag.ghostY, left: drag.ghostX }}>
+          <div
+            aria-hidden
+            className={cx('band-drag-ghost', text.body.standard)}
+            style={{ top: drag.ghostY, left: drag.ghostX }}
+          >
             {ghostLabel.current}
           </div>,
-          document.body
+          document.body,
         )}
     </Ctx.Provider>
   )
@@ -255,6 +312,6 @@ export function useBandDrag(id: string): {
     ref: (el) => ctx.registerBand(id, el),
     handle: { onPointerDown: (e) => ctx.begin(id, e) },
     isDragging: ctx.draggingId === id,
-    isNestTarget: ctx.nestTargetId === id
+    isNestTarget: ctx.nestTargetId === id,
   }
 }

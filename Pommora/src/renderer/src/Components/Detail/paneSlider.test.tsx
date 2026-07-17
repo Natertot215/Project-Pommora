@@ -59,9 +59,19 @@ describe('PaneSlider', () => {
 
   it('rides the min floors on the measured content div', async () => {
     await act(async () => {
-      root.render(<PaneSlider open={false} root={<div>alpha</div>} detail={<div>beta</div>} minWidth={225} minHeight={245} />)
+      root.render(
+        <PaneSlider
+          open={false}
+          root={<div>alpha</div>}
+          detail={<div>beta</div>}
+          minWidth={225}
+          minHeight={245}
+        />,
+      )
     })
-    const floored = [...host.querySelectorAll<HTMLElement>('div')].filter((el) => el.style.minHeight === '245px')
+    const floored = [...host.querySelectorAll<HTMLElement>('div')].filter(
+      (el) => el.style.minHeight === '245px',
+    )
     expect(floored).toHaveLength(2)
   })
 })

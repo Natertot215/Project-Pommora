@@ -29,14 +29,16 @@ export function Subfield(): React.JSX.Element {
     recordTrail(containerId, {
       id: selection.id,
       path: selection.path,
-      title: pageDetail?.title ?? basename(selection.path)
+      title: pageDetail?.title ?? basename(selection.path),
     })
   }, [selection, tree, pageDetail, recordTrail])
 
   const order = useSession((s) => s.subfieldOrder)
   const crumbs = subfieldCrumbs(tree, selection, trail, (t) => void select(t))
   // Persisted order wins (filtered to known ids); fall back to the registry default per view kind.
-  const items = (order[selection.kind] ?? DEFAULT_ITEMS[selection.kind] ?? []).filter(isSubfieldItemId)
+  const items = (order[selection.kind] ?? DEFAULT_ITEMS[selection.kind] ?? []).filter(
+    isSubfieldItemId,
+  )
 
   return (
     <div className={`subfield ${text.subline.emphasized}`}>

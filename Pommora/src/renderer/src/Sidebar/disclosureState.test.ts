@@ -7,7 +7,7 @@ function fakeStorage(seed: Record<string, string> = {}): Pick<Storage, 'getItem'
     getItem: (k) => (k in store ? store[k] : null),
     setItem: (k, v) => {
       store[k] = v
-    }
+    },
   }
 }
 

@@ -16,7 +16,7 @@ export const header = style({
   padding: '5px 8px',
   borderRadius: '8px',
   cursor: 'default',
-  selectors: { '&:hover': { background: c.state.hover } }
+  selectors: { '&:hover': { background: c.state.hover } },
 })
 
 /** Selected state — the header is the live homepage entity; tints when it's the active selection. */
@@ -33,24 +33,34 @@ export const photo = style({
   height: '32px',
   borderRadius: '50%',
   overflow: 'hidden',
-  color: c.label.secondary
+  color: c.label.secondary,
 })
 
 /** Faint placeholder tint for the EMPTY slot only — dropped once a photo is set so its
  *  transparent areas fall through to the glass instead of a solid fill. */
 export const photoEmpty = style({ background: c.fill.tertiary })
 
-export const photoImg = style({ width: '100%', height: '100%', objectFit: 'cover', display: 'block' })
+export const photoImg = style({
+  width: '100%',
+  height: '100%',
+  objectFit: 'cover',
+  display: 'block',
+})
 
 export const textBlock = style({
   display: 'flex',
   flexDirection: 'column',
   gap: '2px',
   minWidth: 0,
-  flex: '1 1 auto'
+  flex: '1 1 auto',
 })
 
-const line = { margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } as const
+const line = {
+  margin: 0,
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+} as const
 
 export const title = style([text.headline.semibold, { ...line, color: c.label.primary }])
 
@@ -60,6 +70,16 @@ export const description = style([text.caption.standard, { ...line, color: c.lab
 export const descriptionEmpty = style([text.caption.standard, { ...line, color: c.label.tertiary }])
 
 // Inline-edit inputs — borderless + transparent so they read exactly like the text they replace.
-const inputReset = { border: 'none', outline: 'none', background: 'transparent', padding: 0, margin: 0, width: '100%' } as const
+const inputReset = {
+  border: 'none',
+  outline: 'none',
+  background: 'transparent',
+  padding: 0,
+  margin: 0,
+  width: '100%',
+} as const
 export const titleInput = style([text.headline.semibold, { ...inputReset, color: c.label.primary }])
-export const descriptionInput = style([text.caption.standard, { ...inputReset, color: c.label.secondary }])
+export const descriptionInput = style([
+  text.caption.standard,
+  { ...inputReset, color: c.label.secondary },
+])

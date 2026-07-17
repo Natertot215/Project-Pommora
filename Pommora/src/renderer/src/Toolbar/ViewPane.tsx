@@ -3,7 +3,13 @@ import type { CollectionNode, SetNode } from '@shared/types'
 import type { PropertyDefinition } from '@shared/properties'
 import { mintDefaultView, mintNewView, type SavedView } from '@shared/views'
 import { Icon, iconNameOr } from '@renderer/design-system/symbols'
-import { Menu, MenuItem, MenuBottomRow, MenuScrollFrame, AccessoryButton } from '../design-system/components/menu'
+import {
+  Menu,
+  MenuItem,
+  MenuBottomRow,
+  MenuScrollFrame,
+  AccessoryButton,
+} from '../design-system/components/menu'
 import { titleInput } from '../design-system/components/menu/menu.css'
 import { PaneSlider } from '../Components/Detail/PaneSlider'
 import { ViewSettings } from '../Components/Detail/ViewSettings'
@@ -29,7 +35,11 @@ const viewSlot: typeof paneSlot = (rows, _byId, _regions, pointerY, draggedId) =
   while (i < others.length && pointerY >= others[i].mid) i++
   const last = others[others.length - 1]
   const lineY = i < others.length ? others[i].top : last ? last.bottom : null
-  return { drop: { kind: 'reorder-assigned', propId: draggedId, toIndex: i }, lineY, highlightAll: false }
+  return {
+    drop: { kind: 'reorder-assigned', propId: draggedId, toIndex: i },
+    lineY,
+    highlightAll: false,
+  }
 }
 
 /** Registers the drag region on the rows container. A pure reorder has no assign/hide zones, so both of
@@ -57,7 +67,7 @@ function DragRegion({ children }: { children: ReactNode }): React.JSX.Element {
 export function ViewPane({
   node,
   schema,
-  onClose
+  onClose,
 }: {
   node: CollectionNode | SetNode
   schema: PropertyDefinition[]
@@ -126,8 +136,18 @@ export function ViewPane({
     <MenuScrollFrame
       footer={
         <MenuBottomRow
-          leading={<AccessoryButton icon="plus" size={12} box={20} ariaLabel="New View" onClick={() => void createView()} />}
-          trailing={<AccessoryButton icon="dots" size={12} box={20} ariaLabel="More" onClick={() => {}} />}
+          leading={
+            <AccessoryButton
+              icon="plus"
+              size={12}
+              box={20}
+              ariaLabel="New View"
+              onClick={() => void createView()}
+            />
+          }
+          trailing={
+            <AccessoryButton icon="dots" size={12} box={20} ariaLabel="More" onClick={() => {}} />
+          }
         />
       }
     >
@@ -176,7 +196,14 @@ export function ViewPane({
   )
 
   const detail = editing ? (
-    <ViewSettings source={node} view={editing} schema={schema} door="full" onBack={() => setEditingId(null)} onClose={onClose} />
+    <ViewSettings
+      source={node}
+      view={editing}
+      schema={schema}
+      door="full"
+      onBack={() => setEditingId(null)}
+      onClose={onClose}
+    />
   ) : null
 
   // The pane reserves a square (PANE_SQUARE via the slider's floors) so a sparse list doesn't collapse;
@@ -184,7 +211,13 @@ export function ViewPane({
   // they'd exceed its ceiling. The slider only slides + resizes between the list and ViewSettings.
   return (
     <>
-      <PaneSlider open={!!editing} root={list} detail={detail} minWidth={PANE_SQUARE} minHeight={PANE_SQUARE} />
+      <PaneSlider
+        open={!!editing}
+        root={list}
+        detail={detail}
+        minWidth={PANE_SQUARE}
+        minHeight={PANE_SQUARE}
+      />
       <IconPicker
         open={iconOpen}
         onClose={() => setIconOpen(false)}

@@ -50,7 +50,10 @@ function shift(drag: Drag | null, axis: Axis, index: number, size: number): stri
 function slotAt(axis: Axis, geom: Geom, rel: number): number {
   const spans = axis === 'col' ? geom.cols : geom.rows
   for (let i = 0; i < spans.length; i++) {
-    const s = axis === 'col' ? geom.cols[i].left + geom.cols[i].width : geom.rows[i].top + geom.rows[i].height
+    const s =
+      axis === 'col'
+        ? geom.cols[i].left + geom.cols[i].width
+        : geom.rows[i].top + geom.rows[i].height
     if (rel < s) return i
   }
   return spans.length - 1
@@ -67,7 +70,7 @@ export function TableView({
   onTableDrag,
   onUndo,
   onRedo,
-  connections
+  connections,
 }: {
   model: TableModel
   headingColumn?: boolean
@@ -81,7 +84,8 @@ export function TableView({
   onRedo: () => void
   connections?: () => ConnectionsApi | undefined
 }): React.JSX.Element {
-  const total = model.columns.reduce((sum, c) => sum + Math.max(1, c.dashes), 0) || model.columns.length
+  const total =
+    model.columns.reduce((sum, c) => sum + Math.max(1, c.dashes), 0) || model.columns.length
   const totalRows = model.rows.length + 1
   const cols = model.columns.length
 
@@ -326,7 +330,12 @@ export function TableView({
           onPointerDown={(e) => startDrag(e, 'col', i)}
           onContextMenu={(e) => {
             e.preventDefault()
-            onMenu({ kind: 'column', index: i, align: model.columns[i]?.align ?? null, headingColumn })
+            onMenu({
+              kind: 'column',
+              index: i,
+              align: model.columns[i]?.align ?? null,
+              headingColumn,
+            })
           }}
         >
           <Icon name="grip-horizontal" className="mdpm-tbl-grip" size={14} strokeWidth={2} />
@@ -351,7 +360,12 @@ export function TableView({
         <div
           key={`resize-${i}`}
           className="mdpm-tbl-resize-zone"
-          style={{ left: c.left + c.width - RESIZE_HIT / 2, top: tableTop, height: tableHeight, width: RESIZE_HIT }}
+          style={{
+            left: c.left + c.width - RESIZE_HIT / 2,
+            top: tableTop,
+            height: tableHeight,
+            width: RESIZE_HIT,
+          }}
           onMouseDown={swallowCaret}
           onPointerDown={(e) => startResize(e, i)}
         />

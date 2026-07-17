@@ -6,12 +6,16 @@ import {
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
-  type ReactNode
+  type ReactNode,
 } from 'react'
 import { createPortal } from 'react-dom'
 import { text } from '@renderer/design-system/tokens'
 import { cx } from '@renderer/design-system/cx'
-import { ACTIVATION, DROP_LINE_INSET, suppressNextClick } from '@renderer/design-system/interactions/shared'
+import {
+  ACTIVATION,
+  DROP_LINE_INSET,
+  suppressNextClick,
+} from '@renderer/design-system/interactions/shared'
 import { findScroller, startAutoScroll } from '@renderer/design-system/interactions/autoscroll'
 import type { MeasuredRow } from '@renderer/Sidebar/sidebarDndModel'
 import { type PaneDrop, type PaneRow, type PaneSlot, type Region, paneSlot } from './paneDndModel'
@@ -23,13 +27,32 @@ import * as s from './settingsPane.css'
 // useDismiss never closes the dropdown mid-drag; the capped slot auto-scrolls at the edges,
 // and any scroll dirties the frozen snapshot.
 
-type DragState = { id: string | null; ghostX: number; ghostY: number; slot: PaneSlot | null; lineTop: number }
+type DragState = {
+  id: string | null
+  ghostX: number
+  ghostY: number
+  slot: PaneSlot | null
+  lineTop: number
+}
 const IDLE: DragState = { id: null, ghostX: 0, ghostY: 0, slot: null, lineTop: 0 }
 
-type Handlers = { move: (e: PointerEvent) => void; up: () => void; cancel: () => void; key: (e: KeyboardEvent) => void }
+type Handlers = {
+  move: (e: PointerEvent) => void
+  up: () => void
+  cancel: () => void
+  key: (e: KeyboardEvent) => void
+}
 type Gesture =
   | { kind: 'idle' }
-  | { kind: 'pending' | 'active'; id: string; el: HTMLElement; pid: number; startX: number; startY: number; handlers: Handlers }
+  | {
+      kind: 'pending' | 'active'
+      id: string
+      el: HTMLElement
+      pid: number
+      startX: number
+      startY: number
+      handlers: Handlers
+    }
 
 type Value = {
   draggingId: string | null
@@ -45,7 +68,7 @@ export function PaneDnd({
   labelFor,
   onDrop,
   slot = paneSlot,
-  children
+  children,
 }: {
   /** Every draggable property row (both groups) — snapshot state during a drag. */
   rows: PaneRow[]
@@ -66,7 +89,10 @@ export function PaneDnd({
   labelForRef.current = labelFor
   const ghostLabel = useRef('')
   const els = useRef(new Map<string, HTMLElement>())
-  const regionEls = useRef<{ assigned: HTMLElement | null; all: HTMLElement | null }>({ assigned: null, all: null })
+  const regionEls = useRef<{ assigned: HTMLElement | null; all: HTMLElement | null }>({
+    assigned: null,
+    all: null,
+  })
   const box = useRef<HTMLDivElement | null>(null)
   const scroller = useRef<HTMLElement | null>(null)
   const lastPoint = useRef({ x: 0, y: 0 })
@@ -77,7 +103,12 @@ export function PaneDnd({
 
   // Frozen at activation: row geometry, the row set, and the region rects ride one snapshot;
   // scroll/content changes dirty it and the next move re-measures (E-4).
-  type Snapshot = { rows: MeasuredRow[]; byId: Map<string, PaneRow>; regions: { assigned: Region; all: Region }; boxTop: number }
+  type Snapshot = {
+    rows: MeasuredRow[]
+    byId: Map<string, PaneRow>
+    regions: { assigned: Region; all: Region }
+    boxTop: number
+  }
   const snapshot = useRef<Snapshot | null>(null)
   const snapshotDirty = useRef(false)
   useEffect(() => {
@@ -112,9 +143,9 @@ export function PaneDnd({
       byId,
       regions: {
         assigned: { top: assignedRect.top, bottom: allRect.top },
-        all: { top: allRect.top, bottom: Math.max(allRect.bottom, boxRect.bottom) }
+        all: { top: allRect.top, bottom: Math.max(allRect.bottom, boxRect.bottom) },
       },
-      boxTop: boxRect.top
+      boxTop: boxRect.top,
     }
   }
 
@@ -154,11 +185,20 @@ export function PaneDnd({
   const begin = (id: string, e: ReactPointerEvent): void => {
     if (e.button !== 0 || !e.isPrimary || gesture.current.kind !== 'idle') return
     // `button` beyond the band guard: a row's +, the twisty, and rename inputs never arm a drag.
-    if ((e.target as HTMLElement).closest?.('button, input, textarea, [contenteditable="true"]')) return
+    if ((e.target as HTMLElement).closest?.('button, input, textarea, [contenteditable="true"]'))
+      return
     const el = els.current.get(id)
     if (!el) return
     const handlers: Handlers = { move: onMove, up: onUp, cancel: onCancel, key: onKey }
-    gesture.current = { kind: 'pending', id, el, pid: e.pointerId, startX: e.clientX, startY: e.clientY, handlers }
+    gesture.current = {
+      kind: 'pending',
+      id,
+      el,
+      pid: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      handlers,
+    }
     window.addEventListener('pointermove', handlers.move)
     window.addEventListener('pointerup', handlers.up)
     window.addEventListener('pointercancel', handlers.cancel)
@@ -187,7 +227,7 @@ export function PaneDnd({
           scroller: scroller.current,
           dragEl: box.current,
           axis: 'y',
-          onScrolled: () => resolveSlot(g.id, lastPoint.current.y)
+          onScrolled: () => resolveSlot(g.id, lastPoint.current.y),
         })
       }
     }
@@ -211,7 +251,7 @@ export function PaneDnd({
       ghostX: lastPoint.current.x + 12,
       ghostY: clientY + 8,
       slot: liveSlot,
-      lineTop: liveSlot?.lineY != null ? liveSlot.lineY - snap.boxTop : 0
+      lineTop: liveSlot?.lineY != null ? liveSlot.lineY - snap.boxTop : 0,
     })
   }
   function onUp(): void {
@@ -249,9 +289,9 @@ export function PaneDnd({
       allHighlighted: drag.slot?.highlightAll ?? false,
       registerRow,
       registerRegion,
-      begin
+      begin,
     }),
-    [drag.id, drag.slot?.highlightAll] // eslint-disable-line react-hooks/exhaustive-deps
+    [drag.id, drag.slot?.highlightAll], // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   return (
@@ -259,17 +299,25 @@ export function PaneDnd({
       <div ref={box} className={s.paneDnd}>
         {children}
         {drag.slot && drag.slot.lineY != null && (
-          <div className="table-drop-line" aria-hidden style={{ top: drag.lineTop, left: DROP_LINE_INSET, right: DROP_LINE_INSET }}>
+          <div
+            className="table-drop-line"
+            aria-hidden
+            style={{ top: drag.lineTop, left: DROP_LINE_INSET, right: DROP_LINE_INSET }}
+          >
             <span className="table-drop-dot" />
           </div>
         )}
       </div>
       {drag.id &&
         createPortal(
-          <div aria-hidden className={cx('band-drag-ghost', text.body.standard)} style={{ top: drag.ghostY, left: drag.ghostX }}>
+          <div
+            aria-hidden
+            className={cx('band-drag-ghost', text.body.standard)}
+            style={{ top: drag.ghostY, left: drag.ghostX }}
+          >
             {ghostLabel.current}
           </div>,
-          document.body
+          document.body,
         )}
     </Ctx.Provider>
   )
@@ -297,7 +345,7 @@ export function usePaneDrag(id: string): {
   return {
     ref: (el) => ctx.registerRow(id, el),
     handle: { onPointerDown: (e) => ctx.begin(id, e) },
-    isDragging: ctx.draggingId === id
+    isDragging: ctx.draggingId === id,
   }
 }
 
@@ -313,6 +361,6 @@ export function usePaneRegions(): {
   return {
     assignedRef: (el) => ctx.registerRegion('assigned', el),
     allRef: (el) => ctx.registerRegion('all', el),
-    allHighlighted: ctx.allHighlighted
+    allHighlighted: ctx.allHighlighted,
   }
 }

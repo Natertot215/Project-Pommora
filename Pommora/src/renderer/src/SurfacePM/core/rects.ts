@@ -35,7 +35,14 @@ export function computeGeometry(layout: SurfaceLayout, width: number, gap = 0): 
   const dividers: DividerRect[] = []
   const bandEdges: BandEdgeRect[] = []
 
-  const walk = (node: LayoutNode, x: number, y: number, w: number, band: number, path: number[]): void => {
+  const walk = (
+    node: LayoutNode,
+    x: number,
+    y: number,
+    w: number,
+    band: number,
+    path: number[],
+  ): void => {
     if (node.kind === 'tile') {
       tiles.set(node.id, { x, y, w, h: node.h })
       return
@@ -63,7 +70,7 @@ export function computeGeometry(layout: SurfaceLayout, width: number, gap = 0): 
           x: cx,
           y,
           w: gap,
-          h: rowH
+          h: rowH,
         })
         cx += gap
       }

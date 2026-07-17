@@ -60,7 +60,7 @@ export function makeTitleScanner(maxBytes = MAX_BYTES): {
     },
     end(): string | null {
       return extractTitle(buf + decoder.end())
-    }
+    },
   }
 }
 

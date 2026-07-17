@@ -14,7 +14,8 @@ afterEach(async () => {
 })
 
 const path = () => nexusConfig(root, NEXUS_CONFIG_FILES.settings)
-const readSettings = async (): Promise<Record<string, unknown>> => JSON.parse(await readFile(path(), 'utf8'))
+const readSettings = async (): Promise<Record<string, unknown>> =>
+  JSON.parse(await readFile(path(), 'utf8'))
 const write = async (v: object): Promise<void> => {
   await mkdir(nexusDir(root), { recursive: true })
   await writeFile(path(), JSON.stringify(v))
@@ -27,7 +28,15 @@ const assertFullSettings = (s: Record<string, unknown>): void => {
   expect(typeof s.modified_at).toBe('string')
   expect(s.modified_at).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/) // iso8601, no ms
   const labels = s.labels as Record<string, unknown>
-  for (const k of ['area', 'topic', 'project', 'page_collection', 'page_set', 'agenda_task', 'agenda_event']) {
+  for (const k of [
+    'area',
+    'topic',
+    'project',
+    'page_collection',
+    'page_set',
+    'agenda_task',
+    'agenda_event',
+  ]) {
     const pair = labels[k] as Record<string, unknown>
     expect(typeof pair.singular).toBe('string')
     expect(typeof pair.plural).toBe('string')
@@ -65,7 +74,7 @@ describe('updateSettings — serialized RMW (G-1)', () => {
       updateSettings(root, (c) => ({ ...c, a: 1 })),
       updateSettings(root, (c) => ({ ...c, b: 2 })),
       updateSettings(root, (c) => ({ ...c, c: 3 })),
-      updateSettings(root, (c) => ({ ...c, d: 4 }))
+      updateSettings(root, (c) => ({ ...c, d: 4 })),
     ])
     const s = await readSettings()
     expect([s.a, s.b, s.c, s.d]).toEqual([1, 2, 3, 4])

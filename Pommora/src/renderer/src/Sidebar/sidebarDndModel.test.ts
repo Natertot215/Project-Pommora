@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest'
-import { buildIndex, nextOrder, setContainerOf, isSelfOrDescendant, slotInGroup, type Entry, type MeasuredRow } from './sidebarDndModel'
+import {
+  buildIndex,
+  nextOrder,
+  setContainerOf,
+  isSelfOrDescendant,
+  slotInGroup,
+  type Entry,
+  type MeasuredRow,
+} from './sidebarDndModel'
 import type { AreaNode, CollectionNode, NexusTree } from '@shared/types'
 
 // 1 Collection → (loose page P3) + Set s1 [P1, P2] → Sub-Set s2 [P5], plus two Areas (contexts).
@@ -18,7 +26,7 @@ const collections: CollectionNode[] = [
         path: 'Col/Set',
         pages: [
           { id: 'p1', kind: 'page', title: 'P1', path: 'Col/Set/P1.md' },
-          { id: 'p2', kind: 'page', title: 'P2', path: 'Col/Set/P2.md' }
+          { id: 'p2', kind: 'page', title: 'P2', path: 'Col/Set/P2.md' },
         ],
         sets: [
           {
@@ -26,30 +34,64 @@ const collections: CollectionNode[] = [
             kind: 'set',
             title: 'Sub',
             path: 'Col/Set/Sub',
-            pages: [{ id: 'p5', kind: 'page', title: 'P5', path: 'Col/Set/Sub/P5.md' }]
-          }
-        ]
-      }
-    ]
-  }
+            pages: [{ id: 'p5', kind: 'page', title: 'P5', path: 'Col/Set/Sub/P5.md' }],
+          },
+        ],
+      },
+    ],
+  },
 ]
 const areas: AreaNode[] = [
   { id: 'a1', kind: 'area', title: 'Work', path: '.nexus/areas/Work' },
-  { id: 'a2', kind: 'area', title: 'Home', path: '.nexus/areas/Home' }
+  { id: 'a2', kind: 'area', title: 'Home', path: '.nexus/areas/Home' },
 ]
-const tree = { collections, userSections: [], contexts: { areas, topics: [], projects: [] } } as unknown as NexusTree
+const tree = {
+  collections,
+  userSections: [],
+  contexts: { areas, topics: [], projects: [] },
+} as unknown as NexusTree
 
 describe('buildIndex', () => {
   const idx = buildIndex(tree)
   it('indexes containers with child page ids, child container ids + render depth', () => {
-    expect(idx.byId.get('c1')).toMatchObject({ kind: 'collection', depth: 0, pageIds: ['p3'], containerIds: ['s1'] })
-    expect(idx.byId.get('s1')).toMatchObject({ kind: 'set', depth: 1, pageIds: ['p1', 'p2'], containerIds: ['s2'] })
-    expect(idx.byId.get('s2')).toMatchObject({ kind: 'set', depth: 2, pageIds: ['p5'], containerIds: [] })
+    expect(idx.byId.get('c1')).toMatchObject({
+      kind: 'collection',
+      depth: 0,
+      pageIds: ['p3'],
+      containerIds: ['s1'],
+    })
+    expect(idx.byId.get('s1')).toMatchObject({
+      kind: 'set',
+      depth: 1,
+      pageIds: ['p1', 'p2'],
+      containerIds: ['s2'],
+    })
+    expect(idx.byId.get('s2')).toMatchObject({
+      kind: 'set',
+      depth: 2,
+      pageIds: ['p5'],
+      containerIds: [],
+    })
   })
   it('indexes pages with their parent container + render depth', () => {
-    expect(idx.byId.get('p1')).toMatchObject({ kind: 'page', depth: 2, parentId: 's1', parentPath: 'Col/Set' })
-    expect(idx.byId.get('p3')).toMatchObject({ kind: 'page', depth: 1, parentId: 'c1', parentPath: 'Col' })
-    expect(idx.byId.get('p5')).toMatchObject({ kind: 'page', depth: 3, parentId: 's2', parentPath: 'Col/Set/Sub' })
+    expect(idx.byId.get('p1')).toMatchObject({
+      kind: 'page',
+      depth: 2,
+      parentId: 's1',
+      parentPath: 'Col/Set',
+    })
+    expect(idx.byId.get('p3')).toMatchObject({
+      kind: 'page',
+      depth: 1,
+      parentId: 'c1',
+      parentPath: 'Col',
+    })
+    expect(idx.byId.get('p5')).toMatchObject({
+      kind: 'page',
+      depth: 3,
+      parentId: 's2',
+      parentPath: 'Col/Set/Sub',
+    })
   })
   it('exposes top-level groups + indexes contexts as depth-1 leaves (nested under their tier)', () => {
     expect(idx.collectionIds).toEqual(['c1'])
@@ -108,14 +150,28 @@ describe('isSelfOrDescendant — cycle guard for Set reparenting', () => {
 })
 
 describe('slotInGroup — insertion slot over a same-group sibling', () => {
-  const row = (id: string, top: number): MeasuredRow => ({ id, top, bottom: top + 20, mid: top + 10 })
+  const row = (id: string, top: number): MeasuredRow => ({
+    id,
+    top,
+    bottom: top + 20,
+    mid: top + 10,
+  })
   it('drops before the hovered row when the pointer is in its top half', () => {
-    expect(slotInGroup(['a', 'b', 'c'], row('b', 100), 105, 'x')).toEqual({ beforeId: 'b', edge: 100 })
+    expect(slotInGroup(['a', 'b', 'c'], row('b', 100), 105, 'x')).toEqual({
+      beforeId: 'b',
+      edge: 100,
+    })
   })
   it('drops after the hovered row (before the next) when in its bottom half', () => {
-    expect(slotInGroup(['a', 'b', 'c'], row('b', 100), 115, 'x')).toEqual({ beforeId: 'c', edge: 120 })
+    expect(slotInGroup(['a', 'b', 'c'], row('b', 100), 115, 'x')).toEqual({
+      beforeId: 'c',
+      edge: 120,
+    })
   })
   it('appends (null) when "after" would resolve to the dragged item itself', () => {
-    expect(slotInGroup(['a', 'b', 'c'], row('b', 100), 115, 'c')).toEqual({ beforeId: null, edge: 120 })
+    expect(slotInGroup(['a', 'b', 'c'], row('b', 100), 115, 'c')).toEqual({
+      beforeId: null,
+      edge: 120,
+    })
   })
 })

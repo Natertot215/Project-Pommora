@@ -14,7 +14,7 @@ export const container = style({
   display: 'flex',
   alignItems: 'center',
   width: 'fit-content',
-  overflow: 'hidden'
+  overflow: 'hidden',
 })
 
 // One segment. No persistent active/pressed fill (Apple toolbar behaviour) — the
@@ -35,8 +35,8 @@ export const segment = style({
   transition: 'background var(--duration-fast) var(--ease-standard)',
   selectors: {
     '&:hover:not(:disabled)': { background: vars.color.state.hover },
-    '&:disabled': { color: vars.color.label.tertiary }
-  }
+    '&:disabled': { color: vars.color.label.tertiary },
+  },
 })
 
 // Inset hairline between adjacent segments — the segment separator token. Rounded caps
@@ -49,7 +49,7 @@ export const divider = style({
   // The stable CSS var (theme-vars), not the vanilla-extract object ref — the var name never rehashes, so
   // an HMR token-hash shift can't leave the divider colourless (the toolbar-segment regression).
   background: 'var(--separator-segment)',
-  borderRadius: '999px'
+  borderRadius: '999px',
 })
 
 // The label's collapsible slot — an inline grid track that morphs 1fr → 0fr so the title slides in/out
@@ -60,9 +60,12 @@ export const labelSlot = style({
   gridTemplateColumns: '1fr',
   marginLeft: '6px',
   minWidth: 0,
-  transition: `grid-template-columns ${titleReveal}, margin-left ${titleReveal}, opacity ${titleReveal}`
+  transition: `grid-template-columns ${titleReveal}, margin-left ${titleReveal}, opacity ${titleReveal}`,
 })
 
 export const labelSlotHidden = style({ gridTemplateColumns: '0fr', marginLeft: 0, opacity: 0 })
 
-export const labelText = style([text.control.standard, { overflow: 'hidden', whiteSpace: 'nowrap', fontWeight: 500 }])
+export const labelText = style([
+  text.control.standard,
+  { overflow: 'hidden', whiteSpace: 'nowrap', fontWeight: 500 },
+])

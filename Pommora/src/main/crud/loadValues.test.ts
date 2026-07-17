@@ -17,11 +17,11 @@ describe('loadValues', () => {
     await mkdir(join(root, 'Col', 'SetA'), { recursive: true })
     await writeFile(
       join(root, 'Col', 'p1.md'),
-      '---\nid: p1\ntier1:\n  - area1\nproperties:\n  prop_status:\n    $status: in_progress\n---\n\nbody\n'
+      '---\nid: p1\ntier1:\n  - area1\nproperties:\n  prop_status:\n    $status: in_progress\n---\n\nbody\n',
     )
     await writeFile(
       join(root, 'Col', 'SetA', 'p2.md'),
-      '---\nid: p2\nproperties:\n  prop_num: 7\n---\n\nbody\n'
+      '---\nid: p2\nproperties:\n  prop_num: 7\n---\n\nbody\n',
     )
 
     const values = await loadValues(root, 'Col')

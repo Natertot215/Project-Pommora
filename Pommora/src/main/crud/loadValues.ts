@@ -14,7 +14,7 @@ import { listMarkdownFiles } from '../io/walk'
 
 export async function loadValues(
   rootPath: string,
-  containerRelPath: string
+  containerRelPath: string,
 ): Promise<Record<string, PageFrontmatter>> {
   const absFolder = join(rootPath, containerRelPath)
   const out: Record<string, PageFrontmatter> = {}

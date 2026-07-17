@@ -19,10 +19,9 @@ export const surface = style({
   padding: `6px ${MENU_GUTTER}`,
   paddingTop: 'calc(var(--notch-h, 0px) + 6px)',
   overflow: 'hidden',
-  minWidth: '225px'
+  minWidth: '225px',
 })
 
 // Dropdown row titles read at label-control — one source for every dropdown surface (the `item`
 // primitive is shared with the sidebar, which keeps its own label-primary title outside a surface).
-globalStyle(`${surface} .${titleText}`, { color: c.label.primary})
-
+globalStyle(`${surface} .${titleText}`, { color: c.label.primary })

@@ -5,7 +5,7 @@ const pages: ConnPage[] = [
   { id: '1', title: 'Project Atlas', path: 'v/Project Atlas.md' },
   { id: '2', title: 'Atlas', path: 'v/Atlas.md' },
   { id: '3', title: 'Atlas', path: 'w/Atlas.md' }, // duplicate title → ambiguous
-  { id: '4', title: 'Notes', path: 'v/Notes.md' }
+  { id: '4', title: 'Notes', path: 'v/Notes.md' },
 ]
 
 describe('resolve', () => {
@@ -31,7 +31,7 @@ describe('candidates (prefix, ranked exact → shortest → A–Z)', () => {
     { id: '1', title: 'Project Atlas', path: 'a' },
     { id: '2', title: 'Pro', path: 'b' },
     { id: '3', title: 'Projects', path: 'c' },
-    { id: '4', title: 'Notes', path: 'd' }
+    { id: '4', title: 'Notes', path: 'd' },
   ])
   it('prefix-matches and ranks exact first, then shortest, then alpha', () => {
     const titles = idx.candidates('pro').map((p) => p.title)

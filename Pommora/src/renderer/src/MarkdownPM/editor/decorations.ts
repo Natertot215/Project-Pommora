@@ -1,10 +1,22 @@
 // A ViewPlugin is valid because replaces never cross a line break (block-spanning chrome would need a StateField).
-import { Decoration, type DecorationSet, EditorView, ViewPlugin, type ViewUpdate, WidgetType } from '@codemirror/view'
+import {
+  Decoration,
+  type DecorationSet,
+  EditorView,
+  ViewPlugin,
+  type ViewUpdate,
+  WidgetType,
+} from '@codemirror/view'
 import type { Extension, Range } from '@codemirror/state'
 import { chipBoxGeometry } from '../../design-system/tokens'
 import { tokenize, activeTokenIndices, type Token } from '../tokens'
-import { docString } from "./docCache";
-import { decorationsFor, fencedCodeRanges, GLYPH_CLASS, type WidgetSpec } from '../decorations/intent'
+import { docString } from './docCache'
+import {
+  decorationsFor,
+  fencedCodeRanges,
+  GLYPH_CLASS,
+  type WidgetSpec,
+} from '../decorations/intent'
 import type { ConnectionsApi } from '../connections'
 import { isValidLink } from '@shared/links'
 
@@ -40,7 +52,7 @@ class BulletWidget extends WidgetType {
 class CheckboxWidget extends WidgetType {
   constructor(
     readonly bracketFrom: number,
-    readonly checked: boolean
+    readonly checked: boolean,
   ) {
     super()
   }
@@ -91,7 +103,7 @@ class OutlinerRailWidget extends WidgetType {
     readonly level: number,
     readonly typeClass: string,
     readonly first: boolean,
-    readonly last: boolean
+    readonly last: boolean,
   ) {
     super()
   }
@@ -151,7 +163,7 @@ function visibleInlineTokens(view: EditorView, text: string): Token[] {
         kind: tk.kind,
         range: [start, tk.range[1] + a],
         contentRange: [tk.contentRange[0] + a, tk.contentRange[1] + a],
-        markerRanges: tk.markerRanges.map(([s, e]) => [s + a, e + a] as [number, number])
+        markerRanges: tk.markerRanges.map(([s, e]) => [s + a, e + a] as [number, number]),
       })
     }
   }
@@ -176,20 +188,23 @@ function build(view: EditorView, conn: ConnectionsApi | undefined): DecorationSe
       continue
     }
     if (it.kind === 'lineWidget') {
-      ranges.push(Decoration.widget({ widget: new LineWidget(it.className), side: -1 }).range(it.from))
+      ranges.push(
+        Decoration.widget({ widget: new LineWidget(it.className), side: -1 }).range(it.from),
+      )
       continue
     }
     if (it.kind === 'rail') {
       ranges.push(
         Decoration.widget({
           widget: new OutlinerRailWidget(it.level, it.typeClass, it.first, it.last),
-          side: -1
-        }).range(it.from)
+          side: -1,
+        }).range(it.from),
       )
       continue
     }
     if (it.to <= it.from) continue
-    if (it.kind === 'class') ranges.push(Decoration.mark({ class: it.className }).range(it.from, it.to))
+    if (it.kind === 'class')
+      ranges.push(Decoration.mark({ class: it.className }).range(it.from, it.to))
     else if (it.kind === 'hide') ranges.push(hideMarker.range(it.from, it.to))
     else ranges.push(Decoration.replace({ widget: widgetFor(it.spec) }).range(it.from, it.to))
   }
@@ -202,7 +217,12 @@ function build(view: EditorView, conn: ConnectionsApi | undefined): DecorationSe
     const bracketEnd = close[0] + 1 // the `]`
     const valid = isValidLink(text.slice(bracketEnd + 1, close[1] - 1)) // strip `](` head + `)` tail
     const isActive = active.has(i)
-    ranges.push(Decoration.mark({ class: valid ? 'md-link' : 'md-link-invalid' }).range(tk.contentRange[0], tk.contentRange[1]))
+    ranges.push(
+      Decoration.mark({ class: valid ? 'md-link' : 'md-link-invalid' }).range(
+        tk.contentRange[0],
+        tk.contentRange[1],
+      ),
+    )
     const dim = Decoration.mark({ class: 'md-control' })
     if (!valid || isActive) {
       ranges.push(dim.range(open[0], open[1])) // [
@@ -211,7 +231,13 @@ function build(view: EditorView, conn: ConnectionsApi | undefined): DecorationSe
       ranges.push(hideMarker.range(open[0], open[1]))
       ranges.push(hideMarker.range(close[0], bracketEnd))
     }
-    if (isActive) ranges.push(Decoration.mark({ class: valid ? 'md-link-url' : 'md-control' }).range(bracketEnd, close[1])) // (url)
+    if (isActive)
+      ranges.push(
+        Decoration.mark({ class: valid ? 'md-link-url' : 'md-control' }).range(
+          bracketEnd,
+          close[1],
+        ),
+      ) // (url)
     else ranges.push(hideMarker.range(bracketEnd, close[1]))
   })
   if (conn) {
@@ -219,7 +245,12 @@ function build(view: EditorView, conn: ConnectionsApi | undefined): DecorationSe
       if (tk.kind !== 'wikiLink') return
       const status = conn.resolve(text.slice(tk.contentRange[0], tk.contentRange[1])).status
       if (status === 'phantom') return // unresolved → raw `[[Foo]]`, brackets visible + inert (spec)
-      ranges.push(Decoration.mark({ class: `md-connection-${status}` }).range(tk.contentRange[0], tk.contentRange[1]))
+      ranges.push(
+        Decoration.mark({ class: `md-connection-${status}` }).range(
+          tk.contentRange[0],
+          tk.contentRange[1],
+        ),
+      )
       const bracket = active.has(i) ? Decoration.mark({ class: 'md-bracket' }) : hideMarker
       for (const [s, e] of tk.markerRanges) ranges.push(bracket.range(s, e))
     })
@@ -250,6 +281,6 @@ export function markdownDecorations(getConn: () => ConnectionsApi | undefined): 
           this.decorations = build(u.view, getConn())
       }
     },
-    { decorations: (v) => v.decorations }
+    { decorations: (v) => v.decorations },
   )
 }

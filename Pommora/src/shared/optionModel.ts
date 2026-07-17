@@ -22,43 +22,68 @@ export function addOption(options: Option[], title: string, groupId?: string): O
 
 /** Append an option to one status group (matched by id). value = label = title (the value=title
  *  model); no color, so the chip inherits the group's colour until it's recolored. */
-export function addStatusOption(groups: StatusGroup[], groupId: string, title: string): StatusGroup[] {
+export function addStatusOption(
+  groups: StatusGroup[],
+  groupId: string,
+  title: string,
+): StatusGroup[] {
   return groups.map((g) =>
-    g.id === groupId ? { ...g, options: [...g.options, { value: title, label: title, group_id: g.id }] } : g
+    g.id === groupId
+      ? { ...g, options: [...g.options, { value: title, label: title, group_id: g.id }] }
+      : g,
   )
 }
 
 /** Recolor a status option (by value, wherever it lives). undefined clears the key → the chip falls
  *  back to its group's colour. */
-export function recolorStatusOption(groups: StatusGroup[], value: string, color: string | undefined): StatusGroup[] {
+export function recolorStatusOption(
+  groups: StatusGroup[],
+  value: string,
+  color: string | undefined,
+): StatusGroup[] {
   return groups.map((g) => ({
     ...g,
     options: g.options.map((o) => {
       if (o.value !== value) return o
       const { color: _drop, ...rest } = o
       return color ? { ...rest, color } : rest
-    })
+    }),
   }))
 }
 
 /** Rename a status option (by its OLD value, wherever it lives); value + label both become the new
  *  title (value=title). The page cascade (main-process) rewrites `$status` on every assigning page. */
-export function renameStatusOption(groups: StatusGroup[], oldValue: string, newTitle: string): StatusGroup[] {
+export function renameStatusOption(
+  groups: StatusGroup[],
+  oldValue: string,
+  newTitle: string,
+): StatusGroup[] {
   return groups.map((g) => ({
     ...g,
-    options: g.options.map((o) => (o.value === oldValue ? { ...o, value: newTitle, label: newTitle } : o))
+    options: g.options.map((o) =>
+      o.value === oldValue ? { ...o, value: newTitle, label: newTitle } : o,
+    ),
   }))
 }
 
 /** Rename a group's display label (by group id); its calendar-locked id + its options are untouched. */
-export function relabelStatusGroup(groups: StatusGroup[], groupId: string, label: string): StatusGroup[] {
+export function relabelStatusGroup(
+  groups: StatusGroup[],
+  groupId: string,
+  label: string,
+): StatusGroup[] {
   return groups.map((g) => (g.id === groupId ? { ...g, label } : g))
 }
 
 /** Move an option (by value) into `toGroupId` at `toIndex`, reassigning its group_id. Same group = a
  *  reorder; a different group = a cross-group move (it inherits the new group's colour unless it carries
  *  its own). toIndex is in the target group's without-the-dragged coordinate space. */
-export function moveStatusOption(groups: StatusGroup[], value: string, toGroupId: string, toIndex: number): StatusGroup[] {
+export function moveStatusOption(
+  groups: StatusGroup[],
+  value: string,
+  toGroupId: string,
+  toIndex: number,
+): StatusGroup[] {
   const moved = groups.flatMap((g) => g.options).find((o) => o.value === value)
   if (!moved) return groups
   const next = { ...moved, group_id: toGroupId }
@@ -76,7 +101,11 @@ export function renameOption(options: Option[], oldValue: string, title: string)
 }
 
 /** Set or clear an option's color key (undefined removes the field, so it renders as default). */
-export function recolorOption(options: Option[], value: string, color: string | undefined): Option[] {
+export function recolorOption(
+  options: Option[],
+  value: string,
+  color: string | undefined,
+): Option[] {
   return options.map((o) => {
     if (o.value !== value) return o
     const { color: _drop, ...rest } = o

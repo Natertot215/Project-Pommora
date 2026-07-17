@@ -27,7 +27,6 @@
   left: 0;
   /* Reserve room for the traffic lights + the expand toggle, centred between them and Back/Forward. */
   padding-left: 138px;
- 
 }
 .shell.is-resizing .app-toolbar {
   transition: none;
@@ -55,7 +54,19 @@
 .app-toolbar-cluster--trio {
   --trio-inset: 4px; /* breathing room so the swallowed trio doesn't sit flush against the pane's seam */
   transform: translateX(
-    calc(-1 * max(0px, calc(var(--io) * (var(--inspector-width) + var(--glass-inset)) - 10px - var(--trio-w, 0px) - var(--trio-inset))))
+    calc(
+      -1 *
+      max(
+        0px,
+        calc(
+          var(--io) *
+          (var(--inspector-width) + var(--glass-inset)) -
+          10px -
+          var(--trio-w, 0px) -
+          var(--trio-inset)
+        )
+      )
+    )
   );
 }
 

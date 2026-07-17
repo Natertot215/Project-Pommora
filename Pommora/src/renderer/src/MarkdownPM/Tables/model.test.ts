@@ -9,7 +9,7 @@ describe('model', () => {
     expect(m.header).toEqual(['', '', ''])
     expect(m.rows).toEqual([
       ['', '', ''],
-      ['', '', '']
+      ['', '', ''],
     ]) // 3 rows total incl. header → 2 body
   })
 
@@ -17,10 +17,10 @@ describe('model', () => {
     const m = normalize({
       columns: [
         { align: null, dashes: 3 },
-        { align: null, dashes: 3 }
+        { align: null, dashes: 3 },
       ],
       header: ['a'],
-      rows: [['x', 'y', 'z']]
+      rows: [['x', 'y', 'z']],
     })
     expect(m.header).toEqual(['a', ''])
     expect(m.rows).toEqual([['x', 'y']])

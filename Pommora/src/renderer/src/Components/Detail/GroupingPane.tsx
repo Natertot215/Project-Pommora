@@ -11,11 +11,21 @@ import type {
   GroupOrderMode,
   SavedView,
   StructuralOrderMode,
-  SubGroupConfig
+  SubGroupConfig,
 } from '@shared/views'
-import { Icon, asRenderableIcon, defaultEntityIcon, iconNameOr, type IconName } from '@renderer/design-system/symbols'
+import {
+  Icon,
+  asRenderableIcon,
+  defaultEntityIcon,
+  iconNameOr,
+  type IconName,
+} from '@renderer/design-system/symbols'
 import { MenuItem, MenuSeparator, MenuPaneTopRow } from '../../design-system/components/menu'
-import { flushTrailing, footingLabel, footingSymbol } from '../../design-system/components/menu/menu.css'
+import {
+  flushTrailing,
+  footingLabel,
+  footingSymbol,
+} from '../../design-system/components/menu/menu.css'
 import { Reveal } from '../../design-system/components/Reveal'
 import { useSaveView } from '@renderer/Embeds/ViewEmbedScope'
 import { declaredType } from '../../Detail/Views/pipeline/value'
@@ -41,22 +51,22 @@ const GROUPABLE_PANE = new Set(['select', 'status', 'datetime'])
 
 const STRUCTURAL_ORDER: PickerChoice<StructuralOrderMode>[] = [
   { value: 'custom', label: 'Custom' },
-  { value: 'location', label: 'Location' }
+  { value: 'location', label: 'Location' },
 ]
 const OPTION_ORDER: PickerChoice<GroupOrderMode>[] = [
   { value: 'configured', label: 'Default' },
   { value: 'reversed', label: 'Reversed' },
-  { value: 'manual', label: 'Custom' }
+  { value: 'manual', label: 'Custom' },
 ]
 const DATE_ORDER: PickerChoice<GroupOrderMode>[] = [
   { value: 'configured', label: 'Ascending' },
-  { value: 'reversed', label: 'Descending' }
+  { value: 'reversed', label: 'Descending' },
 ]
 const GRANULARITY: PickerChoice<DateGranularity>[] = [
   { value: 'day', label: 'Day' },
   { value: 'week', label: 'Week' },
   { value: 'month', label: 'Month' },
-  { value: 'year', label: 'Year' }
+  { value: 'year', label: 'Year' },
 ]
 
 const orderOptionsFor = (type: string | undefined): PickerChoice<GroupOrderMode>[] =>
@@ -70,7 +80,7 @@ function ValueRow<T extends string>({
   label,
   value,
   options,
-  onPick
+  onPick,
 }: {
   tier?: 'primary' | 'sub'
   icon?: IconName
@@ -95,7 +105,7 @@ export function GroupingPane({
   view,
   schema,
   label,
-  onBack
+  onBack,
 }: {
   source: CollectionNode | SetNode
   view: SavedView
@@ -116,7 +126,8 @@ export function GroupingPane({
   // label over property rows).
   const structural = groupsStructurally(group, schema)
   const groupable = schema.filter((d) => GROUPABLE_PANE.has(declaredType(d.id, schema) ?? ''))
-  const activeDef = group.kind === 'property' ? schema.find((d) => d.id === group.property_id) : undefined
+  const activeDef =
+    group.kind === 'property' ? schema.find((d) => d.id === group.property_id) : undefined
   const subGroup = structural ? view.sub_group : undefined
   // The property whose date buckets head bands right now (top-level date grouping, or the date
   // sub-group) — the Separation footing appears only when its column wears a numeric format (D-8).
@@ -143,13 +154,14 @@ export function GroupingPane({
       property_id: target.id,
       order_mode: 'configured',
       empty_placement: view.ungrouped_placement ?? 'bottom',
-      hide_empty_groups: false
+      hide_empty_groups: false,
     })
   }
 
   const saveSub = (sub: SubGroupConfig | undefined): void => save({ sub_group: sub })
   // A date grouping has no finite option list — its middle region (and separator) collapses.
-  const hasMiddle = group.kind !== 'property' || declaredType(group.property_id, schema) !== 'datetime'
+  const hasMiddle =
+    group.kind !== 'property' || declaredType(group.property_id, schema) !== 'datetime'
 
   return (
     <>
@@ -179,8 +191,17 @@ export function GroupingPane({
           {groupable.map((d) => (
             <MenuItem
               key={d.id}
-              leading={<Icon name={asRenderableIcon(d.icon) ?? propertyTypeIconName(d.type) ?? 'tag'} size={13} />}
-              trailing={group.kind === 'property' && group.property_id === d.id ? <Icon name="check" size={12} /> : undefined}
+              leading={
+                <Icon
+                  name={asRenderableIcon(d.icon) ?? propertyTypeIconName(d.type) ?? 'tag'}
+                  size={13}
+                />
+              }
+              trailing={
+                group.kind === 'property' && group.property_id === d.id ? (
+                  <Icon name="check" size={12} />
+                ) : undefined
+              }
               onClick={() => pickGroupBy(d)}
             >
               {d.name}
@@ -247,7 +268,11 @@ export function GroupingPane({
               <div className={`${gp.middle} overflow-eclipse-y`}>
                 {!structural && group.kind === 'property' ? (
                   group.order_mode === 'manual' ? (
-                    <CustomList group={group} def={activeDef} onSave={(order) => saveGroup({ ...group, order })} />
+                    <CustomList
+                      group={group}
+                      def={activeDef}
+                      onSave={(order) => saveGroup({ ...group, order })}
+                    />
                   ) : (
                     <PropertyPreview group={group} def={activeDef} />
                   )
@@ -255,7 +280,9 @@ export function GroupingPane({
                   <LocationHierarchy
                     source={source}
                     view={view}
-                    subDef={subGroup ? schema.find((d) => d.id === subGroup.property_id) : undefined}
+                    subDef={
+                      subGroup ? schema.find((d) => d.id === subGroup.property_id) : undefined
+                    }
                     onSaveView={save}
                   />
                 )}
@@ -269,22 +296,23 @@ export function GroupingPane({
             value={view.ungrouped_placement ?? 'bottom'}
             options={[
               { value: 'top', label: 'Top' },
-              { value: 'bottom', label: 'Bottom' }
+              { value: 'bottom', label: 'Bottom' },
             ]}
             onPick={(v) => save({ ungrouped_placement: v })}
           />
-          {dateHeadingProp && NUMERIC_FORMATS.has(view.column_styles?.[dateHeadingProp]?.date_format ?? 'full') && (
-            <FootingPick
-              icon="type"
-              label="Separation"
-              value={view.date_separator ?? 'dash'}
-              options={[
-                { value: 'dash', label: 'Dash' },
-                { value: 'slash', label: 'Slash' }
-              ]}
-              onPick={(v) => save({ date_separator: v })}
-            />
-          )}
+          {dateHeadingProp &&
+            NUMERIC_FORMATS.has(view.column_styles?.[dateHeadingProp]?.date_format ?? 'full') && (
+              <FootingPick
+                icon="type"
+                label="Separation"
+                value={view.date_separator ?? 'dash'}
+                options={[
+                  { value: 'dash', label: 'Dash' },
+                  { value: 'slash', label: 'Slash' },
+                ]}
+                onPick={(v) => save({ date_separator: v })}
+              />
+            )}
           {!structural && group.kind === 'property' && (
             <MenuItem
               className={flushTrailing}
@@ -294,7 +322,10 @@ export function GroupingPane({
                 </span>
               }
               trailing={
-                <span className={cx(chipBox, group.hide_empty_groups ? undefined : chipColor.default)} style={checkboxBoxStyle(group.hide_empty_groups, undefined)}>
+                <span
+                  className={cx(chipBox, group.hide_empty_groups ? undefined : chipColor.default)}
+                  style={checkboxBoxStyle(group.hide_empty_groups, undefined)}
+                >
                   {group.hide_empty_groups ? <Icon name="check" size={12} strokeWidth={3} /> : null}
                 </span>
               }
@@ -316,7 +347,7 @@ function FootingPick<T extends string>({
   label,
   value,
   options,
-  onPick
+  onPick,
 }: {
   icon: React.ComponentProps<typeof Icon>['name']
   label: string
@@ -341,8 +372,9 @@ function FootingPick<T extends string>({
 
 // ---- middle-region bodies ----
 
-export const optionsOf = (def: PropertyDefinition | undefined): { value: string; label: string; color?: string }[] =>
-  def?.select_options ?? statusOptions(def)
+export const optionsOf = (
+  def: PropertyDefinition | undefined,
+): { value: string; label: string; color?: string }[] => def?.select_options ?? statusOptions(def)
 
 type PropertyGroupConfig = Extract<GroupConfig, { kind: 'property' }>
 
@@ -351,7 +383,7 @@ type PropertyGroupConfig = Extract<GroupConfig, { kind: 'property' }>
  *  Shared with the Sorting pane's example order — `group` is just the ordering pair. */
 export function PropertyPreview({
   group,
-  def
+  def,
 }: {
   group: Pick<PropertyGroupConfig, 'order_mode' | 'order'>
   def: PropertyDefinition | undefined
@@ -364,14 +396,15 @@ export function PropertyPreview({
     </div>
   )
   if (def.status_groups) {
-    const groups = group.order_mode === 'reversed' ? [...def.status_groups].reverse() : def.status_groups
+    const groups =
+      group.order_mode === 'reversed' ? [...def.status_groups].reverse() : def.status_groups
     return (
       <>
         {groups.map((g) => (
           <div key={g.id}>
             <div className={gp.previewHeading}>{g.label}</div>
             {(group.order_mode === 'reversed' ? [...g.options].reverse() : g.options).map((o) =>
-              chip(o.color ? o : { ...o, color: g.color })
+              chip(o.color ? o : { ...o, color: g.color }),
             )}
           </div>
         ))}
@@ -389,7 +422,7 @@ export function PropertyPreview({
 export function CustomList({
   group,
   def,
-  onSave
+  onSave,
 }: {
   group: Pick<PropertyGroupConfig, 'order_mode' | 'order'>
   def: PropertyDefinition | undefined
@@ -402,7 +435,7 @@ export function CustomList({
   const dnd = useGroupingListDrag({
     bands,
     nestable: false,
-    onDrop: (draggedId, drop) => onSave(nextOrder(ordered, draggedId, drop.beforeId))
+    onDrop: (draggedId, drop) => onSave(nextOrder(ordered, draggedId, drop.beforeId)),
   })
   if (!def) return null
   const type = def.type === 'status' ? 'status' : 'select'
@@ -413,9 +446,15 @@ export function CustomList({
         const o = byValue.get(v)
         if (!o) return []
         return [
-          <div key={v} ref={dnd.rowRef(v)} {...dnd.rowHandle(v)} className={gp.chipRow} style={dnd.draggingId === v ? { opacity: 0.4 } : undefined}>
+          <div
+            key={v}
+            ref={dnd.rowRef(v)}
+            {...dnd.rowHandle(v)}
+            className={gp.chipRow}
+            style={dnd.draggingId === v ? { opacity: 0.4 } : undefined}
+          >
             <Chip color={chipColorFor(o.color)} label={o.label} shape={chipShapeForType(type)} />
-          </div>
+          </div>,
         ]
       })}
       {dnd.line && <div className={gp.dropLine} style={{ top: dnd.line.y }} />}
@@ -433,7 +472,7 @@ function LocationHierarchy({
   source,
   view,
   subDef,
-  onSaveView
+  onSaveView,
 }: {
   source: CollectionNode | SetNode
   view: SavedView
@@ -451,11 +490,14 @@ function LocationHierarchy({
   const subOptions = optionsOf(subDef)
   const subByValue = new Map(subOptions.map((o) => [o.value, o]))
   const subChips = subDef
-    ? bucketOrder({ order_mode: view.sub_group?.order_mode ?? 'configured', order: view.sub_group?.order }, subDef, new Set(subOptions.map((o) => o.value)))
-        .flatMap((v) => {
-          const o = subByValue.get(v)
-          return o ? [o] : []
-        })
+    ? bucketOrder(
+        { order_mode: view.sub_group?.order_mode ?? 'configured', order: view.sub_group?.order },
+        subDef,
+        new Set(subOptions.map((o) => o.value)),
+      ).flatMap((v) => {
+        const o = subByValue.get(v)
+        return o ? [o] : []
+      })
     : []
 
   const allIds: string[] = []
@@ -468,8 +510,16 @@ function LocationHierarchy({
     chipValueOf.set(id, value)
     return id
   }
-  const index = (sets: SetNode[] | undefined, depth: number, parentId: string | null, visible: boolean): void => {
-    childIds.set(parentId, (sets ?? []).map((s) => s.id))
+  const index = (
+    sets: SetNode[] | undefined,
+    depth: number,
+    parentId: string | null,
+    visible: boolean,
+  ): void => {
+    childIds.set(
+      parentId,
+      (sets ?? []).map((s) => s.id),
+    )
     for (const s of sets ?? []) {
       allIds.push(s.id)
       paths.set(s.id, s.path)
@@ -478,7 +528,13 @@ function LocationHierarchy({
         // A disclosed chip run registers as property bands so the SAME gesture drags them (F-1's
         // pane surface) — the drop resolves back to the value through chipValueOf.
         if (flat && expanded.has(s.id)) {
-          for (const o of subChips) bands.push({ id: chipBandId(s.id, o.value), kind: 'property', depth: depth + 1, parentId: s.id })
+          for (const o of subChips)
+            bands.push({
+              id: chipBandId(s.id, o.value),
+              kind: 'property',
+              depth: depth + 1,
+              parentId: s.id,
+            })
         }
       }
       index(s.sets, depth + 1, s.id, visible && !flat && expanded.has(s.id))
@@ -497,29 +553,59 @@ function LocationHierarchy({
         sub_group: {
           ...view.sub_group,
           order_mode: 'manual',
-          order: nextOrder(subChips.map((o) => o.value), value, before)
-        }
+          order: nextOrder(
+            subChips.map((o) => o.value),
+            value,
+            before,
+          ),
+        },
       })
       return
     }
     if (drop.kind === 'reorder') {
       if (view.structural_order_mode === 'location') {
-        const parentPath = drop.targetParentId === null ? source.path : paths.get(drop.targetParentId)
+        const parentPath =
+          drop.targetParentId === null ? source.path : paths.get(drop.targetParentId)
         const siblings = childIds.get(drop.targetParentId) ?? []
         if (!parentPath) return
-        void mutate({ op: 'reorderChildren', parentPath, key: 'set_order', order: nextOrder(siblings, draggedId, drop.beforeId) })
+        void mutate({
+          op: 'reorderChildren',
+          parentPath,
+          key: 'set_order',
+          order: nextOrder(siblings, draggedId, drop.beforeId),
+        })
         return
       }
-      onSaveView({ group_order: structuralOrderAfterDrop(view.group_order ?? [], allIds, draggedId, drop.beforeId) })
+      onSaveView({
+        group_order: structuralOrderAfterDrop(
+          view.group_order ?? [],
+          allIds,
+          draggedId,
+          drop.beforeId,
+        ),
+      })
       return
     }
     const path = paths.get(draggedId)
     const destPath = drop.targetParentId === null ? source.path : paths.get(drop.targetParentId)
     const destChildren = childIds.get(drop.targetParentId) ?? []
     if (!path || !destPath) return
-    const group_order = structuralOrderAfterDrop(view.group_order ?? [], allIds, draggedId, drop.beforeId)
+    const group_order = structuralOrderAfterDrop(
+      view.group_order ?? [],
+      allIds,
+      draggedId,
+      drop.beforeId,
+    )
     void (async () => {
-      if (!(await mutate({ op: 'moveSet', path, newParentPath: destPath, order: reparentFsOrder(destChildren, draggedId) }))) return
+      if (
+        !(await mutate({
+          op: 'moveSet',
+          path,
+          newParentPath: destPath,
+          order: reparentFsOrder(destChildren, draggedId),
+        }))
+      )
+        return
       onSaveView({ group_order })
     })()
   }
@@ -544,7 +630,11 @@ function LocationHierarchy({
     const isOpen = expanded.has(s.id)
     return (
       <div key={s.id}>
-        <div ref={dnd.rowRef(s.id)} {...dnd.rowHandle(s.id)} style={dnd.draggingId === s.id ? { opacity: 0.4 } : undefined}>
+        <div
+          ref={dnd.rowRef(s.id)}
+          {...dnd.rowHandle(s.id)}
+          style={dnd.draggingId === s.id ? { opacity: 0.4 } : undefined}
+        >
           <MenuItem
             selected={dnd.nestTarget === s.id}
             leading={
@@ -583,7 +673,11 @@ function LocationHierarchy({
                         className={`${gp.chipRow} ${gp.subChip}`}
                         style={dnd.draggingId === id ? { opacity: 0.4 } : undefined}
                       >
-                        <Chip color={chipColorFor(o.color)} label={o.label} shape={chipShapeForType(subType)} />
+                        <Chip
+                          color={chipColorFor(o.color)}
+                          label={o.label}
+                          shape={chipShapeForType(subType)}
+                        />
                       </div>
                     )
                   })
@@ -608,7 +702,7 @@ function LocationHierarchy({
 function SubGroupRow({
   subGroup,
   groupable,
-  onSave
+  onSave,
 }: {
   subGroup: SubGroupConfig | undefined
   groupable: PropertyDefinition[]
@@ -616,7 +710,11 @@ function SubGroupRow({
 }): React.JSX.Element {
   const options: PickerChoice<string>[] = [
     { value: '_location', label: 'Location', icon: 'folder' as const },
-    ...groupable.map((d) => ({ value: d.id, label: d.name, icon: asRenderableIcon(d.icon) ?? propertyTypeIconName(d.type) }))
+    ...groupable.map((d) => ({
+      value: d.id,
+      label: d.name,
+      icon: asRenderableIcon(d.icon) ?? propertyTypeIconName(d.type),
+    })),
   ]
   return (
     <ValueRow
@@ -624,7 +722,9 @@ function SubGroupRow({
       label="Sub-Group"
       value={subGroup?.property_id ?? '_location'}
       options={options}
-      onPick={(v) => onSave(v === '_location' ? undefined : { property_id: v, order_mode: 'configured' })}
+      onPick={(v) =>
+        onSave(v === '_location' ? undefined : { property_id: v, order_mode: 'configured' })
+      }
     />
   )
 }

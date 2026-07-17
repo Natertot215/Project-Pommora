@@ -6,7 +6,7 @@ import { RESERVED_PROPERTY_ID, type PropertyDefinition } from '@shared/propertie
 const labels = DEFAULT_LABELS
 const schema: PropertyDefinition[] = [
   { id: 'prop_status', name: 'Status', type: 'status' },
-  { id: 'prop_due', name: 'Due', type: 'datetime' }
+  { id: 'prop_due', name: 'Due', type: 'datetime' },
 ]
 
 describe('tierLabel', () => {

@@ -27,29 +27,43 @@ type Direction = SortCriterion['direction']
 /** The pane's Sort By offering — only what makeSorter actually ranks. context/file route to a
  *  no-op text key in the sorter, so they're deliberately absent (never offer what the extractor
  *  can't rank); tiers are unsortable outright. */
-const SORTABLE_PANE = new Set(['select', 'status', 'number', 'datetime', 'checkbox', 'url', 'multi_select'])
+const SORTABLE_PANE = new Set([
+  'select',
+  'status',
+  'number',
+  'datetime',
+  'checkbox',
+  'url',
+  'multi_select',
+])
 
 const OPTION_DIRECTIONS: PickerChoice<Direction>[] = [
   { value: 'ascending', label: 'Default' },
-  { value: 'descending', label: 'Reversed' }
+  { value: 'descending', label: 'Reversed' },
 ]
 /** The primary's option-type Order adds Custom (a draggable value order on the criterion) — the
  *  sub Order stays two-choice (no editing surface for a second custom list). */
 type OrderChoice = Direction | 'custom'
-const CUSTOM_OPTION_DIRECTIONS: PickerChoice<OrderChoice>[] = [...OPTION_DIRECTIONS, { value: 'custom', label: 'Custom' }]
+const CUSTOM_OPTION_DIRECTIONS: PickerChoice<OrderChoice>[] = [
+  ...OPTION_DIRECTIONS,
+  { value: 'custom', label: 'Custom' },
+]
 const VALUE_DIRECTIONS: PickerChoice<Direction>[] = [
   { value: 'ascending', label: 'Ascending' },
-  { value: 'descending', label: 'Descending' }
+  { value: 'descending', label: 'Descending' },
 ]
 const TEXT_DIRECTIONS: PickerChoice<Direction>[] = [
   { value: 'ascending', label: 'A → Z' },
-  { value: 'descending', label: 'Z → A' }
+  { value: 'descending', label: 'Z → A' },
 ]
 
 /** Per-type direction vocabulary (D-3): option-ordered types read the grouping pane's locked
  *  Default/Reversed; temporal/numeric read Ascending/Descending; text reads A → Z. A dead def
  *  falls to the value labels. */
-function directionOptions(propertyId: string, schema: PropertyDefinition[]): PickerChoice<Direction>[] {
+function directionOptions(
+  propertyId: string,
+  schema: PropertyDefinition[],
+): PickerChoice<Direction>[] {
   if (propertyId === RESERVED_PROPERTY_ID.title) return TEXT_DIRECTIONS
   if (propertyId === RESERVED_PROPERTY_ID.modifiedAt) return VALUE_DIRECTIONS
   switch (declaredType(propertyId, schema)) {
@@ -75,10 +89,18 @@ interface SortTarget {
 function sortTargets(schema: PropertyDefinition[]): SortTarget[] {
   return [
     { id: RESERVED_PROPERTY_ID.title, label: 'Title', icon: TITLE_META.icon },
-    { id: RESERVED_PROPERTY_ID.modifiedAt, label: 'Modified', icon: propertyTypeIconName('last_edited_time') },
+    {
+      id: RESERVED_PROPERTY_ID.modifiedAt,
+      label: 'Modified',
+      icon: propertyTypeIconName('last_edited_time'),
+    },
     ...schema
       .filter((d) => SORTABLE_PANE.has(declaredType(d.id, schema) ?? ''))
-      .map((d) => ({ id: d.id, label: d.name, icon: asRenderableIcon(d.icon) ?? propertyTypeIconName(d.type) }))
+      .map((d) => ({
+        id: d.id,
+        label: d.name,
+        icon: asRenderableIcon(d.icon) ?? propertyTypeIconName(d.type),
+      })),
   ]
 }
 
@@ -90,7 +112,7 @@ function ValueRow<T extends string>({
   label,
   value,
   options,
-  onPick
+  onPick,
 }: {
   tier?: 'primary' | 'sub'
   icon?: React.ComponentProps<typeof Icon>['name']
@@ -115,7 +137,7 @@ export function SortingPane({
   view,
   schema,
   label,
-  onBack
+  onBack,
 }: {
   source: CollectionNode | SetNode
   view: SavedView
@@ -161,7 +183,9 @@ export function SortingPane({
   // The example order (D-5): only a finite-ordered primary previews — the hasMiddle logic.
   const primaryType = primary ? declaredType(primary.property_id, schema) : undefined
   const finiteDef =
-    primaryType === 'select' || primaryType === 'status' ? schema.find((d) => d.id === primary?.property_id) : undefined
+    primaryType === 'select' || primaryType === 'status'
+      ? schema.find((d) => d.id === primary?.property_id)
+      : undefined
 
   /** A primary rewrite keeps the sub slot (wholesale two-slot ownership). */
   const savePrimary = (next: SortCriterion): void => save(sub ? [next, sub] : [next])
@@ -171,12 +195,14 @@ export function SortingPane({
     bucketOrder(
       { order_mode: primary?.direction === 'descending' ? 'reversed' : 'configured' },
       finiteDef,
-      new Set(optionsOf(finiteDef).map((o) => o.value))
+      new Set(optionsOf(finiteDef).map((o) => o.value)),
     )
 
   const subOptions: PickerChoice<string>[] = [
     { value: '_none', label: 'None', icon: 'circle-off' as const },
-    ...targets.filter((t) => t.id !== primary?.property_id).map((t) => ({ value: t.id, label: t.label, icon: t.icon }))
+    ...targets
+      .filter((t) => t.id !== primary?.property_id)
+      .map((t) => ({ value: t.id, label: t.label, icon: t.icon })),
   ]
 
   return (
@@ -210,7 +236,9 @@ export function SortingPane({
               <MenuItem
                 key={t.id}
                 leading={<Icon name={t.icon ?? 'tag'} size={13} />}
-                trailing={primary?.property_id === t.id ? <Icon name="check" size={12} /> : undefined}
+                trailing={
+                  primary?.property_id === t.id ? <Icon name="check" size={12} /> : undefined
+                }
                 onClick={() => pickPrimary(t.id)}
               >
                 {t.label}
@@ -225,12 +253,14 @@ export function SortingPane({
             icon="arrow-down-up"
             label="Order"
             value={finiteDef && primary.order ? 'custom' : primary.direction}
-            options={finiteDef ? CUSTOM_OPTION_DIRECTIONS : directionOptions(primary.property_id, schema)}
+            options={
+              finiteDef ? CUSTOM_OPTION_DIRECTIONS : directionOptions(primary.property_id, schema)
+            }
             onPick={(v) =>
               savePrimary(
                 v === 'custom'
                   ? { ...primary, order: seededOrder() }
-                  : { property_id: primary.property_id, direction: v }
+                  : { property_id: primary.property_id, direction: v },
               )
             }
           />
@@ -263,7 +293,9 @@ export function SortingPane({
                   />
                 ) : (
                   <PropertyPreview
-                    group={{ order_mode: primary.direction === 'descending' ? 'reversed' : 'configured' }}
+                    group={{
+                      order_mode: primary.direction === 'descending' ? 'reversed' : 'configured',
+                    }}
                     def={finiteDef}
                   />
                 )}

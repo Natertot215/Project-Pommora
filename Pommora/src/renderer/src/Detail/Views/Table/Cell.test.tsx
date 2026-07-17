@@ -28,33 +28,38 @@ const schema: PropertyDefinition[] = [
         id: 'upcoming',
         label: 'Upcoming',
         color: 'gray',
-        options: [{ value: 'not_started', label: 'Not started', group_id: 'upcoming' }]
+        options: [{ value: 'not_started', label: 'Not started', group_id: 'upcoming' }],
       },
       {
         id: 'in_progress',
         label: 'In Progress',
         color: 'blue',
-        options: [{ value: 'active', label: 'Active', color: 'blue', group_id: 'in_progress' }]
+        options: [{ value: 'active', label: 'Active', color: 'blue', group_id: 'in_progress' }],
       },
       {
         id: 'done',
         label: 'Done',
         color: 'green',
-        options: [{ value: 'complete', label: 'Complete', color: 'green', group_id: 'done' }]
-      }
-    ]
+        options: [{ value: 'complete', label: 'Complete', color: 'green', group_id: 'done' }],
+      },
+    ],
   },
   { id: 'prop_done', name: 'Done', type: 'checkbox' },
   { id: 'prop_pin', name: 'Pinned', type: 'checkbox', checkbox_color: 'blue' },
   { id: 'prop_when', name: 'When', type: 'datetime' },
   { id: 'prop_n', name: 'Count', type: 'number' },
-  { id: 'prop_files', name: 'Files', type: 'file' }
+  { id: 'prop_files', name: 'Files', type: 'file' },
 ]
 const ctx = { schema, contextsById: new Map() } as unknown as ResolveContext
 
 const col = (id: string): ResolvedColumn => ({ id, kind: 'property' })
 const rowWith = (properties: Record<string, unknown>): ViewRow =>
-  ({ id: 'p1', title: 'Page', path: 'X/Page.md', frontmatter: { id: 'p1', properties } }) as unknown as ViewRow
+  ({
+    id: 'p1',
+    title: 'Page',
+    path: 'X/Page.md',
+    frontmatter: { id: 'p1', properties },
+  }) as unknown as ViewRow
 
 let host: HTMLDivElement
 let root: Root
@@ -69,7 +74,9 @@ afterEach(() => {
 })
 
 const mount = (row: ViewRow, columnId: string, style: ColumnStyle): void => {
-  act(() => root.render(<Cell row={row} column={col(columnId)} ctx={ctx} hideIcon={false} style={style} />))
+  act(() =>
+    root.render(<Cell row={row} column={col(columnId)} ctx={ctx} hideIcon={false} style={style} />),
+  )
 }
 
 describe('status looks', () => {
@@ -156,7 +163,10 @@ describe('checkbox looks', () => {
 
 describe('formats', () => {
   it('datetime renders per the saved formats', () => {
-    mount(rowWith({ prop_when: '2026-03-01' }), 'prop_when', { date_format: 'short', time_format: 'none' })
+    mount(rowWith({ prop_when: '2026-03-01' }), 'prop_when', {
+      date_format: 'short',
+      time_format: 'none',
+    })
     expect(host.textContent).toBe('March 1st')
   })
 

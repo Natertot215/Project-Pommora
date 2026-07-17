@@ -14,7 +14,12 @@ afterEach(async () => {
 })
 
 const def = (id: string, name: string): PropertyDefinition =>
-  ({ id, name, type: 'select', select_options: [{ value: 'a', label: 'A', color: 'blue' }] }) as PropertyDefinition
+  ({
+    id,
+    name,
+    type: 'select',
+    select_options: [{ value: 'a', label: 'A', color: 'blue' }],
+  }) as PropertyDefinition
 
 describe('propertiesRegistry', () => {
   it('reads empty when the file is absent', async () => {
@@ -22,7 +27,10 @@ describe('propertiesRegistry', () => {
   })
 
   it('round-trips a written registry file', async () => {
-    const reg = { order: ['prop_b', 'prop_a'], defs: { prop_a: def('prop_a', 'Priority'), prop_b: def('prop_b', 'Status') } }
+    const reg = {
+      order: ['prop_b', 'prop_a'],
+      defs: { prop_a: def('prop_a', 'Priority'), prop_b: def('prop_b', 'Status') },
+    }
     await writeRegistry(root, reg)
     expect(await readRegistry(root)).toEqual(reg)
   })
@@ -31,7 +39,7 @@ describe('propertiesRegistry', () => {
     await mkdir(join(root, '.nexus'), { recursive: true })
     await writeFile(
       join(root, '.nexus', 'properties.json'),
-      JSON.stringify({ prop_a: def('prop_a', 'Priority'), prop_bad: { id: 'prop_bad' } })
+      JSON.stringify({ prop_a: def('prop_a', 'Priority'), prop_bad: { id: 'prop_bad' } }),
     )
     expect(Object.keys((await readRegistry(root)).defs)).toEqual(['prop_a'])
   })
@@ -42,7 +50,7 @@ describe('hostile hand-edited files (breaker M-2/L-1)', () => {
     await mkdir(join(root, '.nexus'), { recursive: true })
     await writeFile(
       join(root, '.nexus', 'properties.json'),
-      JSON.stringify({ defs: def('prop_hostile', 'Hostile'), prop_a: def('prop_a', 'Real') })
+      JSON.stringify({ defs: def('prop_hostile', 'Hostile'), prop_a: def('prop_a', 'Real') }),
     )
     const reg = await readRegistry(root)
     expect(reg.defs.prop_a?.name).toBe('Real')
@@ -52,7 +60,7 @@ describe('hostile hand-edited files (breaker M-2/L-1)', () => {
     await mkdir(join(root, '.nexus'), { recursive: true })
     await writeFile(
       join(root, '.nexus', 'properties.json'),
-      JSON.stringify({ order: ['garbage'], prop_a: def('prop_a', 'Real') })
+      JSON.stringify({ order: ['garbage'], prop_a: def('prop_a', 'Real') }),
     )
     expect((await readRegistry(root)).defs.prop_a?.name).toBe('Real')
   })
@@ -69,7 +77,7 @@ describe('RegistryFile shape — { order, defs } with legacy migration', () => {
     await mkdir(join(root, '.nexus'), { recursive: true })
     await writeFile(
       join(root, '.nexus', 'properties.json'),
-      JSON.stringify({ prop_a: def('prop_a', 'Priority') })
+      JSON.stringify({ prop_a: def('prop_a', 'Priority') }),
     )
     const reg = await readRegistry(root)
     expect(reg.defs.prop_a?.id).toBe('prop_a')
@@ -80,7 +88,10 @@ describe('RegistryFile shape — { order, defs } with legacy migration', () => {
     await mkdir(join(root, '.nexus'), { recursive: true })
     await writeFile(
       join(root, '.nexus', 'properties.json'),
-      JSON.stringify({ order: ['prop_a', 42, null, 'prop_gone'], defs: { prop_a: def('prop_a', 'Priority') } })
+      JSON.stringify({
+        order: ['prop_a', 42, null, 'prop_gone'],
+        defs: { prop_a: def('prop_a', 'Priority') },
+      }),
     )
     expect((await readRegistry(root)).order).toEqual(['prop_a'])
   })

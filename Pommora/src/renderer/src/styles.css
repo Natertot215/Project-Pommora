@@ -4,11 +4,13 @@
 
 :root {
   --row-h: 28px;
-  --text: #FFFFFFE6;
-  --text-dim: #FFFFFF80;
+  --text: #ffffffe6;
+  --text-dim: #ffffff80;
   --hover: var(--state-hover); /* Figma States/hover — #71717A @ 2.5% */
   --selected: var(--state-selected); /* Figma States/selected — #71717A @ 5% */
-  --main-bg: var(--bg-window); /* the background.window token via the theme-vars bridge — single source (@shared/theme) */
+  --main-bg: var(
+    --bg-window
+  ); /* the background.window token via the theme-vars bridge — single source (@shared/theme) */
   --glass-inset: 5px; /* gap from the window edges */
   --glass-radius: 12px; /* matched to the macOS window corner (≈ window radius − inset) */
   --toolbar-h: 38px; /* the top strip: titlebar drag region + floating toolbar clusters */
@@ -31,7 +33,12 @@ body,
 }
 
 body {
-  font: 13px/1.4 'Inter Variable', -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+  font:
+    13px / 1.4 "Inter Variable",
+    -apple-system,
+    BlinkMacSystemFont,
+    "SF Pro Text",
+    sans-serif;
   color: var(--text);
   background: var(--main-bg);
   -webkit-font-smoothing: antialiased;
@@ -44,7 +51,7 @@ body {
 /* Re-enable selection where the user is actually editing/reading text. */
 input,
 textarea,
-[contenteditable='true'] {
+[contenteditable="true"] {
   -webkit-user-select: text;
   user-select: text;
 }
@@ -74,7 +81,7 @@ textarea,
 /* Inspector openness, 0 (closed) → 1 (open) — one registered progress that the inspector slide, the
    trio's ride, and the trio glass-fade all derive from, so they stay frame-perfectly in sync. */
 @property --io {
-  syntax: '<number>';
+  syntax: "<number>";
   inherits: true;
   initial-value: 0;
 }

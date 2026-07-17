@@ -23,21 +23,24 @@ const ulidList = z.array(z.string()).optional()
 const OPEN_IN_LEGACY: Record<string, string> = { window: 'full-page', compact: 'page-preview' }
 export const openInField = z.preprocess(
   (v) => (typeof v === 'string' ? (OPEN_IN_LEGACY[v] ?? v) : v),
-  z.enum(['full-page', 'page-preview']).optional().catch(undefined)
+  z.enum(['full-page', 'page-preview']).optional().catch(undefined),
 )
 export const viewButtonField = z.enum(['icon', 'labeled']).optional().catch(undefined)
 export const viewStyleField = z.enum(['dropdown', 'toolbar']).optional().catch(undefined)
 
-export const coerceOpenIn = (raw: unknown): 'full-page' | 'page-preview' | undefined => openInField.parse(raw)
-export const coerceViewButton = (raw: unknown): 'icon' | 'labeled' | undefined => viewButtonField.parse(raw)
-export const coerceViewStyle = (raw: unknown): 'dropdown' | 'toolbar' | undefined => viewStyleField.parse(raw)
+export const coerceOpenIn = (raw: unknown): 'full-page' | 'page-preview' | undefined =>
+  openInField.parse(raw)
+export const coerceViewButton = (raw: unknown): 'icon' | 'labeled' | undefined =>
+  viewButtonField.parse(raw)
+export const coerceViewStyle = (raw: unknown): 'dropdown' | 'toolbar' | undefined =>
+  viewStyleField.parse(raw)
 
 /** Fields shared by every folder sidecar. Loose ⇒ unknown keys are retained. */
 const baseSidecar = z.looseObject({
   id: z.string(),
   icon: z.string().optional(),
   schema_version: z.number().optional(),
-  modified_at: z.string().optional()
+  modified_at: z.string().optional(),
 })
 
 // `_pagecollection.json` is the schema-bearing TOP tier (a top Collection has no parent).
@@ -52,7 +55,7 @@ export const pageCollectionSidecar = baseSidecar.extend({
   views: z.array(savedView).optional(),
   open_in: openInField,
   view_button: viewButtonField,
-  view_style: viewStyleField
+  view_style: viewStyleField,
 })
 export type PageCollectionSidecar = z.infer<typeof pageCollectionSidecar>
 
@@ -66,7 +69,7 @@ export const pageSetSidecar = baseSidecar.extend({
   banner: z.string().optional(),
   views: z.array(savedView).optional(),
   view_button: viewButtonField,
-  view_style: viewStyleField
+  view_style: viewStyleField,
 })
 export type PageSetSidecar = z.infer<typeof pageSetSidecar>
 
@@ -75,14 +78,14 @@ export type PageSetSidecar = z.infer<typeof pageSetSidecar>
 const contextBase = baseSidecar.extend({
   tier: z.number(),
   // Nexus-relative POSIX path to this context's banner image (a per-entity assets file).
-  banner: z.string().optional()
+  banner: z.string().optional(),
 })
 export const topicSidecar = contextBase
 export const projectSidecar = contextBase
 // color validates against the shared AreaColor palette but degrades to undefined on an
 // unknown value (lenient — an unrecognized color never fails the whole sidecar).
 export const areaSidecar = contextBase.extend({
-  color: z.enum(AREA_COLORS).optional().catch(undefined)
+  color: z.enum(AREA_COLORS).optional().catch(undefined),
 })
 export type TopicSidecar = z.infer<typeof topicSidecar>
 export type ProjectSidecar = z.infer<typeof projectSidecar>
@@ -94,7 +97,7 @@ export type AreaSidecar = z.infer<typeof areaSidecar>
 export const agendaConfigSidecar = baseSidecar.extend({
   property_definitions: z.array(z.looseObject({})).optional(),
   views: z.array(z.looseObject({})).optional(),
-  default_sort: z.looseObject({}).optional()
+  default_sort: z.looseObject({}).optional(),
 })
 export type AgendaConfigSidecar = z.infer<typeof agendaConfigSidecar>
 
@@ -111,7 +114,7 @@ export const pageFrontmatter = z.looseObject({
   created_at: z.string().optional(),
   modified_at: z.string().optional(),
   folded_headings: z.array(z.string()).optional(),
-  cover: z.string().optional()
+  cover: z.string().optional(),
 })
 export type PageFrontmatter = z.infer<typeof pageFrontmatter>
 
@@ -127,5 +130,5 @@ export const PAGE_MODELED_KEYS = [
   'created_at',
   'modified_at',
   'folded_headings',
-  'cover'
+  'cover',
 ] as const

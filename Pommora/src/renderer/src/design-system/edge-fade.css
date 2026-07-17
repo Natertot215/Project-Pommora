@@ -57,14 +57,16 @@
     var(--edge-dir, to bottom),
     transparent 0,
     var(--system-black) calc(var(--edge-a) * var(--edge-fade, var(--edge-fade-default, 22px))),
-    var(--system-black) calc(100% - var(--edge-b) * var(--edge-fade, var(--edge-fade-default, 22px))),
+    var(--system-black)
+      calc(100% - var(--edge-b) * var(--edge-fade, var(--edge-fade-default, 22px))),
     transparent 100%
   );
   -webkit-mask-image: linear-gradient(
     var(--edge-dir, to bottom),
     transparent 0,
     var(--system-black) calc(var(--edge-a) * var(--edge-fade, var(--edge-fade-default, 22px))),
-    var(--system-black) calc(100% - var(--edge-b) * var(--edge-fade, var(--edge-fade-default, 22px))),
+    var(--system-black)
+      calc(100% - var(--edge-b) * var(--edge-fade, var(--edge-fade-default, 22px))),
     transparent 100%
   );
 }
@@ -84,7 +86,9 @@
    --edge-a to its 0 keyframe before then); the trailing edge keeps the full range. */
 .edge-fade.top-gated {
   animation-fill-mode: both;
-  animation-range: var(--edge-fade, 22px) 100%, normal;
+  animation-range:
+    var(--edge-fade, 22px) 100%,
+    normal;
 }
 
 /* Horizontal scroll container (the toolbar tab strip). */

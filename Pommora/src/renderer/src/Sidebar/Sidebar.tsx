@@ -1,5 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Icon, icons, type IconName, defaultEntityIcon, iconNameOr } from '@renderer/design-system/symbols'
+import {
+  Icon,
+  icons,
+  type IconName,
+  defaultEntityIcon,
+  iconNameOr,
+} from '@renderer/design-system/symbols'
 import { lucideGlyph } from '@renderer/design-system/symbols/AllSymbols'
 import { text } from '@renderer/design-system/tokens'
 import { cx } from '@renderer/design-system/cx'
@@ -18,7 +24,7 @@ import type {
   SetNode,
   SidebarMode,
   TopicNode,
-  ProjectNode
+  ProjectNode,
 } from '@shared/types'
 import { DEFAULT_NEW_NAME, type MutableKind, type MutateRequest } from '@shared/mutate'
 import { SidebarDnd, useSidebarDrag } from './sidebarDnd'
@@ -31,10 +37,21 @@ import { RenamableTitle } from '../Components/RenamableTitle'
 /** Right-click an entity → main pops the native context menu. Every PathNode (page +
  *  container + context) carries kind/id/path/title; the code-keyed saved rows don't, so they
  *  never wire this. Tab membership rides along so the menu's open item reads stateful (I-1). */
-function showContextFor(node: { kind: MutableKind; id: string; path: string; title: string }): void {
+function showContextFor(node: {
+  kind: MutableKind
+  id: string
+  path: string
+  title: string
+}): void {
   const { tabs, pins } = useSession.getState()
   const alreadyOpen = isOpenInTabs(tabs, pins, contextTargetToSelect(node))
-  void window.nexus.contextMenu({ kind: node.kind, id: node.id, path: node.path, title: node.title, alreadyOpen })
+  void window.nexus.contextMenu({
+    kind: node.kind,
+    id: node.id,
+    path: node.path,
+    title: node.title,
+    alreadyOpen,
+  })
 }
 
 /** A row's onContextMenu handler — suppress the browser default, then run `cb`. */
@@ -53,7 +70,15 @@ type RenameTarget = { path: string; kind: MutableKind }
 /** A row's title: a static label, or an inline `<input>` while this row is being renamed
  *  (store.renamingPath === path). Commit on Enter / blur (skipped when unchanged or empty);
  *  cancel on Escape. The mutate op runs through the store. */
-function RowTitle({ path, kind, title }: { path: string; kind: MutableKind; title: string }): React.JSX.Element {
+function RowTitle({
+  path,
+  kind,
+  title,
+}: {
+  path: string
+  kind: MutableKind
+  title: string
+}): React.JSX.Element {
   return <RenamableTitle path={path} kind={kind} title={title} className="row-title-input" />
 }
 
@@ -77,7 +102,10 @@ function isPageSelected(sel: SelectionState, id: string): boolean {
 // is the folder icon. A custom icon — or a non-folder default like the vault's
 // stack — stays put when the row toggles. Falls back when the stored name isn't a
 // known symbol.
-function folderAwareIcons(custom: string | undefined, fallback: IconName): { icon: string; openIcon?: IconName } {
+function folderAwareIcons(
+  custom: string | undefined,
+  fallback: IconName,
+): { icon: string; openIcon?: IconName } {
   // Keep any renderable Lucide id (curated OR the full set — a user's arbitrary pick), else the default.
   const icon = custom && (custom in icons || lucideGlyph(custom) !== undefined) ? custom : fallback
   return { icon, openIcon: icon === 'folder-closed' ? 'folder-open' : undefined }
@@ -93,7 +121,7 @@ function Leaf({
   chevronSpace = true,
   onSelect,
   onContextMenu,
-  rename
+  rename,
 }: {
   icon: string
   title: string
@@ -156,7 +184,7 @@ function Disclosure({
   onContextMenu,
   rename,
   dragId,
-  children
+  children,
 }: {
   icon: string
   openIcon?: IconName
@@ -177,7 +205,9 @@ function Disclosure({
   dragId?: string
   children: React.ReactNode
 }): React.JSX.Element {
-  const [open, setOpen] = useState(() => (persistKey ? loadOpen(window.localStorage, persistKey, defaultOpen) : defaultOpen))
+  const [open, setOpen] = useState(() =>
+    persistKey ? loadOpen(window.localStorage, persistKey, defaultOpen) : defaultOpen,
+  )
   const toggle = (): void =>
     setOpen((o) => {
       const next = !o
@@ -224,7 +254,7 @@ function PageRow({
   page,
   depth,
   selection,
-  onSelectPage
+  onSelectPage,
 }: {
   page: PageNode
   depth: number
@@ -256,7 +286,7 @@ function ContainerRow({
   depth,
   selected,
   onSelect,
-  children
+  children,
 }: {
   node: { id: string; icon?: string; title: string; path: string; kind: MutableKind }
   defaultIcon: IconName
@@ -288,14 +318,32 @@ function ContainerRow({
 // A container's folders form one contiguous block, placed above or below its loose pages by the
 // nexus-wide placement knob. A full folder↔page interleave is the eventual model; this top/bottom
 // flag is the interim — folders stay a block, just relocatable.
-function placeChildren(folders: React.JSX.Element[], pages: React.JSX.Element[], placement: FolderPlacement): React.JSX.Element[] {
+function placeChildren(
+  folders: React.JSX.Element[],
+  pages: React.JSX.Element[],
+  placement: FolderPlacement,
+): React.JSX.Element[] {
   return placement === 'bottom' ? [...pages, ...folders] : [...folders, ...pages]
 }
 
 // A Set row. Only depth-1 Sets (direct children of a Collection, `selectable`) open a view; deeper
 // Sub-Sets are expand-only organizing folders. Renders its sub-sets and its pages, ordered by the
 // subSetPlacement knob.
-function SetRow({ set, depth, selectable, selection, onSelectSet, onSelectPage }: { set: SetNode; depth: number; selectable: boolean; selection: SelectionState; onSelectSet: (set: SetNode) => void; onSelectPage: (page: PageNode) => void }): React.JSX.Element {
+function SetRow({
+  set,
+  depth,
+  selectable,
+  selection,
+  onSelectSet,
+  onSelectPage,
+}: {
+  set: SetNode
+  depth: number
+  selectable: boolean
+  selection: SelectionState
+  onSelectSet: (set: SetNode) => void
+  onSelectPage: (page: PageNode) => void
+}): React.JSX.Element {
   const setDefaultIcons = useSession((s) => s.personalization.defaultIcons)
   const subSetPlacement = useSession((s) => s.personalization.subSetPlacement ?? 'top')
   return (
@@ -308,10 +356,26 @@ function SetRow({ set, depth, selectable, selection, onSelectSet, onSelectPage }
     >
       {placeChildren(
         (set.sets ?? []).map((s) => (
-          <SetRow key={s.id} set={s} depth={depth + 1} selectable={false} selection={selection} onSelectSet={onSelectSet} onSelectPage={onSelectPage} />
+          <SetRow
+            key={s.id}
+            set={s}
+            depth={depth + 1}
+            selectable={false}
+            selection={selection}
+            onSelectSet={onSelectSet}
+            onSelectPage={onSelectPage}
+          />
         )),
-        set.pages.map((p) => <PageRow key={p.id} page={p} depth={depth + 1} selection={selection} onSelectPage={onSelectPage} />),
-        subSetPlacement
+        set.pages.map((p) => (
+          <PageRow
+            key={p.id}
+            page={p}
+            depth={depth + 1}
+            selection={selection}
+            onSelectPage={onSelectPage}
+          />
+        )),
+        subSetPlacement,
       )}
     </ContainerRow>
   )
@@ -319,17 +383,53 @@ function SetRow({ set, depth, selectable, selection, onSelectSet, onSelectPage }
 
 // A top-level Collection — the schema-bearing container (Swift: PageCollection). Its direct Sets
 // render as selectable depth-1 rows, ordered against its loose pages by the setPlacement knob.
-function CollectionRow({ col, depth, selection, onSelectCollection, onSelectSet, onSelectPage }: { col: CollectionNode; depth: number; selection: SelectionState; onSelectCollection: (col: CollectionNode) => void; onSelectSet: (set: SetNode) => void; onSelectPage: (page: PageNode) => void }): React.JSX.Element {
+function CollectionRow({
+  col,
+  depth,
+  selection,
+  onSelectCollection,
+  onSelectSet,
+  onSelectPage,
+}: {
+  col: CollectionNode
+  depth: number
+  selection: SelectionState
+  onSelectCollection: (col: CollectionNode) => void
+  onSelectSet: (set: SetNode) => void
+  onSelectPage: (page: PageNode) => void
+}): React.JSX.Element {
   const defaultIcons = useSession((s) => s.personalization.defaultIcons)
   const setPlacement = useSession((s) => s.personalization.setPlacement ?? 'top')
   return (
-    <ContainerRow node={col} defaultIcon={defaultEntityIcon('collection', defaultIcons)} depth={depth} selected={isCollectionSelected(selection, col.id)} onSelect={() => onSelectCollection(col)}>
+    <ContainerRow
+      node={col}
+      defaultIcon={defaultEntityIcon('collection', defaultIcons)}
+      depth={depth}
+      selected={isCollectionSelected(selection, col.id)}
+      onSelect={() => onSelectCollection(col)}
+    >
       {placeChildren(
         col.sets.map((s) => (
-          <SetRow key={s.id} set={s} depth={depth + 1} selectable selection={selection} onSelectSet={onSelectSet} onSelectPage={onSelectPage} />
+          <SetRow
+            key={s.id}
+            set={s}
+            depth={depth + 1}
+            selectable
+            selection={selection}
+            onSelectSet={onSelectSet}
+            onSelectPage={onSelectPage}
+          />
         )),
-        col.pages.map((p) => <PageRow key={p.id} page={p} depth={depth + 1} selection={selection} onSelectPage={onSelectPage} />),
-        setPlacement
+        col.pages.map((p) => (
+          <PageRow
+            key={p.id}
+            page={p}
+            depth={depth + 1}
+            selection={selection}
+            onSelectPage={onSelectPage}
+          />
+        )),
+        setPlacement,
       )}
     </ContainerRow>
   )
@@ -337,7 +437,11 @@ function CollectionRow({ col, depth, selection, onSelectCollection, onSelectSet,
 
 // A context leaf (Area / Topic / Project) — a draggable row reordered within its tier disclosure
 // (depth 1, under the tier header). Every tier uses the grid icon.
-function ContextRow({ node }: { node: { id: string; title: string; path: string; kind: MutableKind; icon?: string } }): React.JSX.Element {
+function ContextRow({
+  node,
+}: {
+  node: { id: string; title: string; path: string; kind: MutableKind; icon?: string }
+}): React.JSX.Element {
   const select = useSession((s) => s.select)
   const selected = useSession((s) => s.selection.kind === 'context' && s.selection.id === node.id)
   const defaultIcons = useSession((s) => s.personalization.defaultIcons)
@@ -362,21 +466,33 @@ function ContextRow({ node }: { node: { id: string; title: string; path: string;
 const TIER_ICON_KIND: Record<'areas' | 'topics' | 'projects', EntityIconKind> = {
   areas: 'area',
   topics: 'topic',
-  projects: 'project'
+  projects: 'project',
 }
-const TIER_NUM: Record<'areas' | 'topics' | 'projects', 1 | 2 | 3> = { areas: 1, topics: 2, projects: 3 }
+const TIER_NUM: Record<'areas' | 'topics' | 'projects', 1 | 2 | 3> = {
+  areas: 1,
+  topics: 2,
+  projects: 3,
+}
 function TierDisclosure({
   tierKey,
   label,
   singular,
-  children
-}: { tierKey: 'areas' | 'topics' | 'projects'; label: string; singular: string; children: React.ReactNode }): React.JSX.Element {
+  children,
+}: {
+  tierKey: 'areas' | 'topics' | 'projects'
+  label: string
+  singular: string
+  children: React.ReactNode
+}): React.JSX.Element {
   const defaultIcons = useSession((s) => s.personalization.defaultIcons)
   // Right-click the tier → create into THAT tier (the collection/set row's own right-click idiom),
   // instead of the global three-way menu that never scoped to a tier.
   const onCreate = (): void => {
     void window.nexus.popCreateMenu([
-      { label: `New ${singular}`, req: { op: 'createContext', tier: TIER_NUM[tierKey], name: DEFAULT_NEW_NAME } }
+      {
+        label: `New ${singular}`,
+        req: { op: 'createContext', tier: TIER_NUM[tierKey], name: DEFAULT_NEW_NAME },
+      },
     ])
   }
   return (
@@ -400,7 +516,12 @@ function SectionHeader({ label, onAdd }: { label: string; onAdd?: () => void }):
     <div className={cx('section-header', text.control.semibold)}>
       <span>{label}</span>
       {onAdd && (
-        <button className="section-add" title={`New ${label}`} aria-label={`New ${label}`} onClick={onAdd}>
+        <button
+          className="section-add"
+          title={`New ${label}`}
+          aria-label={`New ${label}`}
+          onClick={onAdd}
+        >
           +
         </button>
       )}
@@ -435,12 +556,15 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
     void window.nexus.popCreateMenu([
       { label: 'New Area', req: { op: 'createContext', tier: 1, name: DEFAULT_NEW_NAME } },
       { label: 'New Topic', req: { op: 'createContext', tier: 2, name: DEFAULT_NEW_NAME } },
-      { label: 'New Project', req: { op: 'createContext', tier: 3, name: DEFAULT_NEW_NAME } }
+      { label: 'New Project', req: { op: 'createContext', tier: 3, name: DEFAULT_NEW_NAME } },
     ])
   }
   const newCollectionMenu = (): void => {
     void window.nexus.popCreateMenu([
-      { label: 'New Collection', req: { op: 'createContainer', parentPath: '', kind: 'collection', name: DEFAULT_NEW_NAME } }
+      {
+        label: 'New Collection',
+        req: { op: 'createContainer', parentPath: '', kind: 'collection', name: DEFAULT_NEW_NAME },
+      },
     ])
   }
 
@@ -455,7 +579,8 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
     if (!nav) return
     const onScroll = (e: Event): void => {
       const sc = e.target as HTMLElement
-      if (sc?.matches?.('[class*="titleText"]')) sc.classList.toggle('title-scrolled', sc.scrollLeft > 0)
+      if (sc?.matches?.('[class*="titleText"]'))
+        sc.classList.toggle('title-scrolled', sc.scrollLeft > 0)
     }
     nav.addEventListener('scroll', onScroll, { capture: true })
     return () => nav.removeEventListener('scroll', onScroll, { capture: true })
@@ -463,19 +588,36 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
 
   // Contexts mode — the three free-standing tiers (Areas → Topics → Projects), its own drag zone.
   const contextsLayer = (
-    <SidebarDnd tree={tree} onCommit={onCommit} setPlacement={setPlacement} subSetPlacement={subSetPlacement}>
+    <SidebarDnd
+      tree={tree}
+      onCommit={onCommit}
+      setPlacement={setPlacement}
+      subSetPlacement={subSetPlacement}
+    >
       <div className="section">
-        <TierDisclosure tierKey="areas" label={tree.labels.area.plural} singular={tree.labels.area.singular}>
+        <TierDisclosure
+          tierKey="areas"
+          label={tree.labels.area.plural}
+          singular={tree.labels.area.singular}
+        >
           {tree.contexts.areas.map((a: AreaNode) => (
             <ContextRow key={a.id} node={a} />
           ))}
         </TierDisclosure>
-        <TierDisclosure tierKey="topics" label={tree.labels.topic.plural} singular={tree.labels.topic.singular}>
+        <TierDisclosure
+          tierKey="topics"
+          label={tree.labels.topic.plural}
+          singular={tree.labels.topic.singular}
+        >
           {tree.contexts.topics.map((t: TopicNode) => (
             <ContextRow key={t.id} node={t} />
           ))}
         </TierDisclosure>
-        <TierDisclosure tierKey="projects" label={tree.labels.project.plural} singular={tree.labels.project.singular}>
+        <TierDisclosure
+          tierKey="projects"
+          label={tree.labels.project.plural}
+          singular={tree.labels.project.singular}
+        >
           {tree.contexts.projects.map((p: ProjectNode) => (
             <ContextRow key={p.id} node={p} />
           ))}
@@ -486,7 +628,12 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
 
   // Collections mode — top-level Collections plus user-named sections (their headings stay), own zone.
   const collectionsLayer = (
-    <SidebarDnd tree={tree} onCommit={onCommit} setPlacement={setPlacement} subSetPlacement={subSetPlacement}>
+    <SidebarDnd
+      tree={tree}
+      onCommit={onCommit}
+      setPlacement={setPlacement}
+      subSetPlacement={subSetPlacement}
+    >
       <div className="section">
         {(tree.collections ?? []).map((c) => (
           <CollectionRow
@@ -532,14 +679,17 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
   const layerFor = (m: SidebarMode): React.ReactNode =>
     m === 'contexts' ? contextsLayer : m === 'agenda' ? <AgendaMode /> : collectionsLayer
   const activeNode = layerFor(mode)
-  const onCreate = mode === 'contexts' ? newContext : mode === 'agenda' ? undefined : newCollectionMenu
+  const onCreate =
+    mode === 'contexts' ? newContext : mode === 'agenda' ? undefined : newCollectionMenu
 
   // Ribbon-mode switch: hold the outgoing mode as a clipped exit overlay while the incoming sweeps
   // over it (Sidebar.css). The nav snaps to the top for the incoming; the exit layer counter-
   // translates by the captured scroll so its visible window holds still while it's overtaken.
   // The epoch keys the exit layer so a mid-transition switch remounts it (restarting the clip
   // sweep) instead of swapping content under a half-run animation.
-  const [exit, setExit] = useState<{ mode: SidebarMode; scroll: number; epoch: number } | null>(null)
+  const [exit, setExit] = useState<{ mode: SidebarMode; scroll: number; epoch: number } | null>(
+    null,
+  )
   const prevMode = useRef(mode)
   // Layout effect: the capture + scroll snap must land BEFORE the switch's first paint, or one
   // frame of the new mode flashes un-animated at the old scroll position.
@@ -569,7 +719,10 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
           {/* The slide wrapper is permanent (class-only toggle) — swapping the element shape at
               animation end would remount the whole mode tree. It fills the mode and carries the
               empty-area create menu (modeCtx gates on target === currentTarget). */}
-          <div className={cx('mode-body', exit !== null && 'mode-enter-slide')} onContextMenu={modeCtx(onCreate)}>
+          <div
+            className={cx('mode-body', exit !== null && 'mode-enter-slide')}
+            onContextMenu={modeCtx(onCreate)}
+          >
             {activeNode}
           </div>
         </div>

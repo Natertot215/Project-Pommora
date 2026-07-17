@@ -12,12 +12,12 @@ export function reorderColumns(
   visibleIds: string[],
   propertyOrder: string[],
   activeId: string,
-  overId: string
+  overId: string,
 ): string[] {
   const next = reorder(
     visibleIds.map((id) => ({ id })),
     activeId,
-    overId
+    overId,
   ).map((o) => o.id)
   const hidden = propertyOrder.filter((id) => !visibleIds.includes(id))
   return [...next, ...hidden]

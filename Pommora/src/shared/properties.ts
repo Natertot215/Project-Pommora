@@ -24,7 +24,7 @@ export const propertyType = z.enum([
   'url',
   'context', // the three context-tier links (_tier1/2/3); not user-creatable
   'last_edited_time',
-  'file'
+  'file',
 ])
 export type PropertyType = z.infer<typeof propertyType>
 
@@ -41,7 +41,7 @@ const selectOption = z.looseObject({
   label: z.string(),
   // Open solid-palette key (chipColorFor normalizes on render). Lenient: a non-string degrades to
   // undefined rather than failing the whole def parse.
-  color: z.string().optional().catch(undefined)
+  color: z.string().optional().catch(undefined),
 })
 
 /** Status-group ids — an OPEN set (seeded with upcoming / in_progress / done, the only three shipped
@@ -53,7 +53,7 @@ const statusOption = z.looseObject({
   value: z.string(),
   label: z.string(),
   color: z.string().optional().catch(undefined),
-  group_id: statusGroupId
+  group_id: statusGroupId,
 })
 export type StatusOption = z.infer<typeof statusOption>
 
@@ -63,7 +63,7 @@ const statusGroup = z.looseObject({
   // Open solid-palette key, required — an absent / non-string color falls back to the neutral solid
   // rather than dropping the group.
   color: z.string().catch('grey'),
-  options: z.array(statusOption)
+  options: z.array(statusOption),
 })
 export type StatusGroup = z.infer<typeof statusGroup>
 
@@ -71,7 +71,7 @@ export type StatusGroup = z.infer<typeof statusGroup>
  *  `kind` so an unknown target survives parse. */
 const contextTarget = z.looseObject({
   kind: z.string(),
-  tier: z.number().optional()
+  tier: z.number().optional(),
 })
 
 /** One property schema entry. Loose ⇒ display config + any foreign keys ride through. */
@@ -107,16 +107,24 @@ export const propertyDefinition = z.looseObject({
   number_family: z.enum(NUMBER_FAMILIES).optional().catch(undefined),
   number_currency: z.string().optional().catch(undefined),
   number_separators: z.boolean().optional().catch(undefined),
-  number_decimals: z.union([z.literal('hidden'), z.number().int()]).optional().catch(undefined),
+  number_decimals: z
+    .union([z.literal('hidden'), z.number().int()])
+    .optional()
+    .catch(undefined),
   number_fraction: z.boolean().optional().catch(undefined),
-  number_denominator: z.number().optional().catch(undefined)
+  number_denominator: z.number().optional().catch(undefined),
 })
 export type PropertyDefinition = z.infer<typeof propertyDefinition>
 
 /** The def-level number format config, narrowed for the pure formatter + the editor. */
 export type NumberConfig = Pick<
   PropertyDefinition,
-  'number_family' | 'number_currency' | 'number_separators' | 'number_decimals' | 'number_fraction' | 'number_denominator'
+  | 'number_family'
+  | 'number_currency'
+  | 'number_separators'
+  | 'number_decimals'
+  | 'number_fraction'
+  | 'number_denominator'
 >
 
 // MARK: - Reserved property IDs
@@ -136,7 +144,7 @@ export const RESERVED_PROPERTY_ID = {
   tier3: '_tier3',
   // Filter-only Location target — never a column; the filter's location branch runs before the
   // declaredType dispatch, so this id deliberately resolves to no type.
-  location: '_location'
+  location: '_location',
 } as const
 
 const RESERVED_SET = new Set<string>(Object.values(RESERVED_PROPERTY_ID))
@@ -167,15 +175,34 @@ export function tierPropertyId(level: number): string {
 /** A status def's options flattened for display — an option without its own color wears its
  *  GROUP's (the on-disk contract: group color is the default, option color the override). THE
  *  read for status chips anywhere the group isn't separately in scope. */
-export function statusOptions(def: Pick<PropertyDefinition, 'status_groups'> | undefined): StatusOption[] {
-  return (def?.status_groups ?? []).flatMap((g) => g.options.map((o) => (o.color ? o : { ...o, color: g.color })))
+export function statusOptions(
+  def: Pick<PropertyDefinition, 'status_groups'> | undefined,
+): StatusOption[] {
+  return (def?.status_groups ?? []).flatMap((g) =>
+    g.options.map((o) => (o.color ? o : { ...o, color: g.color })),
+  )
 }
 
 export function defaultStatusSeed(): StatusGroup[] {
   return [
-    { id: 'upcoming', label: 'Open', color: 'grey', options: [{ value: 'Open', label: 'Open', color: 'grey', group_id: 'upcoming' }] },
-    { id: 'in_progress', label: 'Active', color: 'blue', options: [{ value: 'Active', label: 'Active', color: 'blue', group_id: 'in_progress' }] },
-    { id: 'done', label: 'Done', color: 'green', options: [{ value: 'Done', label: 'Done', color: 'green', group_id: 'done' }] }
+    {
+      id: 'upcoming',
+      label: 'Open',
+      color: 'grey',
+      options: [{ value: 'Open', label: 'Open', color: 'grey', group_id: 'upcoming' }],
+    },
+    {
+      id: 'in_progress',
+      label: 'Active',
+      color: 'blue',
+      options: [{ value: 'Active', label: 'Active', color: 'blue', group_id: 'in_progress' }],
+    },
+    {
+      id: 'done',
+      label: 'Done',
+      color: 'green',
+      options: [{ value: 'Done', label: 'Done', color: 'green', group_id: 'done' }],
+    },
   ]
 }
 

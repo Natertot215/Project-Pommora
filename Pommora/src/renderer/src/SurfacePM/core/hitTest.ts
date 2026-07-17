@@ -21,7 +21,7 @@ export function hitTest(
   px: number,
   py: number,
   bandZonePx = 10,
-  prev: DropTarget = null
+  prev: DropTarget = null,
 ): DropTarget {
   if (py < bandZonePx) return { kind: 'band', index: 0 }
   // Append owns only the pad BELOW the content — the last band's south edges stay targetable.
@@ -39,7 +39,7 @@ export function hitTest(
       ['w', relX],
       ['e', 1 - relX],
       ['n', relY],
-      ['s', 1 - relY]
+      ['s', 1 - relY],
     ]
     dists.sort((a, b) => a[1] - b[1])
     const best = dists[0]?.[0] ?? 'e'

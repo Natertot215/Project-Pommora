@@ -9,7 +9,7 @@ import * as s from './popover.css'
  */
 export function Popover({
   align = 'right',
-  children
+  children,
 }: {
   align?: 'left' | 'right'
   children: ReactNode
@@ -29,7 +29,7 @@ export function Popover({
 export function useDismiss(
   ref: RefObject<HTMLElement | null>,
   onClose: () => void,
-  active: boolean
+  active: boolean,
 ): void {
   useEffect(() => {
     if (!active) return
@@ -38,7 +38,8 @@ export function useDismiss(
       // A portal'd picker (its layer + backdrop) renders OUTSIDE this ref in the DOM, so a plain
       // containment check reads any interaction with it as "outside" and dismisses the host it
       // visually sits within. Spare the marked portal — the picker owns its own dismissal.
-      if (ref.current && !ref.current.contains(target) && !target.closest?.('[data-picker-portal]')) onClose()
+      if (ref.current && !ref.current.contains(target) && !target.closest?.('[data-picker-portal]'))
+        onClose()
     }
     const onKey = (e: KeyboardEvent): void => {
       // A marked picker portal owns its own Escape — while one's open, it closes itself and this host

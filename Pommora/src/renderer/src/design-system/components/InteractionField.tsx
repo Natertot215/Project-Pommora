@@ -10,7 +10,7 @@ import * as s from './interactionField.css'
 export function InteractionField({
   children,
   className,
-  onClick
+  onClick,
 }: {
   children: ReactNode
   className?: string

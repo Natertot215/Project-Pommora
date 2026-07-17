@@ -24,7 +24,7 @@ export function nexusReorderIndex(
   orderedIds: string[],
   visibleIds: string[],
   draggedId: string,
-  visibleToIndex: number
+  visibleToIndex: number,
 ): number {
   const full = orderedIds.filter((id) => id !== draggedId)
   const visible = visibleIds.filter((id) => id !== draggedId)
@@ -39,7 +39,7 @@ export function paneSlot(
   byId: Map<string, PaneRow>,
   regions: { assigned: Region; all: Region },
   pointerY: number,
-  draggedId: string
+  draggedId: string,
 ): PaneSlot | null {
   const dragged = byId.get(draggedId)
   if (!dragged) return null

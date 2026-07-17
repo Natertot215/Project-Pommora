@@ -28,7 +28,7 @@ export function IconsLeaf(): React.JSX.Element {
           </div>
         ) : (
           <IconCell key={n} name={n} />
-        )
+        ),
       )}
     </div>
   )
@@ -39,7 +39,20 @@ export function IconsLeaf(): React.JSX.Element {
         {compact ? (
           cells
         ) : (
-          <SortableZone items={names} layout="grid" getItemLabel={(id) => id} onReorder={(a, o) => setNames((x) => reorder(x.map((id) => ({ id })), a, o).map(({ id }) => id))}>
+          <SortableZone
+            items={names}
+            layout="grid"
+            getItemLabel={(id) => id}
+            onReorder={(a, o) =>
+              setNames((x) =>
+                reorder(
+                  x.map((id) => ({ id })),
+                  a,
+                  o,
+                ).map(({ id }) => id),
+              )
+            }
+          >
             {cells}
           </SortableZone>
         )}

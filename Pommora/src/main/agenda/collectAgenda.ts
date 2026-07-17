@@ -13,13 +13,15 @@ import { pathExists } from '../crud/util'
 const str = (v: unknown): string => (typeof v === 'string' ? v : '')
 
 export async function collectAgendaEntries(
-  nexusRoot: string
+  nexusRoot: string,
 ): Promise<{ tasks: AgendaEntry[]; events: AgendaEntry[] }> {
   const tasks: AgendaEntry[] = []
   const events: AgendaEntry[] = []
   let dirs: string[]
   try {
-    dirs = (await readdir(nexusRoot, { withFileTypes: true })).filter((e) => e.isDirectory()).map((e) => e.name)
+    dirs = (await readdir(nexusRoot, { withFileTypes: true }))
+      .filter((e) => e.isDirectory())
+      .map((e) => e.name)
   } catch {
     return { tasks, events }
   }
@@ -51,7 +53,12 @@ export async function collectAgendaEntries(
       if (isTask) {
         tasks.push({ ...common, kind: 'task', dueAt: str(item.due_at) || undefined })
       } else {
-        events.push({ ...common, kind: 'event', startAt: str(item.start_at) || undefined, endAt: str(item.end_at) || undefined })
+        events.push({
+          ...common,
+          kind: 'event',
+          startAt: str(item.start_at) || undefined,
+          endAt: str(item.end_at) || undefined,
+        })
       }
     }
   }

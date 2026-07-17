@@ -20,7 +20,7 @@ export function TextPicker({
   onCommit,
   accent,
   maxLength,
-  trailing
+  trailing,
 }: {
   open: boolean
   onDismiss: () => void

@@ -9,7 +9,8 @@ import { ok, fail, type Result } from '@shared/result'
 // re-seeded — else emptying a select's options and then any unrelated edit resurrects the seed.
 function seeded(def: PropertyDefinition): PropertyDefinition {
   let d = def
-  if (d.type === 'status' && d.status_groups === undefined) d = { ...d, status_groups: defaultStatusSeed() }
+  if (d.type === 'status' && d.status_groups === undefined)
+    d = { ...d, status_groups: defaultStatusSeed() }
   if ((d.type === 'select' || d.type === 'multi_select') && d.select_options === undefined) {
     d = { ...d, select_options: defaultSelectSeed() }
   }
@@ -18,7 +19,10 @@ function seeded(def: PropertyDefinition): PropertyDefinition {
 
 /** Mint + persist a nexus-wide definition, appending its id to the nexus order (A-9).
  *  Duplicate names are allowed — the flat D-3 policy; ids keep twins mechanically safe. */
-export function createProperty(root: string, def: PropertyDefinition): Promise<Result<{ id: string }>> {
+export function createProperty(
+  root: string,
+  def: PropertyDefinition,
+): Promise<Result<{ id: string }>> {
   return mutateRegistry<Result<{ id: string }>>(root, (registry) => {
     const candidate = seeded({ ...def, id: def.id || mintPropertyId() })
     const v = validateDefinition(candidate, Object.values(registry.defs), { unique: false })
@@ -26,9 +30,9 @@ export function createProperty(root: string, def: PropertyDefinition): Promise<R
     return {
       next: {
         order: [...registry.order.filter((id) => id !== candidate.id), candidate.id],
-        defs: { ...registry.defs, [candidate.id]: candidate }
+        defs: { ...registry.defs, [candidate.id]: candidate },
       },
-      result: ok({ id: candidate.id })
+      result: ok({ id: candidate.id }),
     }
   })
 }
@@ -37,7 +41,7 @@ export function createProperty(root: string, def: PropertyDefinition): Promise<R
 export function editProperty(
   root: string,
   propertyId: string,
-  changes: Partial<PropertyDefinition>
+  changes: Partial<PropertyDefinition>,
 ): Promise<Result<null>> {
   return mutateRegistry<Result<null>>(root, (registry) => {
     const current = registry.defs[propertyId]
@@ -47,7 +51,10 @@ export function editProperty(
       const v = validateName(next.name, Object.values(registry.defs), propertyId, { unique: false })
       if (!v.ok) return { result: v }
     }
-    return { next: { ...registry, defs: { ...registry.defs, [propertyId]: next } }, result: ok(null) }
+    return {
+      next: { ...registry, defs: { ...registry.defs, [propertyId]: next } },
+      result: ok(null),
+    }
   })
 }
 
@@ -59,13 +66,17 @@ export function removeFromRegistry(root: string, propertyId: string): Promise<Re
     delete defs[propertyId]
     return {
       next: { order: registry.order.filter((id) => id !== propertyId), defs },
-      result: ok(null)
+      result: ok(null),
     }
   })
 }
 
 /** Move propertyId to toIndex in the nexus-wide cosmetic order (C-1). Clamped; unknown id fails. */
-export function reorderRegistry(root: string, propertyId: string, toIndex: number): Promise<Result<null>> {
+export function reorderRegistry(
+  root: string,
+  propertyId: string,
+  toIndex: number,
+): Promise<Result<null>> {
   return mutateRegistry<Result<null>>(root, (registry) => {
     if (!(propertyId in registry.defs)) return { result: fail('not-found', 'Property not found.') }
     const order = registry.order.filter((id) => id !== propertyId)

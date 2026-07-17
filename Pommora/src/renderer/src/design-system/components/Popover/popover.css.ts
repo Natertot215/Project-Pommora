@@ -5,7 +5,7 @@ export const anchor = style({
   position: 'absolute',
   top: 'calc(100% + 6px)',
   zIndex: 10,
-  minWidth: '220px'
+  minWidth: '220px',
 })
 
 export const alignRight = style({ right: 0 })
@@ -15,5 +15,5 @@ export const alignLeft = style({ left: 0 })
 export const panel = style({
   borderRadius: '12px',
   padding: '6px',
-  overflow: 'hidden'
+  overflow: 'hidden',
 })

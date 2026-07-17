@@ -1,11 +1,21 @@
-import { COLUMN_LOOKS, DATE_FORMATS, TIME_FORMATS, WEEKDAY_FORMATS, type ColumnStyle } from './columnStyles'
+import {
+  COLUMN_LOOKS,
+  DATE_FORMATS,
+  TIME_FORMATS,
+  WEEKDAY_FORMATS,
+  type ColumnStyle,
+} from './columnStyles'
 import type { PropertyType } from './properties'
 import type { ColumnAlign } from './views'
 
 /** The table-view column-header right-click menu (E-1/E-5): hide the column, set its text alignment,
  *  or set a per-view display style. The renderer applies the resolved action, or no-ops on null
  *  (dismissed). Mirrors calloutMenu's shape. */
-export type ColumnMenuAction = 'column:hide' | 'column:toggle-icons' | `align:${ColumnAlign}` | `style:${string}:${string}`
+export type ColumnMenuAction =
+  | 'column:hide'
+  | 'column:toggle-icons'
+  | `align:${ColumnAlign}`
+  | `style:${string}:${string}`
 
 /** Menu context — the current alignment (for the checked radio) + which items apply. The Title column is
  *  the primary column: neither alignable, hideable, nor styleable, so it pops an empty (⇒ dismissed) menu. */
@@ -49,7 +59,7 @@ export function styleMenuItems(ctx: StyleMenuContext): StyleMenuItem[] {
       key,
       value,
       checked: checked === value,
-      ...(separatorBefore ? { separatorBefore } : {})
+      ...(separatorBefore ? { separatorBefore } : {}),
     })
   const look = row('look', current.look)
   switch (type) {
@@ -79,7 +89,7 @@ export function styleMenuItems(ctx: StyleMenuContext): StyleMenuItem[] {
         weekday('Hidden', 'none'),
         time('12 Hours', 'twelveHour', true),
         time('24 Hours', 'twentyFourHour'),
-        time('Hidden', 'none')
+        time('Hidden', 'none'),
       ]
     }
     default:
@@ -91,13 +101,17 @@ const STYLE_VALUES: Record<string, readonly string[]> = {
   look: COLUMN_LOOKS,
   date_format: DATE_FORMATS,
   time_format: TIME_FORMATS,
-  weekday: WEEKDAY_FORMATS
+  weekday: WEEKDAY_FORMATS,
 }
 
 /** Decode a `style:<key>:<value>` action; null for anything else or an unknown key/value. */
-export function parseStyleAction(action: string): { key: keyof ColumnStyle & string; value: string } | null {
+export function parseStyleAction(
+  action: string,
+): { key: keyof ColumnStyle & string; value: string } | null {
   const m = /^style:([^:]+):(.+)$/.exec(action)
   if (!m) return null
   const [, key, value] = m
-  return STYLE_VALUES[key]?.includes(value) ? { key: key as keyof ColumnStyle & string, value } : null
+  return STYLE_VALUES[key]?.includes(value)
+    ? { key: key as keyof ColumnStyle & string, value }
+    : null
 }

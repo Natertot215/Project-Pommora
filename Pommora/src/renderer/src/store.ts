@@ -1,10 +1,38 @@
 import { create } from 'zustand'
-import { DEFAULT_COMMANDS, type AgendaEntry, type NavFavorite, type NavTarget, type NexusTree, type PageDetail, type Personalization, type PinEntry, type RecentEntry, type SelectionState, type SelectTarget, type SetNode, type Tab } from '@shared/types'
+import {
+  DEFAULT_COMMANDS,
+  type AgendaEntry,
+  type NavFavorite,
+  type NavTarget,
+  type NexusTree,
+  type PageDetail,
+  type Personalization,
+  type PinEntry,
+  type RecentEntry,
+  type SelectionState,
+  type SelectTarget,
+  type SetNode,
+  type Tab,
+} from '@shared/types'
 import { DEFAULT_NEW_NAME, type MutableKind, type MutateRequest } from '@shared/mutate'
 import { buildReconcileIndex, reconcileSelection, reconcileWith } from './selection'
 import { navKey, recordRecent, removeRecentByKey, RECENTS_CAP } from './Navigation/navRecents'
 import { byOrder, cleanPinTarget, pinFor, reorderTo } from './Navigation/navPins'
-import { activeUnpinnedTab, closeTab as closeTabModel, derivePinnedTabs, insertUnpinned, isPinned, newTabTab, openNewTab as openNewTabModel, openTab as openTabModel, pinTabId, pushMru, reconcileTabs, reorderWithinZone, tabKey } from './Tabs/tabsModel'
+import {
+  activeUnpinnedTab,
+  closeTab as closeTabModel,
+  derivePinnedTabs,
+  insertUnpinned,
+  isPinned,
+  newTabTab,
+  openNewTab as openNewTabModel,
+  openTab as openTabModel,
+  pinTabId,
+  pushMru,
+  reconcileTabs,
+  reorderWithinZone,
+  tabKey,
+} from './Tabs/tabsModel'
 import { captureWarm, clearWarm, dropWarmTab, readWarm } from './Tabs/warmCache'
 import { flushActivePage } from './Detail/pageFlush'
 import { dropCapturedOutside } from './Navigation/useNavThumbnails'
@@ -19,7 +47,8 @@ const SIDEBAR_MIN = 180
 const SIDEBAR_MAX = 380
 const SIDEBAR_DEFAULT = 240
 const SIDEBAR_WIDTH_KEY = 'pommora.sidebarWidth'
-const clampSidebar = (w: number): number => Math.max(SIDEBAR_MIN, Math.min(SIDEBAR_MAX, Math.round(w)))
+const clampSidebar = (w: number): number =>
+  Math.max(SIDEBAR_MIN, Math.min(SIDEBAR_MAX, Math.round(w)))
 function readStoredSidebarWidth(): number {
   try {
     const n = Number(localStorage.getItem(SIDEBAR_WIDTH_KEY))
@@ -34,7 +63,8 @@ const INSPECTOR_MIN = 240
 const INSPECTOR_MAX = 420
 const INSPECTOR_DEFAULT = 300
 const INSPECTOR_WIDTH_KEY = 'pommora.inspectorWidth'
-const clampInspector = (w: number): number => Math.max(INSPECTOR_MIN, Math.min(INSPECTOR_MAX, Math.round(w)))
+const clampInspector = (w: number): number =>
+  Math.max(INSPECTOR_MIN, Math.min(INSPECTOR_MAX, Math.round(w)))
 function readStoredInspectorWidth(): number {
   try {
     const n = Number(localStorage.getItem(INSPECTOR_WIDTH_KEY))
@@ -57,7 +87,10 @@ export interface TrailEntry {
 
 /** Nexus-relative path of a top Collection or any nested Set by id (ungrouped + sectioned). */
 function findContainerPath(tree: NexusTree, id: string): string | null {
-  const cols = [...(tree.collections ?? []), ...tree.userSections.flatMap((s) => s.collections ?? [])]
+  const cols = [
+    ...(tree.collections ?? []),
+    ...tree.userSections.flatMap((s) => s.collections ?? []),
+  ]
   const inSets = (sets: SetNode[] | undefined): string | null => {
     for (const s of sets ?? []) {
       if (s.id === id) return s.path
@@ -178,7 +211,12 @@ interface SessionState {
    *  ('select' — sidebar, NavWindow, gallery; always forward). The detail view slides in this direction
    *  when the swap commits; the active tab's label slides for every source but 'tab' (a tab switch
    *  doesn't change it); seq re-triggers per step. */
-  navSlide: { tabId: string; dir: 'back' | 'forward'; seq: number; source: 'history' | 'tab' | 'select' } | null
+  navSlide: {
+    tabId: string
+    dir: 'back' | 'forward'
+    seq: number
+    source: 'history' | 'tab' | 'select'
+  } | null
 
   /** Navigation layer (recents + favorites) — the shared, UI-agnostic wayfinding state NavWindow +
    *  NavPane read. Persisted per-nexus (synced) via the `nav` bridge; the store owns the arrays and
@@ -195,7 +233,11 @@ interface SessionState {
   loadPins: () => Promise<void>
   /** Apply a live nav refresh from the watcher (an external/synced sidecar or pin change) — swaps the
    *  nav slices without a tree re-walk. */
-  applyNavChanged: (nav: { recents: RecentEntry[]; favorites: NavFavorite[]; pins: PinEntry[] }) => void
+  applyNavChanged: (nav: {
+    recents: RecentEntry[]
+    favorites: NavFavorite[]
+    pins: PinEntry[]
+  }) => void
   /** Gallery thumbnail cache-bust versions, keyed by navKey — bumped after a successful capture so the
    *  card `<img>` reloads the overwritten file. */
   thumbVersions: Record<string, number>
@@ -248,7 +290,10 @@ interface SessionState {
   /** The one write path: run a mutate op, surface its error or refetch on success. On a create,
    *  the new entity is handed to `onCreated` (to select it, begin-renaming it, …). Every sidebar
    *  mutation — drops, renames, creates — routes through here. Resolves the op's success. */
-  mutate: (req: MutateRequest, onCreated?: (created: { id: string; path: string }) => void | Promise<void>) => Promise<boolean>
+  mutate: (
+    req: MutateRequest,
+    onCreated?: (created: { id: string; path: string }) => void | Promise<void>,
+  ) => Promise<boolean>
 }
 
 /** Whether a select target IS the currently-shown selection (same entity, same file) — a re-click
@@ -294,7 +339,17 @@ export const useSession = create<SessionState>((set, get) => {
         // Clearing activeTabId marks the tab set never-seeded, so load() re-reads the
         // new nexus's sidecar (I-10 wholesale reset; main drained the outgoing writes).
         pageFetchSeq++
-        set({ selection: { kind: 'none' }, pageStatus: 'idle', pageDetail: null, pageError: undefined, pageFrozen: false, liveBody: null, tabs: [], activeTabId: '', tabMru: [] })
+        set({
+          selection: { kind: 'none' },
+          pageStatus: 'idle',
+          pageDetail: null,
+          pageError: undefined,
+          pageFrozen: false,
+          liveBody: null,
+          tabs: [],
+          activeTabId: '',
+          tabMru: [],
+        })
         clearWarm() // warmth is per-nexus AND session-only — never crosses an adoption (I-10)
         await get().load()
       }
@@ -316,7 +371,10 @@ export const useSession = create<SessionState>((set, get) => {
   // The active tab — an unpinned tab, or a derived pinned tab (which carries no unpinned back-history).
   const findActiveTab = (): Tab | undefined => {
     const s = get()
-    return s.tabs.find((t) => t.id === s.activeTabId) ?? derivePinnedTabs(s.pins).find((t) => t.id === s.activeTabId)
+    return (
+      s.tabs.find((t) => t.id === s.activeTabId) ??
+      derivePinnedTabs(s.pins).find((t) => t.id === s.activeTabId)
+    )
   }
 
   // Re-surface the active tab into the detail pane (a plain switch): a newtab tab routes to the empty
@@ -327,7 +385,13 @@ export const useSession = create<SessionState>((set, get) => {
     const active = findActiveTab()
     if (!active || active.target.kind === 'newtab') {
       pageFetchSeq++
-      set({ selection: { kind: 'none' }, pageStatus: 'idle', pageDetail: null, pageError: undefined, pageFrozen: false })
+      set({
+        selection: { kind: 'none' },
+        pageStatus: 'idle',
+        pageDetail: null,
+        pageError: undefined,
+        pageFrozen: false,
+      })
       return
     }
     const tree = get().tree
@@ -361,7 +425,7 @@ export const useSession = create<SessionState>((set, get) => {
     const activeCovered = covered.find((t) => t.id === s.activeTabId)
     set({
       tabs: s.tabs.filter((t) => !covered.includes(t)),
-      tabMru: s.tabMru.filter((m) => !covered.some((c) => c.id === m))
+      tabMru: s.tabMru.filter((m) => !covered.some((c) => c.id === m)),
     })
     for (const t of covered) dropWarmTab(t.id)
     if (activeCovered && activeCovered.target.kind !== 'newtab') {
@@ -398,8 +462,15 @@ export const useSession = create<SessionState>((set, get) => {
       // target moves in lockstep with navIndex — openTab's dedup keys off `target`, so a stale one
       // would mis-dedup the very next click on the shown entity (destroying the Forward stack).
       set({
-        tabs: get().tabs.map((t) => (t.id === active.id ? { ...t, navIndex: i, target: resolved } : t)),
-        navSlide: { tabId: active.id, dir: delta < 0 ? 'back' : 'forward', seq: (s.navSlide?.seq ?? 0) + 1, source: 'history' }
+        tabs: get().tabs.map((t) =>
+          t.id === active.id ? { ...t, navIndex: i, target: resolved } : t,
+        ),
+        navSlide: {
+          tabId: active.id,
+          dir: delta < 0 ? 'back' : 'forward',
+          seq: (s.navSlide?.seq ?? 0) + 1,
+          source: 'history',
+        },
       })
       void get().select(resolved, { record: false })
       persistTabs()
@@ -459,7 +530,11 @@ export const useSession = create<SessionState>((set, get) => {
             // load (+ first-open legacy migration) through their own bridge.
             try {
               const nav = await window.nexus.nav.load()
-              set(nav.ok ? { recents: nav.recents, favorites: nav.favorites } : { recents: [], favorites: [] })
+              set(
+                nav.ok
+                  ? { recents: nav.recents, favorites: nav.favorites }
+                  : { recents: [], favorites: [] },
+              )
             } catch {
               set({ recents: [], favorites: [] })
             }
@@ -492,11 +567,16 @@ export const useSession = create<SessionState>((set, get) => {
               const tree = get().tree
               const index = tree ? buildReconcileIndex(tree) : null
               const livePinnedTabs = index
-                ? pinnedTabs.filter((t) => t.target.kind === 'newtab' || reconcileWith(index, t.target).kind !== 'none')
+                ? pinnedTabs.filter(
+                    (t) =>
+                      t.target.kind === 'newtab' || reconcileWith(index, t.target).kind !== 'none',
+                  )
                 : pinnedTabs
               const storedActive = storedSet?.activeTabId ?? ''
               const liveIds = new Set([...livePinnedTabs, ...tabs].map((t) => t.id))
-              const active = liveIds.has(storedActive) ? storedActive : (tabs[0]?.id ?? livePinnedTabs[0]?.id ?? '')
+              const active = liveIds.has(storedActive)
+                ? storedActive
+                : (tabs[0]?.id ?? livePinnedTabs[0]?.id ?? '')
               if (active === '') {
                 // Nothing persisted and no live pins — a fresh nexus opens onto one NavView tab (E-2).
                 const seeded = newTabTab(makeTabId())
@@ -516,11 +596,19 @@ export const useSession = create<SessionState>((set, get) => {
                       const r = reconcileWith(index, t)
                       return r.kind === 'none' ? null : r
                     },
-                    makeTabId()
+                    makeTabId(),
                   )
-                  restored = { tabs: rec.tabs, activeTabId: rec.activeTabId, mru: rec.mru.length ? rec.mru : [rec.activeTabId] }
+                  restored = {
+                    tabs: rec.tabs,
+                    activeTabId: rec.activeTabId,
+                    mru: rec.mru.length ? rec.mru : [rec.activeTabId],
+                  }
                 }
-                set({ tabs: restored.tabs, activeTabId: restored.activeTabId, tabMru: restored.mru })
+                set({
+                  tabs: restored.tabs,
+                  activeTabId: restored.activeTabId,
+                  tabMru: restored.mru,
+                })
               }
               syncActiveDetail() // restore the active tab's entity (cold — warmth is session-only)
             }
@@ -555,7 +643,13 @@ export const useSession = create<SessionState>((set, get) => {
       if (next !== prev) {
         if (next.kind === 'none') {
           pageFetchSeq++
-          set({ selection: next, pageStatus: 'idle', pageDetail: null, pageError: undefined, pageFrozen: false })
+          set({
+            selection: next,
+            pageStatus: 'idle',
+            pageDetail: null,
+            pageError: undefined,
+            pageFrozen: false,
+          })
         } else if (next.kind === 'page') {
           void get().select(next, { record: false }) // refetch the detail at the page's new path — not a nav
         }
@@ -573,13 +667,15 @@ export const useSession = create<SessionState>((set, get) => {
           // A deleted entity's pinned tab render-hides — its id must NOT count as live, or an active
           // pointer at it would dangle with nothing focused.
           derivePinnedTabs(s.pins)
-            .filter((t) => t.target.kind === 'newtab' || reconcileWith(index, t.target).kind !== 'none')
+            .filter(
+              (t) => t.target.kind === 'newtab' || reconcileWith(index, t.target).kind !== 'none',
+            )
             .map((t) => t.id),
           (t) => {
             const r = reconcileWith(index, t)
             return r.kind === 'none' ? null : r
           },
-          makeTabId()
+          makeTabId(),
         )
         if (rec.changed) {
           for (const t of s.tabs) if (!rec.tabs.some((n) => n.id === t.id)) dropWarmTab(t.id) // deleted-entity closes
@@ -638,13 +734,17 @@ export const useSession = create<SessionState>((set, get) => {
     setSubfieldExpanded: (expanded) => {
       set({ subfieldExpanded: expanded })
       const s = get()
-      void window.nexus.subfield.set({ order: s.subfieldOrder, expanded: s.subfieldExpanded }).catch(() => undefined)
+      void window.nexus.subfield
+        .set({ order: s.subfieldOrder, expanded: s.subfieldExpanded })
+        .catch(() => undefined)
     },
     subfieldOrder: {},
     setSubfieldOrder: (kind, ids) => {
       set((s) => ({ subfieldOrder: { ...s.subfieldOrder, [kind]: ids } }))
       const s = get()
-      void window.nexus.subfield.set({ order: s.subfieldOrder, expanded: s.subfieldExpanded }).catch(() => undefined)
+      void window.nexus.subfield
+        .set({ order: s.subfieldOrder, expanded: s.subfieldExpanded })
+        .catch(() => undefined)
     },
     personalization: {},
     setPersonalization: (key, value) => {
@@ -699,11 +799,12 @@ export const useSession = create<SessionState>((set, get) => {
       // Direction by the strip's visual order (pinned zone, then the unpinned strip): the view slides
       // toward the tab you moved to.
       const order = [...derivePinnedTabs(s.pins).map((t) => t.id), ...s.tabs.map((t) => t.id)]
-      const dir: 'back' | 'forward' = order.indexOf(id) < order.indexOf(s.activeTabId) ? 'back' : 'forward'
+      const dir: 'back' | 'forward' =
+        order.indexOf(id) < order.indexOf(s.activeTabId) ? 'back' : 'forward'
       set((st) => ({
         activeTabId: id,
         tabMru: pushMru(st.tabMru, id),
-        navSlide: { tabId: id, dir, seq: (st.navSlide?.seq ?? 0) + 1, source: 'tab' }
+        navSlide: { tabId: id, dir, seq: (st.navSlide?.seq ?? 0) + 1, source: 'tab' },
       }))
       syncActiveDetail()
       persistTabs()
@@ -718,7 +819,16 @@ export const useSession = create<SessionState>((set, get) => {
         tabs: res.tabs,
         activeTabId: res.activeTabId,
         tabMru: pushMru(s.tabMru, res.activeTabId),
-        ...(swaps ? { navSlide: { tabId: res.activeTabId, dir: 'forward' as const, seq: (s.navSlide?.seq ?? 0) + 1, source: 'tab' as const } } : {})
+        ...(swaps
+          ? {
+              navSlide: {
+                tabId: res.activeTabId,
+                dir: 'forward' as const,
+                seq: (s.navSlide?.seq ?? 0) + 1,
+                source: 'tab' as const,
+              },
+            }
+          : {}),
       })
       syncActiveDetail()
       persistTabs()
@@ -752,11 +862,19 @@ export const useSession = create<SessionState>((set, get) => {
       const target = pinnedTab.target
       get().unpinTarget(navKey(target))
       // I-1: if the entity somehow already holds an unpinned tab, focus it instead of duplicating.
-      const existing = get().tabs.find((t) => t.target.kind !== 'newtab' && navKey(t.target) === navKey(target))
+      const existing = get().tabs.find(
+        (t) => t.target.kind !== 'newtab' && navKey(t.target) === navKey(target),
+      )
       const tab: Tab = existing ?? { id: makeTabId(), target, navStack: [target], navIndex: 0 }
       if (!existing) set((s) => ({ tabs: insertUnpinned(s.tabs, s.activeTabId, tab) }))
       if (get().activeTabId === pinId)
-        set((s) => ({ activeTabId: tab.id, tabMru: pushMru(s.tabMru.filter((m) => m !== pinId), tab.id) }))
+        set((s) => ({
+          activeTabId: tab.id,
+          tabMru: pushMru(
+            s.tabMru.filter((m) => m !== pinId),
+            tab.id,
+          ),
+        }))
       dropWarmTab(pinId)
       persistTabs()
     },
@@ -784,7 +902,11 @@ export const useSession = create<SessionState>((set, get) => {
     reorderPin: (activeKey, overKey) => {
       const moved = reorderTo(get().pins, activeKey, overKey)
       if (!moved) return
-      set({ pins: get().pins.map((p) => (navKey(p) === activeKey ? moved : p)).sort(byOrder) })
+      set({
+        pins: get()
+          .pins.map((p) => (navKey(p) === activeKey ? moved : p))
+          .sort(byOrder),
+      })
       void window.nexus.nav.reorderPin(moved)
     },
     loadPins: async () => {
@@ -800,18 +922,31 @@ export const useSession = create<SessionState>((set, get) => {
       // refocuses the pointer (graduatePinCovered only handles the add case). Refocus MRU-top so it
       // doesn't dangle onto a stale pane (mirror reconcileTabs' focus).
       const s = get()
-      const live = new Set([...derivePinnedTabs(s.pins).map((t) => t.id), ...s.tabs.map((t) => t.id)])
+      const live = new Set([
+        ...derivePinnedTabs(s.pins).map((t) => t.id),
+        ...s.tabs.map((t) => t.id),
+      ])
       if (!live.has(s.activeTabId)) {
-        const focus = s.tabMru.find((id) => live.has(id)) ?? s.tabs[0]?.id ?? derivePinnedTabs(s.pins)[0]?.id
+        const focus =
+          s.tabMru.find((id) => live.has(id)) ?? s.tabs[0]?.id ?? derivePinnedTabs(s.pins)[0]?.id
         if (focus !== undefined) {
           // pushMru covers the fallback focus (a tab absent from the MRU) — the top must be the active.
-          set({ activeTabId: focus, tabMru: pushMru(s.tabMru.filter((id) => live.has(id)), focus) })
+          set({
+            activeTabId: focus,
+            tabMru: pushMru(
+              s.tabMru.filter((id) => live.has(id)),
+              focus,
+            ),
+          })
           syncActiveDetail()
         }
       }
     },
     thumbVersions: {},
-    bumpThumb: (key) => set((s) => ({ thumbVersions: { ...s.thumbVersions, [key]: (s.thumbVersions[key] ?? 0) + 1 } })),
+    bumpThumb: (key) =>
+      set((s) => ({
+        thumbVersions: { ...s.thumbVersions, [key]: (s.thumbVersions[key] ?? 0) + 1 },
+      })),
     evictThumbs: () => {
       const live = [...get().recents.map(navKey), ...get().pins.map(navKey)]
       dropCapturedOutside(new Set(live)) // the capture gate's markers die with the files they vouch for
@@ -897,7 +1032,11 @@ export const useSession = create<SessionState>((set, get) => {
       pageFetchSeq++
       if (get().pageFrozen) {
         const s = get()
-        set(s.navSlide?.seq === coldStampSeq ? { pageFrozen: false, navSlide: null } : { pageFrozen: false })
+        set(
+          s.navSlide?.seq === coldStampSeq
+            ? { pageFrozen: false, navSlide: null }
+            : { pageFrozen: false },
+        )
       }
       // A genuine navigation (record !== false) maintains the tab set — dedup/replace/spawn per the
       // active tab's pin state (D-3b) — and records recents. A programmatic re-select (Back/Forward, a
@@ -908,7 +1047,14 @@ export const useSession = create<SessionState>((set, get) => {
         captureOutgoingDetail()
         const s = get()
         const pinned = derivePinnedTabs(s.pins)
-        const res = openTabModel(s.tabs, s.activeTabId, pinned, target, { newTab: opts?.newTab }, makeTabId())
+        const res = openTabModel(
+          s.tabs,
+          s.activeTabId,
+          pinned,
+          target,
+          { newTab: opts?.newTab },
+          makeTabId(),
+        )
         const opened = res.tabs !== s.tabs
         // A genuine select slides the view in (forward — new ground) — but never on a re-click of the
         // entity already shown (a dedup no-op swaps nothing, so it must move nothing).
@@ -918,7 +1064,14 @@ export const useSession = create<SessionState>((set, get) => {
           tabMru: pushMru(s.tabMru, res.activeTabId),
           ...(sameShownTarget(s.selection, target)
             ? {}
-            : { navSlide: { tabId: res.activeTabId, dir: 'forward' as const, seq: (s.navSlide?.seq ?? 0) + 1, source: 'select' as const } })
+            : {
+                navSlide: {
+                  tabId: res.activeTabId,
+                  dir: 'forward' as const,
+                  seq: (s.navSlide?.seq ?? 0) + 1,
+                  source: 'select' as const,
+                },
+              }),
         })
         if (opened) {
           const recents = recordRecent(s.recents, target, RECENTS_CAP)
@@ -930,15 +1083,30 @@ export const useSession = create<SessionState>((set, get) => {
       switch (target.kind) {
         case 'homepage':
           // The homepage view renders from the loaded tree (banner + future widgets) — no fetch.
-          set({ selection: { kind: 'homepage' }, pageStatus: 'idle', pageDetail: null, pageError: undefined })
+          set({
+            selection: { kind: 'homepage' },
+            pageStatus: 'idle',
+            pageDetail: null,
+            pageError: undefined,
+          })
           return
         case 'context':
           // A context (area/topic/project) renders a blank page from the loaded tree — no fetch.
-          set({ selection: { kind: 'context', id: target.id }, pageStatus: 'idle', pageDetail: null, pageError: undefined })
+          set({
+            selection: { kind: 'context', id: target.id },
+            pageStatus: 'idle',
+            pageDetail: null,
+            pageError: undefined,
+          })
           return
         case 'collection': {
           // Collection detail renders from the loaded tree (banner + its pages) — no fetch.
-          set({ selection: { kind: 'collection', id: target.id }, pageStatus: 'idle', pageDetail: null, pageError: undefined })
+          set({
+            selection: { kind: 'collection', id: target.id },
+            pageStatus: 'idle',
+            pageDetail: null,
+            pageError: undefined,
+          })
           // Entry-mint (G-1): a view-bearing container with an empty views[] gets its default minted
           // here, the sole mint site. A fired side-effect — the case stays synchronous for render.
           const col = findCollection(get().tree, target.id)
@@ -947,11 +1115,20 @@ export const useSession = create<SessionState>((set, get) => {
         }
         case 'set': {
           // A depth-1 Set's detail renders from the loaded tree (banner + its pages) — no fetch.
-          set({ selection: { kind: 'set', id: target.id, path: target.path }, pageStatus: 'idle', pageDetail: null, pageError: undefined })
+          set({
+            selection: { kind: 'set', id: target.id, path: target.path },
+            pageStatus: 'idle',
+            pageDetail: null,
+            pageError: undefined,
+          })
           // Only a DEPTH-1 Set carries views (a reparented Sub-Set can reach here via Back-nav).
           const setNode = findSet(get().tree, target.id)
           if (setNode && isDepth1Set(get().tree, target.id))
-            ensureContainerView(setNode, findCollectionForSet(get().tree, target.id)?.properties ?? [], get().load)
+            ensureContainerView(
+              setNode,
+              findCollectionForSet(get().tree, target.id)?.properties ?? [],
+              get().load,
+            )
           return
         }
         case 'page': {
@@ -967,7 +1144,7 @@ export const useSession = create<SessionState>((set, get) => {
               pageStatus: 'ready',
               pageDetail: cached,
               pageError: undefined,
-              liveBody: { path: cached.path, body: cached.body }
+              liveBody: { path: cached.path, body: cached.body },
             })
             return
           }
@@ -981,7 +1158,13 @@ export const useSession = create<SessionState>((set, get) => {
           set({ pageFrozen: true })
           const fallback = setTimeout(() => {
             if (seq !== pageFetchSeq) return
-            set({ selection: pageSel, pageStatus: 'loading', pageDetail: null, pageError: undefined, pageFrozen: false })
+            set({
+              selection: pageSel,
+              pageStatus: 'loading',
+              pageDetail: null,
+              pageError: undefined,
+              pageFrozen: false,
+            })
           }, COLD_SWAP_DEADLINE)
           let res: Awaited<ReturnType<typeof window.nexus.openPage>>
           try {
@@ -992,9 +1175,21 @@ export const useSession = create<SessionState>((set, get) => {
           clearTimeout(fallback)
           if (seq !== pageFetchSeq) return
           if (res.ok) {
-            set({ selection: pageSel, pageStatus: 'ready', pageDetail: res.page, pageError: undefined, pageFrozen: false })
+            set({
+              selection: pageSel,
+              pageStatus: 'ready',
+              pageDetail: res.page,
+              pageError: undefined,
+              pageFrozen: false,
+            })
           } else {
-            set({ selection: pageSel, pageStatus: 'error', pageDetail: null, pageError: res.error, pageFrozen: false })
+            set({
+              selection: pageSel,
+              pageStatus: 'error',
+              pageDetail: null,
+              pageError: res.error,
+              pageFrozen: false,
+            })
           }
           return
         }
@@ -1014,18 +1209,22 @@ export const useSession = create<SessionState>((set, get) => {
       // Target container: the selected Collection/Set, the selected page's parent folder, else the
       // first Collection. (Page paths are POSIX, so the parent is the path minus its last segment.)
       let parentPath: string | null = null
-      if (selection.kind === 'collection' || selection.kind === 'set') parentPath = findContainerPath(tree, selection.id)
-      else if (selection.kind === 'page') parentPath = selection.path.split('/').slice(0, -1).join('/')
+      if (selection.kind === 'collection' || selection.kind === 'set')
+        parentPath = findContainerPath(tree, selection.id)
+      else if (selection.kind === 'page')
+        parentPath = selection.path.split('/').slice(0, -1).join('/')
       if (parentPath === null) {
-        parentPath = (tree.collections ?? [])[0]?.path ?? tree.userSections.flatMap((s) => s.collections ?? [])[0]?.path ?? null
+        parentPath =
+          (tree.collections ?? [])[0]?.path ??
+          tree.userSections.flatMap((s) => s.collections ?? [])[0]?.path ??
+          null
       }
       if (parentPath === null) return // no container to create into
       // main disambiguates the name on collision; select the new page once it lands.
       await get().mutate({ op: 'createPage', parentPath, name: DEFAULT_NEW_NAME }, (created) =>
-        get().select({ kind: 'page', id: created.id, path: created.path })
+        get().select({ kind: 'page', id: created.id, path: created.path }),
       )
     },
-
 
     renamingPath: null,
     beginRename: (path) => set({ renamingPath: path }),
@@ -1042,7 +1241,11 @@ export const useSession = create<SessionState>((set, get) => {
       const target = get().renamingProperty
       set({ renamingProperty: null }) // exit edit mode immediately, regardless of outcome
       if (!target) return false
-      const res = await window.nexus.schema.rename(target.collectionPath, target.propertyId, newName)
+      const res = await window.nexus.schema.rename(
+        target.collectionPath,
+        target.propertyId,
+        newName,
+      )
       if (!res.ok) {
         await window.nexus.showError(res.error)
         return false
@@ -1063,6 +1266,6 @@ export const useSession = create<SessionState>((set, get) => {
       if (req.op !== 'setProperty' && req.op !== 'setTier') await get().load()
       if (res.created && onCreated) await onCreated(res.created)
       return true
-    }
+    },
   }
 })

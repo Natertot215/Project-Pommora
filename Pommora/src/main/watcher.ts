@@ -28,7 +28,11 @@ let navDebounce: ReturnType<typeof setTimeout> | null = null
 export function isNavPath(root: string, path: string): boolean {
   const segs = relative(root, path).split(sep)
   if (segs[0] !== '.nexus') return false
-  return segs[1] === NEXUS_CONFIG_FILES.navRecents || segs[1] === NEXUS_CONFIG_FILES.navFavorites || segs[1] === 'pins'
+  return (
+    segs[1] === NEXUS_CONFIG_FILES.navRecents ||
+    segs[1] === NEXUS_CONFIG_FILES.navFavorites ||
+    segs[1] === 'pins'
+  )
 }
 
 // Ignore only what ISN'T user-meaningful tree content: the SQLite index (index.db*,
@@ -50,7 +54,7 @@ export function ignoredUnder(root: string, excluded: string[] = []): (path: stri
         (seg) =>
           seg === '.trash' || // deleted items — not part of the tree
           seg.startsWith('index.db') || // SQLite index + its WAL/SHM — churns on every mutation
-          (seg.startsWith('.') && seg !== '.nexus') // dotfile cruft, but .nexus holds contexts + settings
+          (seg.startsWith('.') && seg !== '.nexus'), // dotfile cruft, but .nexus holds contexts + settings
       ) ||
       // Block-host content loads through blocks:get, never the tree walk (E-3) —
       // a debounced block-body write must not cost a full re-walk. The
@@ -72,7 +76,7 @@ export async function startWatcher(root: string, win: BrowserWindow): Promise<vo
     ignoreInitial: true, // existing files aren't "changes"
     persistent: true,
     awaitWriteFinish: { stabilityThreshold: SETTLE_MS, pollInterval: 50 },
-    atomic: true // coalesce the mv-_tmp atomic writes our writers use
+    atomic: true, // coalesce the mv-_tmp atomic writes our writers use
   })
   const onEvent = (path: string): void => {
     // The app's own atomic writes echo back here — skip them: every tree-relevant

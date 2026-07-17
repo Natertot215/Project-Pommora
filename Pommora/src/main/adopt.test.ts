@@ -21,7 +21,10 @@ beforeEach(async () => {
   await writeFile(join(root, 'Notes', 'Daily', 'Day1.md'), '# Day\n\nno frontmatter')
   await mkdir(join(root, 'Excluded'), { recursive: true })
   await mkdir(nexusDir(root), { recursive: true })
-  await writeFile(nexusConfig(root, NEXUS_CONFIG_FILES.settings), JSON.stringify({ excluded_folders: ['Excluded'] }))
+  await writeFile(
+    nexusConfig(root, NEXUS_CONFIG_FILES.settings),
+    JSON.stringify({ excluded_folders: ['Excluded'] }),
+  )
 })
 afterEach(async () => {
   await rm(root, { recursive: true, force: true })
@@ -55,7 +58,9 @@ describe('stampAdopted', () => {
     expect(typeof note1.id === 'string' && isUlid(note1.id)).toBeTruthy()
     expect(note1.aliases).toEqual(['foo']) // foreign key survived
 
-    const day1 = readFrontmatterFields(await readFile(join(root, 'Notes', 'Daily', 'Day1.md'), 'utf8'))
+    const day1 = readFrontmatterFields(
+      await readFile(join(root, 'Notes', 'Daily', 'Day1.md'), 'utf8'),
+    )
     expect(typeof day1.id === 'string' && isUlid(day1.id)).toBeTruthy()
   })
 

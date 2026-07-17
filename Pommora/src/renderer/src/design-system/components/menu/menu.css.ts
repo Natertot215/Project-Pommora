@@ -26,15 +26,15 @@ export const item = style([
     cursor: 'default',
     userSelect: 'none',
     selectors: {
-      '&:hover': { background: c.state.hover }
-    }
-  }
+      '&:hover': { background: c.state.hover },
+    },
+  },
 ])
 
 /** Selected pill — holds under :hover so a selected row doesn't lighten further. */
 export const itemSelected = style({
   background: c.state.selected,
-  selectors: { '&:hover': { background: c.state.selected } }
+  selectors: { '&:hover': { background: c.state.selected } },
 })
 
 /** Heading row — Headline/Emphasized (13px Semibold), label-secondary; same
@@ -48,8 +48,8 @@ export const heading = style([
     minHeight: '24px',
     padding: '0 8px',
     color: c.label.secondary,
-    userSelect: 'none'
-  }
+    userSelect: 'none',
+  },
 ])
 
 /** A leading / trailing glyph cluster — label-secondary (the shared icon tone), doesn't grow, its own
@@ -60,7 +60,7 @@ export const side = style({
   alignItems: 'center',
   gap: '4px',
   flex: '0 0 auto',
-  color: 'var(--label-secondary)'
+  color: 'var(--label-secondary)',
 })
 
 /** The flexible spine — pins leading left, trailing right; stacks title + sub-label. */
@@ -70,7 +70,7 @@ export const titleWrap = style({
   display: 'flex',
   flexDirection: 'column',
   justifyContent: 'center',
-  gap: '2px'
+  gap: '2px',
 })
 
 /** Title line — inherits the row's size (13px item / 13px heading) + colour; ellipsis at rest, scrolls
@@ -90,20 +90,25 @@ export const titleInput = style({
   padding: 0,
   margin: 0,
   outline: 'none',
-  WebkitAppRegion: 'no-drag'
+  WebkitAppRegion: 'no-drag',
 } as Parameters<typeof style>[0])
 
 /** Sub-label — Caption/Standard (11px), label-secondary, under the title. */
 export const subLabel = style([
   text.caption.standard,
-  { color: c.label.secondary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
+  { color: c.label.secondary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
 ])
 
 /** Trailing detail — Footnote/Emphasized (10px Semibold); colour inherited from `side`. */
 export const detail = style([text.footnote.emphasized])
 
 /** Separator — an 11px band with a centered hairline (Apple's menu separator height). */
-export const separator = style({ height: '11px', display: 'flex', alignItems: 'center', padding: '0 8px' })
+export const separator = style({
+  height: '11px',
+  display: 'flex',
+  alignItems: 'center',
+  padding: '0 8px',
+})
 export const separatorLine = style({ height: '1px', width: '100%', background: c.separator.line })
 
 /** Flush variant — no side inset, so the hairline spans the surface gutter edge-to-edge. */
@@ -127,7 +132,7 @@ export const topRow = style([text.caption.emphasized, flushAffordance])
 /** Non-interactive caption / empty-state line — body text, centered + secondary (no row geometry). */
 export const caption = style([
   text.body.standard,
-  { padding: '28px 8px', textAlign: 'center', color: c.label.secondary, userSelect: 'none' }
+  { padding: '28px 8px', textAlign: 'center', color: c.label.secondary, userSelect: 'none' },
 ])
 
 /** Menu container — a flush vertical stack with 6px top/bottom breathing room. */
@@ -155,14 +160,14 @@ export const accessoryButton = style({
   transition: `background ${duration.fast} ${easing.standard}`,
   selectors: {
     '&&': { color: c.label.tertiary },
-    '&:hover': { background: c.state.hover }
-  }
+    '&:hover': { background: c.state.hover },
+  },
 })
 /** Rest-ghosted variant (the eye toggle) — dimmed at rest, full on hover. */
 export const accessoryGhostRest = style({
   opacity: 'var(--state-ghost)',
   transition: `opacity ${duration.fast} ${easing.standard}, background ${duration.fast} ${easing.standard}`,
-  selectors: { '&:hover': { opacity: 1 } }
+  selectors: { '&:hover': { opacity: 1 } },
 })
 /** Marker on a row whose hover reveals a hidden accessory (the recolor palette). */
 export const accessoryRevealParent = style({})
@@ -172,14 +177,18 @@ export const accessoryHiddenRest = style({
   transition: `opacity ${duration.fast} ${easing.standard}, background ${duration.fast} ${easing.standard}`,
   selectors: {
     [`${accessoryRevealParent}:hover &`]: { opacity: 'var(--state-ghost)' },
-    [`${accessoryRevealParent}:hover &:hover`]: { opacity: 1 }
-  }
+    [`${accessoryRevealParent}:hover &:hover`]: { opacity: 1 },
+  },
 })
 
 // ── TopRow / BottomRow rhythm (the current SettingsPane values, hoisted verbatim) ──
 
 /** A pane TopRow's vertical padding + heading tone — drops the base 24px floor to the caption line. */
-export const topRowPad = style({ paddingBlock: 'var(--top-row-block, 2px)', minHeight: 0, color: c.label.secondary })
+export const topRowPad = style({
+  paddingBlock: 'var(--top-row-block, 2px)',
+  minHeight: 0,
+  color: c.label.secondary,
+})
 
 // ── TopBar tone knobs — every pane header's four parts, one source. Leading (the ‹ back nav) reads
 // label-secondary; trailing (the current pane) reads label-tertiary, so the back destination sits a
@@ -196,14 +205,22 @@ export const paneSeparator = style({ marginBottom: 'var(--top-row-block, 2px)' }
  *  footer); a consumer sets it on the pane to loosen the +/… bar off the surface edge. */
 export const bottomRow = style([
   flushAffordance,
-  { display: 'flex', alignItems: 'center', paddingRight: 0, paddingBlock: 'var(--bottom-row-block, 0px)' }
+  {
+    display: 'flex',
+    alignItems: 'center',
+    paddingRight: 0,
+    paddingBlock: 'var(--bottom-row-block, 0px)',
+  },
 ])
 
 // ── Footing tone knobs — the pinned footer's parts (the Format control, the +/⋮ BottomRow). A footing
 // reads a step quieter than a body row: callout size + label-secondary, an ancillary action; its symbol
 // sits at 12 to match (the TopBar chevron is 14). One source; the Format row + MenuBottomRow route here.
 export const footingLabel = style([text.callout.emphasized, { color: c.label.secondary }])
-export const footingSymbol = style({ display: 'inline-flex', selectors: { '&&&': { color: c.label.secondary } } })
+export const footingSymbol = style({
+  display: 'inline-flex',
+  selectors: { '&&&': { color: c.label.secondary } },
+})
 // A BottomRow's icon buttons read label-secondary (the footing tone), not the accessoryButton default
 // tertiary — the tripled class outranks accessoryButton's `&&`.
 globalStyle(`${bottomRow} ${accessoryButton}${accessoryButton}`, { color: c.label.secondary })
@@ -224,7 +241,7 @@ export const scrollFrame = style({
   display: 'flex',
   flexDirection: 'column',
   flex: '1 1 auto',
-  minHeight: 0
+  minHeight: 0,
 })
 
 /** A pinned edge (header or footer) — never grows, never scrolls, holds its place. */
@@ -238,5 +255,5 @@ export const scrollFrameBody = style({
   flexDirection: 'column',
   flex: '1 1 auto',
   minHeight: 0,
-  overflowY: 'auto'
+  overflowY: 'auto',
 })

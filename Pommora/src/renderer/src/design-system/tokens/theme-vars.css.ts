@@ -104,6 +104,6 @@ globalStyle(':root', {
     '--disclosure': duration.disclosure,
     '--ease-standard': easing.standard,
     '--ease-in-out': easing.inOut,
-    '--ease-out': easing.out
-  }
+    '--ease-out': easing.out,
+  },
 })

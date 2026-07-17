@@ -4,9 +4,17 @@ import type { BrowserWindow } from 'electron'
 import type { ViewFormat } from '@shared/views'
 import { popReturningMenu } from './returningMenu'
 
-export function popViewFormatMenu(win: BrowserWindow, current: ViewFormat): Promise<ViewFormat | null> {
+export function popViewFormatMenu(
+  win: BrowserWindow,
+  current: ViewFormat,
+): Promise<ViewFormat | null> {
   return popReturningMenu<ViewFormat>(win, (pick) => [
-    { label: 'Standard', type: 'checkbox', checked: current !== 'compact', click: pick('standard') },
-    { label: 'Compact', type: 'checkbox', checked: current === 'compact', click: pick('compact') }
+    {
+      label: 'Standard',
+      type: 'checkbox',
+      checked: current !== 'compact',
+      click: pick('standard'),
+    },
+    { label: 'Compact', type: 'checkbox', checked: current === 'compact', click: pick('compact') },
   ])
 }

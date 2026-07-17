@@ -31,7 +31,7 @@ export const useViewEmbedScope = (): ViewEmbedScopeValue | null => useContext(Ct
  *  the full next view, exactly as they did to saveViewAdopting. */
 export function useSaveView(
   source: CollectionNode | SetNode,
-  refetch: () => Promise<void>
+  refetch: () => Promise<void>,
 ): (view: SavedView) => Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   const scope = useViewEmbedScope()
   if (scope) {

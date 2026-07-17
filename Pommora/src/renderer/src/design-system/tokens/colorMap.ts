@@ -21,7 +21,7 @@ const MAP: Record<string, ChipColorName> = {
   pink: 'lavender',
   red: 'red',
   teal: 'cyan',
-  indigo: 'purple'
+  indigo: 'purple',
 }
 
 // The render-palette keys (ChipColorName minus 'default'), inlined so this module stays runtime-pure
@@ -38,7 +38,7 @@ const PALETTE: ReadonlySet<string> = new Set([
   'blue',
   'purple',
   'lavender',
-  'grey'
+  'grey',
 ])
 
 /** A stored option / area color → its chip palette key. A solid key passes straight through; a legacy

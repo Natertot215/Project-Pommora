@@ -17,7 +17,7 @@ import './Detail/Views/Table/Table.css'
 createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
     <App />
-  </React.StrictMode>
+  </React.StrictMode>,
 )
 
 // One global drawn caret for every native text field (CodeMirror surfaces have their own).

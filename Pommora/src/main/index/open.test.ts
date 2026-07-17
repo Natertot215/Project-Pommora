@@ -15,8 +15,13 @@ afterEach(async () => {
 })
 
 const seedCollection = (db: Db, id: string) =>
-  db.prepare("INSERT INTO page_collections (id, title, modified_at) VALUES (?, 'T', '2026-01-01T00:00:00Z')").run(id)
-const collectionIds = (db: Db) => (db.prepare('SELECT id FROM page_collections').all() as { id: string }[]).map((r) => r.id)
+  db
+    .prepare(
+      "INSERT INTO page_collections (id, title, modified_at) VALUES (?, 'T', '2026-01-01T00:00:00Z')",
+    )
+    .run(id)
+const collectionIds = (db: Db) =>
+  (db.prepare('SELECT id FROM page_collections').all() as { id: string }[]).map((r) => r.id)
 
 describe('openIndex', () => {
   it('creates a fresh DB needing a rebuild, then reuses it once stamped', () => {
@@ -38,7 +43,9 @@ describe('openIndex', () => {
     if (!first) return
     seedCollection(first.db, 'stale')
     // Stamp a WRONG version (simulating an older Pommora build).
-    first.db.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES ('schema_version', '1')").run()
+    first.db
+      .prepare("INSERT OR REPLACE INTO meta (key, value) VALUES ('schema_version', '1')")
+      .run()
     first.db.close()
 
     const second = openIndex(root)

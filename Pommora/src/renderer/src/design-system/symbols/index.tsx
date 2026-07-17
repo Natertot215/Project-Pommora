@@ -58,7 +58,7 @@ import {
   Tags,
   TextAlignJustify,
   Type,
-  X
+  X,
 } from 'lucide-react'
 import { forwardRef } from 'react'
 import type { EntityIconKind } from '@shared/types'
@@ -137,7 +137,7 @@ export const icons = {
   'cards-grid': CardsGrid,
   'progress-check': ProgressCheck,
   'columns-3-cog': Columns3Cog,
-  lock: LockSolid
+  lock: LockSolid,
 } satisfies Record<string, LucideIcon>
 
 export type IconName = keyof typeof icons
@@ -149,12 +149,16 @@ export const asIconName = (value: unknown): IconName | undefined =>
 /** A stored icon id if it's RENDERABLE (curated OR any full-set Lucide id), else undefined — for the
  *  optional-icon sites that show nothing when unset (vs `iconNameOr`, which always resolves a fallback). */
 export const asRenderableIcon = (value: unknown): string | undefined =>
-  typeof value === 'string' && (value in icons || lucideGlyph(value) !== undefined) ? value : undefined
+  typeof value === 'string' && (value in icons || lucideGlyph(value) !== undefined)
+    ? value
+    : undefined
 
 /** Resolve a stored icon to a renderable symbol id — kept if it's ANY Lucide id (curated OR the full
  *  set, so a user's arbitrary pick survives), else the fallback. Returns a bare string; `Icon` renders it. */
 export const iconNameOr = (value: unknown, fallback: IconName): string =>
-  typeof value === 'string' && (value in icons || lucideGlyph(value) !== undefined) ? value : fallback
+  typeof value === 'string' && (value in icons || lucideGlyph(value) !== undefined)
+    ? value
+    : fallback
 
 /** Per-entity-kind default icon — the seed for `personalization.defaultIcons`. One source for the
  *  sidebar, banners, the table, and the connection autocomplete (was this same literal copied across
@@ -165,14 +169,14 @@ export const DEFAULT_ENTITY_ICONS: Record<EntityIconKind, IconName> = {
   area: 'layout-grid',
   topic: 'layout-grid',
   project: 'layout-grid',
-  page: 'file-text'
+  page: 'file-text',
 }
 
 /** A kind's default icon: the nexus's personalization override when it's a real icon, else the seed.
  *  A per-entity `icon` is layered on by the caller (iconNameOr / folderAwareIcons). */
 export function defaultEntityIcon(
   kind: EntityIconKind,
-  overrides?: Partial<Record<EntityIconKind, string>>
+  overrides?: Partial<Record<EntityIconKind, string>>,
 ): IconName {
   // Kind DEFAULTS stay curated (a sensible seed glyph); a per-entity arbitrary pick is layered on by
   // the caller via iconNameOr / folderAwareIcons, which keep the full set.
@@ -198,9 +202,12 @@ export const Icon = forwardRef<
   SVGSVGElement,
   { name: string; size?: IconSize | LucideProps['size'] } & Omit<LucideProps, 'size'>
 >(function Icon({ name, size = '1em', style, ...rest }, ref): React.JSX.Element {
-  const Glyph = (icons as Record<string, LucideIcon>)[name] ?? lucideGlyph(name) ?? icons['square-dashed']
+  const Glyph =
+    (icons as Record<string, LucideIcon>)[name] ?? lucideGlyph(name) ?? icons['square-dashed']
   if (isIconSize(size)) {
-    return <Glyph ref={ref} size="1em" {...rest} style={{ ...style, fontSize: iconSizeVars[size] }} />
+    return (
+      <Glyph ref={ref} size="1em" {...rest} style={{ ...style, fontSize: iconSizeVars[size] }} />
+    )
   }
   return <Glyph ref={ref} size={size} {...rest} style={style} />
 })

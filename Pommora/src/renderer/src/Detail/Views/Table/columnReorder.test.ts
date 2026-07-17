@@ -7,7 +7,7 @@ describe('reorderColumns', () => {
       '_title',
       'c',
       'a',
-      'b'
+      'b',
     ])
   })
 
@@ -15,19 +15,22 @@ describe('reorderColumns', () => {
     expect(reorderColumns(['_title', 'a'], ['_title', 'hidden1', 'a'], 'a', '_title')).toEqual([
       'a',
       '_title',
-      'hidden1'
+      'hidden1',
     ])
   })
 
   it('writes default-on tier/title columns explicitly even when absent from property_order', () => {
-    expect(reorderColumns(['_title', '_tier1'], [], '_tier1', '_title')).toEqual(['_tier1', '_title'])
+    expect(reorderColumns(['_title', '_tier1'], [], '_tier1', '_title')).toEqual([
+      '_tier1',
+      '_title',
+    ])
   })
 
   it('normalizes (visible + hidden) without moving when active === over', () => {
     expect(reorderColumns(['_title', 'a'], ['_title', 'a', 'hidden1'], 'a', 'a')).toEqual([
       '_title',
       'a',
-      'hidden1'
+      'hidden1',
     ])
   })
 })

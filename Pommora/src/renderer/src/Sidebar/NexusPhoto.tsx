@@ -13,8 +13,17 @@ import * as s from './nexusHeader.css'
  * button. Rename-nexus lives on the homepage banner title, not here.
  */
 export function NexusPhoto({ size }: { size: number }): React.JSX.Element {
-  const { profileImage, profileIcon, openMenu, cropImage, setCropImage, pickerOpen, setPickerOpen, confirmCrop, selectGlyph } =
-    useNexusIcon()
+  const {
+    profileImage,
+    profileIcon,
+    openMenu,
+    cropImage,
+    setCropImage,
+    pickerOpen,
+    setPickerOpen,
+    confirmCrop,
+    selectGlyph,
+  } = useNexusIcon()
   const ref = useRef<HTMLSpanElement>(null)
   const photoUrl = profileImage ? assetUrl(profileImage) : null
   const dim = { width: size, height: size }
@@ -36,8 +45,20 @@ export function NexusPhoto({ size }: { size: number }): React.JSX.Element {
           <Icon name={profileIcon ?? 'square-dashed'} size={Math.round(size * 0.6)} />
         )}
       </span>
-      <IconPicker open={pickerOpen} onClose={() => setPickerOpen(false)} triggerRef={ref} value={profileIcon} onSelect={selectGlyph} />
-      {cropImage && <PhotoCropModal image={cropImage} onCancel={() => setCropImage(null)} onConfirm={confirmCrop} />}
+      <IconPicker
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        triggerRef={ref}
+        value={profileIcon}
+        onSelect={selectGlyph}
+      />
+      {cropImage && (
+        <PhotoCropModal
+          image={cropImage}
+          onCancel={() => setCropImage(null)}
+          onConfirm={confirmCrop}
+        />
+      )}
     </>
   )
 }

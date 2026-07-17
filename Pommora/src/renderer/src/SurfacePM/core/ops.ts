@@ -20,7 +20,7 @@ function replaceAt(node: LayoutNode, path: number[], next: LayoutNode): LayoutNo
   if (node.kind === 'tile') return node
   const [head, ...rest] = path
   const children = node.children.map((child, i) =>
-    i === head ? replaceAt(child, rest, next) : child
+    i === head ? replaceAt(child, rest, next) : child,
   )
   return node.kind === 'row' ? { ...node, children } : { kind: 'column', children }
 }
@@ -33,7 +33,7 @@ function placeLeaf(
   targetId: string,
   edge: Edge,
   leaf: TileLeaf,
-  share: number
+  share: number,
 ): SurfaceLayout {
   const at = findTile(layout, targetId)
   if (!at || findTile(layout, leaf.id)) return layout
@@ -77,7 +77,7 @@ export function splitAtTile(
   targetId: string,
   edge: Edge,
   newId: string,
-  share = 0.5
+  share = 0.5,
 ): SurfaceLayout {
   const target = getTile(layout, targetId)
   if (!target) return layout
@@ -85,7 +85,7 @@ export function splitAtTile(
   const leaf: TileLeaf = {
     kind: 'tile',
     id: newId,
-    h: vertical ? Math.round(target.h * share) : target.h
+    h: vertical ? Math.round(target.h * share) : target.h,
   }
   const placed = placeLeaf(layout, targetId, edge, leaf, share)
   if (placed === layout) return layout
@@ -103,7 +103,7 @@ export function moveTile(
   layout: SurfaceLayout,
   tileId: string,
   targetId: string,
-  edge: Edge
+  edge: Edge,
 ): SurfaceLayout {
   if (tileId === targetId) return layout
   const mover = getTile(layout, tileId)
@@ -150,7 +150,12 @@ export function removeTile(layout: SurfaceLayout, tileId: string): SurfaceLayout
 
 /** Attach a NEW tile directly below the target with its own height — the wedge
  *  fill: the target keeps its height, the newcomer takes the ragged remainder. */
-export function attachBelow(layout: SurfaceLayout, targetId: string, newId: string, h: number): SurfaceLayout {
+export function attachBelow(
+  layout: SurfaceLayout,
+  targetId: string,
+  newId: string,
+  h: number,
+): SurfaceLayout {
   return placeLeaf(layout, targetId, 's', { kind: 'tile', id: newId, h }, 0.5)
 }
 
@@ -159,7 +164,7 @@ export function insertBand(
   layout: SurfaceLayout,
   index: number,
   tileId: string,
-  height: number
+  height: number,
 ): SurfaceLayout {
   if (findTile(layout, tileId)) return layout
   const next = cloneLayout(layout)
@@ -172,7 +177,11 @@ export function insertBand(
 /** Move an existing tile out into its own band at `index` (an index against the
  *  layout as given — when the tile currently IS a band above the target, its
  *  removal shifts the band list, so the insertion compensates). */
-export function moveTileToBand(layout: SurfaceLayout, tileId: string, index: number): SurfaceLayout {
+export function moveTileToBand(
+  layout: SurfaceLayout,
+  tileId: string,
+  index: number,
+): SurfaceLayout {
   const at = findTile(layout, tileId)
   const mover = getTile(layout, tileId)
   if (!at || !mover) return layout
@@ -190,7 +199,7 @@ export function resizeDivider(
   ref: DividerRef,
   deltaPx: number,
   extentPx: number,
-  minPx: number
+  minPx: number,
 ): SurfaceLayout {
   if (extentPx <= 0) return layout
   const next = cloneLayout(layout)
@@ -219,7 +228,7 @@ export function stretchTileHeight(
   layout: SurfaceLayout,
   tileId: string,
   deltaPx: number,
-  minPx: number
+  minPx: number,
 ): SurfaceLayout {
   if (deltaPx === 0) return layout
   const current = getTile(layout, tileId)
@@ -237,7 +246,7 @@ export function resizeStackPair(
   layout: SurfaceLayout,
   ref: DividerRef,
   deltaPx: number,
-  minPx: number
+  minPx: number,
 ): SurfaceLayout {
   if (deltaPx === 0) return layout
   const next = cloneLayout(layout)
@@ -266,7 +275,7 @@ export function resizeBandPair(
   layout: SurfaceLayout,
   aboveIndex: number,
   deltaPx: number,
-  minPx: number
+  minPx: number,
 ): SurfaceLayout {
   if (deltaPx === 0) return layout
   const next = cloneLayout(layout)

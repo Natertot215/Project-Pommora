@@ -9,7 +9,16 @@ import * as s from './notchedPane.css'
 // straight slopes, no tip vertex. `curve` morphs sharp↔round (it scales both tangent runs; the
 // 0.25 default lands on Apple's proportions). `flip` mirrors the whole outline vertically for
 // upward-opening panes — the beak then hangs from the BOTTOM edge, pointing down at the trigger.
-function panePath(w: number, h: number, r: number, nx: number, nh: number, nw: number, curve: number, flip: boolean): string {
+function panePath(
+  w: number,
+  h: number,
+  r: number,
+  nx: number,
+  nh: number,
+  nw: number,
+  curve: number,
+  flip: boolean,
+): string {
   const fy = (y: number): number => (flip ? h - y : y)
   const half = nw / 2
   const xL = nx - half
@@ -29,7 +38,7 @@ function panePath(w: number, h: number, r: number, nx: number, nh: number, nw: n
     `Q 0 ${fy(h)} 0 ${fy(h - r)}`,
     `L 0 ${fy(nh + r)}`,
     `Q 0 ${fy(nh)} ${r} ${fy(nh)}`,
-    'Z'
+    'Z',
   ].join(' ')
 }
 
@@ -37,7 +46,16 @@ function panePath(w: number, h: number, r: number, nx: number, nh: number, nw: n
 // beak centre along the pane's height; `nh` its protrusion depth (in x); `nw` its width (along y).
 // The beak hangs off the LEFT edge (body inset to x=nh), pointing left at a trigger on that side;
 // `flip` mirrors it horizontally to the RIGHT edge.
-function panePathVertical(w: number, h: number, r: number, ny: number, nh: number, nw: number, curve: number, flip: boolean): string {
+function panePathVertical(
+  w: number,
+  h: number,
+  r: number,
+  ny: number,
+  nh: number,
+  nw: number,
+  curve: number,
+  flip: boolean,
+): string {
   const fx = (x: number): number => (flip ? w - x : x)
   const half = nw / 2
   const yT = ny - half
@@ -57,7 +75,7 @@ function panePathVertical(w: number, h: number, r: number, ny: number, nh: numbe
     `Q ${fx(w)} 0 ${fx(w - r)} 0`,
     `L ${fx(nh + r)} 0`,
     `Q ${fx(nh)} 0 ${fx(nh)} ${r}`,
-    'Z'
+    'Z',
   ].join(' ')
 }
 
@@ -82,7 +100,7 @@ export function NotchedPane({
   notchInsetBottom,
   notchSide = 'top',
   accentOutline = false,
-  style
+  style,
 }: {
   children: ReactNode
   /** The surface's own classes (gutter/layout) — applied to the GlassPane. */
@@ -154,7 +172,7 @@ export function NotchedPane({
       style={
         {
           ...(ready ? { '--dropdown-origin': origin, '--notch-h': `${notchHeight}px` } : null),
-          ...style
+          ...style,
         } as CSSProperties
       }
     >
@@ -164,7 +182,7 @@ export function NotchedPane({
           ...(solid ? { background: 'var(--bg-window)' } : null),
           border: 'none',
           boxShadow: 'none',
-          ...(d ? { clipPath: `path('${d}')` } : null)
+          ...(d ? { clipPath: `path('${d}')` } : null),
         }}
       >
         {children}

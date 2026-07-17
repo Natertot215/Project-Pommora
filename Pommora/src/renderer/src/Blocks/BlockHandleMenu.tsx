@@ -1,8 +1,21 @@
 import { useEffect, useRef, useState } from 'react'
-import type { BlockEntry, BlockStyle, DrillPickItem, PagePickerItem, ViewPick, ViewPickerItem } from '@shared/blocks'
+import type {
+  BlockEntry,
+  BlockStyle,
+  DrillPickItem,
+  PagePickerItem,
+  ViewPick,
+  ViewPickerItem,
+} from '@shared/blocks'
 import { Icon } from '@renderer/design-system/symbols'
 import { PickerMenu } from '@renderer/design-system/components/PickerMenu'
-import { MenuBottomRow, MenuItem, MenuPaneTopRow, MenuScrollFrame, MenuSeparator } from '@renderer/design-system/components/menu'
+import {
+  MenuBottomRow,
+  MenuItem,
+  MenuPaneTopRow,
+  MenuScrollFrame,
+  MenuSeparator,
+} from '@renderer/design-system/components/menu'
 import { PaneSlider } from '@renderer/Components/Detail/PaneSlider'
 import { cx } from '@renderer/design-system/cx'
 import { ZOOM_STEPS, zoomStep } from './blockZoom'
@@ -22,7 +35,7 @@ function DrillLevel({
   title,
   backLabel,
   onBack,
-  resolve
+  resolve,
 }: {
   nodes: Array<DrillPickItem<unknown>>
   title: string
@@ -39,21 +52,28 @@ function DrillLevel({
     <div className={s.pane}>
       <MenuScrollFrame
         maxHeight={s.PICKER_MAX_H}
-        header={<MenuPaneTopRow label={backLabel} current={title} onBack={onBack} contentClassName={s.barScale} />}
+        header={
+          <MenuPaneTopRow
+            label={backLabel}
+            current={title}
+            onBack={onBack}
+            contentClassName={s.barScale}
+          />
+        }
         footer={
           footerNodes.length ? (
             <div className={s.barScale}>
               <MenuBottomRow
-              leading={footerNodes.map((n, i) => (
-                <button
-                  key={`${n.label}-${String(i)}`}
-                  type="button"
-                  className={s.footerAction}
-                  onClick={n.pick === undefined ? undefined : () => resolve(n.pick)}
-                >
-                  {n.label}
-                </button>
-              ))}
+                leading={footerNodes.map((n, i) => (
+                  <button
+                    key={`${n.label}-${String(i)}`}
+                    type="button"
+                    className={s.footerAction}
+                    onClick={n.pick === undefined ? undefined : () => resolve(n.pick)}
+                  >
+                    {n.label}
+                  </button>
+                ))}
               />
             </div>
           ) : undefined
@@ -79,7 +99,7 @@ function DrillLevel({
             >
               {n.label}
             </MenuItem>
-          )
+          ),
         )}
       </MenuScrollFrame>
     </div>
@@ -124,7 +144,7 @@ export function BlockHandleMenu({
   onOpenPage,
   zoom,
   onSetZoom,
-  containerLocked = false
+  containerLocked = false,
 }: {
   entry: BlockEntry
   anchor: HTMLElement
@@ -198,7 +218,10 @@ export function BlockHandleMenu({
             <MenuBottomRow
               leading={
                 containerLocked ? (
-                  <span className={`${s.footerLockAction} ${s.rowDisabled}`} aria-label="Locked by the board">
+                  <span
+                    className={`${s.footerLockAction} ${s.rowDisabled}`}
+                    aria-label="Locked by the board"
+                  >
                     <Icon name="lock" size={GLYPH} className={s.lockIcon} />
                     Locked
                   </span>
@@ -221,7 +244,14 @@ export function BlockHandleMenu({
         {entry.type === 'page' && pageInfo && (
           // The source page's identity as an openable field (not muted by lock — opening is read-only):
           // page title over its location, both left-aligned + capped.
-          <button type="button" className={s.titleField} onClick={() => { onClose(); onOpenPage() }}>
+          <button
+            type="button"
+            className={s.titleField}
+            onClick={() => {
+              onClose()
+              onOpenPage()
+            }}
+          >
             <span className={s.titleFieldRow}>
               <Icon name={pageInfo.icon} size={GLYPH} className={s.titleFieldIcon} />
               <span className={s.titleFieldText}>{pageInfo.title}</span>
@@ -236,10 +266,20 @@ export function BlockHandleMenu({
         )}
         {entry.type === 'markdown' ? (
           <>
-            <MenuItem className={cx(s.row, rowMute)} leading={<Icon name="link" size={GLYPH} />} trailing={chevron} onClick={locked ? undefined : () => setPane('view')}>
+            <MenuItem
+              className={cx(s.row, rowMute)}
+              leading={<Icon name="link" size={GLYPH} />}
+              trailing={chevron}
+              onClick={locked ? undefined : () => setPane('view')}
+            >
               Link View
             </MenuItem>
-            <MenuItem className={cx(s.row, rowMute)} leading={<Icon name="link" size={GLYPH} />} trailing={chevron} onClick={locked ? undefined : () => setPane('page')}>
+            <MenuItem
+              className={cx(s.row, rowMute)}
+              leading={<Icon name="link" size={GLYPH} />}
+              trailing={chevron}
+              onClick={locked ? undefined : () => setPane('page')}
+            >
               Link Page
             </MenuItem>
           </>
@@ -253,7 +293,12 @@ export function BlockHandleMenu({
             Source
           </MenuItem>
         )}
-        <MenuItem className={cx(s.row, rowMute)} leading={<Icon name="palette" size={GLYPH} />} trailing={chevron} onClick={locked ? undefined : () => setPane('style')}>
+        <MenuItem
+          className={cx(s.row, rowMute)}
+          leading={<Icon name="palette" size={GLYPH} />}
+          trailing={chevron}
+          onClick={locked ? undefined : () => setPane('style')}
+        >
           Style
         </MenuItem>
         {/* Scale is view-agnostic — every tile type carries it. Markdown/page tiles freeze-inset (only
@@ -277,10 +322,18 @@ export function BlockHandleMenu({
           Scale
         </MenuItem>
         <MenuSeparator flush />
-        <MenuItem className={cx(s.row, rowMute)} leading={<Icon name="copy" size={GLYPH} />} onClick={locked ? undefined : act(onDuplicate)}>
+        <MenuItem
+          className={cx(s.row, rowMute)}
+          leading={<Icon name="copy" size={GLYPH} />}
+          onClick={locked ? undefined : act(onDuplicate)}
+        >
           Duplicate
         </MenuItem>
-        <MenuItem className={cx(s.row, rowMute)} leading={<Icon name="x" size={GLYPH} />} onClick={locked ? undefined : act(onRemove)}>
+        <MenuItem
+          className={cx(s.row, rowMute)}
+          leading={<Icon name="x" size={GLYPH} />}
+          onClick={locked ? undefined : act(onRemove)}
+        >
           Delete
         </MenuItem>
       </MenuScrollFrame>
@@ -289,7 +342,12 @@ export function BlockHandleMenu({
 
   const stylePane = (
     <div className={s.pane}>
-      <MenuPaneTopRow label="Menu" current="Style" onBack={() => setPane('root')} contentClassName={s.barScale} />
+      <MenuPaneTopRow
+        label="Menu"
+        current="Style"
+        onBack={() => setPane('root')}
+        contentClassName={s.barScale}
+      />
 
       {(['bordered', 'borderless'] as const).map((v) => (
         <MenuItem
@@ -304,7 +362,8 @@ export function BlockHandleMenu({
     </div>
   )
 
-  const drillRootLabel = pane === 'page' ? (entry.type === 'markdown' ? 'Link Page' : 'Source') : 'Link View'
+  const drillRootLabel =
+    pane === 'page' ? (entry.type === 'markdown' ? 'Link Page' : 'Source') : 'Link View'
   const detail =
     pane === 'style' ? (
       stylePane

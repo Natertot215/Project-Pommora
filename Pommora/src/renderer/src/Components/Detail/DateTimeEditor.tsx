@@ -10,17 +10,17 @@ const DATE_OPTIONS: { value: DateFormat; label: string }[] = [
   { value: 'dayMonthYear', label: 'DD/MM/YYYY' },
   { value: 'short', label: 'Short Date' },
   { value: 'full', label: 'Full Date' },
-  { value: 'relative', label: 'Relative' }
+  { value: 'relative', label: 'Relative' },
 ]
 const WEEKDAY_OPTIONS: { value: WeekdayFormat; label: string }[] = [
   { value: 'long', label: 'Full' },
   { value: 'short', label: 'Short' },
-  { value: 'none', label: 'Hidden' }
+  { value: 'none', label: 'Hidden' },
 ]
 const TIME_OPTIONS: { value: TimeFormat; label: string }[] = [
   { value: 'twelveHour', label: '12 Hours' },
   { value: 'twentyFourHour', label: '24 Hours' },
-  { value: 'none', label: 'Hidden' }
+  { value: 'none', label: 'Hidden' },
 ]
 function PickerRow<T extends string>({
   glyph,
@@ -28,7 +28,7 @@ function PickerRow<T extends string>({
   ariaLabel,
   value,
   options,
-  onPick
+  onPick,
 }: {
   glyph: IconName
   label: string
@@ -53,7 +53,7 @@ function PickerRow<T extends string>({
  *  carry no weekday. Time stays visible under Relative (it gates the "at <clock>" rendering). */
 export function DateTimeEditor({
   style,
-  onChange
+  onChange,
 }: {
   style: ColumnStyle
   onChange: (patch: Partial<ColumnStyle>) => void

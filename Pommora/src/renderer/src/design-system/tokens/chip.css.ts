@@ -24,8 +24,8 @@ const chipBase = style([
     gap: '4px',
     boxSizing: 'border-box',
     borderStyle: 'solid',
-    whiteSpace: 'nowrap'
-  }
+    whiteSpace: 'nowrap',
+  },
 ])
 
 /** chip-pill — the standard text chip (status/select/multi/context labels). */
@@ -35,8 +35,8 @@ export const chipPill = style([
     height: '20px',
     padding: '0 6px',
     borderRadius: '10px',
-    borderWidth: '2px'
-  }
+    borderWidth: '2px',
+  },
 ])
 
 /** chip-label — the select / multi-select shape: the pill's geometry squared off to a
@@ -48,8 +48,8 @@ export const chipLabel = style([
     height: '20px',
     padding: '0 var(--chip-pad-x, 6px)',
     borderRadius: '6px',
-    borderWidth: '2px'
-  }
+    borderWidth: '2px',
+  },
 ])
 
 /** chip-context — the Context reference chip: chip-label's EXACT geometry (composed, so a
@@ -64,10 +64,10 @@ export const chipContext = style([
     selectors: {
       '&&': {
         background: colorVars.color.fill.quaternary,
-        vars: { '--chip-fill': colorVars.color.fill.quaternary }
-      }
-    }
-  }
+        vars: { '--chip-fill': colorVars.color.fill.quaternary },
+      },
+    },
+  },
 ])
 
 /** chip-capsule — the icon-only shape (a single small glyph, no label; the showcase's
@@ -79,8 +79,8 @@ export const chipCapsule = style([
     padding: '0 6px',
     borderRadius: '10px',
     borderWidth: '2px',
-    gap: 0
-  }
+    gap: 0,
+  },
 ])
 
 /** The box shape's bare frame — geometry only, no chip base. Exported for non-chip
@@ -90,7 +90,7 @@ export const chipBoxGeometry = style({
   height: '17px',
   padding: 0,
   borderRadius: '5.5px',
-  borderWidth: '1.5px'
+  borderWidth: '1.5px',
 })
 
 /** chip-box — the fixed 17×17 rounded square (radius 5.5, 1.5px stroke); holds one
@@ -126,9 +126,9 @@ export const chipLabelWrap = style([
     maxWidth: 'var(--chip-max, 80px)',
     position: 'relative',
     selectors: {
-      [`${chipRemovable} &`]: { pointerEvents: 'none' }
-    }
-  }
+      [`${chipRemovable} &`]: { pointerEvents: 'none' },
+    },
+  },
 ])
 
 // Hovering a REMOVABLE chip BLURS the label's tail under the × — a true blur, not a fade-out
@@ -138,7 +138,8 @@ export const chipLabelWrap = style([
 // while its blurred twin masks IN, so the letters visibly smear into the clear zone the × floats in.
 const crispRamp =
   'linear-gradient(to right, transparent 0, #000000 var(--scroll-fade, 0px), #000000 calc(100% - 18px), transparent calc(100% - 8px))'
-const blurRamp = 'linear-gradient(to right, transparent calc(100% - 18px), #000000 calc(100% - 8px))'
+const blurRamp =
+  'linear-gradient(to right, transparent calc(100% - 18px), #000000 calc(100% - 8px))'
 
 /**
  * The remove × — its box doubles as the reveal's hover zone (the chip's right third), so it is
@@ -164,8 +165,8 @@ export const chipRemove = style({
   opacity: 0,
   transition: 'opacity var(--duration-fast) var(--ease-standard)',
   selectors: {
-    '&:hover': { opacity: 1 }
-  }
+    '&:hover': { opacity: 1 },
+  },
 })
 
 // The reveal is keyed on the ×'s own :hover through a SIBLING combinator (the × precedes the
@@ -183,8 +184,8 @@ const reveal = `${chipRemove}:hover ~ ${chipLabelWrap} &`
 export const chipLabelText = style({
   position: 'relative',
   selectors: {
-    [reveal]: { opacity: 0 }
-  }
+    [reveal]: { opacity: 0 },
+  },
 })
 
 /** The crisp melt twin — the same string overlaid at the text origin with the ramp STATICALLY
@@ -202,8 +203,8 @@ export const chipLabelMelt = style({
   opacity: 0,
   pointerEvents: 'none',
   selectors: {
-    [reveal]: { opacity: 1 }
-  }
+    [reveal]: { opacity: 1 },
+  },
 })
 
 /** The blurred twin — same string and font, overlaid at the text origin so the metrics line up
@@ -223,8 +224,8 @@ export const chipLabelBlur = style({
   opacity: 0,
   pointerEvents: 'none',
   selectors: {
-    [reveal]: { opacity: 1 }
-  }
+    [reveal]: { opacity: 1 },
+  },
 })
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -237,7 +238,7 @@ export const chipLabelBlur = style({
  *  the fill (ContextChip's neutral quaternary) must override `--chip-fill` alongside it. */
 const chipTint = (base: string): ReturnType<typeof tint> & { vars: Record<string, string> } => ({
   ...tint(base),
-  vars: { '--chip-fill': tintAt(base, TINT_STEPS.primary) }
+  vars: { '--chip-fill': tintAt(base, TINT_STEPS.primary) },
 })
 
 export const chipColor = styleVariants({
@@ -254,7 +255,7 @@ export const chipColor = styleVariants({
   default: chipTint(solid.greyDefault),
   // The link-color "Default": the runtime system accent, tinted like any solid. A link seeds to this
   // (the picker's no-selection state), so it must be a real palette key — not the neutral grey default.
-  accent: chipTint('var(--system-accent)')
+  accent: chipTint('var(--system-accent)'),
 })
 
 /** The chip palette keys — the single source consumers (cells, `colorMap`) target. */

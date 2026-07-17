@@ -4,26 +4,39 @@ import { blockPatchProblem, coerceBlockHost, knownBlock, rawLayoutSchema } from 
 describe('knownBlock', () => {
   it('types the three known entry kinds', () => {
     expect(knownBlock({ id: 'a', type: 'markdown' })).toEqual({ id: 'a', type: 'markdown' })
-    expect(knownBlock({ id: 'b', type: 'page', page_id: 'p1' })).toMatchObject({ type: 'page', page_id: 'p1' })
-    expect(knownBlock({ id: 'c', type: 'view', views: [{ source_id: 's1', config: { id: 'v' } }] })).toMatchObject({
+    expect(knownBlock({ id: 'b', type: 'page', page_id: 'p1' })).toMatchObject({
+      type: 'page',
+      page_id: 'p1',
+    })
+    expect(
+      knownBlock({ id: 'c', type: 'view', views: [{ source_id: 's1', config: { id: 'v' } }] }),
+    ).toMatchObject({
       type: 'view',
-      views: [{ source_id: 's1' }]
+      views: [{ source_id: 's1' }],
     })
   })
 
   it('keeps foreign keys on a known entry (loose) — including inside view elements', () => {
-    expect(knownBlock({ id: 'a', type: 'markdown', future_field: 1 })).toMatchObject({ future_field: 1 })
+    expect(knownBlock({ id: 'a', type: 'markdown', future_field: 1 })).toMatchObject({
+      future_field: 1,
+    })
     expect(
-      knownBlock({ id: 'c', type: 'view', views: [{ source_id: 's1', config: {}, swift_key: true }] })
+      knownBlock({
+        id: 'c',
+        type: 'view',
+        views: [{ source_id: 's1', config: {}, swift_key: true }],
+      }),
     ).toMatchObject({ views: [{ swift_key: true }] })
   })
 
   it('a view entry needs a non-empty views list; a bad active index degrades, not rejects', () => {
     expect(knownBlock({ id: 'c', type: 'view', views: [] })).toBeNull()
     expect(knownBlock({ id: 'c', type: 'view' })).toBeNull()
-    expect(knownBlock({ id: 'c', type: 'view', views: [{ source_id: 's1' }], active: -2 })).toMatchObject({
+    expect(
+      knownBlock({ id: 'c', type: 'view', views: [{ source_id: 's1' }], active: -2 }),
+    ).toMatchObject({
       type: 'view',
-      active: undefined
+      active: undefined,
     })
   })
 
@@ -36,18 +49,36 @@ describe('knownBlock', () => {
         title: false,
         icon: false,
         view_button: 'icon',
-        view_style: 'dropdown'
-      })
+        view_style: 'dropdown',
+      }),
     ).toMatchObject({ title: false, icon: false, view_button: 'icon', view_style: 'dropdown' })
     expect(
-      knownBlock({ id: 'c', type: 'view', views: [{ source_id: 's1' }], view_button: 'huge', view_style: 7, title: 'yes' })
-    ).toMatchObject({ type: 'view', view_button: undefined, view_style: undefined, title: undefined })
+      knownBlock({
+        id: 'c',
+        type: 'view',
+        views: [{ source_id: 's1' }],
+        view_button: 'huge',
+        view_style: 7,
+        title: 'yes',
+      }),
+    ).toMatchObject({
+      type: 'view',
+      view_button: undefined,
+      view_style: undefined,
+      title: undefined,
+    })
   })
 
   it('title_level accepts 1–6 and degrades out-of-range / non-int', () => {
-    expect(knownBlock({ id: 'c', type: 'view', views: [{ source_id: 's1' }], title_level: 2 })).toMatchObject({ title_level: 2 })
-    expect(knownBlock({ id: 'c', type: 'view', views: [{ source_id: 's1' }], title_level: 9 })).toMatchObject({ title_level: undefined })
-    expect(knownBlock({ id: 'c', type: 'view', views: [{ source_id: 's1' }], title_level: 2.5 })).toMatchObject({ title_level: undefined })
+    expect(
+      knownBlock({ id: 'c', type: 'view', views: [{ source_id: 's1' }], title_level: 2 }),
+    ).toMatchObject({ title_level: 2 })
+    expect(
+      knownBlock({ id: 'c', type: 'view', views: [{ source_id: 's1' }], title_level: 9 }),
+    ).toMatchObject({ title_level: undefined })
+    expect(
+      knownBlock({ id: 'c', type: 'view', views: [{ source_id: 's1' }], title_level: 2.5 }),
+    ).toMatchObject({ title_level: undefined })
   })
 
   it('returns null for unknown types and garbage — the caller renders inert', () => {
@@ -68,11 +99,11 @@ describe('rawLayoutSchema', () => {
             ratios: [0.5, 0.5],
             children: [
               { kind: 'tile', id: 'a', h: 100 },
-              { kind: 'column', children: [{ kind: 'tile', id: 'b', h: 40 }] }
-            ]
-          }
-        }
-      ]
+              { kind: 'column', children: [{ kind: 'tile', id: 'b', h: 40 }] },
+            ],
+          },
+        },
+      ],
     }
     expect(rawLayoutSchema.safeParse(tree).success).toBe(true)
     expect(rawLayoutSchema.safeParse({ bands: 'no' }).success).toBe(false)
@@ -84,8 +115,12 @@ describe('blockPatchProblem', () => {
     expect(blockPatchProblem({ layout: { bands: [] } })).toBeNull()
     expect(blockPatchProblem({ blocks: [], locked: true })).toBeNull()
     expect(blockPatchProblem({ layout: 'garbage' })).toBe('Malformed layout.')
-    expect(blockPatchProblem({ blocks: 'no' as unknown as unknown[] })).toBe('blocks must be an array.')
-    expect(blockPatchProblem({ locked: 'yes' as unknown as boolean })).toBe('locked must be a boolean.')
+    expect(blockPatchProblem({ blocks: 'no' as unknown as unknown[] })).toBe(
+      'blocks must be an array.',
+    )
+    expect(blockPatchProblem({ locked: 'yes' as unknown as boolean })).toBe(
+      'locked must be a boolean.',
+    )
   })
 })
 

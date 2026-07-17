@@ -3,7 +3,13 @@ import { Icon } from '@renderer/design-system/symbols'
 import { chipLabel, chipColor } from '@renderer/design-system/tokens'
 import { chipColorFor } from '@renderer/design-system/tokens/colorMap'
 import { DROP_LINE_INSET } from '@renderer/design-system/interactions/shared'
-import { addOption, recolorOption, reorderOption, fallbackTitle, type Option } from '@shared/optionModel'
+import {
+  addOption,
+  recolorOption,
+  reorderOption,
+  fallbackTitle,
+  type Option,
+} from '@shared/optionModel'
 import type { PropertyType } from '@shared/properties'
 import { cx } from '@renderer/design-system/cx'
 import { Chip, chipShapeForType } from '../Chip'
@@ -25,7 +31,7 @@ export function OptionEditor({
   onSetOptions,
   onRenameOption,
   onRemoveOption,
-  onClearOption
+  onClearOption,
 }: {
   type: PropertyType
   options: Option[]
@@ -41,7 +47,7 @@ export function OptionEditor({
   const paletteBtnRef = useRef<HTMLButtonElement>(null)
   const reorder = useOptionReorder(
     options.map((o) => o.value),
-    (value, toIndex) => onSetOptions(reorderOption(options, value, toIndex))
+    (value, toIndex) => onSetOptions(reorderOption(options, value, toIndex)),
   )
 
   const commitAdd = (raw: string): void => {
@@ -68,7 +74,12 @@ export function OptionEditor({
     <div className={s.optionEditor}>
       <div className={s.optionsRow}>
         <span className={s.optionsLabel}>Options</span>
-        <button type="button" className={s.optionsAdd} aria-label="Add Option" onClick={() => setAdding(true)}>
+        <button
+          type="button"
+          className={s.optionsAdd}
+          aria-label="Add Option"
+          onClick={() => setAdding(true)}
+        >
           <Icon name="plus" size={s.ICON.optionsAdd} />
         </button>
       </div>
@@ -76,62 +87,76 @@ export function OptionEditor({
         {options.map((o) => {
           const isColoring = coloring === o.value
           return (
-          <div
-            key={o.value}
-            ref={(el) => reorder.registerRow(o.value, el)}
-            className={cx(s.optionRow, reorder.dragging === o.value && s.rowDragging)}
-            onPointerDown={(e) => reorder.onRowPointerDown(o.value, e)}
-            onContextMenu={(e) => {
-              e.preventDefault()
-              void openMenu(o)
-            }}
-          >
-            {renaming === o.value ? (
-              <span className={cx(chipLabel, chipColor[chipColorFor(o.color)])}>
-                <EditableInput
-                  value={o.label}
-                  autoSize
-                  className={s.optionInput}
-                  onCommit={(raw) => commitRename(o.value, raw)}
-                  onCancel={() => setRenaming(null)}
-                />
-              </span>
-            ) : (
-              <>
-                <Chip shape={chipShapeForType(type)} color={chipColorFor(o.color)} label={o.label} />
-                <span className={s.paletteAnchor}>
-                  <button
-                    ref={isColoring ? paletteBtnRef : undefined}
-                    type="button"
-                    className={s.paletteButton}
-                    style={isColoring ? { opacity: 1 } : undefined}
-                    aria-label="Recolor"
-                    onClick={() => setColoring((v) => (v === o.value ? null : o.value))}
-                  >
-                    <Icon name="palette" size={s.ICON.palette} />
-                  </button>
-                  <ColorPicker
-                    open={isColoring}
-                    selected={chipColorFor(o.color)}
-                    onPick={(color) => pickColor(o, color)}
-                    onDismiss={() => setColoring(null)}
-                    triggerRef={paletteBtnRef}
+            <div
+              key={o.value}
+              ref={(el) => reorder.registerRow(o.value, el)}
+              className={cx(s.optionRow, reorder.dragging === o.value && s.rowDragging)}
+              onPointerDown={(e) => reorder.onRowPointerDown(o.value, e)}
+              onContextMenu={(e) => {
+                e.preventDefault()
+                void openMenu(o)
+              }}
+            >
+              {renaming === o.value ? (
+                <span className={cx(chipLabel, chipColor[chipColorFor(o.color)])}>
+                  <EditableInput
+                    value={o.label}
+                    autoSize
+                    className={s.optionInput}
+                    onCommit={(raw) => commitRename(o.value, raw)}
+                    onCancel={() => setRenaming(null)}
                   />
                 </span>
-              </>
-            )}
-          </div>
+              ) : (
+                <>
+                  <Chip
+                    shape={chipShapeForType(type)}
+                    color={chipColorFor(o.color)}
+                    label={o.label}
+                  />
+                  <span className={s.paletteAnchor}>
+                    <button
+                      ref={isColoring ? paletteBtnRef : undefined}
+                      type="button"
+                      className={s.paletteButton}
+                      style={isColoring ? { opacity: 1 } : undefined}
+                      aria-label="Recolor"
+                      onClick={() => setColoring((v) => (v === o.value ? null : o.value))}
+                    >
+                      <Icon name="palette" size={s.ICON.palette} />
+                    </button>
+                    <ColorPicker
+                      open={isColoring}
+                      selected={chipColorFor(o.color)}
+                      onPick={(color) => pickColor(o, color)}
+                      onDismiss={() => setColoring(null)}
+                      triggerRef={paletteBtnRef}
+                    />
+                  </span>
+                </>
+              )}
+            </div>
           )
         })}
         {adding ? (
           <div className={s.optionRow}>
             <span className={cx(chipLabel, chipColor.default)}>
-              <EditableInput value="" autoSize className={s.optionInput} onCommit={commitAdd} onCancel={() => setAdding(false)} />
+              <EditableInput
+                value=""
+                autoSize
+                className={s.optionInput}
+                onCommit={commitAdd}
+                onCancel={() => setAdding(false)}
+              />
             </span>
           </div>
         ) : null}
         {reorder.lineTop !== null ? (
-          <div className="table-drop-line" aria-hidden style={{ top: reorder.lineTop, left: DROP_LINE_INSET, right: DROP_LINE_INSET }}>
+          <div
+            className="table-drop-line"
+            aria-hidden
+            style={{ top: reorder.lineTop, left: DROP_LINE_INSET, right: DROP_LINE_INSET }}
+          >
             <span className="table-drop-dot" />
           </div>
         ) : null}

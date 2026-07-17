@@ -5,14 +5,7 @@ import type { PropertyDefinition } from './properties'
 import type { PageFrontmatter } from './schemas'
 import type { SavedView } from './views'
 
-export type NodeKind =
-  | 'saved'
-  | 'area'
-  | 'topic'
-  | 'project'
-  | 'collection'
-  | 'set'
-  | 'page'
+export type NodeKind = 'saved' | 'area' | 'topic' | 'project' | 'collection' | 'set' | 'page'
 
 // Contexts tier-1 (Area) color palette — 10 cases, written once as the single source for
 // both the type and the runtime membership check (the reader + the areaSidecar schema both
@@ -27,7 +20,7 @@ export const AREA_COLORS = [
   'purple',
   'pink',
   'red',
-  'accent'
+  'accent',
 ] as const
 export type AreaColor = (typeof AREA_COLORS)[number]
 
@@ -45,7 +38,7 @@ export const ACCENT_COLORS = [
   'blue',
   'purple',
   'lavender',
-  'grey'
+  'grey',
 ] as const
 export type AccentColor = (typeof ACCENT_COLORS)[number]
 
@@ -141,7 +134,7 @@ export function coerceViewScale(v: unknown): number {
  *  Every future rebindable shortcut registers as a row in this map. */
 export const DEFAULT_COMMANDS: Record<string, string> = {
   'toggle-ribbon': 'cmd+e',
-  'toggle-nav': 'cmd+o'
+  'toggle-nav': 'cmd+o',
 }
 
 export interface BaseNode {
@@ -263,7 +256,14 @@ export interface NexusTree {
   /** `name` is the root folder's basename (filename = title). `profileImage` is a
    *  nexus-relative path into `.nexus/assets/<id>/` (or null) and `profileSubtitle` a
    *  ≤30-char blurb — both from `.nexus/settings.json`, matching Swift (not nexus.json). */
-  nexus: { id: string; rootPath: string; name: string; profileImage: string | null; profileIcon?: string; profileSubtitle: string }
+  nexus: {
+    id: string
+    rootPath: string
+    name: string
+    profileImage: string | null
+    profileIcon?: string
+    profileSubtitle: string
+  }
   /** Homepage singleton (`.nexus/homepage.json`) — its optional banner plus the board
    *  lock (G-3): the block doc's heavy layout/blocks stay off the walk (loaded lazily by
    *  useBlockDoc), but the single `blocks_locked` boolean rides here like `banner` so the
@@ -310,9 +310,7 @@ export type NexusState =
   | { status: 'error'; error: string }
 
 /** On-demand single-page read result envelope — never throws across the boundary. */
-export type PageResult =
-  | { ok: true; page: PageDetail }
-  | { ok: false; error: string }
+export type PageResult = { ok: true; page: PageDetail } | { ok: false; error: string }
 
 /** What the renderer currently has open: a container, a page, or nothing. */
 export type SelectionState =
@@ -487,7 +485,7 @@ export const DEFAULT_LABELS: NexusLabels = {
   pageCollection: { singular: 'Collection', plural: 'Collections' },
   pageSet: { singular: 'Set', plural: 'Sets' },
   agendaTask: { singular: 'Task', plural: 'Tasks' },
-  agendaEvent: { singular: 'Event', plural: 'Events' }
+  agendaEvent: { singular: 'Event', plural: 'Events' },
 }
 
 /** The derived Sub-Set label (deeper Sets); never stored — Swift derives it the same way. */

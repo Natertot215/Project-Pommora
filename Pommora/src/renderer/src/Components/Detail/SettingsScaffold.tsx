@@ -28,8 +28,17 @@ export function SettingsScaffold(): React.JSX.Element | null {
   const submitRename = useSession((st) => st.submitRename)
   const mutate = useSession((st) => st.mutate)
   const defaultIcons = useSession((st) => st.personalization.defaultIcons)
-  const { profileImage, profileIcon, openMenu, cropImage, setCropImage, pickerOpen, setPickerOpen, confirmCrop, selectGlyph } =
-    useNexusIcon()
+  const {
+    profileImage,
+    profileIcon,
+    openMenu,
+    cropImage,
+    setCropImage,
+    pickerOpen,
+    setPickerOpen,
+    confirmCrop,
+    selectGlyph,
+  } = useNexusIcon()
   const iconRef = useRef<HTMLButtonElement>(null)
   const ctxIconRef = useRef<HTMLButtonElement>(null)
   const [ctxPickerOpen, setCtxPickerOpen] = useState(false)
@@ -64,13 +73,29 @@ export function SettingsScaffold(): React.JSX.Element | null {
               onClick={() => void openMenu()}
               aria-label="Change the nexus icon or photo"
             >
-              {photoUrl ? <img className={s.headerPhotoImg} src={photoUrl} alt="" /> : <Icon name={profileIcon ?? 'square-dashed'} />}
+              {photoUrl ? (
+                <img className={s.headerPhotoImg} src={photoUrl} alt="" />
+              ) : (
+                <Icon name={profileIcon ?? 'square-dashed'} />
+              )}
             </button>
             <InteractionField className={s.titleField}>{tree.nexus.name}</InteractionField>
           </div>
         </MenuScrollFrame>
-        <IconPicker open={pickerOpen} onClose={() => setPickerOpen(false)} triggerRef={iconRef} value={profileIcon} onSelect={selectGlyph} />
-        {cropImage && <PhotoCropModal image={cropImage} onCancel={() => setCropImage(null)} onConfirm={confirmCrop} />}
+        <IconPicker
+          open={pickerOpen}
+          onClose={() => setPickerOpen(false)}
+          triggerRef={iconRef}
+          value={profileIcon}
+          onSelect={selectGlyph}
+        />
+        {cropImage && (
+          <PhotoCropModal
+            image={cropImage}
+            onCancel={() => setCropImage(null)}
+            onConfirm={confirmCrop}
+          />
+        )}
       </>
     )
   }
@@ -86,7 +111,8 @@ export function SettingsScaffold(): React.JSX.Element | null {
           iconRef={ctxIconRef}
           onIconClick={() => setCtxPickerOpen(true)}
           onCommit={(next) => {
-            if (next && next !== node.name) void submitRename(node.path, node.kind as MutableKind, next)
+            if (next && next !== node.name)
+              void submitRename(node.path, node.kind as MutableKind, next)
           }}
         />
         <IconPicker
@@ -96,7 +122,12 @@ export function SettingsScaffold(): React.JSX.Element | null {
           value={node.icon}
           onSelect={(id) => {
             setCtxPickerOpen(false)
-            void mutate({ op: 'setIcon', path: node.path, kind: node.kind as MutableKind, icon: id })
+            void mutate({
+              op: 'setIcon',
+              path: node.path,
+              kind: node.kind as MutableKind,
+              icon: id,
+            })
           }}
         />
       </>

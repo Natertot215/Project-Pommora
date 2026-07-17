@@ -7,7 +7,7 @@ import {
   escapeCell,
   unescapeCell,
   cellToSource,
-  cellToDisplay
+  cellToDisplay,
 } from './codec'
 
 describe('codec', () => {
@@ -29,7 +29,7 @@ describe('codec', () => {
   it('splitRow returns full inter-pipe segments (untrimmed) — one flex item per cell', () => {
     expect(splitRow('| a | b |', 0).segments).toEqual([
       [1, 4], // ' a ' incl. padding
-      [5, 8] // ' b ' incl. padding
+      [5, 8], // ' b ' incl. padding
     ])
   })
 
@@ -37,7 +37,7 @@ describe('codec', () => {
     expect(parseDelimiter('|:--|--:|:-:|')).toEqual([
       { align: 'left', dashes: 2 },
       { align: 'right', dashes: 2 },
-      { align: 'center', dashes: 1 }
+      { align: 'center', dashes: 1 },
     ])
   })
 
@@ -73,7 +73,7 @@ describe('codec', () => {
     const m = parseTable(src)!
     expect(m.columns).toEqual([
       { align: 'left', dashes: 3 },
-      { align: 'right', dashes: 3 }
+      { align: 'right', dashes: 3 },
     ])
     expect(m.header).toEqual(['a', 'b'])
     expect(m.rows).toEqual([['1', '2']])

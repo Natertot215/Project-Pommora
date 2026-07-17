@@ -14,7 +14,7 @@ export function mergeOverrides(
   aligns: Record<string, ColumnAlign>,
   collapsed: Set<string>,
   patch: Partial<SavedView>,
-  styles: Record<string, ColumnStyle> = {}
+  styles: Record<string, ColumnStyle> = {},
 ): SavedView {
   return {
     ...liveView,
@@ -22,7 +22,7 @@ export function mergeOverrides(
     column_widths: { ...liveView.column_widths, ...widths },
     column_alignments: { ...liveView.column_alignments, ...aligns },
     column_styles: mergeStyleRecords(liveView.column_styles, styles),
-    ...patch
+    ...patch,
   }
 }
 
@@ -31,8 +31,10 @@ export function mergeOverrides(
  *  not drop the saved look). */
 export function mergeStyleRecords(
   saved: Record<string, ColumnStyle> | undefined,
-  overrides: Record<string, ColumnStyle>
+  overrides: Record<string, ColumnStyle>,
 ): Record<string, ColumnStyle> {
-  const folded = Object.fromEntries(Object.entries(overrides).map(([id, s]) => [id, { ...saved?.[id], ...s }]))
+  const folded = Object.fromEntries(
+    Object.entries(overrides).map(([id, s]) => [id, { ...saved?.[id], ...s }]),
+  )
   return { ...saved, ...folded }
 }

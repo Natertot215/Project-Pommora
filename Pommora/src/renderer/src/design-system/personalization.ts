@@ -13,12 +13,18 @@ function connectionColorCss(setting: ConnectionColorSetting | undefined): string
 }
 
 /** Apply one personalization key to `:root` — the apply-map's single row per knob. */
-export function applyPersonalizationKey<K extends keyof Personalization>(key: K, value: Personalization[K]): void {
+export function applyPersonalizationKey<K extends keyof Personalization>(
+  key: K,
+  value: Personalization[K],
+): void {
   if (typeof document === 'undefined') return
   const el = document.documentElement
   switch (key) {
     case 'connectionColor':
-      el.style.setProperty('--connection', connectionColorCss(value as ConnectionColorSetting | undefined))
+      el.style.setProperty(
+        '--connection',
+        connectionColorCss(value as ConnectionColorSetting | undefined),
+      )
       return
     case 'hideChevrons':
       el.classList.toggle('hide-chevrons', value === true)

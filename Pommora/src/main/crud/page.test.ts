@@ -2,7 +2,15 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtemp, rm, mkdir, stat, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { createPage, renamePage, deletePage, updatePageBody, movePage, updatePageProperty, setPageTier } from './page'
+import {
+  createPage,
+  renamePage,
+  deletePage,
+  updatePageBody,
+  movePage,
+  updatePageProperty,
+  setPageTier,
+} from './page'
 import { splitEnvelope, assembleEnvelope } from '../io/pageFile'
 import { splitFrontmatter } from '../readNexus'
 import { isUlid } from '../ids'
@@ -62,9 +70,9 @@ describe('renamePage', () => {
       c.value.path,
       assembleEnvelope(
         parts.frontmatter.replace(/^modified_at:.*$/m, 'modified_at: "2000-01-01T00:00:00.000Z"'),
-        parts.body
+        parts.body,
       ),
-      'utf8'
+      'utf8',
     )
 
     const r = await renamePage(c.value.path, 'New')
@@ -89,7 +97,7 @@ describe('updatePageBody', () => {
     // Inject a foreign frontmatter key to prove it survives a body update.
     const withForeign = assembleEnvelope(
       splitEnvelope(await readFile(c.value.path, 'utf8')).frontmatter + '\nplugin_key: keep',
-      'one'
+      'one',
     )
     await writeFile(c.value.path, withForeign, 'utf8')
 
@@ -160,11 +168,17 @@ describe('updatePageProperty', () => {
     if (!c.ok) throw new Error('setup failed')
     await updatePageProperty(c.value.path, 'prop_link', { kind: 'context', value: ['01H', '01J'] })
     const fm = splitFrontmatter(await readFile(c.value.path, 'utf8'))
-    expect((fm.properties as Record<string, unknown>).prop_link).toEqual([{ $ctx: '01H' }, { $ctx: '01J' }])
+    expect((fm.properties as Record<string, unknown>).prop_link).toEqual([
+      { $ctx: '01H' },
+      { $ctx: '01J' },
+    ])
   })
 
   it('errors when the page is missing', async () => {
-    const r = await updatePageProperty(join(typeDir, 'nope.md'), 'p', { kind: 'status', value: 'x' })
+    const r = await updatePageProperty(join(typeDir, 'nope.md'), 'p', {
+      kind: 'status',
+      value: 'x',
+    })
     expect(r.ok).toBe(false)
   })
 })

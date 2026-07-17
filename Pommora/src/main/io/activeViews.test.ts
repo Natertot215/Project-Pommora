@@ -45,7 +45,7 @@ describe('active-view pointer (.nexus/activeViews.json)', () => {
 
   it('serializes overlapping writes so none is lost (no read-merge-write race)', async () => {
     await Promise.all(
-      Array.from({ length: 20 }, (_, i) => writeActiveViews(root, `col-${i}`, `view_${i}`))
+      Array.from({ length: 20 }, (_, i) => writeActiveViews(root, `col-${i}`, `view_${i}`)),
     )
     const state = await readActiveViews(root)
     for (let i = 0; i < 20; i++) expect(state[`col-${i}`]).toBe(`view_${i}`)

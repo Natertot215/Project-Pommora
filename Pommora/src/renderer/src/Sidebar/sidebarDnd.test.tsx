@@ -5,7 +5,12 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import type { MutateRequest } from '@shared/mutate'
 import type { NexusTree } from '@shared/types'
-import { firePointer, pressEscape, stubPointerCapture, stubRect } from '@renderer/testing/pointerHarness'
+import {
+  firePointer,
+  pressEscape,
+  stubPointerCapture,
+  stubRect,
+} from '@renderer/testing/pointerHarness'
 import { SidebarDnd, useSidebarDrag } from './sidebarDnd'
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -22,11 +27,11 @@ const tree = {
       sets: [],
       pages: [
         { kind: 'page', id: 'p1', title: 'P1', path: 'C/P1.md' },
-        { kind: 'page', id: 'p2', title: 'P2', path: 'C/P2.md' }
-      ]
-    }
+        { kind: 'page', id: 'p2', title: 'P2', path: 'C/P2.md' },
+      ],
+    },
   ],
-  userSections: []
+  userSections: [],
 } as unknown as NexusTree
 
 function Row({ id }: { id: string }): React.JSX.Element {
@@ -48,7 +53,7 @@ beforeEach(async () => {
       <SidebarDnd tree={tree} onCommit={commitSpy}>
         <Row id="p1" />
         <Row id="p2" />
-      </SidebarDnd>
+      </SidebarDnd>,
     )
   })
   for (const [i, id] of ['p1', 'p2'].entries()) {
@@ -66,7 +71,7 @@ const row = (id: string): HTMLElement => host.querySelector(`[data-row="${id}"]`
 // carries the title text, so a bare body-text probe would false-positive.
 const ghost = (): boolean =>
   [...document.body.querySelectorAll<HTMLElement>('div[aria-hidden="true"]')].some(
-    (el) => el.textContent === 'P1' && el.style.position === 'fixed'
+    (el) => el.textContent === 'P1' && el.style.position === 'fixed',
   )
 
 // Move/up listeners ride the row element (pointer capture in the real DOM), so the harness
@@ -106,7 +111,7 @@ describe('sidebar drag — Esc abort', () => {
       op: 'movePage',
       path: 'C/P1.md',
       newParentPath: 'C',
-      order: ['p2', 'p1']
+      order: ['p2', 'p1'],
     })
   })
 

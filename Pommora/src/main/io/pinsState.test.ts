@@ -14,7 +14,8 @@ afterEach(async () => {
   await rm(root, { recursive: true, force: true })
 })
 
-const pin = (over: Partial<PinEntry> = {}): PinEntry => ({ kind: 'collection', id: 'c1', order: 0, ...over }) as PinEntry
+const pin = (over: Partial<PinEntry> = {}): PinEntry =>
+  ({ kind: 'collection', id: 'c1', order: 0, ...over }) as PinEntry
 
 describe('pinsState', () => {
   it('round-trips a pin', async () => {
@@ -53,7 +54,7 @@ describe('pinsState', () => {
     await writeRecents([
       { kind: 'page', id: 'a', path: '/a', pinned: true },
       { kind: 'page', id: 'b', path: '/b' },
-      { kind: 'context', id: 'x', pinned: true }
+      { kind: 'context', id: 'x', pinned: true },
     ])
     const pins = await loadOrMigratePins(root)
     expect(pins.map((p) => ('id' in p ? p.id : ''))).toEqual(['a', 'x'])

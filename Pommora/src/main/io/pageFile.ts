@@ -50,7 +50,7 @@ export function mergeFrontmatter(
   existingContent: string,
   modeled: Record<string, unknown>,
   modeledKeys: readonly string[],
-  body: string
+  body: string,
 ): string {
   const { frontmatter } = splitEnvelope(existingContent)
   // Empty frontmatter ⇒ contents is null; doc.set auto-creates a block map below.
@@ -73,7 +73,7 @@ export async function writePageFile(
   absPath: string,
   modeled: Record<string, unknown>,
   modeledKeys: readonly string[],
-  body: string
+  body: string,
 ): Promise<void> {
   let existing = ''
   try {

@@ -13,7 +13,11 @@
 
 import type { ViewRow } from '@shared/types'
 import type { PageFrontmatter } from '@shared/schemas'
-import { type PropertyDefinition, type PropertyType, RESERVED_PROPERTY_ID } from '@shared/properties'
+import {
+  type PropertyDefinition,
+  type PropertyType,
+  RESERVED_PROPERTY_ID,
+} from '@shared/properties'
 import { type PropertyValue, parsePropertyValue } from '@shared/propertyValue'
 
 /** The declared type a column sorts/groups/filters by. Reserved columns map to a PropertyType or
@@ -22,7 +26,7 @@ import { type PropertyValue, parsePropertyValue } from '@shared/propertyValue'
  *  carry no special branch — they resolve through the schema (undefined when absent). */
 export function declaredType(
   propertyId: string,
-  schema: PropertyDefinition[]
+  schema: PropertyDefinition[],
 ): PropertyType | 'title' | 'tier' | undefined {
   switch (propertyId) {
     case RESERVED_PROPERTY_ID.title:
@@ -44,15 +48,22 @@ export function declaredType(
 const STRING_KIND_FOR_TYPE: Partial<Record<PropertyType, 'url' | 'select' | 'datetime'>> = {
   url: 'url',
   select: 'select',
-  datetime: 'datetime'
+  datetime: 'datetime',
 }
 
 /** Re-tag a shape-guessed plain-string value to what its column actually declares (a url column reads
  *  url, a select column select). A no-op for every unambiguous kind and for reserved/typeless columns.
  *  The value string is unchanged — only the `.kind` tag. */
-function coerceToDeclaredType(v: PropertyValue, dt: PropertyType | 'title' | 'tier' | undefined): PropertyValue {
+function coerceToDeclaredType(
+  v: PropertyValue,
+  dt: PropertyType | 'title' | 'tier' | undefined,
+): PropertyValue {
   const want = dt && dt !== 'title' && dt !== 'tier' ? STRING_KIND_FOR_TYPE[dt] : undefined
-  if (want && (v.kind === 'url' || v.kind === 'select' || v.kind === 'datetime') && v.kind !== want) {
+  if (
+    want &&
+    (v.kind === 'url' || v.kind === 'select' || v.kind === 'datetime') &&
+    v.kind !== want
+  ) {
     return { kind: want, value: v.value }
   }
   return v
@@ -65,7 +76,7 @@ type TierField = 'tier1' | 'tier2' | 'tier3'
 const TIER_FIELD: Record<string, TierField> = {
   [RESERVED_PROPERTY_ID.tier1]: 'tier1',
   [RESERVED_PROPERTY_ID.tier2]: 'tier2',
-  [RESERVED_PROPERTY_ID.tier3]: 'tier3'
+  [RESERVED_PROPERTY_ID.tier3]: 'tier3',
 }
 
 /** The row's value for a column, as a PropertyValue. Reserved columns read intrinsic/frontmatter
@@ -73,7 +84,11 @@ const TIER_FIELD: Record<string, TierField> = {
  *  parse is cached (the measured grouped-view hot spot); the declared-type coercion rides on top,
  *  fresh + O(1), so the cache stays schema-free and a schema type-change reflects at once. Absent OR
  *  malformed ⇒ `{ kind: 'null' }` — a single bad cell never poisons a view. */
-export function resolveFieldValue(row: ViewRow, propertyId: string, schema: PropertyDefinition[]): PropertyValue {
+export function resolveFieldValue(
+  row: ViewRow,
+  propertyId: string,
+  schema: PropertyDefinition[],
+): PropertyValue {
   // `_title` bypasses the cache — it reads `row.title`, which a rename changes without touching
   // the frontmatter object the cache is keyed on.
   if (propertyId === RESERVED_PROPERTY_ID.title) return { kind: 'select', value: row.title }

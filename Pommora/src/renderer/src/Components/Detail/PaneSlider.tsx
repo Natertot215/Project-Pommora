@@ -32,7 +32,7 @@ export function PaneSlider({
   root,
   detail,
   minWidth,
-  minHeight
+  minHeight,
 }: {
   /** false → show root (slot A); true → slide to the detail (slot B). Owns the two-phase entry. */
   open: boolean
@@ -111,7 +111,10 @@ export function PaneSlider({
       className={cx(s.viewport, enabled && s.viewportAnimated, navigating && s.viewportNav)}
       style={{ width: width || undefined, height: height || undefined }}
     >
-      <div className={cx(s.track, enabled && s.trackAnimated)} style={{ transform: `translateX(-${shift}px)` }}>
+      <div
+        className={cx(s.track, enabled && s.trackAnimated)}
+        style={{ transform: `translateX(-${shift}px)` }}
+      >
         <div className={s.slot} inert={active === 'b'}>
           <div ref={aRef} className={s.slotContent} style={{ minWidth, minHeight }}>
             {root}

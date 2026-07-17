@@ -9,13 +9,13 @@ export const viewport = style({ position: 'relative', overflow: 'hidden' })
  *  viewport just wraps it each frame instead of chasing a moving target with a lagging transition
  *  (the bounce). */
 export const viewportAnimated = style({
-  transition: `width ${duration.base} ${easing.standard}`
+  transition: `width ${duration.base} ${easing.standard}`,
 })
 
 /** Navigation window only: height joins the ease so a slot-flip resizes in lockstep with the slide.
  *  Defined after `viewportAnimated` so, applied together, its width+height transition wins the tie. */
 export const viewportNav = style({
-  transition: `width ${duration.base} ${easing.standard}, height ${duration.base} ${easing.standard}`
+  transition: `width ${duration.base} ${easing.standard}, height ${duration.base} ${easing.standard}`,
 })
 
 /** Slots laid out left-to-right at their own size; top-aligned so each keeps its own height (not the taller one's). */

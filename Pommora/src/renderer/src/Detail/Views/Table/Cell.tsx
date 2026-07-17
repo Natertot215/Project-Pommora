@@ -33,7 +33,7 @@ export function Cell({
   hideIcon,
   style,
   showFullLink,
-  remove
+  remove,
 }: {
   row: ViewRow
   column: ResolvedColumn
@@ -71,11 +71,17 @@ export function Cell({
     const checked = v.kind === 'checkbox' && v.value
     const color = ctx.schema.find((d) => d.id === column.id)?.checkbox_color
     return style.look === 'switch' ? (
-      <span className="cell-switch" style={{ ...(color ? { '--accent': solidColorCss(color) } : {}) } as CSSProperties}>
+      <span
+        className="cell-switch"
+        style={{ ...(color ? { '--accent': solidColorCss(color) } : {}) } as CSSProperties}
+      >
         <Switch checked={checked} onChange={() => {}} ariaLabel="Checkbox value" />
       </span>
     ) : (
-      <span className={cx(chipBox, checked ? undefined : chipColor.default)} style={checkboxBoxStyle(checked, color)}>
+      <span
+        className={cx(chipBox, checked ? undefined : chipColor.default)}
+        style={checkboxBoxStyle(checked, color)}
+      >
         {checked ? <Icon name="check" size={12} strokeWidth={3} /> : null}
       </span>
     )
@@ -86,12 +92,17 @@ export function Cell({
     case 'status': {
       const opt = findOption(column.id, v.value, ctx.schema)
       if (v.kind === 'status' && (style.look === 'capsule' || style.look === 'checkbox')) {
-        const group = statusGroupOf(v.value, ctx.schema.find((d) => d.id === column.id))
+        const group = statusGroupOf(
+          v.value,
+          ctx.schema.find((d) => d.id === column.id),
+        )
         return style.look === 'capsule' ? (
           <StatusCapsule color={opt?.color} group={group} />
         ) : (
           <span className={cx(chipBox, chipColor[chipColorFor(opt?.color)])}>
-            {group && group !== 'upcoming' ? <Icon name={statusGroupGlyph(group)} size={12} strokeWidth={3} /> : null}
+            {group && group !== 'upcoming' ? (
+              <Icon name={statusGroupGlyph(group)} size={12} strokeWidth={3} />
+            ) : null}
           </span>
         )
       }
@@ -117,7 +128,12 @@ export function Cell({
                 color={chipColorFor(o?.color)}
                 label={o?.label ?? val}
                 shape={chipShapeForType(v.kind)}
-                {...(remove ? { onRemove: () => remove({ kind: 'multiSelect', value: v.value.filter((x) => x !== val) }) } : {})}
+                {...(remove
+                  ? {
+                      onRemove: () =>
+                        remove({ kind: 'multiSelect', value: v.value.filter((x) => x !== val) }),
+                    }
+                  : {})}
               />
             )
           })}
@@ -133,7 +149,12 @@ export function Cell({
                 key={id}
                 color={chipColorFor(c?.color)}
                 title={c?.title ?? id}
-                {...(remove ? { onRemove: () => remove({ kind: 'context', value: v.value.filter((x) => x !== id) }) } : {})}
+                {...(remove
+                  ? {
+                      onRemove: () =>
+                        remove({ kind: 'context', value: v.value.filter((x) => x !== id) }),
+                    }
+                  : {})}
               />
             )
           })}
@@ -142,12 +163,23 @@ export function Cell({
     case 'url':
       // A bare URL or a markdown `[alias](url)`. LinkCell owns the render + its link-title fetch so the
       // store subscription stays off every other cell type. showFullLink pins the raw URL while renaming.
-      return <LinkCell raw={v.value} def={ctx.schema.find((d) => d.id === column.id)} showFullLink={showFullLink} />
+      return (
+        <LinkCell
+          raw={v.value}
+          def={ctx.schema.find((d) => d.id === column.id)}
+          showFullLink={showFullLink}
+        />
+      )
 
     case 'datetime':
       return (
         <OverflowScroll className="cell-text-scroll cell-control">
-          {formatDate(v.value, style.date_format ?? 'full', style.time_format ?? 'none', style.weekday ?? 'none')}
+          {formatDate(
+            v.value,
+            style.date_format ?? 'full',
+            style.time_format ?? 'none',
+            style.weekday ?? 'none',
+          )}
         </OverflowScroll>
       )
     case 'number': {
@@ -160,7 +192,9 @@ export function Cell({
           </span>
         )
       }
-      return <OverflowScroll className="cell-text-scroll">{formatNumber(v.value, def)}</OverflowScroll>
+      return (
+        <OverflowScroll className="cell-text-scroll">{formatNumber(v.value, def)}</OverflowScroll>
+      )
     }
     case 'file':
       // Each chip opens its own file (A-9) — the click stays on the chip, not the cell/row.
@@ -174,7 +208,10 @@ export function Cell({
                 void window.nexus.openFile(f.path)
               }}
             >
-              <Chip color="default" label={fileLabel(f, style.look === 'path' ? 'path' : 'filename')} />
+              <Chip
+                color="default"
+                label={fileLabel(f, style.look === 'path' ? 'path' : 'filename')}
+              />
             </span>
           ))}
         </OverflowScroll>

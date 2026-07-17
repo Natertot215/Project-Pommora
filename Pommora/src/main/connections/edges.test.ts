@@ -6,7 +6,7 @@ describe('connectionEdges', () => {
   const idx = buildLinkIndex([
     { id: 'target', title: 'Target' },
     { id: 'dup1', title: 'Dup' },
-    { id: 'dup2', title: 'Dup' }
+    { id: 'dup2', title: 'Dup' },
   ])
 
   it('resolves each scanned link, carrying status + multiplicity + targetId', () => {
@@ -18,7 +18,7 @@ describe('connectionEdges', () => {
       normalizedTitle: 'target',
       status: 'resolved',
       targetId: 'target',
-      multiplicity: 2
+      multiplicity: 2,
     })
     expect(byTitle.dup).toMatchObject({ status: 'ambiguous', multiplicity: 1 })
     expect(byTitle.dup.targetId).toBeUndefined()

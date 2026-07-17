@@ -7,7 +7,17 @@ import { popReturningMenu } from './returningMenu'
 
 export function popOpenInMenu(win: BrowserWindow, current: OpenIn): Promise<OpenIn | null> {
   return popReturningMenu<OpenIn>(win, (pick) => [
-    { label: 'Full Page', type: 'checkbox', checked: current !== 'page-preview', click: pick('full-page') },
-    { label: 'Preview', type: 'checkbox', checked: current === 'page-preview', click: pick('page-preview') }
+    {
+      label: 'Full Page',
+      type: 'checkbox',
+      checked: current !== 'page-preview',
+      click: pick('full-page'),
+    },
+    {
+      label: 'Preview',
+      type: 'checkbox',
+      checked: current === 'page-preview',
+      click: pick('page-preview'),
+    },
   ])
 }

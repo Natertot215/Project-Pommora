@@ -1,8 +1,22 @@
 import { useRef, useState } from 'react'
-import { Server, Eye, LayoutDashboard, Layers, ListFilter, ArrowUpDown, SlidersHorizontal, type LucideIcon } from 'lucide-react'
+import {
+  Server,
+  Eye,
+  LayoutDashboard,
+  Layers,
+  ListFilter,
+  ArrowUpDown,
+  SlidersHorizontal,
+  type LucideIcon,
+} from 'lucide-react'
 import type { OpenIn } from '@shared/types'
 import { Icon, defaultEntityIcon, iconNameOr } from '@renderer/design-system/symbols'
-import { detail as detailText, flushTrailing, footingSymbol, side } from '../../design-system/components/menu/menu.css'
+import {
+  detail as detailText,
+  flushTrailing,
+  footingSymbol,
+  side,
+} from '../../design-system/components/menu/menu.css'
 import { crumbRow, footerLock, footerLockActive, ICON } from './settingsPane.css'
 import { useSession } from '../../store'
 import { findCollection, findSet, findCollectionForSet } from '../../Detail/Scope'
@@ -13,7 +27,15 @@ import { GroupingPane } from './GroupingPane'
 import { SortingPane } from './SortingPane'
 import { ViewSettings } from './ViewSettings'
 import { PaneSlider } from './PaneSlider'
-import { AccessoryButton, MenuBottomRow, MenuItem, MenuScrollFrame, MenuSeparator, MenuCaption, MenuPaneTopRow } from '../../design-system/components/menu'
+import {
+  AccessoryButton,
+  MenuBottomRow,
+  MenuItem,
+  MenuScrollFrame,
+  MenuSeparator,
+  MenuCaption,
+  MenuPaneTopRow,
+} from '../../design-system/components/menu'
 import { IconPicker } from '../IconPicker'
 import { InlineEditHeader } from './InlineEditHeader'
 import { useViewEmbedScope } from '@renderer/Embeds/ViewEmbedScope'
@@ -35,7 +57,7 @@ const ENTRIES: MenuEntry[] = [
   { id: 'layout', label: 'Layout', Icon: LayoutDashboard },
   { id: 'group', label: 'Group', Icon: Layers },
   { id: 'filter', label: 'Filter', Icon: ListFilter },
-  { id: 'sort', label: 'Sort', Icon: ArrowUpDown }
+  { id: 'sort', label: 'Sort', Icon: ArrowUpDown },
 ]
 
 // A detail pane's right-side breadcrumb — the entry label, but Group/Filter/Sort read the active tense.
@@ -46,7 +68,7 @@ const CURRENT_LABEL: Record<PaneId, string> = {
   layout: 'Layout',
   group: 'Grouping',
   filter: 'Filtering',
-  sort: 'Sorting'
+  sort: 'Sorting',
 }
 
 /**
@@ -86,7 +108,9 @@ export function SettingsPane(): React.JSX.Element | null {
   const schema = schemaCollection?.properties ?? []
   const view = scope?.view ?? pickView(node, activeViewId, schema)
   // Open In has no payload target until the preview surface ships (B-8) — the leaf sits out in scope.
-  const entries = scope ? ENTRIES.filter((e) => e.id !== 'configuration' && e.id !== 'filter') : ENTRIES
+  const entries = scope
+    ? ENTRIES.filter((e) => e.id !== 'configuration' && e.id !== 'filter')
+    : ENTRIES
 
   const open = (id: PaneId): void => {
     lastDetail.current = id
@@ -108,7 +132,9 @@ export function SettingsPane(): React.JSX.Element | null {
     if (v) await setOpenIn(v)
   }
 
-  const blankLeaf = <MenuPaneTopRow label="Settings" current={CURRENT_LABEL[detailId]} onBack={back} />
+  const blankLeaf = (
+    <MenuPaneTopRow label="Settings" current={CURRENT_LABEL[detailId]} onBack={back} />
+  )
   const schemaUnavailable = (
     <>
       <MenuPaneTopRow label="Settings" current={CURRENT_LABEL[detailId]} onBack={back} />
@@ -124,7 +150,9 @@ export function SettingsPane(): React.JSX.Element | null {
         leading={<Icon name="layout-grid" size={ICON.rootEntry} />}
         trailing={
           <span className={side}>
-            <span className={detailText}>{openInValue === 'page-preview' ? 'Preview' : 'Full Page'}</span>
+            <span className={detailText}>
+              {openInValue === 'page-preview' ? 'Preview' : 'Full Page'}
+            </span>
             <Icon name="chevrons-up-down" size={ICON.rowChevron} />
           </span>
         }
@@ -139,7 +167,11 @@ export function SettingsPane(): React.JSX.Element | null {
     <>
       <InlineEditHeader
         value={scope ? view.name : node.title}
-        icon={scope ? iconNameOr(view.icon, 'table') : iconNameOr(node.icon, defaultEntityIcon(node.kind, defaultIcons))}
+        icon={
+          scope
+            ? iconNameOr(view.icon, 'table')
+            : iconNameOr(node.icon, defaultEntityIcon(node.kind, defaultIcons))
+        }
         iconRef={iconRef}
         onIconClick={() => setIconOpen(true)}
         onCommit={(next) => {
@@ -175,14 +207,23 @@ export function SettingsPane(): React.JSX.Element | null {
           leading={
             <span className={crumbRow}>
               <span className={footingSymbol}>
-                <Icon name={iconNameOr(schemaCollection.icon, defaultEntityIcon('collection', defaultIcons))} size={12} />
+                <Icon
+                  name={iconNameOr(
+                    schemaCollection.icon,
+                    defaultEntityIcon('collection', defaultIcons),
+                  )}
+                  size={12}
+                />
               </span>
               <span>{schemaCollection.title}</span>
               {node.kind === 'set' && (
                 <>
                   <span>›</span>
                   <span className={footingSymbol}>
-                    <Icon name={iconNameOr(node.icon, defaultEntityIcon('set', defaultIcons))} size={12} />
+                    <Icon
+                      name={iconNameOr(node.icon, defaultEntityIcon('set', defaultIcons))}
+                      size={12}
+                    />
                   </span>
                   <span>{node.title}</span>
                 </>
@@ -211,7 +252,12 @@ export function SettingsPane(): React.JSX.Element | null {
       configurationLeaf
     ) : detailId === 'properties' ? (
       schemaCollection ? (
-        <PropertiesPane collectionPath={schemaCollection.path} schema={schema} onBack={back} source={node} />
+        <PropertiesPane
+          collectionPath={schemaCollection.path}
+          schema={schema}
+          onBack={back}
+          source={node}
+        />
       ) : (
         schemaUnavailable
       )
@@ -222,7 +268,14 @@ export function SettingsPane(): React.JSX.Element | null {
         schemaUnavailable
       )
     ) : detailId === 'layout' ? (
-      <ViewSettings source={node} view={view} schema={schema} door="flat" onBack={back} onClose={back} />
+      <ViewSettings
+        source={node}
+        view={view}
+        schema={schema}
+        door="flat"
+        onBack={back}
+        onClose={back}
+      />
     ) : detailId === 'group' ? (
       <GroupingPane source={node} view={view} schema={schema} label="Settings" onBack={back} />
     ) : detailId === 'sort' ? (
@@ -233,7 +286,13 @@ export function SettingsPane(): React.JSX.Element | null {
 
   return (
     <>
-      <PaneSlider open={pane !== 'root'} root={scopedRoot || root} detail={detail} minWidth={225} minHeight={245} />
+      <PaneSlider
+        open={pane !== 'root'}
+        root={scopedRoot || root}
+        detail={detail}
+        minWidth={225}
+        minHeight={245}
+      />
       <IconPicker
         open={iconOpen}
         onClose={() => setIconOpen(false)}

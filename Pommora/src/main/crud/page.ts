@@ -22,7 +22,7 @@ const MD = '.md'
 export async function createPage(
   parentDir: string,
   name: string,
-  opts: { icon?: string; body?: string } = {}
+  opts: { icon?: string; body?: string } = {},
 ): Promise<Result<{ id: string; path: string }>> {
   if (invalidName(name)) return fail('invalid-name', `"${name}" is not a valid name.`, 'page')
   const file = join(parentDir, name + MD)
@@ -36,7 +36,7 @@ export async function createPage(
     tier3: [],
     properties: {},
     created_at: now,
-    modified_at: now
+    modified_at: now,
   }
   if (opts.icon) modeled.icon = opts.icon
   await writePageFile(file, modeled, PAGE_MODELED_KEYS, opts.body ?? '')
@@ -45,20 +45,31 @@ export async function createPage(
 
 /** Rename a page file (filename = title). No-op when unchanged; bumps modified_at
  *  on a real rename — the title changed, which counts as an edit. */
-export async function renamePage(absFile: string, newName: string): Promise<Result<{ path: string }>> {
+export async function renamePage(
+  absFile: string,
+  newName: string,
+): Promise<Result<{ path: string }>> {
   if (invalidName(newName)) return fail('invalid-name', `"${newName}" is not a valid name.`, 'page')
   const target = join(dirname(absFile), newName + MD)
   if (target === absFile) return ok({ path: absFile })
   if (await pathExists(target)) return fail('exists', `"${newName}" already exists.`, 'page')
   await rename(absFile, target)
   const existing = await readFile(target, 'utf8')
-  const content = mergeFrontmatter(existing, { modified_at: nowIso() }, ['modified_at'], splitEnvelope(existing).body)
+  const content = mergeFrontmatter(
+    existing,
+    { modified_at: nowIso() },
+    ['modified_at'],
+    splitEnvelope(existing).body,
+  )
   await atomicWriteFile(target, content)
   return ok({ path: target })
 }
 
 /** Delete a page by moving it to the nexus-local .trash (recoverable). */
-export async function deletePage(nexusRoot: string, absFile: string): Promise<Result<{ trashedTo: string }>> {
+export async function deletePage(
+  nexusRoot: string,
+  absFile: string,
+): Promise<Result<{ trashedTo: string }>> {
   if (!(await pathExists(absFile))) return fail('not-found', 'Nothing to delete.', 'page')
   return ok({ trashedTo: await trashWithTimestamp(nexusRoot, absFile) })
 }
@@ -75,10 +86,14 @@ export async function updatePageBody(absFile: string, body: string): Promise<Res
  *  A Page's Collection membership is its folder location, so its prop_<ulid> frontmatter
  *  values re-join the destination schema on next read (unrecognized keys stay as
  *  preserved foreign frontmatter); no strip, no schema logic lives in the move. */
-export async function movePage(absFile: string, newParentDir: string): Promise<Result<{ path: string }>> {
+export async function movePage(
+  absFile: string,
+  newParentDir: string,
+): Promise<Result<{ path: string }>> {
   const target = join(newParentDir, basename(absFile))
   if (target === absFile) return ok({ path: absFile })
-  if (await pathExists(target)) return fail('exists', `A page named "${basename(absFile)}" already exists there.`, 'page')
+  if (await pathExists(target))
+    return fail('exists', `A page named "${basename(absFile)}" already exists there.`, 'page')
   await rename(absFile, target)
   return ok({ path: target })
 }
@@ -92,7 +107,7 @@ export async function movePage(absFile: string, newParentDir: string): Promise<R
 export async function updatePageProperty(
   absFile: string,
   propertyId: string,
-  value: PropertyValue | null
+  value: PropertyValue | null,
 ): Promise<Result<null>> {
   if (!(await pathExists(absFile))) return fail('not-found', 'Page not found.', 'page')
   const existing = await readFile(absFile, 'utf8')
@@ -102,7 +117,7 @@ export async function updatePageProperty(
     existing,
     { properties: props, modified_at: nowIso() },
     ['properties', 'modified_at'],
-    body
+    body,
   )
   await atomicWriteFile(absFile, content)
   return ok(null)
@@ -114,7 +129,11 @@ export async function updatePageProperty(
  * `modified_at`, so all other frontmatter survives. The array is always written (even
  * empty). `tier` must be 1–3. Ids are stored as given (existence is not checked here).
  */
-export async function setPageTier(absFile: string, tier: number, contextIds: string[]): Promise<Result<null>> {
+export async function setPageTier(
+  absFile: string,
+  tier: number,
+  contextIds: string[],
+): Promise<Result<null>> {
   if (tier < 1 || tier > 3) return fail('invalid-tier', `Tier ${tier} is not 1–3.`, 'page')
   if (!(await pathExists(absFile))) return fail('not-found', 'Page not found.', 'page')
   const field = tierFieldName(tier)
@@ -124,7 +143,7 @@ export async function setPageTier(absFile: string, tier: number, contextIds: str
     existing,
     { [field]: contextIds, modified_at: nowIso() },
     [field, 'modified_at'],
-    body
+    body,
   )
   await atomicWriteFile(absFile, content)
   return ok(null)

@@ -47,7 +47,8 @@ function collectCands(view: EditorView, block: { from: number; to: number }): Ca
     out.push({ at: from, y: topY, left: c.left, right, noop: isNoop(from) }) // ABOVE this block
     const nextFrom = i + 1 < starts.length ? starts[i + 1] : doc.length
     const botY = bottomAbove(view, nextFrom) // this block's OUTER bottom (below a box's border)
-    if (botY !== null) out.push({ at: nextFrom, y: botY, left: c.left, right, noop: isNoop(nextFrom) }) // BELOW this block
+    if (botY !== null)
+      out.push({ at: nextFrom, y: botY, left: c.left, right, noop: isNoop(nextFrom) }) // BELOW this block
   }
   return out.sort((a, b) => a.y - b.y)
 }
@@ -76,20 +77,28 @@ export function startBlockDrag(
     onClick?: (view: EditorView, line: HTMLElement) => void // sub-threshold release action (e.g. a heading's fold)
     onDragStart?: (view: EditorView, block: { from: number; to: number }) => void // at activation (e.g. unfold)
     line?: HTMLElement // the handle line (for onClick) — absent for the programmatic table grip
-  } = {}
+  } = {},
 ): void {
   const { onClick, onDragStart, line } = opts
   if (e.button !== 0) return // only the left button drags; a right-press falls through to the context menu (e.g. the table grip's Delete Table)
   e.preventDefault()
   const host = view.scrollDOM
-  const g = { active: false, done: false, overlay: new Overlay(), cands: [] as Cand[], slot: null as Cand | null, lastY: e.clientY }
+  const g = {
+    active: false,
+    done: false,
+    overlay: new Overlay(),
+    cands: [] as Cand[],
+    slot: null as Cand | null,
+    lastY: e.clientY,
+  }
   let stopScroll: (() => void) | null = null
 
   // Re-aim the insertion line at the candidate nearest the last pointer Y — no re-measure.
   const repick = (): void => {
     g.slot = nearest(g.cands, g.lastY)
     // The "stay put" slot stays the resolved target (release-in-place cancels) but draws no line — a drop there no-ops.
-    if (g.slot && !g.slot.noop) g.overlay.show(g.slot.left, g.slot.y, Math.max(g.slot.right - g.slot.left, 40))
+    if (g.slot && !g.slot.noop)
+      g.overlay.show(g.slot.left, g.slot.y, Math.max(g.slot.right - g.slot.left, 40))
     else g.overlay.hide()
   }
   // Candidate coords are viewport-relative, so any scroll (wheel or the auto-scroll below) invalidates them —
@@ -115,7 +124,12 @@ export function startBlockDrag(
       // No `onScrolled` needed: the loop's `scrollBy` fires CM's native `scroll` → the existing `onScroll`
       // → `remeasure`, so far candidates (CM only renders ~viewport) become targetable as they scroll in —
       // the exact single path the old local `tick` relied on.
-      stopScroll = startAutoScroll({ getPoint: () => ({ x: 0, y: g.lastY }), scroller: host, dragEl: host, axis: 'y' })
+      stopScroll = startAutoScroll({
+        getPoint: () => ({ x: 0, y: g.lastY }),
+        scroller: host,
+        dragEl: host,
+        axis: 'y',
+      })
     }
     g.lastY = ev.clientY
     repick()
@@ -196,8 +210,8 @@ export function createBlockDragGesture({ gate, onClick, onDragStart }: DragConfi
         if (!block) return false
         startBlockDrag(view, e, block, { onClick, onDragStart, line })
         return true
-      }
-    })
+      },
+    }),
   ]
 }
 

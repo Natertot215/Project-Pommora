@@ -160,5 +160,5 @@
 /* An empty cell has no line box, so it'd render a line-height shorter than a filled one — a zero-width
    placeholder gives it that line box so every cell is the same height with or without text. */
 .mdpm-tbl-cell-static:empty::before {
-  content: '\200b';
+  content: "\200b";
 }

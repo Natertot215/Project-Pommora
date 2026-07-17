@@ -5,7 +5,7 @@ import { SECTIONS, LEAVES } from './leaves/registry'
 // (one rendering, two surfaces). Derives entirely from the leaf registry.
 export function NavSections({
   activeId,
-  onSelect
+  onSelect,
 }: {
   activeId: string
   onSelect: (id: string) => void

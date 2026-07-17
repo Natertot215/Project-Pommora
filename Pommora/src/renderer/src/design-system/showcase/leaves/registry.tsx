@@ -26,17 +26,59 @@ export const SECTIONS: ReadonlyArray<{ id: SectionId; label: string }> = [
   { id: 'foundations', label: 'Foundations' },
   { id: 'components', label: 'Components' },
   { id: 'materials', label: 'Materials' },
-  { id: 'interactions', label: 'Interactions' }
+  { id: 'interactions', label: 'Interactions' },
 ]
 
 export const LEAVES: readonly Leaf[] = [
-  { id: 'colors', label: 'Colors', icon: 'palette', section: 'foundations', render: () => <ColorsLeaf /> },
-  { id: 'typography', label: 'Typography', icon: 'type', section: 'foundations', render: () => <TypographyLeaf /> },
-  { id: 'icons', label: 'Icons', icon: 'shapes', section: 'foundations', render: () => <IconsLeaf /> },
-  { id: 'components', label: 'Components', icon: 'tag', section: 'components', render: () => <ComponentsLeaf /> },
-  { id: 'glass', label: 'Glass', icon: 'layers', section: 'materials', render: () => <GlassLeaf /> },
-  { id: 'interactions', label: 'Interaction Lab', icon: 'arrow-up-down', section: 'interactions', render: () => <InteractionsLeaf /> },
-  { id: 'surfacepm', label: 'SurfacePM Lab', icon: 'layout-dashboard', section: 'interactions', render: () => <SurfaceLab /> }
+  {
+    id: 'colors',
+    label: 'Colors',
+    icon: 'palette',
+    section: 'foundations',
+    render: () => <ColorsLeaf />,
+  },
+  {
+    id: 'typography',
+    label: 'Typography',
+    icon: 'type',
+    section: 'foundations',
+    render: () => <TypographyLeaf />,
+  },
+  {
+    id: 'icons',
+    label: 'Icons',
+    icon: 'shapes',
+    section: 'foundations',
+    render: () => <IconsLeaf />,
+  },
+  {
+    id: 'components',
+    label: 'Components',
+    icon: 'tag',
+    section: 'components',
+    render: () => <ComponentsLeaf />,
+  },
+  {
+    id: 'glass',
+    label: 'Glass',
+    icon: 'layers',
+    section: 'materials',
+    render: () => <GlassLeaf />,
+  },
+  {
+    id: 'interactions',
+    label: 'Interaction Lab',
+    icon: 'arrow-up-down',
+    section: 'interactions',
+    render: () => <InteractionsLeaf />,
+  },
+  {
+    id: 'surfacepm',
+    label: 'SurfacePM Lab',
+    icon: 'layout-dashboard',
+    section: 'interactions',
+    render: () => <SurfaceLab />,
+  },
 ]
 
 /** Resolve a hash id to a leaf, falling back to the first leaf. */

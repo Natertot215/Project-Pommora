@@ -7,7 +7,11 @@
 
 import type { FilterGroup, FilterRule } from '@shared/views'
 import type { ViewRow } from '@shared/types'
-import { type PropertyDefinition, type PropertyType, RESERVED_PROPERTY_ID } from '@shared/properties'
+import {
+  type PropertyDefinition,
+  type PropertyType,
+  RESERVED_PROPERTY_ID,
+} from '@shared/properties'
 import type { PropertyValue } from '@shared/propertyValue'
 import { declaredType, modifiedStampString, resolveFieldValue } from './value'
 import { type SetTreeNode, subtreeIds } from './group'
@@ -33,7 +37,7 @@ export const FILTER_OPS = {
   greaterOrEqual: 'greater_or_equal',
   lessOrEqual: 'less_or_equal',
   isInside: 'is_inside',
-  isNotInside: 'is_not_inside'
+  isNotInside: 'is_not_inside',
 } as const
 
 const FILTER_OP_SET = new Set<string>(Object.values(FILTER_OPS))
@@ -70,7 +74,7 @@ export function applyFilter(
   rows: ViewRow[],
   filter: FilterGroup | undefined,
   schema: PropertyDefinition[],
-  setTree: SetTreeNode[] = []
+  setTree: SetTreeNode[] = [],
 ): ViewRow[] {
   // 'none' = the pane's disable state (root-only): rules persist untouched, filtering skips.
   if (!filter || filter.match === 'none') return rows
@@ -83,16 +87,28 @@ function isGroup(node: FilterRule | FilterGroup): node is FilterGroup {
   return 'rules' in node
 }
 
-function matchesGroup(row: ViewRow, group: FilterGroup, schema: PropertyDefinition[], locate: LocationIndex): boolean {
+function matchesGroup(
+  row: ViewRow,
+  group: FilterGroup,
+  schema: PropertyDefinition[],
+  locate: LocationIndex,
+): boolean {
   if (group.match === 'none') return true // never pane-authored nested; a hand-authored one passes
   if (group.rules.length === 0) return true
   const results = group.rules.map((node) =>
-    isGroup(node) ? matchesGroup(row, node, schema, locate) : evaluateRule(row, node, schema, locate)
+    isGroup(node)
+      ? matchesGroup(row, node, schema, locate)
+      : evaluateRule(row, node, schema, locate),
   )
   return group.match === 'all' ? results.every(Boolean) : results.some(Boolean)
 }
 
-function evaluateRule(row: ViewRow, rule: FilterRule, schema: PropertyDefinition[], locate: LocationIndex): boolean {
+function evaluateRule(
+  row: ViewRow,
+  rule: FilterRule,
+  schema: PropertyDefinition[],
+  locate: LocationIndex,
+): boolean {
   if (!FILTER_OP_SET.has(rule.op)) return true // unknown op → no-op pass
 
   // "Last edited" resolves to the modified∥created stamp (never a stored property) → date matrix.
@@ -112,7 +128,13 @@ function evaluateRule(row: ViewRow, rule: FilterRule, schema: PropertyDefinition
 
   const t = declaredType(rule.property_id, schema)
   if (t === undefined) return true // property absent from schema → no-op pass
-  return evaluateByType(resolveFieldValue(row, rule.property_id, schema), rule.op, rule.value, rule.values, t)
+  return evaluateByType(
+    resolveFieldValue(row, rule.property_id, schema),
+    rule.op,
+    rule.value,
+    rule.values,
+    t,
+  )
 }
 
 function evaluateByType(
@@ -120,7 +142,7 @@ function evaluateByType(
   op: Op,
   expected: Expected,
   values: string[] | undefined,
-  t: PropertyType | 'title' | 'tier'
+  t: PropertyType | 'title' | 'tier',
 ): boolean {
   switch (t) {
     case 'tier':
@@ -314,11 +336,15 @@ function evaluateText(v: PropertyValue, op: Op, expected: Expected, values?: str
       if (values?.length) return s === null ? true : !values.includes(s) // none-of
       return expected == null ? true : s !== expected
     case FILTER_OPS.contains:
-      return s === null || expected == null ? true : s.toLowerCase().includes(expected.toLowerCase())
+      return s === null || expected == null
+        ? true
+        : s.toLowerCase().includes(expected.toLowerCase())
     case FILTER_OPS.doesNotContain:
       return expected == null ? true : !(s?.toLowerCase().includes(expected.toLowerCase()) ?? false)
     case FILTER_OPS.startsWith:
-      return s === null || expected == null ? true : s.toLowerCase().startsWith(expected.toLowerCase())
+      return s === null || expected == null
+        ? true
+        : s.toLowerCase().startsWith(expected.toLowerCase())
     default:
       return true
   }
@@ -374,7 +400,11 @@ function evaluateList(ids: string[], op: Op, expected: Expected, values?: string
 /** File: presence only (is/contains/etc. are no-op passes — Swift evaluatePresence). */
 function evaluatePresence(v: PropertyValue, op: Op): boolean {
   const empty =
-    v.kind === 'context' || v.kind === 'file' ? v.value.length === 0 : v.kind === 'null' ? true : false
+    v.kind === 'context' || v.kind === 'file'
+      ? v.value.length === 0
+      : v.kind === 'null'
+        ? true
+        : false
   switch (op) {
     case FILTER_OPS.isEmpty:
       return empty

@@ -8,7 +8,7 @@ import type { BrowserWindow, MenuItemConstructorOptions } from 'electron'
 /** `buildItems` receives `pick`, a factory turning an action into a click handler that resolves it. */
 export function popReturningMenu<A>(
   win: BrowserWindow,
-  buildItems: (pick: (action: A) => () => void) => MenuItemConstructorOptions[]
+  buildItems: (pick: (action: A) => () => void) => MenuItemConstructorOptions[],
 ): Promise<A | null> {
   return new Promise((resolve) => {
     let acted = false
@@ -20,7 +20,7 @@ export function popReturningMenu<A>(
       window: win,
       callback: () => {
         if (!acted) resolve(null)
-      }
+      },
     })
   })
 }

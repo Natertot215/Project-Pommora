@@ -30,7 +30,7 @@ export const CONTROL_OPTICS: Partial<GlassOptics> = {
   mapSize: 256,
   clipToShape: true,
   softEdge: true,
-  sheenDark: false
+  sheenDark: false,
 }
 
 export function GlassControls({
@@ -40,7 +40,12 @@ export function GlassControls({
 }: { children?: ReactNode } & HTMLAttributes<HTMLDivElement>): React.JSX.Element {
   const r = style?.borderRadius
   return (
-    <Glass optics={CONTROL_OPTICS} radius={typeof r === 'number' ? r : undefined} style={style} {...rest}>
+    <Glass
+      optics={CONTROL_OPTICS}
+      radius={typeof r === 'number' ? r : undefined}
+      style={style}
+      {...rest}
+    >
       {children}
     </Glass>
   )

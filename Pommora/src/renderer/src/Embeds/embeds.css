@@ -25,8 +25,8 @@
   padding-right: 0;
 }
 .pgembed .mdpm-editor .cm-content {
-  padding: calc(16px * var(--mdpm-scale)) calc(14px * var(--mdpm-scale)) calc(16px * var(--mdpm-scale))
-    var(--fold-gutter);
+  padding: calc(16px * var(--mdpm-scale)) calc(14px * var(--mdpm-scale))
+    calc(16px * var(--mdpm-scale)) var(--fold-gutter);
 }
 /* The task checkbox rides the shared fixed chip-box geometry (17px), which the scale vars don't reach —
    so in a scaled block it reads oversized against the text. Zoom the whole widget (box + stroke +

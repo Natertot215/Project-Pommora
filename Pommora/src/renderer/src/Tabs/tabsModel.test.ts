@@ -17,7 +17,12 @@ import {
 } from './tabsModel'
 
 const pt = (id: string): SelectTarget => ({ kind: 'page', id, path: `/${id}` })
-const tab = (id: string, targetId: string): Tab => ({ id, target: pt(targetId), navStack: [pt(targetId)], navIndex: 0 })
+const tab = (id: string, targetId: string): Tab => ({
+  id,
+  target: pt(targetId),
+  navStack: [pt(targetId)],
+  navIndex: 0,
+})
 const pin = (id: string, order: number): PinEntry => ({ kind: 'page', id, path: `/${id}`, order })
 const navTab = (id: string): Tab => newTabTab(id)
 
@@ -40,7 +45,12 @@ describe('tabsModel — openTab', () => {
   })
 
   it('truncates forward history on a replace mid-stack', () => {
-    const branched: Tab = { id: 't1', target: pt('a'), navStack: [pt('a'), pt('b'), pt('c')], navIndex: 0 }
+    const branched: Tab = {
+      id: 't1',
+      target: pt('a'),
+      navStack: [pt('a'), pt('b'), pt('c')],
+      navIndex: 0,
+    }
     const r = openTab([branched], 't1', [], pt('z'), {}, 'NEW')
     expect(r.tabs[0].navStack).toEqual([pt('a'), pt('z')])
     expect(r.tabs[0].navIndex).toBe(1)
@@ -107,7 +117,9 @@ describe('tabsModel — closeTab', () => {
   })
 
   it('keeps the previous tab when closing the rightmost with an empty MRU', () => {
-    expect(closeTab([tab('t1', 'a'), tab('t2', 'b')], 't2', [], [], 't2', 'NEW').activeTabId).toBe('t1')
+    expect(closeTab([tab('t1', 'a'), tab('t2', 'b')], 't2', [], [], 't2', 'NEW').activeTabId).toBe(
+      't1',
+    )
   })
 
   it('leaves the active tab untouched when closing a background tab', () => {
@@ -202,7 +214,14 @@ describe('tabsModel — reconcileTabs (I-2a)', () => {
 
   it('refreshes an INACTIVE tab target + history on a rename without activating it', () => {
     const tabs = [tab('t1', 'a'), tab('t2', 'b')]
-    const r = reconcileTabs(tabs, 't1', ['t1', 't2'], [], against({ a: '/a', b: '/renamed' }), 'NEW')
+    const r = reconcileTabs(
+      tabs,
+      't1',
+      ['t1', 't2'],
+      [],
+      against({ a: '/a', b: '/renamed' }),
+      'NEW',
+    )
     expect(r.changed).toBe(true)
     expect(r.activeTabId).toBe('t1')
     expect(r.tabs[0]).toBe(tabs[0]) // untouched tab keeps its identity
@@ -220,7 +239,14 @@ describe('tabsModel — reconcileTabs (I-2a)', () => {
 
   it('deleting the ACTIVE tab focuses the MRU survivor', () => {
     const tabs = [tab('t1', 'a'), tab('t2', 'b'), tab('t3', 'c')]
-    const r = reconcileTabs(tabs, 't2', ['t2', 't3', 't1'], [], against({ a: '/a', c: '/c' }), 'NEW')
+    const r = reconcileTabs(
+      tabs,
+      't2',
+      ['t2', 't3', 't1'],
+      [],
+      against({ a: '/a', c: '/c' }),
+      'NEW',
+    )
     expect(r.activeTabId).toBe('t3')
   })
 

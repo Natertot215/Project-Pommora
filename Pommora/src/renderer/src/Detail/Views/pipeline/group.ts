@@ -25,10 +25,14 @@ export interface SetTreeNode {
   children: SetTreeNode[]
 }
 
-const applySort = (rows: ViewRow[], sorter: Sorter | null): ViewRow[] => (sorter ? sorter(rows) : rows)
+const applySort = (rows: ViewRow[], sorter: Sorter | null): ViewRow[] =>
+  sorter ? sorter(rows) : rows
 
-const placeTail = (groups: ResolvedGroup[], tail: ResolvedGroup, placement: EmptyPlacement): ResolvedGroup[] =>
-  placement === 'top' ? [tail, ...groups] : [...groups, tail]
+const placeTail = (
+  groups: ResolvedGroup[],
+  tail: ResolvedGroup,
+  placement: EmptyPlacement,
+): ResolvedGroup[] => (placement === 'top' ? [tail, ...groups] : [...groups, tail])
 
 /** The one group-by core every resolver shares (property buckets, by-set, sub-group re-bucketing). */
 function groupRows<K>(rows: ViewRow[], keyOf: (r: ViewRow) => K): Map<K, ViewRow[]> {
@@ -57,7 +61,7 @@ export function subtreeIds(node: SetTreeNode): string[] {
 function toRow(
   page: PageNode,
   parentSetId: string | undefined,
-  values: Record<string, PageFrontmatter>
+  values: Record<string, PageFrontmatter>,
 ): ViewRow {
   return {
     id: page.id,
@@ -65,7 +69,7 @@ function toRow(
     icon: page.icon,
     path: page.path,
     ...(parentSetId !== undefined ? { parentSetId } : {}),
-    frontmatter: values[page.id] ?? { id: page.id }
+    frontmatter: values[page.id] ?? { id: page.id },
   }
 }
 
@@ -73,7 +77,7 @@ function toRow(
  *  for a container-root page) plus the setTree for structural grouping. */
 export function flattenContainer(
   node: CollectionNode | SetNode,
-  valuesByPageId: Record<string, PageFrontmatter>
+  valuesByPageId: Record<string, PageFrontmatter>,
 ): { rows: ViewRow[]; setTree: SetTreeNode[] } {
   const rows: ViewRow[] = []
   const walk = (container: CollectionNode | SetNode, parentSetId: string | undefined): void => {
@@ -103,7 +107,11 @@ function isoWeek(year: number, month: number, day: number): [year: number, week:
  *  absolute instant bucketed display-local (Swift parity); a date-only value (`utc`) is a no-time
  *  calendar date that must NOT shift across timezones, so it buckets by its stored (UTC) date — the
  *  date the user picked, for every viewer. Null for an unparseable date. */
-export function dateBucketKey(iso: string, granularity: DateGranularity, utc = false): string | null {
+export function dateBucketKey(
+  iso: string,
+  granularity: DateGranularity,
+  utc = false,
+): string | null {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return null
   const year = utc ? d.getUTCFullYear() : d.getFullYear()
@@ -131,7 +139,7 @@ export function bucketKey(
   row: ViewRow,
   propertyId: string,
   schema: PropertyDefinition[],
-  granularity: DateGranularity
+  granularity: DateGranularity,
 ): string | null {
   const v = resolveFieldValue(row, propertyId, schema)
   switch (declaredType(propertyId, schema)) {
@@ -143,7 +151,9 @@ export function bucketKey(
     case 'datetime':
       // a bare date-only value (no 'T') buckets by its stored calendar date so it never shifts by
       // timezone; a full datetime is an absolute instant, bucketed display-local.
-      return v.kind === 'datetime' ? dateBucketKey(v.value, granularity, !v.value.includes('T')) : null
+      return v.kind === 'datetime'
+        ? dateBucketKey(v.value, granularity, !v.value.includes('T'))
+        : null
     default:
       return null
   }
@@ -159,7 +169,7 @@ function schemaOptionOrder(def: PropertyDefinition | undefined): string[] | null
 /** `base` followed by any present keys not in it, sorted (present date keys sort chronologically). */
 const appendTail = (base: string[], present: Set<string>): string[] => [
   ...base,
-  ...[...present].filter((k) => !base.includes(k)).sort()
+  ...[...present].filter((k) => !base.includes(k)).sort(),
 ]
 
 function configuredOrder(def: PropertyDefinition | undefined, present: Set<string>): string[] {
@@ -175,7 +185,7 @@ function configuredOrder(def: PropertyDefinition | undefined, present: Set<strin
 export function bucketOrder(
   group: Pick<PropertyGroup, 'order_mode' | 'order'>,
   def: PropertyDefinition | undefined,
-  present: Set<string>
+  present: Set<string>,
 ): string[] {
   if (group.order_mode === 'manual') return appendTail(group.order ?? [], present)
   const configured = configuredOrder(def, present)
@@ -188,13 +198,16 @@ function property(
   schema: PropertyDefinition[],
   sorter: Sorter | null,
   collapsed: Set<string>,
-  placement: EmptyPlacement
+  placement: EmptyPlacement,
 ): ResolvedGroup[] {
   const def = schema.find((d) => d.id === group.property_id)
   const isCheckbox = def?.type === 'checkbox'
   const granularity = group.date_granularity ?? 'month'
 
-  const byBucket = groupRows(rows, (r) => bucketKey(r, group.property_id, schema, granularity) ?? (isCheckbox ? 'false' : null))
+  const byBucket = groupRows(
+    rows,
+    (r) => bucketKey(r, group.property_id, schema, granularity) ?? (isCheckbox ? 'false' : null),
+  )
   const noValue = byBucket.get(null) ?? []
   byBucket.delete(null)
   const buckets = byBucket as Map<string, ViewRow[]>
@@ -208,7 +221,12 @@ function property(
   for (const key of bucketOrder(group, def, new Set(buckets.keys()))) {
     const items = buckets.get(key) ?? []
     if (items.length === 0 && (group.hide_empty_groups || !liveKeys.has(key))) continue
-    groups.push({ key, kind: 'property', items: applySort(items, sorter), isCollapsed: collapsed.has(key) })
+    groups.push({
+      key,
+      kind: 'property',
+      items: applySort(items, sorter),
+      isCollapsed: collapsed.has(key),
+    })
   }
   // No "None" band: value-less rows are a flattened, header-less tail placed by the VIEW-level
   // knob — it holds rows, so hide_empty_groups never touches it. The property config's own
@@ -216,8 +234,13 @@ function property(
   if (isCheckbox || noValue.length === 0) return groups
   return placeTail(
     groups,
-    { key: UNGROUPED, kind: 'ungrouped', items: applySort(noValue, sorter), isCollapsed: collapsed.has(UNGROUPED) },
-    placement
+    {
+      key: UNGROUPED,
+      kind: 'ungrouped',
+      items: applySort(noValue, sorter),
+      isCollapsed: collapsed.has(UNGROUPED),
+    },
+    placement,
   )
 }
 
@@ -228,7 +251,7 @@ function structural(
   setTree: SetTreeNode[],
   sorter: Sorter | null,
   collapsed: Set<string>,
-  placement: EmptyPlacement
+  placement: EmptyPlacement,
 ): ResolvedGroup[] {
   const bySet = groupRows(rows, (r) => r.parentSetId)
   const rootRows = bySet.get(undefined) ?? []
@@ -239,15 +262,20 @@ function structural(
       kind: 'structural-set',
       items: applySort(bySet.get(node.id) ?? [], sorter),
       ...(children.length > 0 ? { children } : {}),
-      isCollapsed: collapsed.has(node.id)
+      isCollapsed: collapsed.has(node.id),
     }
   }
   const groups = setTree.map(build)
   if (rootRows.length === 0) return groups
   return placeTail(
     groups,
-    { key: UNGROUPED, kind: 'ungrouped', items: applySort(rootRows, sorter), isCollapsed: collapsed.has(UNGROUPED) },
-    placement
+    {
+      key: UNGROUPED,
+      kind: 'ungrouped',
+      items: applySort(rootRows, sorter),
+      isCollapsed: collapsed.has(UNGROUPED),
+    },
+    placement,
   )
 }
 
@@ -265,7 +293,7 @@ function structuralSubGrouped(
   schema: PropertyDefinition[],
   sorter: Sorter | null,
   collapsed: Set<string>,
-  placement: EmptyPlacement
+  placement: EmptyPlacement,
 ): ResolvedGroup[] {
   const def = schema.find((d) => d.id === sub.property_id)
   const granularity = sub.date_granularity ?? 'month'
@@ -283,14 +311,27 @@ function structuralSubGrouped(
       const items = buckets.get(b)
       if (!items) return []
       const key = subGroupKey(node.id, b)
-      return [{ key, bucket: b, kind: 'property', items: applySort(items, sorter), isCollapsed: collapsed.has(key) }]
+      return [
+        {
+          key,
+          bucket: b,
+          kind: 'property',
+          items: applySort(items, sorter),
+          isCollapsed: collapsed.has(key),
+        },
+      ]
     })
     if (noValue.length > 0) {
       const key = subGroupKey(node.id, UNGROUPED)
       children = placeTail(
         children,
-        { key, kind: 'ungrouped', items: applySort(noValue, sorter), isCollapsed: collapsed.has(key) },
-        placement
+        {
+          key,
+          kind: 'ungrouped',
+          items: applySort(noValue, sorter),
+          isCollapsed: collapsed.has(key),
+        },
+        placement,
       )
     }
     return {
@@ -298,27 +339,42 @@ function structuralSubGrouped(
       kind: 'structural-set',
       items: [],
       ...(children.length > 0 ? { children } : {}),
-      isCollapsed: collapsed.has(node.id)
+      isCollapsed: collapsed.has(node.id),
     }
   })
   if (rootRows.length === 0) return groups
   return placeTail(
     groups,
-    { key: UNGROUPED, kind: 'ungrouped', items: applySort(rootRows, sorter), isCollapsed: collapsed.has(UNGROUPED) },
-    placement
+    {
+      key: UNGROUPED,
+      kind: 'ungrouped',
+      items: applySort(rootRows, sorter),
+      isCollapsed: collapsed.has(UNGROUPED),
+    },
+    placement,
   )
 }
 
 function flat(rows: ViewRow[], sorter: Sorter | null, collapsed: Set<string>): ResolvedGroup[] {
   if (rows.length === 0) return []
-  return [{ key: UNGROUPED, kind: 'ungrouped', items: applySort(rows, sorter), isCollapsed: collapsed.has(UNGROUPED) }]
+  return [
+    {
+      key: UNGROUPED,
+      kind: 'ungrouped',
+      items: applySort(rows, sorter),
+      isCollapsed: collapsed.has(UNGROUPED),
+    },
+  ]
 }
 
 /** The pipeline's EFFECTIVE grouping mode: a property group whose property is unresolvable or not
  *  a groupable type renders structurally — every consumer (resolveView's location/sub-group gates,
  *  the Grouping pane's chrome) must read this, never the raw `kind`, or they diverge from what the
  *  table actually draws. */
-export function groupsStructurally(group: GroupConfig | undefined, schema: PropertyDefinition[]): boolean {
+export function groupsStructurally(
+  group: GroupConfig | undefined,
+  schema: PropertyDefinition[],
+): boolean {
   if (group?.kind === 'flat') return false
   if (group?.kind !== 'property') return true
   const t = declaredType(group.property_id, schema)
@@ -337,7 +393,7 @@ export function resolveGroups(
   sorter: Sorter | null,
   collapsed: string[] = [],
   placement: EmptyPlacement = 'bottom',
-  subGroup?: SubGroupConfig
+  subGroup?: SubGroupConfig,
 ): ResolvedGroup[] {
   const collapsedSet = new Set(collapsed)
   if (group?.kind === 'flat') return flat(rows, sorter, collapsedSet)

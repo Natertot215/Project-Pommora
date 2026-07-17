@@ -6,10 +6,13 @@ import { popReturningMenu } from './returningMenu'
 
 export type ViewItemMenuAction = 'view:duplicate' | 'view:delete'
 
-export function popViewItemMenu(win: BrowserWindow, opts: { canDelete: boolean }): Promise<ViewItemMenuAction | null> {
+export function popViewItemMenu(
+  win: BrowserWindow,
+  opts: { canDelete: boolean },
+): Promise<ViewItemMenuAction | null> {
   return popReturningMenu<ViewItemMenuAction>(win, (pick) => [
     { label: 'Duplicate', click: pick('view:duplicate') },
     { type: 'separator' },
-    { label: 'Delete', enabled: opts.canDelete, click: pick('view:delete') }
+    { label: 'Delete', enabled: opts.canDelete, click: pick('view:delete') },
   ])
 }

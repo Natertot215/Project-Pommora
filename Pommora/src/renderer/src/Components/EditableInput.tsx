@@ -19,7 +19,7 @@ export function EditableInput({
   autoSize,
   caretAtEnd,
   onCommit,
-  onCancel
+  onCancel,
 }: {
   value: string
   className: string
@@ -58,9 +58,13 @@ export function EditableInput({
         e.currentTarget.setSelectionRange(len, len)
       }}
       onClick={(e) => e.stopPropagation()}
-      onInput={autoSize ? (e) => {
-        if (mirror.current) mirror.current.textContent = e.currentTarget.value || ' '
-      } : undefined}
+      onInput={
+        autoSize
+          ? (e) => {
+              if (mirror.current) mirror.current.textContent = e.currentTarget.value || ' '
+            }
+          : undefined
+      }
       onKeyDown={(e) => {
         if (e.key === 'Enter') e.currentTarget.blur()
         else if (e.key === 'Escape') {

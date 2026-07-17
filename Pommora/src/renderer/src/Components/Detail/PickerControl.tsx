@@ -3,7 +3,11 @@ import { Icon } from '@renderer/design-system/symbols'
 import { PickerMenu, PickerOption } from '../../design-system/components/PickerMenu'
 import * as s from './pickerControl.css'
 
-export type PickerChoice<T extends string> = { value: T; label: string; icon?: React.ComponentProps<typeof Icon>['name'] }
+export type PickerChoice<T extends string> = {
+  value: T
+  label: string
+  icon?: React.ComponentProps<typeof Icon>['name']
+}
 
 export const labelOf = <T extends string>(opts: PickerChoice<T>[], v: T): string =>
   opts.find((o) => o.value === v)?.label ?? opts[0].label
@@ -15,7 +19,7 @@ export function PickerControl<T extends string>({
   ariaLabel,
   value,
   options,
-  onPick
+  onPick,
 }: {
   ariaLabel: string
   value: T
@@ -26,7 +30,13 @@ export function PickerControl<T extends string>({
   const ref = useRef<HTMLButtonElement>(null)
   return (
     <>
-      <button ref={ref} type="button" className={s.trigger} aria-label={ariaLabel} onClick={() => setOpen(true)}>
+      <button
+        ref={ref}
+        type="button"
+        className={s.trigger}
+        aria-label={ariaLabel}
+        onClick={() => setOpen(true)}
+      >
         <span className={s.value}>{labelOf(options, value)}</span>
         <Icon name="chevrons-up-down" size={12} />
       </button>

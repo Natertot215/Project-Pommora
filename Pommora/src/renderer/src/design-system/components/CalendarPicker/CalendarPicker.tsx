@@ -22,15 +22,29 @@ const rectOf = (el: HTMLElement): TriggerRect => {
 /** The nested menus portal to body as a fixed phantom of their trigger box, so the dropdown is a
  *  REAL dropdown — free of the calendar pane's clip-path — while PickerMenu's anchor math works
  *  unchanged. The phantom is pointer-inert; only the menu re-enables hits. */
-function PortalMenu({ rect, children }: { rect: TriggerRect; children: ReactNode }): React.JSX.Element {
+function PortalMenu({
+  rect,
+  children,
+}: {
+  rect: TriggerRect
+  children: ReactNode
+}): React.JSX.Element {
   return createPortal(
     <div
       data-calmenu
-      style={{ position: 'fixed', left: rect.x, top: rect.y, width: rect.w, height: rect.h, zIndex: 100, pointerEvents: 'none' }}
+      style={{
+        position: 'fixed',
+        left: rect.x,
+        top: rect.y,
+        width: rect.w,
+        height: rect.h,
+        zIndex: 100,
+        pointerEvents: 'none',
+      }}
     >
       {children}
     </div>,
-    document.body
+    document.body,
   )
 }
 
@@ -75,7 +89,7 @@ export function CalendarPicker({
   timeFormat = 'twelveHour',
   value = null,
   onChange,
-  range = true
+  range = true,
 }: {
   /** `condensed` set = the range layout asking for the picker-only short form (withYear when the
    *  range spans years); absent = the property's own format, verbatim. */
@@ -108,10 +122,18 @@ export function CalendarPicker({
   const [menu, setMenu] = useState<{ kind: 'month' | 'year'; rect: TriggerRect } | null>(null)
   // The [00][00] segment dropdowns — each segment opens its own upward PickerMenu (the fields sit
   // at the pane's bottom), beak-down at the segment.
-  const [timeMenu, setTimeMenu] = useState<{ which: 'start' | 'end'; part: 'h' | 'm'; rect: TriggerRect } | null>(null)
+  const [timeMenu, setTimeMenu] = useState<{
+    which: 'start' | 'end'
+    part: 'h' | 'm'
+    rect: TriggerRect
+  } | null>(null)
   // Double-click a segment → caret editing in place (select-all drives replace-on-type, but the
   // selection paints transparent — highlighting disabled per Nathan).
-  const [segEdit, setSegEdit] = useState<{ which: 'start' | 'end'; part: 'h' | 'm'; draft: string } | null>(null)
+  const [segEdit, setSegEdit] = useState<{
+    which: 'start' | 'end'
+    part: 'h' | 'm'
+    draft: string
+  } | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
   // Portal'd menus escape the root, so dismissal is a document listener that spares the root AND
   // any [data-calmenu] portal (useDismiss's containment check can't see through the portal). The
@@ -153,7 +175,7 @@ export function CalendarPicker({
   const drag = useRef<{ which: 'start' | 'end'; moved: boolean } | null>(null)
   const suppressClick = useRef(false)
   const [startMin, setStartMin] = useState(
-    initHasTime && init ? Number(init.slice(11, 13)) * 60 + Number(init.slice(14, 16)) : 9 * 60
+    initHasTime && init ? Number(init.slice(11, 13)) * 60 + Number(init.slice(14, 16)) : 9 * 60,
   )
   const [endMin, setEndMin] = useState(17 * 60)
   // The write seam: compose start (+ time) into ISO and emit debounced — one commit per settle,
@@ -169,7 +191,11 @@ export function CalendarPicker({
       firstEmit.current = false
       return
     }
-    const iso = start ? (timeOn ? `${start}T${pad(Math.floor(startMin / 60))}:${pad(startMin % 60)}:00` : start) : null
+    const iso = start
+      ? timeOn
+        ? `${start}T${pad(Math.floor(startMin / 60))}:${pad(startMin % 60)}:00`
+        : start
+      : null
     pendingEmit.current = iso
     clearTimeout(emitTimer.current)
     emitTimer.current = setTimeout(() => {
@@ -184,12 +210,13 @@ export function CalendarPicker({
         onChangeRef.current?.(pendingEmit.current)
       }
     },
-    []
+    [],
   )
   // Both endpoints share one time model; the segment/menu/toggle helpers all resolve their
   // endpoint through these rather than re-branching `which` at each call site.
   const minsOf = (which: 'start' | 'end'): number => (which === 'start' ? startMin : endMin)
-  const setMinsFor = (which: 'start' | 'end'): typeof setStartMin => (which === 'start' ? setStartMin : setEndMin)
+  const setMinsFor = (which: 'start' | 'end'): typeof setStartMin =>
+    which === 'start' ? setStartMin : setEndMin
 
   const nav = (dir: 1 | -1): void => {
     if (slide) return
@@ -341,7 +368,7 @@ export function CalendarPicker({
                   sel && s.pillSelected,
                   mid && s.pillMid,
                   mid && col === 0 && s.pillRowFirst,
-                  mid && col === 6 && s.pillRowLast
+                  mid && col === 6 && s.pillRowLast,
                 )}
               />
               {d.getDate()}
@@ -352,7 +379,11 @@ export function CalendarPicker({
     )
   }
 
-  const dateField = (k: string | null, label: string, condensed?: { withYear: boolean }): React.JSX.Element => (
+  const dateField = (
+    k: string | null,
+    label: string,
+    condensed?: { withYear: boolean },
+  ): React.JSX.Element => (
     <div className={s.field} key={label}>
       <Icon name="calendar" size={14} className={s.fieldIcon} />
       <OverflowScroll className={s.fieldValue}>
@@ -363,7 +394,8 @@ export function CalendarPicker({
   // The time reading follows the nexus-wide setting: twelveHour = (Hour):(Minutes)(PM), hour
   // unpadded (4:20, never 04:20); twentyFourHour flattens to padded HH:MM with no meridiem.
   // Commits preserve the meridiem in 12h mode.
-  const hourShown = (mins: number): number => (twelve ? ((Math.floor(mins / 60) + 11) % 12) + 1 : Math.floor(mins / 60))
+  const hourShown = (mins: number): number =>
+    twelve ? ((Math.floor(mins / 60) + 11) % 12) + 1 : Math.floor(mins / 60)
   const hourToMins = (v: number, mins: number): number =>
     (twelve ? (v % 12) + (mins >= 720 ? 12 : 0) : v) * 60 + (mins % 60)
   const hourText = (v: number): string => (twelve ? String(v) : pad(v))
@@ -433,7 +465,9 @@ export function CalendarPicker({
         onClick={(e) => {
           if (e.detail > 1) return // the double-click pair's 2nd click must not toggle the menu shut
           setTimeMenu(
-            timeMenu?.which === which && timeMenu.part === part ? null : { which, part, rect: rectOf(e.currentTarget) }
+            timeMenu?.which === which && timeMenu.part === part
+              ? null
+              : { which, part, rect: rectOf(e.currentTarget) },
           )
         }}
         onDoubleClick={() => {
@@ -452,12 +486,20 @@ export function CalendarPicker({
   const ampmSegment = (which: 'start' | 'end', mins: number): React.JSX.Element => {
     const setMins = setMinsFor(which)
     return (
-      <button type="button" className={s.timeSeg} onClick={() => setMins(mins >= 720 ? mins - 720 : mins + 720)}>
+      <button
+        type="button"
+        className={s.timeSeg}
+        onClick={() => setMins(mins >= 720 ? mins - 720 : mins + 720)}
+      >
         {mins >= 720 ? 'PM' : 'AM'}
       </button>
     )
   }
-  const timeField = (mins: number | null, label: string, which: 'start' | 'end'): React.JSX.Element => (
+  const timeField = (
+    mins: number | null,
+    label: string,
+    which: 'start' | 'end',
+  ): React.JSX.Element => (
     <div className={cx(s.field, s.fieldTime)} key={label}>
       <Icon name="clock" size={14} className={s.fieldIcon} />
       {mins !== null ? (
@@ -488,7 +530,8 @@ export function CalendarPicker({
   }
   // ~10 years visible before the list scrolls (the menu's max-height caps it); ±10 around the cursor.
   const yearChoices = Array.from({ length: 21 }, (_, i) => year - 10 + i)
-  const monthName = (m: number): string => new Date(2026, m, 1).toLocaleDateString('en-US', { month: 'long' })
+  const monthName = (m: number): string =>
+    new Date(2026, m, 1).toLocaleDateString('en-US', { month: 'long' })
 
   const optionRow = (label: string | number, selected: boolean): React.JSX.Element => (
     <span className={s.optionRow}>
@@ -504,12 +547,20 @@ export function CalendarPicker({
             <div className={cx(s.menuList, 'edge-fade')}>
               {kind === 'month'
                 ? Array.from({ length: 12 }, (_, m) => (
-                    <PickerOption key={m} selected={m === cursor.getMonth()} onClick={() => jump(year, m)}>
+                    <PickerOption
+                      key={m}
+                      selected={m === cursor.getMonth()}
+                      onClick={() => jump(year, m)}
+                    >
                       {optionRow(monthName(m), m === cursor.getMonth())}
                     </PickerOption>
                   ))
                 : yearChoices.map((y) => (
-                    <PickerOption key={y} selected={y === year} onClick={() => jump(y, cursor.getMonth())}>
+                    <PickerOption
+                      key={y}
+                      selected={y === year}
+                      onClick={() => jump(y, cursor.getMonth())}
+                    >
                       {optionRow(y, y === year)}
                     </PickerOption>
                   ))}
@@ -522,135 +573,158 @@ export function CalendarPicker({
   return (
     <div className={s.root} ref={rootRef}>
       <SizeMorph>
-      <div className={s.head}>
-        <span className={s.titleGroup}>
-          <button
-            type="button"
-            className={s.titleBtn}
-            onClick={(e) => setMenu(menu?.kind === 'month' ? null : { kind: 'month', rect: rectOf(e.currentTarget) })}
-          >
-            {cursor.toLocaleDateString('en-US', { month: 'long' })}
-            {menu?.kind === 'month' && selectionMenu('month')}
-          </button>
-          <button
-            type="button"
-            className={s.titleBtn}
-            onClick={(e) => setMenu(menu?.kind === 'year' ? null : { kind: 'year', rect: rectOf(e.currentTarget) })}
-          >
-            {year}
-            {menu?.kind === 'year' && selectionMenu('year')}
-          </button>
-        </span>
-        <span className={s.nav}>
-          <button type="button" className={s.navBtn} aria-label="Previous month" onClick={() => nav(-1)}>
-            <Icon name="chevron-left" size={16} />
-          </button>
-          <span className={s.navSegment} aria-hidden />
-          <button type="button" className={s.navBtn} aria-label="Next month" onClick={() => nav(1)}>
-            <Icon name="chevron-right" size={16} />
-          </button>
-        </span>
-      </div>
-      <div className={s.headDivider} />
-      <div className={s.weekRow}>
-        {WEEKDAYS.map((w) => (
-          <span key={w} className={s.weekday}>
-            {w}
+        <div className={s.head}>
+          <span className={s.titleGroup}>
+            <button
+              type="button"
+              className={s.titleBtn}
+              onClick={(e) =>
+                setMenu(
+                  menu?.kind === 'month' ? null : { kind: 'month', rect: rectOf(e.currentTarget) },
+                )
+              }
+            >
+              {cursor.toLocaleDateString('en-US', { month: 'long' })}
+              {menu?.kind === 'month' && selectionMenu('month')}
+            </button>
+            <button
+              type="button"
+              className={s.titleBtn}
+              onClick={(e) =>
+                setMenu(
+                  menu?.kind === 'year' ? null : { kind: 'year', rect: rectOf(e.currentTarget) },
+                )
+              }
+            >
+              {year}
+              {menu?.kind === 'year' && selectionMenu('year')}
+            </button>
           </span>
-        ))}
-      </div>
-      <div className={s.viewport} style={{ height: gridHeight }} onWheel={onGridWheel}>
-        <div
-          className={cx(s.track, slide ? (slide.dir === 1 ? s.trackLeft : s.trackRight) : undefined)}
-          onAnimationEnd={() => setSlide(null)}
-          onPointerDown={onGridPointerDown}
-          onPointerMove={onGridPointerMove}
-          onPointerUp={onGridPointerUp}
-          onPointerCancel={onGridPointerUp}
-        >
-          {slide ? (
-            slide.dir === 1 ? (
-              <>
-                {grid(prevMonth)}
-                {grid(cursor)}
-              </>
-            ) : (
-              <>
-                {grid(cursor)}
-                {grid(prevMonth)}
-              </>
-            )
-          ) : (
-            grid(cursor)
-          )}
+          <span className={s.nav}>
+            <button
+              type="button"
+              className={s.navBtn}
+              aria-label="Previous month"
+              onClick={() => nav(-1)}
+            >
+              <Icon name="chevron-left" size={16} />
+            </button>
+            <span className={s.navSegment} aria-hidden />
+            <button
+              type="button"
+              className={s.navBtn}
+              aria-label="Next month"
+              onClick={() => nav(1)}
+            >
+              <Icon name="chevron-right" size={16} />
+            </button>
+          </span>
         </div>
-      </div>
-      <div className={s.divider} />
-      <div className={s.fields}>
-        {/* Grid logic (Nathan, Swift-DatePicker model): equal halves everywhere — a range is
+        <div className={s.headDivider} />
+        <div className={s.weekRow}>
+          {WEEKDAYS.map((w) => (
+            <span key={w} className={s.weekday}>
+              {w}
+            </span>
+          ))}
+        </div>
+        <div className={s.viewport} style={{ height: gridHeight }} onWheel={onGridWheel}>
+          <div
+            className={cx(
+              s.track,
+              slide ? (slide.dir === 1 ? s.trackLeft : s.trackRight) : undefined,
+            )}
+            onAnimationEnd={() => setSlide(null)}
+            onPointerDown={onGridPointerDown}
+            onPointerMove={onGridPointerMove}
+            onPointerUp={onGridPointerUp}
+            onPointerCancel={onGridPointerUp}
+          >
+            {slide ? (
+              slide.dir === 1 ? (
+                <>
+                  {grid(prevMonth)}
+                  {grid(cursor)}
+                </>
+              ) : (
+                <>
+                  {grid(cursor)}
+                  {grid(prevMonth)}
+                </>
+              )
+            ) : (
+              grid(cursor)
+            )}
+          </div>
+        </div>
+        <div className={s.divider} />
+        <div className={s.fields}>
+          {/* Grid logic (Nathan, Swift-DatePicker model): equal halves everywhere — a range is
             [Date][Date] with times on their own [Time][Time] row; single date+time is [Date][Time].
             Equal sizing buys the AM/PM segment its room. Range fields take the picker-only
             condensed form (year rejoins only across years); single-date stays verbatim. */}
-        {(() => {
-          if (endOn) {
-            const condensed = { withYear: start !== null && end !== null && start.slice(0, 4) !== end.slice(0, 4) }
-            return (
-              <>
-                <div className={s.fieldRow}>
-                  {dateField(start, 'start', condensed)}
-                  {dateField(end, 'end', condensed)}
-                </div>
-                {timeOn && (
+          {(() => {
+            if (endOn) {
+              const condensed = {
+                withYear: start !== null && end !== null && start.slice(0, 4) !== end.slice(0, 4),
+              }
+              return (
+                <>
                   <div className={s.fieldRow}>
-                    {timeField(start ? startMin : null, 'start-t', 'start')}
-                    {timeField(end ? endMin : null, 'end-t', 'end')}
+                    {dateField(start, 'start', condensed)}
+                    {dateField(end, 'end', condensed)}
                   </div>
-                )}
-              </>
+                  {timeOn && (
+                    <div className={s.fieldRow}>
+                      {timeField(start ? startMin : null, 'start-t', 'start')}
+                      {timeField(end ? endMin : null, 'end-t', 'end')}
+                    </div>
+                  )}
+                </>
+              )
+            }
+            return (
+              <div className={s.fieldRow}>
+                {dateField(start, 'date')}
+                {timeOn && timeField(start ? startMin : null, 'time', 'start')}
+              </div>
             )
-          }
-          return (
-            <div className={s.fieldRow}>
-              {dateField(start, 'date')}
-              {timeOn && timeField(start ? startMin : null, 'time', 'start')}
-            </div>
-          )
-        })()}
-      </div>
-      {/* Toggling unmounts field rows — any open segment menu or uncommitted caret edit dies with
+          })()}
+        </div>
+        {/* Toggling unmounts field rows — any open segment menu or uncommitted caret edit dies with
           them (an unmounting focused input never fires onBlur, so a live segEdit would otherwise
           resurrect stale on re-toggle). */}
-      {range && (
+        {range && (
+          <div className={s.switchRow}>
+            <span className={s.switchLabel}>End Date</span>
+            <span className={s.switchScale}>
+              <Switch
+                checked={endOn}
+                ariaLabel="End Date"
+                onChange={(v) => {
+                  setEndOn(v)
+                  if (!v) setEnd(null)
+                  setSegEdit(null)
+                  setTimeMenu(null)
+                }}
+              />
+            </span>
+          </div>
+        )}
         <div className={s.switchRow}>
-          <span className={s.switchLabel}>End Date</span>
+          <span className={s.switchLabel}>Use Time</span>
           <span className={s.switchScale}>
             <Switch
-              checked={endOn}
-              ariaLabel="End Date"
+              checked={timeOn}
+              ariaLabel="Use Time"
               onChange={(v) => {
-                setEndOn(v)
-                if (!v) setEnd(null)
+                setTimeOn(v)
                 setSegEdit(null)
                 setTimeMenu(null)
               }}
             />
           </span>
         </div>
-      )}
-      <div className={s.switchRow}>
-        <span className={s.switchLabel}>Use Time</span>
-        <span className={s.switchScale}>
-          <Switch
-            checked={timeOn}
-            ariaLabel="Use Time"
-            onChange={(v) => {
-              setTimeOn(v)
-              setSegEdit(null)
-              setTimeMenu(null)
-            }}
-          />
-        </span>
-      </div>
       </SizeMorph>
     </div>
   )

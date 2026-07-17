@@ -10,14 +10,14 @@ type PointerOpts = { x?: number; y?: number; button?: number; pointerId?: number
 export function firePointer(
   target: EventTarget,
   type: 'pointerdown' | 'pointermove' | 'pointerup' | 'pointercancel',
-  opts: PointerOpts = {}
+  opts: PointerOpts = {},
 ): void {
   const e = new MouseEvent(type, {
     bubbles: true,
     cancelable: true,
     clientX: opts.x ?? 0,
     clientY: opts.y ?? 0,
-    button: opts.button ?? 0
+    button: opts.button ?? 0,
   })
   Object.defineProperty(e, 'pointerId', { value: opts.pointerId ?? 1 })
   Object.defineProperty(e, 'isPrimary', { value: true })
@@ -27,7 +27,7 @@ export function firePointer(
 /** Give an element a fixed, non-zero bounding rect. */
 export function stubRect(
   el: Element,
-  r: { top: number; bottom: number; left?: number; right?: number }
+  r: { top: number; bottom: number; left?: number; right?: number },
 ): void {
   const left = r.left ?? 0
   const right = r.right ?? 200
@@ -40,7 +40,7 @@ export function stubRect(
     height: r.bottom - r.top,
     x: left,
     y: r.top,
-    toJSON: () => ({})
+    toJSON: () => ({}),
   } as DOMRect
   el.getBoundingClientRect = () => rect
 }
@@ -49,7 +49,7 @@ export function stubRect(
 export function stubPointerCapture(): void {
   Object.assign(HTMLElement.prototype, {
     setPointerCapture: () => {},
-    releasePointerCapture: () => {}
+    releasePointerCapture: () => {},
   })
 }
 

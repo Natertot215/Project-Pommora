@@ -9,7 +9,7 @@ export {
   AccessoryButton,
   MenuPaneTopRow,
   MenuBottomRow,
-  MenuScrollFrame
+  MenuScrollFrame,
 } from './Menu'
 export { MENU_MAX_HEIGHT } from './menu.css'
 export { MenuSurface } from './MenuSurface'

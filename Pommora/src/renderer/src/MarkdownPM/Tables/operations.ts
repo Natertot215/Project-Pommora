@@ -28,7 +28,7 @@ export function insertColumn(m: TableModel, atIndex: number, where: ColWhere): T
   return {
     columns: spliceAt(m.columns, pos, 0, col),
     header: spliceAt(m.header, pos, 0, ''),
-    rows: m.rows.map((r) => spliceAt(r, pos, 0, ''))
+    rows: m.rows.map((r) => spliceAt(r, pos, 0, '')),
   }
 }
 
@@ -64,8 +64,8 @@ export function resizeColumn(m: TableModel, boundaryIndex: number, dashDelta: nu
         ? { ...c, dashes: left + d }
         : i === boundaryIndex + 1
           ? { ...c, dashes: right - d }
-          : c
-    )
+          : c,
+    ),
   }
 }
 

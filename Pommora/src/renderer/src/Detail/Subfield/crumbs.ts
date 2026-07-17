@@ -15,13 +15,13 @@ const basename = (path: string): string => (path.split('/').pop() ?? path).repla
 
 const allCollections = (tree: NexusTree): CollectionNode[] => [
   ...(tree.collections ?? []),
-  ...tree.userSections.flatMap((s) => s.collections ?? [])
+  ...tree.userSections.flatMap((s) => s.collections ?? []),
 ]
 
 /** The collection + set-chain leading to a node id (a container, or the container holding a page). */
 export function chainOf(
   tree: NexusTree,
-  id: string
+  id: string,
 ): { collection: CollectionNode; sets: SetNode[] } | null {
   const inSets = (sets: SetNode[] | undefined, acc: SetNode[]): SetNode[] | null => {
     for (const s of sets ?? []) {
@@ -55,7 +55,7 @@ export function subfieldCrumbs(
   tree: NexusTree | null,
   selection: SelectionState,
   trail: Record<string, TrailEntry>,
-  select: (target: SelectTarget) => void
+  select: (target: SelectTarget) => void,
 ): Crumb[] {
   if (!tree) return []
   switch (selection.kind) {
@@ -78,8 +78,8 @@ export function subfieldCrumbs(
           onClick:
             selection.kind === 'set'
               ? () => select({ kind: 'collection', id: chain.collection.id })
-              : undefined
-        }
+              : undefined,
+        },
       ]
       chain.sets.forEach((s, i) => {
         const isCurrent = i === chain.sets.length - 1
@@ -87,7 +87,10 @@ export function subfieldCrumbs(
         crumbs.push({
           key: s.id,
           title: s.title,
-          onClick: !isCurrent && isDepth1 ? () => select({ kind: 'set', id: s.id, path: s.path }) : undefined
+          onClick:
+            !isCurrent && isDepth1
+              ? () => select({ kind: 'set', id: s.id, path: s.path })
+              : undefined,
         })
       })
       const ghost = trail[selection.id]
@@ -96,7 +99,7 @@ export function subfieldCrumbs(
           key: `ghost-${ghost.id}`,
           title: ghost.title,
           ghost: true,
-          onClick: () => select({ kind: 'page', id: ghost.id, path: ghost.path })
+          onClick: () => select({ kind: 'page', id: ghost.id, path: ghost.path }),
         })
       }
       return crumbs
@@ -108,15 +111,15 @@ export function subfieldCrumbs(
         {
           key: chain.collection.id,
           title: chain.collection.title,
-          onClick: () => select({ kind: 'collection', id: chain.collection.id })
-        }
+          onClick: () => select({ kind: 'collection', id: chain.collection.id }),
+        },
       ]
       chain.sets.forEach((s, i) => {
         const isDepth1 = i === 0
         crumbs.push({
           key: s.id,
           title: s.title,
-          onClick: isDepth1 ? () => select({ kind: 'set', id: s.id, path: s.path }) : undefined
+          onClick: isDepth1 ? () => select({ kind: 'set', id: s.id, path: s.path }) : undefined,
         })
       })
       crumbs.push({ key: selection.id, title: basename(selection.path) })

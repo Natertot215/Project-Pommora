@@ -6,7 +6,14 @@ import { findTile } from './core/model'
 import type { DividerRef, Edge, SurfaceLayout } from './core/model'
 import { resolveEdge } from './core/edges'
 import { hitTest, type DropTarget } from './core/hitTest'
-import { moveTile, moveTileToBand, resizeBandPair, resizeDivider, resizeStackPair, stretchTileHeight } from './core/ops'
+import {
+  moveTile,
+  moveTileToBand,
+  resizeBandPair,
+  resizeDivider,
+  resizeStackPair,
+  stretchTileHeight,
+} from './core/ops'
 import { computeGeometry, type Rect, type SurfaceGeometry } from './core/rects'
 import { snapAxis, xCandidates, yCandidates } from './core/snap'
 import { startPointerDrag } from './sensors/pointerDrag'
@@ -81,7 +88,7 @@ const EDGE_ZONES: Array<{ zone: string; edges: Edge[] }> = [
   { zone: 'ne', edges: ['n', 'e'] },
   { zone: 'nw', edges: ['n', 'w'] },
   { zone: 'se', edges: ['s', 'e'] },
-  { zone: 'sw', edges: ['s', 'w'] }
+  { zone: 'sw', edges: ['s', 'w'] },
 ]
 
 const refKey = (ref: { band: number; path: number[]; index: number }): string =>
@@ -109,7 +116,7 @@ const TileShell = memo(
     onHandleDown,
     onHandleMenu,
     onEdgeDown,
-    onSettled
+    onSettled,
   }: {
     id: string
     rect: Rect
@@ -157,12 +164,16 @@ const TileShell = memo(
           transform: `translate(${rect.x}px, ${rect.y}px)`,
           width: rect.w,
           height: rect.h,
-          transition
+          transition,
         }}
         onTransitionEnd={(e) => {
           // Target-guarded: tile CONTENT animating a transform bubbles its
           // transitionend up here — only the shell's own settle may commit.
-          if (phase === 'settling' && e.target === e.currentTarget && e.propertyName === 'transform')
+          if (
+            phase === 'settling' &&
+            e.target === e.currentTarget &&
+            e.propertyName === 'transform'
+          )
             onSettled(id)
         }}
       >
@@ -202,7 +213,7 @@ const TileShell = memo(
     a.rect.x === b.rect.x &&
     a.rect.y === b.rect.y &&
     a.rect.w === b.rect.w &&
-    a.rect.h === b.rect.h
+    a.rect.h === b.rect.h,
 )
 
 export function SurfaceView({
@@ -218,7 +229,7 @@ export function SurfaceView({
   tileClassName,
   isTileStatic,
   onHandleMenu,
-  onBackdrop
+  onBackdrop,
 }: SurfaceViewProps): React.JSX.Element {
   const hostRef = useRef<HTMLDivElement | null>(null)
   const [width, setWidth] = useState(0)
@@ -252,13 +263,13 @@ export function SurfaceView({
   const shown = draft ?? layout
   const geometry = useMemo(
     () => computeGeometry(shown, Math.max(0, width), gap),
-    [shown, width, gap]
+    [shown, width, gap],
   )
   // Hit-testing and boundary extents run against the frozen origin's geometry —
   // a preview shifting under the pointer must never retarget the gesture.
   const originGeometry = useMemo(
     () => computeGeometry(layout, Math.max(0, width), gap),
-    [layout, width, gap]
+    [layout, width, gap],
   )
 
   // Every live value a gesture reads, refreshed each render — the handlers stay
@@ -270,7 +281,7 @@ export function SurfaceView({
     minTilePx,
     gap,
     snapPx,
-    feel
+    feel,
   })
   live.current = { layout, originGeometry, bandZonePx, minTilePx, gap, snapPx, feel }
 
@@ -299,7 +310,10 @@ export function SurfaceView({
 
   useEffect(() => {
     if (!settle) return
-    const t = setTimeout(() => finishSettle(settle.id), live.current.feel.duration + SETTLE_FALLBACK)
+    const t = setTimeout(
+      () => finishSettle(settle.id),
+      live.current.feel.duration + SETTLE_FALLBACK,
+    )
     return () => clearTimeout(t)
   }, [settle, finishSettle])
 
@@ -358,15 +372,25 @@ export function SurfaceView({
       if (!boundary) continue
       if (boundary.kind === 'bandpair') {
         const start = ownRect.y
-        actions.push({ edge, kind: 'bandpair', above: boundary.above, start, cands: withoutOwn(snapY, start) })
+        actions.push({
+          edge,
+          kind: 'bandpair',
+          above: boundary.above,
+          start,
+          cands: withoutOwn(snapY, start),
+        })
         continue
       }
       const start =
-        boundary.kind === 'divider'
-          ? (dividerX.get(refKey(boundary.ref)) ?? ownRect.x)
-          : ownRect.y
+        boundary.kind === 'divider' ? (dividerX.get(refKey(boundary.ref)) ?? ownRect.x) : ownRect.y
       const axis = boundary.kind === 'divider' ? snapX : snapY
-      actions.push({ edge, kind: boundary.kind, ref: boundary.ref, start, cands: withoutOwn(axis, start) })
+      actions.push({
+        edge,
+        kind: boundary.kind,
+        ref: boundary.ref,
+        start,
+        cands: withoutOwn(axis, start),
+      })
     }
     if (actions.length === 0) return
 
@@ -390,7 +414,7 @@ export function SurfaceView({
         setResizingId(null)
         setDraft(null)
         if (commitDrag && latest !== origin) onLayoutChangeRef.current(latest)
-      }
+      },
     })
   }, [])
 
@@ -413,7 +437,7 @@ export function SurfaceView({
     // cancel the pointer delta and pin the lifted block to its origin.
     const grab = {
       x: e.clientX - downBox.left - rect.x,
-      y: e.clientY - downBox.top - rect.y
+      y: e.clientY - downBox.top - rect.y,
     }
     // Scroll compensation reads the REAL scroll ancestor's delta (the host never
     // scrolls itself) — cheap per move, no forced layout, and it also folds our
@@ -456,7 +480,7 @@ export function SurfaceView({
             scroller,
             dragEl: host,
             axis: 'xy',
-            onScrolled: () => resolve(lastPoint.x, lastPoint.y)
+            onScrolled: () => resolve(lastPoint.x, lastPoint.y),
           })
         }
         resolve(ev.clientX, ev.clientY)
@@ -477,7 +501,7 @@ export function SurfaceView({
         const s: Settle = { id, to, next: decided }
         settleRef.current = s
         setSettle(s)
-      }
+      },
     })
   }, [])
 
@@ -530,37 +554,37 @@ export function SurfaceView({
       {[...geometry.tiles.entries()]
         .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
         .map(([id, rect]) => {
-        const lifted = tileDrag?.id === id
-        const settling = settle?.id === id
-        const phase: TilePhase = lifted
-          ? 'lifted'
-          : settling
-            ? 'settling'
-            : dragId !== null
-              ? 'reflow'
-              : 'idle'
-        const shownRect = lifted
-          ? (tileDrag as TileDrag).lift
-          : settling
-            ? (settle as Settle).to
-            : rect
-        return (
-          <TileShell
-            key={id}
-            id={id}
-            rect={shownRect}
-            phase={phase}
-            feel={feel}
-            resizing={resizingId === id}
-            extraClass={tileClassName?.(id)}
-            renderTile={renderTile}
-            onHandleDown={onHandleDown}
-            onHandleMenu={onHandleMenu}
-            onEdgeDown={onEdgeDown}
-            onSettled={finishSettle}
-          />
-        )
-      })}
+          const lifted = tileDrag?.id === id
+          const settling = settle?.id === id
+          const phase: TilePhase = lifted
+            ? 'lifted'
+            : settling
+              ? 'settling'
+              : dragId !== null
+                ? 'reflow'
+                : 'idle'
+          const shownRect = lifted
+            ? (tileDrag as TileDrag).lift
+            : settling
+              ? (settle as Settle).to
+              : rect
+          return (
+            <TileShell
+              key={id}
+              id={id}
+              rect={shownRect}
+              phase={phase}
+              feel={feel}
+              resizing={resizingId === id}
+              extraClass={tileClassName?.(id)}
+              renderTile={renderTile}
+              onHandleDown={onHandleDown}
+              onHandleMenu={onHandleMenu}
+              onEdgeDown={onEdgeDown}
+              onSettled={finishSettle}
+            />
+          )
+        })}
 
       {/* The placement preview — the area the lifted block will occupy, washed in
           the accent tint. Reads off the draft geometry, so it IS the future slot. */}
@@ -574,7 +598,7 @@ export function SurfaceView({
               style={{
                 transform: `translate(${slot.x}px, ${slot.y}px)`,
                 width: slot.w,
-                height: slot.h
+                height: slot.h,
               }}
             />
           ) : null

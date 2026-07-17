@@ -25,7 +25,12 @@ import { isPlainObject } from '@shared/propertyValue'
 import { nowIso } from './util'
 import { fail, type Result } from '@shared/result'
 
-async function snapshot(root: string, propertyId: string, def: PropertyRegistry[string], folders: string[]): Promise<void> {
+async function snapshot(
+  root: string,
+  propertyId: string,
+  def: PropertyRegistry[string],
+  folders: string[],
+): Promise<void> {
   const values: Record<string, unknown> = {}
   for (const folder of folders) {
     for (const file of await listMarkdownFiles(folder)) {
@@ -43,7 +48,7 @@ async function snapshot(root: string, propertyId: string, def: PropertyRegistry[
   const stamp = new Date().toISOString().replace(/[:.]/g, '-')
   await writeFile(
     join(trash, `${stamp}__property-${propertyId}.json`),
-    serializeJson({ propertyId, def, values })
+    serializeJson({ propertyId, def, values }),
   )
 }
 
@@ -77,7 +82,7 @@ async function deleteInner(root: string, propertyId: string): Promise<Result<nul
     const next: Record<string, unknown> = {
       ...sidecar,
       properties: assigned.filter((id) => id !== propertyId),
-      modified_at: nowIso()
+      modified_at: nowIso(),
     }
     if (hadCache) {
       const cache = { ...cacheAll }

@@ -18,7 +18,7 @@ export function MarkdownBlock({
   onBeginEdit,
   connections,
   suppressFlush,
-  locked = false
+  locked = false,
 }: {
   host: BlockHostRef
   tileId: string
@@ -78,7 +78,14 @@ export function MarkdownBlock({
         onBeginEdit(tileId)
       }}
     >
-      <MarkdownEditor initialBody={body} onChange={scheduleSave} connections={connections} readOnly={!editing} autoFocus edgeFade />
+      <MarkdownEditor
+        initialBody={body}
+        onChange={scheduleSave}
+        connections={connections}
+        readOnly={!editing}
+        autoFocus
+        edgeFade
+      />
     </div>
   )
 }

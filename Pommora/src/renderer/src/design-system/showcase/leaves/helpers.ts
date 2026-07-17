@@ -30,7 +30,7 @@ export function formatColor(css: string): string {
 /** Read a value back from a rendered node on mount — so a swatch/type sample shows
  *  its real computed value rather than a restated literal. */
 export function useComputedStyleText<T extends HTMLElement>(
-  read: (cs: CSSStyleDeclaration) => string
+  read: (cs: CSSStyleDeclaration) => string,
 ): [RefObject<T | null>, string] {
   const ref = useRef<T>(null)
   const [value, setValue] = useState('')
@@ -46,7 +46,9 @@ const COMPACT_QUERY = '(max-width: 720px)'
  *  Galleries drop their drag wiring here: a draggable item sets `touch-action: none`,
  *  which would otherwise trap touch scrolling on a tall grid. */
 export function useIsCompact(): boolean {
-  const [compact, setCompact] = useState(() => typeof window !== 'undefined' && window.matchMedia(COMPACT_QUERY).matches)
+  const [compact, setCompact] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia(COMPACT_QUERY).matches,
+  )
   useEffect(() => {
     const mq = window.matchMedia(COMPACT_QUERY)
     const onChange = (): void => setCompact(mq.matches)

@@ -8,7 +8,7 @@ import {
   upsertContext,
   upsertPropertyDefinition,
   replaceContextLinks,
-  replaceConnections
+  replaceConnections,
 } from './upsert'
 
 let db: Db
@@ -36,7 +36,7 @@ describe('entity upserts', () => {
       setId: 'sub',
       title: 'Page',
       properties: { prop_x: { $status: 'todo' } },
-      modifiedAt: 'M'
+      modifiedAt: 'M',
     })
     const set = one('SELECT * FROM page_sets WHERE id = ?', 'se')
     expect(set.parent_collection_id).toBe('co')
@@ -64,7 +64,7 @@ describe('entity upserts', () => {
       name: 'Score',
       type: 'number',
       position: 0,
-      modifiedAt: 'M'
+      modifiedAt: 'M',
     })
     expect(one('SELECT tier FROM contexts WHERE id = ?', 'cx').tier).toBe(1)
     expect(one('SELECT type FROM property_definitions WHERE id = ?', 'prop_x').type).toBe('number')
@@ -74,15 +74,43 @@ describe('entity upserts', () => {
 describe('replace-by-source', () => {
   it('replaceContextLinks swaps one source without touching another', () => {
     replaceContextLinks(db, 'p1', [
-      { id: 'l1', sourceKind: 'page', targetId: 'cxA', targetKind: 'context', propertyId: '_tier1', modifiedAt: 'M' },
-      { id: 'l2', sourceKind: 'page', targetId: 'cxB', targetKind: 'context', propertyId: '_tier1', modifiedAt: 'M' }
+      {
+        id: 'l1',
+        sourceKind: 'page',
+        targetId: 'cxA',
+        targetKind: 'context',
+        propertyId: '_tier1',
+        modifiedAt: 'M',
+      },
+      {
+        id: 'l2',
+        sourceKind: 'page',
+        targetId: 'cxB',
+        targetKind: 'context',
+        propertyId: '_tier1',
+        modifiedAt: 'M',
+      },
     ])
     replaceContextLinks(db, 'p2', [
-      { id: 'l3', sourceKind: 'page', targetId: 'cxA', targetKind: 'context', propertyId: '_tier1', modifiedAt: 'M' }
+      {
+        id: 'l3',
+        sourceKind: 'page',
+        targetId: 'cxA',
+        targetKind: 'context',
+        propertyId: '_tier1',
+        modifiedAt: 'M',
+      },
     ])
     // Re-sync p1 down to a single link.
     replaceContextLinks(db, 'p1', [
-      { id: 'l1', sourceKind: 'page', targetId: 'cxA', targetKind: 'context', propertyId: '_tier1', modifiedAt: 'M' }
+      {
+        id: 'l1',
+        sourceKind: 'page',
+        targetId: 'cxA',
+        targetKind: 'context',
+        propertyId: '_tier1',
+        modifiedAt: 'M',
+      },
     ])
     expect(count('context_links', 'WHERE source_id = ?', 'p1')).toBe(1)
     expect(count('context_links', 'WHERE source_id = ?', 'p2')).toBe(1) // untouched
@@ -91,7 +119,14 @@ describe('replace-by-source', () => {
   it('replaceConnections stores phantom (null target, resolved 0) + resolved (1)', () => {
     replaceConnections(db, 'p1', [
       { id: 'c1', targetTitle: 'ghost', multiplicity: 2, resolved: false, modifiedAt: 'M' },
-      { id: 'c2', targetId: 'p9', targetTitle: 'real', multiplicity: 1, resolved: true, modifiedAt: 'M' }
+      {
+        id: 'c2',
+        targetId: 'p9',
+        targetTitle: 'real',
+        multiplicity: 1,
+        resolved: true,
+        modifiedAt: 'M',
+      },
     ])
     const ghost = one('SELECT * FROM connections WHERE id = ?', 'c1')
     expect(ghost.target_id).toBeNull()

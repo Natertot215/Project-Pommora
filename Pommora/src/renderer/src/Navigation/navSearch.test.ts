@@ -9,7 +9,8 @@ const events: AgendaEntry[] = [{ id: 'ev1', title: 'Design Review', kind: 'event
 describe('buildNavIndex', () => {
   it('indexes homepage, contexts, collections, sets, and pages from the tree', () => {
     const index = buildNavIndex(makeTree())
-    const byKind = (k: string): string[] => index.filter((e) => e.target.kind === k).map((e) => e.title)
+    const byKind = (k: string): string[] =>
+      index.filter((e) => e.target.kind === k).map((e) => e.title)
     expect(byKind('homepage')).toEqual(['TestNexus'])
     expect(byKind('context').sort()).toEqual(['Pommora', 'Reading', 'Work'])
     expect(byKind('collection')).toEqual(['Notes'])

@@ -34,7 +34,7 @@ export function MenuItem({
   onClick,
   onContextMenu,
   className,
-  children
+  children,
 }: MenuItemProps): React.JSX.Element {
   const rowStyle: CSSProperties | undefined = indent ? { paddingLeft: 8 + indent * 14 } : undefined
   const hasTrailing = detail != null || trailing != null
@@ -64,7 +64,7 @@ export function MenuItem({
 export function MenuHeading({
   leading,
   detail,
-  children
+  children,
 }: {
   leading?: ReactNode
   detail?: ReactNode
@@ -85,8 +85,11 @@ export function MenuHeading({
  *  inset so the hairline spans the full gutter (aligns with full-width rows inside a MenuSurface). */
 export function MenuSeparator({
   flush = false,
-  className
-}: { flush?: boolean; className?: string } = {}): React.JSX.Element {
+  className,
+}: {
+  flush?: boolean
+  className?: string
+} = {}): React.JSX.Element {
   return (
     <div className={cx(s.separator, flush && s.separatorFlush, className)} role="separator">
       <span className={s.separatorLine} />
@@ -107,7 +110,7 @@ export function MenuTopRow({
   label,
   onClick,
   className,
-  trailing
+  trailing,
 }: {
   label: string
   onClick: () => void
@@ -131,7 +134,13 @@ export function MenuTopRow({
 }
 
 /** A flush vertical stack of rows with 6px top/bottom padding. */
-export function Menu({ className, children }: { className?: string; children: ReactNode }): React.JSX.Element {
+export function Menu({
+  className,
+  children,
+}: {
+  className?: string
+  children: ReactNode
+}): React.JSX.Element {
   return <div className={cx(s.menu, className)}>{children}</div>
 }
 
@@ -143,7 +152,7 @@ export function AccessoryButton({
   ariaLabel,
   box,
   onClick,
-  className
+  className,
 }: {
   icon: IconName
   size: number
@@ -175,7 +184,7 @@ export function MenuPaneTopRow({
   onBack,
   trailing,
   current,
-  contentClassName
+  contentClassName,
 }: {
   label: string
   onBack: () => void
@@ -194,7 +203,12 @@ export function MenuPaneTopRow({
   ) : undefined
   return (
     <>
-      <MenuTopRow label={label} onClick={onBack} className={cx(s.topRowPad, contentClassName)} trailing={right} />
+      <MenuTopRow
+        label={label}
+        onClick={onBack}
+        className={cx(s.topRowPad, contentClassName)}
+        trailing={right}
+      />
       <MenuSeparator flush className={s.paneSeparator} />
     </>
   )
@@ -202,7 +216,13 @@ export function MenuPaneTopRow({
 
 /** A pane footer bar — a flush separator over a row with `leading` pinned left, `trailing` pinned
  *  right. Either side may be absent (a footer needs neither). */
-export function MenuBottomRow({ leading, trailing }: { leading?: ReactNode; trailing?: ReactNode }): React.JSX.Element {
+export function MenuBottomRow({
+  leading,
+  trailing,
+}: {
+  leading?: ReactNode
+  trailing?: ReactNode
+}): React.JSX.Element {
   return (
     <>
       <MenuSeparator flush />
@@ -225,7 +245,7 @@ export function MenuScrollFrame({
   header,
   footer,
   maxHeight = s.MENU_MAX_HEIGHT,
-  children
+  children,
 }: {
   header?: ReactNode
   footer?: ReactNode

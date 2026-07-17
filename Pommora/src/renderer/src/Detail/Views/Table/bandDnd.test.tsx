@@ -5,7 +5,12 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import type { ResolvedGroup } from '@shared/types'
 import type { SavedView } from '@shared/views'
-import { firePointer, pressEscape, stubPointerCapture, stubRect } from '@renderer/testing/pointerHarness'
+import {
+  firePointer,
+  pressEscape,
+  stubPointerCapture,
+  stubRect,
+} from '@renderer/testing/pointerHarness'
 import type { Band } from './bandDndModel'
 import { BandDnd, useBandDrag, type BandDrop } from './bandDnd'
 import { GroupHeader } from './GroupHeader'
@@ -17,13 +22,18 @@ stubPointerCapture()
 const BANDS: Band[] = [
   { id: 'A', kind: 'set', depth: 0, parentId: null },
   { id: 'A1', kind: 'set', depth: 1, parentId: 'A' },
-  { id: 'B', kind: 'set', depth: 0, parentId: null }
+  { id: 'B', kind: 'set', depth: 0, parentId: null },
 ]
 
 function Header({ id }: { id: string }): React.JSX.Element {
   const { ref, handle, isDragging, isNestTarget } = useBandDrag(id)
   return (
-    <div ref={ref} data-band={id} data-dragging={isDragging || undefined} data-nest={isNestTarget || undefined}>
+    <div
+      ref={ref}
+      data-band={id}
+      data-dragging={isDragging || undefined}
+      data-nest={isNestTarget || undefined}
+    >
       <span data-glyph={id} {...handle} />
     </div>
   )
@@ -44,7 +54,7 @@ beforeEach(async () => {
         <Header id="A" />
         <Header id="A1" />
         <Header id="B" />
-      </BandDnd>
+      </BandDnd>,
     )
   })
   const box = host.querySelector('.band-dnd')
@@ -118,7 +128,7 @@ describe('band drag gesture', () => {
     expect(dropSpy).toHaveBeenCalledExactlyOnceWith('A1', {
       kind: 'reparent',
       targetParentId: null,
-      beforeId: 'A'
+      beforeId: 'A',
     })
   })
 
@@ -131,7 +141,7 @@ describe('band drag gesture', () => {
       type: 'table',
       property_order: [],
       hidden_properties: [],
-      group: { kind: 'structural' }
+      group: { kind: 'structural' },
     }
     await act(async () => {
       root.render(
@@ -145,7 +155,7 @@ describe('band drag gesture', () => {
             collapsed={false}
             onToggle={toggleSpy}
           />
-        </BandDnd>
+        </BandDnd>,
       )
     })
     const twisty = host.querySelector('.group-twisty') as HTMLElement
@@ -173,7 +183,7 @@ describe('band drag gesture', () => {
     expect(dropSpy).toHaveBeenCalledExactlyOnceWith('B', {
       kind: 'reparent',
       targetParentId: 'A1',
-      beforeId: null
+      beforeId: null,
     })
   })
 })

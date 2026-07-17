@@ -9,7 +9,7 @@ import {
   type InlineFormat,
   type HeadingLevel,
   type ListFormat,
-  type BlockFormat
+  type BlockFormat,
 } from '../input/format'
 
 /** Native context-menu seam — pushes editor state to main, receives chosen actions back. */
@@ -38,12 +38,17 @@ function editFor(action: string, doc: string, from: number, to: number): FormatE
 export function applyEditorAction(view: EditorView, raw: string): boolean {
   if (!raw.startsWith(EDITOR_ACTION_PREFIX)) return false
   const sel = view.state.selection.main
-  const edit = editFor(raw.slice(EDITOR_ACTION_PREFIX.length), view.state.doc.toString(), sel.from, sel.to)
+  const edit = editFor(
+    raw.slice(EDITOR_ACTION_PREFIX.length),
+    view.state.doc.toString(),
+    sel.from,
+    sel.to,
+  )
   if (!edit) return false
   view.dispatch({
     changes: edit.changes,
     selection: edit.selection !== undefined ? { anchor: edit.selection } : undefined,
-    userEvent: 'input'
+    userEvent: 'input',
   })
   view.focus()
   return true

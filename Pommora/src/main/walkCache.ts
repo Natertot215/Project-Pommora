@@ -43,7 +43,12 @@ export async function cachedParse<T>(absPath: string, parse: () => Promise<T>): 
     return parse()
   }
   const e = entries.get(absPath)
-  if (e && e.mtimeMs === s.mtimeMs && e.size === s.size && e.verifiedAt - s.mtimeMs > RACY_WINDOW_MS) {
+  if (
+    e &&
+    e.mtimeMs === s.mtimeMs &&
+    e.size === s.size &&
+    e.verifiedAt - s.mtimeMs > RACY_WINDOW_MS
+  ) {
     e.gen = gen
     return e.value as T
   }

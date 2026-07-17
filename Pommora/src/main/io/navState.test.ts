@@ -3,7 +3,16 @@ import { mkdtemp, rm, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { NavFavorite, RecentEntry } from '@shared/types'
-import { flushNavWrites, flushRecents, hasPendingNavWrites, hasPendingRecents, readNavState, scheduleRecentsWrite, writeFavorites, writeRecentsNow } from './navState'
+import {
+  flushNavWrites,
+  flushRecents,
+  hasPendingNavWrites,
+  hasPendingRecents,
+  readNavState,
+  scheduleRecentsWrite,
+  writeFavorites,
+  writeRecentsNow,
+} from './navState'
 
 let root: string
 beforeEach(async () => {
@@ -14,7 +23,8 @@ afterEach(async () => {
   await rm(root, { recursive: true, force: true })
 })
 
-const readRaw = async (file: string): Promise<unknown> => JSON.parse(await readFile(join(root, '.nexus', file), 'utf8'))
+const readRaw = async (file: string): Promise<unknown> =>
+  JSON.parse(await readFile(join(root, '.nexus', file), 'utf8'))
 
 describe('nav sidecars — reads', () => {
   it('reads empty when both files are absent', async () => {
@@ -29,14 +39,18 @@ describe('nav sidecars — reads', () => {
       { kind: 'collection' }, // missing id
       { kind: 'page', id: 'p2' }, // page missing path
       { kind: 'page', id: 'p3', path: 'c.md', pinned: 'yes' }, // pinned not boolean
-      'garbage'
+      'garbage',
     ]
     await writeRecentsNow(root, junk as RecentEntry[])
     expect((await readNavState(root)).recents).toEqual([good])
   })
 
   it('keeps a homepage entry (id-less) and preserves order', async () => {
-    const recents: RecentEntry[] = [{ kind: 'homepage' }, { kind: 'context', id: 'c1' }, { kind: 'set', id: 's1', path: 's/x' }]
+    const recents: RecentEntry[] = [
+      { kind: 'homepage' },
+      { kind: 'context', id: 'c1' },
+      { kind: 'set', id: 's1', path: 's/x' },
+    ]
     await writeRecentsNow(root, recents)
     expect((await readNavState(root)).recents).toEqual(recents)
   })
@@ -73,7 +87,9 @@ describe('recents — debounce + immediate + flush', () => {
     await writeRecentsNow(root, [{ kind: 'page', id: 'fresh', path: 'b.md' }])
     expect(hasPendingRecents()).toBe(false) // pending cleared, so a later flush is a no-op
     await flushRecents()
-    expect((await readNavState(root)).recents).toEqual([{ kind: 'page', id: 'fresh', path: 'b.md' }])
+    expect((await readNavState(root)).recents).toEqual([
+      { kind: 'page', id: 'fresh', path: 'b.md' },
+    ])
   })
 
   it('flushRecents is a no-op when nothing is pending', async () => {

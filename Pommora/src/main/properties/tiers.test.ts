@@ -2,8 +2,13 @@ import { describe, it, expect } from 'vitest'
 import { mergeTierProperties } from './tiers'
 import type { PropertyDefinition } from '@shared/properties'
 
-const def = (over: Partial<PropertyDefinition> & { id: string; name: string; type: PropertyDefinition['type'] }) =>
-  over as PropertyDefinition
+const def = (
+  over: Partial<PropertyDefinition> & {
+    id: string
+    name: string
+    type: PropertyDefinition['type']
+  },
+) => over as PropertyDefinition
 
 describe('mergeTierProperties', () => {
   it('appends the three tier props after user props, with locked context_tier targets', () => {
@@ -28,8 +33,8 @@ describe('mergeTierProperties', () => {
         type: 'context',
         icon: 'star',
         reverse_name: 'Pages',
-        reverse_icon: 'doc'
-      })
+        reverse_icon: 'doc',
+      }),
     ])
     expect(out.map((d) => d.id)).toEqual(['_tier1', '_tier2', '_tier3'])
     expect(out[0]).toMatchObject({
@@ -37,12 +42,14 @@ describe('mergeTierProperties', () => {
       icon: 'star',
       reverse_name: 'Pages',
       reverse_icon: 'doc',
-      context_target: { kind: 'context_tier', tier: 1 }
+      context_target: { kind: 'context_tier', tier: 1 },
     })
   })
 
   it('keeps a reserved _modified_at override among the user props', () => {
-    const out = mergeTierProperties([def({ id: '_modified_at', name: 'Modified', type: 'last_edited_time' })])
+    const out = mergeTierProperties([
+      def({ id: '_modified_at', name: 'Modified', type: 'last_edited_time' }),
+    ])
     expect(out.map((d) => d.id)).toEqual(['_modified_at', '_tier1', '_tier2', '_tier3'])
   })
 })

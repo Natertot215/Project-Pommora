@@ -40,7 +40,7 @@ export async function readAppConfig(userDataDir: string): Promise<AppConfig> {
     recents: Array.isArray(obj.recents)
       ? obj.recents.filter((p): p is string => typeof p === 'string')
       : undefined,
-    trashMode: obj.trashMode === 'system' || obj.trashMode === 'nexus' ? obj.trashMode : undefined
+    trashMode: obj.trashMode === 'system' || obj.trashMode === 'nexus' ? obj.trashMode : undefined,
   }
 }
 

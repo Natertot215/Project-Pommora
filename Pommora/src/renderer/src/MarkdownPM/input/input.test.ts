@@ -12,7 +12,7 @@ import {
   continueBlockquoteOnEnter,
   calloutShorthand,
   shiftEnterEdit,
-  type Edit
+  type Edit,
 } from './index'
 
 /** Apply an Edit to a doc → the resulting string (for readable assertions). */
@@ -276,7 +276,9 @@ describe('callout shorthand (||)', () => {
   })
   it('separates from a callout directly above with a blank line (no touching boxes / merged run)', () => {
     const doc = '> [!callout] first\n|' // `|` typed on the line below an existing callout
-    expect(apply(doc, calloutShorthand(doc, 20, 20, '|')!)).toBe('> [!callout] first\n\n> [!callout] \n')
+    expect(apply(doc, calloutShorthand(doc, 20, 20, '|')!)).toBe(
+      '> [!callout] first\n\n> [!callout] \n',
+    )
   })
 })
 
@@ -317,11 +319,15 @@ describe('nested list behaviour inside a callout', () => {
   const callout = (body: string): string => `> [!callout] head\n${body}`
   it('Enter continues a bullet inside the box (keeps the `>` prefix)', () => {
     const doc = callout('> - item')
-    expect(apply(doc, continueListOnEnter(doc, doc.length, doc.length)!)).toBe(callout('> - item\n> - '))
+    expect(apply(doc, continueListOnEnter(doc, doc.length, doc.length)!)).toBe(
+      callout('> - item\n> - '),
+    )
   })
   it('Enter continues + renumbers an ordered list inside the box', () => {
     const doc = callout('> 1. a')
-    expect(apply(doc, continueListOnEnter(doc, doc.length, doc.length)!)).toBe(callout('> 1. a\n> 2. '))
+    expect(apply(doc, continueListOnEnter(doc, doc.length, doc.length)!)).toBe(
+      callout('> 1. a\n> 2. '),
+    )
   })
   it('Tab indents the inner list after the prefix, not before the `>`', () => {
     const doc = callout('> - item')
@@ -335,7 +341,9 @@ describe('nested list behaviour inside a callout', () => {
   it('backspace at a plain body line-start joins up rather than stripping the `>`', () => {
     const doc = '> [!callout] head\n> body'
     const contentStart = doc.indexOf('body')
-    expect(apply(doc, smartBackspace(doc, contentStart, contentStart)!)).toBe('> [!callout] headbody')
+    expect(apply(doc, smartBackspace(doc, contentStart, contentStart)!)).toBe(
+      '> [!callout] headbody',
+    )
   })
   it('backspace at the head content-start removes the whole callout marker', () => {
     const doc = '> [!callout] head'

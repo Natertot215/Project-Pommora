@@ -18,7 +18,15 @@ const MENU_GLYPH = 13
 
 /** The location breadcrumb (icon › name › …) shared by the list rows and the gallery cards — same
  *  markup + shared nav-path-* classes, differing only by wrapper class + glyph size. Null when at root. */
-export function NavCrumbs({ path, className, iconSize }: { path: ResolvedNav['path']; className: string; iconSize: number }): React.JSX.Element | null {
+export function NavCrumbs({
+  path,
+  className,
+  iconSize,
+}: {
+  path: ResolvedNav['path']
+  className: string
+  iconSize: number
+}): React.JSX.Element | null {
   if (path.length === 0) return null
   return (
     <OverflowScroll className={cx(className, text.caption.standard)}>
@@ -38,7 +46,19 @@ export function NavCrumbs({ path, className, iconSize }: { path: ResolvedNav['pa
  *  backdrop/Escape dismiss) of MenuItem rows, hung off a zero-size anchor pinned at the click point.
  *  Open/Pin/Favorite labels flip on live store membership; Remove drops the recents entry. Shared by
  *  the NavWindow list AND gallery (the D-3 in-renderer points). */
-export function NavRowMenu({ item, x, y, onClose, onOpenNewTab }: { item: ResolvedNav; x: number; y: number; onClose: () => void; onOpenNewTab?: (target: NavTarget) => void }): React.JSX.Element {
+export function NavRowMenu({
+  item,
+  x,
+  y,
+  onClose,
+  onOpenNewTab,
+}: {
+  item: ResolvedNav
+  x: number
+  y: number
+  onClose: () => void
+  onOpenNewTab?: (target: NavTarget) => void
+}): React.JSX.Element {
   const anchorRef = useRef<HTMLSpanElement>(null)
   const isPinned = useSession((s) => s.pins.some((p) => navKey(p) === item.key))
   const isFavorite = useSession((s) => s.favorites.some((f) => navKey(f) === item.key))
@@ -55,12 +75,19 @@ export function NavRowMenu({ item, x, y, onClose, onOpenNewTab }: { item: Resolv
   }
   return (
     <>
-      <span ref={anchorRef} aria-hidden style={{ position: 'fixed', left: x, top: y, width: 0, height: 0 }} />
+      <span
+        ref={anchorRef}
+        aria-hidden
+        style={{ position: 'fixed', left: x, top: y, width: 0, height: 0 }}
+      />
       <PickerMenu open onDismiss={onClose} triggerRef={anchorRef} center>
         <div className="nav-row-menu">
           {onOpenNewTab && (
             <>
-              <MenuItem leading={<Icon name="copy" size={MENU_GLYPH} />} onClick={act(() => onOpenNewTab(item.target))}>
+              <MenuItem
+                leading={<Icon name="copy" size={MENU_GLYPH} />}
+                onClick={act(() => onOpenNewTab(item.target))}
+              >
                 {alreadyOpen ? 'Open' : 'Open in New Tab'}
               </MenuItem>
               <MenuSeparator flush />
@@ -79,7 +106,10 @@ export function NavRowMenu({ item, x, y, onClose, onOpenNewTab }: { item: Resolv
             {isFavorite ? 'Unfavorite' : 'Favorite'}
           </MenuItem>
           <MenuSeparator flush />
-          <MenuItem leading={<Icon name="x" size={MENU_GLYPH} />} onClick={act(() => removeRecent(item.key))}>
+          <MenuItem
+            leading={<Icon name="x" size={MENU_GLYPH} />}
+            onClick={act(() => removeRecent(item.key))}
+          >
             Remove
           </MenuItem>
         </div>
@@ -94,7 +124,17 @@ type RowDrag = ReturnType<typeof useTableRowDrag>
 // the path is right-aligned, grows left to a max, then eclipse-scrolls itself — both via OverflowScroll.
 // The whole row is the drag surface + click target (the drop-line gesture suppresses the post-drag
 // click itself); every row is a button-role focusable row, draggable or not.
-function NavRow({ it, drag, onSelect, onMenu }: { it: ResolvedNav; drag?: RowDrag; onSelect: (t: NavTarget) => void; onMenu: (it: ResolvedNav, e: React.MouseEvent) => void }): React.JSX.Element {
+function NavRow({
+  it,
+  drag,
+  onSelect,
+  onMenu,
+}: {
+  it: ResolvedNav
+  drag?: RowDrag
+  onSelect: (t: NavTarget) => void
+  onMenu: (it: ResolvedNav, e: React.MouseEvent) => void
+}): React.JSX.Element {
   return (
     <li
       ref={drag?.ref}
@@ -124,7 +164,11 @@ function NavRow({ it, drag, onSelect, onMenu }: { it: ResolvedNav; drag?: RowDra
   )
 }
 
-function DraggableRow(props: { it: ResolvedNav; onSelect: (t: NavTarget) => void; onMenu: (it: ResolvedNav, e: React.MouseEvent) => void }): React.JSX.Element {
+function DraggableRow(props: {
+  it: ResolvedNav
+  onSelect: (t: NavTarget) => void
+  onMenu: (it: ResolvedNav, e: React.MouseEvent) => void
+}): React.JSX.Element {
   const drag = useTableRowDrag(props.it.key)
   return <NavRow {...props} drag={drag} />
 }
@@ -140,7 +184,7 @@ export function NavList({
   reorderable,
   onReorderRecent,
   onSelect,
-  onOpenNewTab
+  onOpenNewTab,
 }: {
   items: ResolvedNav[]
   /** Reorderable only: the durable pins, rendered as their own group above `items` (the recents) —
@@ -160,7 +204,8 @@ export function NavList({
   const reorderRecentStore = useSession((s) => s.reorderRecent)
   const reorderRecent = onReorderRecent ?? reorderRecentStore
   const [menu, setMenu] = useState<{ item: ResolvedNav; x: number; y: number } | null>(null)
-  const openMenu = (it: ResolvedNav, e: React.MouseEvent): void => setMenu({ item: it, x: e.clientX, y: e.clientY })
+  const openMenu = (it: ResolvedNav, e: React.MouseEvent): void =>
+    setMenu({ item: it, x: e.clientX, y: e.clientY })
   const pinRows = reorderable ? (pins ?? []) : []
   if (items.length === 0 && pinRows.length === 0 && !extras?.length) return null
   const recents = reorderable ? items : []
@@ -183,10 +228,14 @@ export function NavList({
           <DraggableRow key={it.key} it={it} onSelect={onSelect} onMenu={openMenu} />
         ) : (
           <NavRow key={it.key} it={it} onSelect={onSelect} onMenu={openMenu} />
-        )
+        ),
       )}
       {extras?.map((e) => (
-        <li key={e.key} className="nav-item nav-item-inert" title="Agenda navigation isn't wired yet">
+        <li
+          key={e.key}
+          className="nav-item nav-item-inert"
+          title="Agenda navigation isn't wired yet"
+        >
           <span className="nav-item-title">{e.title}</span>
           <span className={cx('nav-item-path', text.caption.standard)}>{e.kind}</span>
         </li>
@@ -197,7 +246,10 @@ export function NavList({
     <>
       {reorderable ? (
         <TableRowDnd
-          rows={[...pinRows.map((p) => ({ id: p.key, groupKey: 'pins' })), ...recents.map((r) => ({ id: r.key, groupKey: 'recents' }))]}
+          rows={[
+            ...pinRows.map((p) => ({ id: p.key, groupKey: 'pins' })),
+            ...recents.map((r) => ({ id: r.key, groupKey: 'recents' })),
+          ]}
           disabled={false}
           canReorderWithin
           canReassign={false}
@@ -209,7 +261,15 @@ export function NavList({
       ) : (
         list
       )}
-      {menu && <NavRowMenu item={menu.item} x={menu.x} y={menu.y} onClose={() => setMenu(null)} onOpenNewTab={onOpenNewTab} />}
+      {menu && (
+        <NavRowMenu
+          item={menu.item}
+          x={menu.x}
+          y={menu.y}
+          onClose={() => setMenu(null)}
+          onOpenNewTab={onOpenNewTab}
+        />
+      )}
     </>
   )
 }

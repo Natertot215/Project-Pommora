@@ -1,4 +1,12 @@
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from 'react'
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+  type RefObject,
+} from 'react'
 import { createPortal } from 'react-dom'
 import { dropdownOpen, dropdownClose } from '../../animations.css'
 import { useExitPresence } from '../../useExitPresence'
@@ -38,7 +46,7 @@ export function PickerMenu({
   bareSurface = false,
   accentOutline = false,
   contentClassName,
-  style
+  style,
 }: {
   children: ReactNode
   /** Self-managed mode: PickerMenu mounts/exits + portals + dismisses off this. Omit for manual mode. */
@@ -111,8 +119,10 @@ export function PickerMenu({
       let eff = direction
       if (direction === 'up' && t.top - GAP - ph < VIEWPORT_MARGIN) eff = 'down'
       else if (direction === 'left' && t.left - GAP - pw < VIEWPORT_MARGIN) eff = 'down'
-      else if (direction === 'right' && t.right + GAP + pw > window.innerWidth - VIEWPORT_MARGIN) eff = 'down'
-      else if (direction === 'down' && t.bottom + GAP + ph > window.innerHeight - VIEWPORT_MARGIN) eff = 'up'
+      else if (direction === 'right' && t.right + GAP + pw > window.innerWidth - VIEWPORT_MARGIN)
+        eff = 'down'
+      else if (direction === 'down' && t.bottom + GAP + ph > window.innerHeight - VIEWPORT_MARGIN)
+        eff = 'up'
       setEffDir(eff)
       // Sideways: sit beside the trigger; beak clamped onto its vertical centre (the vertical mirror of
       // the right-anchored dropdown — anchor the far edge, aim the beak `reserve` from it).
@@ -128,13 +138,17 @@ export function PickerMenu({
       // dropdown, beak clamped onto the trigger centre.
       if (center) {
         const half = pw / 2
-        const left = Math.min(Math.max(c, VIEWPORT_MARGIN + half), window.innerWidth - VIEWPORT_MARGIN - half)
+        const left = Math.min(
+          Math.max(c, VIEWPORT_MARGIN + half),
+          window.innerWidth - VIEWPORT_MARGIN - half,
+        )
         if (eff === 'up') setPos({ bottom: window.innerHeight - t.top + GAP, left })
         else setPos({ top: t.bottom + GAP, left })
         return
       }
       const right = Math.max(VIEWPORT_MARGIN, window.innerWidth - c - reserve)
-      if (eff === 'up') setPos({ bottom: window.innerHeight - t.top + GAP, right, notchInset: reserve })
+      if (eff === 'up')
+        setPos({ bottom: window.innerHeight - t.top + GAP, right, notchInset: reserve })
       else setPos({ top: t.bottom + GAP, right, notchInset: reserve })
     }
     measure()
@@ -164,13 +178,18 @@ export function PickerMenu({
   // Render off the EFFECTIVE direction (post-flip), so the beak side + gutter match where the pane sits.
   const up = effDir === 'up'
   const horizontal = effDir === 'left' || effDir === 'right'
-  const notchSide = effDir === 'up' ? 'bottom' : effDir === 'left' ? 'right' : effDir === 'right' ? 'left' : 'top'
+  const notchSide =
+    effDir === 'up' ? 'bottom' : effDir === 'left' ? 'right' : effDir === 'right' ? 'left' : 'top'
   const pane = (
     <NotchedPane
       // A bespoke body (bareSurface) or a sideways pane owns its full gutter via contentClassName —
       // the top/bottom `--notch-h` surface gutter is either unwanted or the wrong axis; vertical
       // default panes keep the shared surface gutter.
-      className={horizontal || bareSurface ? contentClassName : cx(s.surface, up && s.surfaceUp, contentClassName)}
+      className={
+        horizontal || bareSurface
+          ? contentClassName
+          : cx(s.surface, up && s.surfaceUp, contentClassName)
+      }
       animationClass={closing ? dropdownClose : dropdownOpen}
       solid={solid}
       radius={radius}
@@ -203,7 +222,9 @@ export function PickerMenu({
       <span ref={markerRef} aria-hidden style={{ display: 'none' }} />
       {createPortal(
         <>
-          {onDismiss && !closing ? <div className={s.backdrop} data-picker-portal onClick={onDismiss} /> : null}
+          {onDismiss && !closing ? (
+            <div className={s.backdrop} data-picker-portal onClick={onDismiss} />
+          ) : null}
           <div
             ref={paneRef}
             className={s.layer}
@@ -219,13 +240,13 @@ export function PickerMenu({
                   : null),
               ...(pos ? null : { top: '0' }),
               visibility: pos ? undefined : 'hidden',
-              pointerEvents: closing ? 'none' : undefined
+              pointerEvents: closing ? 'none' : undefined,
             }}
           >
             {pane}
           </div>
         </>,
-        document.body
+        document.body,
       )}
     </>
   )
@@ -236,7 +257,7 @@ export function PickerMenu({
 export function PickerOption({
   children,
   onClick,
-  selected = false
+  selected = false,
 }: {
   children: ReactNode
   onClick?: () => void

@@ -8,7 +8,7 @@ describe('cellMenuModel', () => {
       ['Open in New Tab', 'title:newtab'],
       ['Rename', 'title:rename'],
       ['Change Icon', 'title:icon'],
-      ['Delete', 'title:delete']
+      ['Delete', 'title:delete'],
     ])
     // An already-open page reads "Open" (focus, I-1) — same action either way.
     expect(cellMenuModel({ kind: 'title', alreadyOpen: true }).items[0].label).toBe('Open')
@@ -24,7 +24,12 @@ describe('cellMenuModel', () => {
   })
 
   it('a clearable style-only (status) adds Clear under the Style radios', () => {
-    const m = cellMenuModel({ kind: 'style-only', type: 'status', current: { look: 'pill' }, clearable: true })
+    const m = cellMenuModel({
+      kind: 'style-only',
+      type: 'status',
+      current: { look: 'pill' },
+      clearable: true,
+    })
     expect(m.items.map((i) => [i.label, i.action])).toEqual([['Clear', 'cell:clear']])
     expect(m.style?.map((r) => r.label)).toEqual(['Pill', 'Capsule', 'Checkbox'])
     expect(m.style?.find((r) => r.value === 'pill')?.checked).toBe(true)
@@ -47,7 +52,7 @@ describe('cellMenuModel', () => {
     expect(m.items.map((i) => [i.label, i.action])).toEqual([
       ['Edit', 'cell:edit'],
       ['Rename', 'cell:rename'],
-      ['Remove', 'cell:clear']
+      ['Remove', 'cell:clear'],
     ])
     expect(m.style).toBeUndefined()
   })

@@ -9,7 +9,10 @@ beforeEach(async () => {
   root = await mkdtemp(join(tmpdir(), 'pom-sessidx-'))
   await mkdir(join(root, '.nexus'), { recursive: true })
   await mkdir(join(root, 'Notes'), { recursive: true })
-  await writeFile(join(root, '.nexus', 'nexus.json'), JSON.stringify({ schemaVersion: 1, id: 'nx', createdAt: '2026' }))
+  await writeFile(
+    join(root, '.nexus', 'nexus.json'),
+    JSON.stringify({ schemaVersion: 1, id: 'nx', createdAt: '2026' }),
+  )
   await writeFile(join(root, '.nexus', 'settings.json'), '{}')
   await writeFile(join(root, 'Notes', '_pagecollection.json'), JSON.stringify({ id: 'col-notes' }))
   await writeFile(join(root, 'Notes', 'Hello.md'), '---\nid: pg1\n---\n\nbody')
@@ -25,7 +28,9 @@ describe('sessionIndex', () => {
     await openSessionIndex(root)
     const db = sessionDb()
     if (!db) throw new Error('expected a live index handle')
-    const row = db.prepare('SELECT title FROM pages WHERE id = ?').get('pg1') as { title: string } | undefined
+    const row = db.prepare('SELECT title FROM pages WHERE id = ?').get('pg1') as
+      | { title: string }
+      | undefined
     expect(row?.title).toBe('Hello')
   })
 

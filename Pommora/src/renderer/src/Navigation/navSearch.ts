@@ -14,11 +14,18 @@ export interface SearchEntry {
   title: string
 }
 
-const entry = (target: NavTarget, title: string): SearchEntry => ({ key: navKey(target), target, title })
+const entry = (target: NavTarget, title: string): SearchEntry => ({
+  key: navKey(target),
+  target,
+  title,
+})
 
 /** Flatten the tree (+ the agenda snapshot) into a searchable list: homepage, every context, every
  *  Collection/Set, every Page (titles ARE searchable), plus agenda Tasks/Events from the snapshot. */
-export function buildNavIndex(tree: NexusTree, agenda?: { tasks: AgendaEntry[]; events: AgendaEntry[] }): SearchEntry[] {
+export function buildNavIndex(
+  tree: NexusTree,
+  agenda?: { tasks: AgendaEntry[]; events: AgendaEntry[] },
+): SearchEntry[] {
   const out: SearchEntry[] = [entry({ kind: 'homepage' }, tree.nexus.name)]
   for (const c of allContexts(tree)) out.push(entry({ kind: 'context', id: c.id }, c.title))
   for (const c of allCollections(tree)) out.push(entry({ kind: 'collection', id: c.id }, c.title))

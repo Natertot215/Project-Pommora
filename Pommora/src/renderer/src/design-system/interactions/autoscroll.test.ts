@@ -1,6 +1,17 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { accelFactor, clampToLimit, edgeVelocity, gateIntent, scrollableInAxis, startAutoScroll, stepPixels, stopAutoScroll, type Intent, type Params } from './autoscroll'
+import {
+  accelFactor,
+  clampToLimit,
+  edgeVelocity,
+  gateIntent,
+  scrollableInAxis,
+  startAutoScroll,
+  stepPixels,
+  stopAutoScroll,
+  type Intent,
+  type Params,
+} from './autoscroll'
 
 const P: Params = { edge: 48, speed: 840, ramp: 2, accelStart: 0.5, accelMax: 1.5, accelDist: 600 }
 
@@ -102,7 +113,14 @@ describe('startAutoScroll / stopAutoScroll — loop lifecycle', () => {
   const fakeScroller = (): { el: HTMLElement; scrolls: () => number } => {
     let top = 400
     const el = {
-      getBoundingClientRect: () => ({ top: 0, bottom: 300, left: 0, right: 300, width: 300, height: 300 }),
+      getBoundingClientRect: () => ({
+        top: 0,
+        bottom: 300,
+        left: 0,
+        right: 300,
+        width: 300,
+        height: 300,
+      }),
       get scrollTop() {
         return top
       },
@@ -116,7 +134,7 @@ describe('startAutoScroll / stopAutoScroll — loop lifecycle', () => {
       clientWidth: 300,
       scrollBy: (_x: number, y: number) => {
         top += y
-      }
+      },
     } as unknown as HTMLElement
     return { el, scrolls: () => top }
   }
@@ -225,7 +243,12 @@ describe('startAutoScroll / stopAutoScroll — loop lifecycle', () => {
     const a = fakeScroller()
     const b = fakeScroller()
     let y = 150
-    const stopA = startAutoScroll({ getPoint: () => ({ x: 150, y }), scroller: a.el, dragEl: doc, axis: 'y' })
+    const stopA = startAutoScroll({
+      getPoint: () => ({ x: 150, y }),
+      scroller: a.el,
+      dragEl: doc,
+      axis: 'y',
+    })
     startAutoScroll({ getPoint: () => ({ x: 150, y }), scroller: b.el, dragEl: doc, axis: 'y' }) // B replaces A
     stopA() // stale handle from A — must be a no-op, not a stop of B
     y = 150
@@ -239,7 +262,14 @@ describe('startAutoScroll / stopAutoScroll — loop lifecycle', () => {
     // A tall scroller (no limit reached) so only acceleration, not clamping, moves the delta.
     let top = 0
     const el = {
-      getBoundingClientRect: () => ({ top: 0, bottom: 300, left: 0, right: 300, width: 300, height: 300 }),
+      getBoundingClientRect: () => ({
+        top: 0,
+        bottom: 300,
+        left: 0,
+        right: 300,
+        width: 300,
+        height: 300,
+      }),
       get scrollTop() {
         return top
       },
@@ -253,7 +283,7 @@ describe('startAutoScroll / stopAutoScroll — loop lifecycle', () => {
       clientWidth: 300,
       scrollBy: (_x: number, y: number) => {
         top += y
-      }
+      },
     } as unknown as HTMLElement
     let y = 150
     startAutoScroll({ getPoint: () => ({ x: 150, y }), scroller: el, dragEl: doc, axis: 'y' })
@@ -271,7 +301,14 @@ describe('startAutoScroll / stopAutoScroll — loop lifecycle', () => {
   it('resets the acceleration run when the pointer leaves the edge band', () => {
     let top = 0
     const el = {
-      getBoundingClientRect: () => ({ top: 0, bottom: 300, left: 0, right: 300, width: 300, height: 300 }),
+      getBoundingClientRect: () => ({
+        top: 0,
+        bottom: 300,
+        left: 0,
+        right: 300,
+        width: 300,
+        height: 300,
+      }),
       get scrollTop() {
         return top
       },
@@ -285,7 +322,7 @@ describe('startAutoScroll / stopAutoScroll — loop lifecycle', () => {
       clientWidth: 300,
       scrollBy: (_x: number, y: number) => {
         top += y
-      }
+      },
     } as unknown as HTMLElement
     let y = 150
     startAutoScroll({ getPoint: () => ({ x: 150, y }), scroller: el, dragEl: doc, axis: 'y' })
@@ -321,7 +358,13 @@ describe('startAutoScroll / stopAutoScroll — loop lifecycle', () => {
     const { el } = fakeScroller()
     const onScrolled = vi.fn()
     let y = 150
-    startAutoScroll({ getPoint: () => ({ x: 150, y }), scroller: el, dragEl: doc, axis: 'y', onScrolled })
+    startAutoScroll({
+      getPoint: () => ({ x: 150, y }),
+      scroller: el,
+      dragEl: doc,
+      axis: 'y',
+      onScrolled,
+    })
     flush(3)
     y = 299
     flush(40)

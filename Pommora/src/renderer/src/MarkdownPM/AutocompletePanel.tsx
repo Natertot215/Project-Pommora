@@ -17,7 +17,15 @@ interface Props {
   onPick: (page: ConnPage) => void
 }
 
-export function AutocompletePanel({ open, candidates, index, left, top, query, onPick }: Props): React.JSX.Element | null {
+export function AutocompletePanel({
+  open,
+  candidates,
+  index,
+  left,
+  top,
+  query,
+  onPick,
+}: Props): React.JSX.Element | null {
   const live = open && candidates.length > 0
   const { mounted, closing } = useExitPresence(live)
   // Retain the last open state so the panel can retract in place after `ac` clears (position + rows gone).
@@ -39,7 +47,7 @@ export function AutocompletePanel({ open, candidates, index, left, top, query, o
           left: v.left,
           top: v.top,
           '--dropdown-origin': 'top left',
-          ...(closing ? { pointerEvents: 'none' } : null)
+          ...(closing ? { pointerEvents: 'none' } : null),
         } as React.CSSProperties
       }
     >
@@ -60,6 +68,6 @@ export function AutocompletePanel({ open, candidates, index, left, top, query, o
         </div>
       ))}
     </GlassControls>,
-    document.body
+    document.body,
   )
 }

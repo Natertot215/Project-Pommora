@@ -43,7 +43,7 @@ export async function writeJson(filePath: string, value: unknown): Promise<void>
 export async function mutateJson<T>(
   filePath: string,
   fallback: () => T,
-  mutate: (current: T) => T
+  mutate: (current: T) => T,
 ): Promise<T> {
   let current: T
   try {

@@ -11,14 +11,15 @@ import { DEFAULT_VIEW_ID, mintDefaultView, type SavedView } from '@shared/views'
 const inFlight = new Map<string, Promise<string>>()
 
 /** The promise a sentinel-holding writer awaits — the minted real id, or undefined if not minting. */
-export const pendingViewMint = (containerId: string): Promise<string> | undefined => inFlight.get(containerId)
+export const pendingViewMint = (containerId: string): Promise<string> | undefined =>
+  inFlight.get(containerId)
 
 /** Mint the default view once for an empty view-bearing container, then refetch. No-op when the
  *  container already has views or a mint is already in flight (the re-select guard). */
 export function ensureContainerView(
   source: CollectionNode | SetNode,
   schema: PropertyDefinition[],
-  refetch: () => Promise<void>
+  refetch: () => Promise<void>,
 ): void {
   if ((source.views?.length ?? 0) > 0 || inFlight.has(source.id)) return
   const mint = (async () => {
@@ -40,7 +41,7 @@ export function ensureContainerView(
 export async function saveViewAdopting(
   source: CollectionNode | SetNode,
   view: SavedView,
-  refetch: () => Promise<void>
+  refetch: () => Promise<void>,
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   let toSave = view
   if (view.id === DEFAULT_VIEW_ID) {

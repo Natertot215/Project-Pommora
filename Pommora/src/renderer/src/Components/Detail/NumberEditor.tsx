@@ -16,20 +16,24 @@ export type NumberLook = 'number' | 'bar'
 const FAMILY_OPTIONS: PickerChoice<NumberFamily>[] = [
   { value: 'number', label: 'Number' },
   { value: 'percent', label: 'Percent' },
-  { value: 'currency', label: 'Currency' }
+  { value: 'currency', label: 'Currency' },
 ]
-const CURRENCY_OPTIONS: PickerChoice<string>[] = CURRENCY_CODES.map((code) => ({ value: code, label: code }))
+const CURRENCY_OPTIONS: PickerChoice<string>[] = CURRENCY_CODES.map((code) => ({
+  value: code,
+  label: code,
+}))
 const STYLE_OPTIONS: PickerChoice<NumberLook>[] = [
   { value: 'number', label: 'Number' },
-  { value: 'bar', label: 'Bar' }
+  { value: 'bar', label: 'Bar' },
 ]
 // 'hidden' + 1..10, all as picker strings (PickerControl is <T extends string>).
 const DECIMAL_OPTIONS: PickerChoice<string>[] = [
   { value: 'hidden', label: 'Hidden' },
-  ...Array.from({ length: 10 }, (_, i) => ({ value: String(i + 1), label: String(i + 1) }))
+  ...Array.from({ length: 10 }, (_, i) => ({ value: String(i + 1), label: String(i + 1) })),
 ]
 
-const decimalsToPicker = (d: NumberConfig['number_decimals']): string => (typeof d === 'number' ? String(d) : 'hidden')
+const decimalsToPicker = (d: NumberConfig['number_decimals']): string =>
+  typeof d === 'number' ? String(d) : 'hidden'
 const pickerToDecimals = (v: string): 'hidden' | number => (v === 'hidden' ? 'hidden' : Number(v))
 
 /** One labelled config row — label left, control (child) right. The shared configRow/configLabel
@@ -46,7 +50,13 @@ function Row({ label, children }: { label: string; children: React.ReactNode }):
 /** The fraction denominator control — reads like the picker rows (secondary value + double-chevron) at
  *  rest, and reveals the accent input only while editing; committing (Enter/blur) returns to the trigger.
  *  Mirrors PickerControl's trigger so it sits identically among the other rows. */
-function ValueField({ value, onCommit }: { value: number | undefined; onCommit: (n: number | undefined) => void }): React.JSX.Element {
+function ValueField({
+  value,
+  onCommit,
+}: {
+  value: number | undefined
+  onCommit: (n: number | undefined) => void
+}): React.JSX.Element {
   const [editing, setEditing] = useState(false)
   const chevron = <Icon name="chevrons-up-down" size={12} />
   if (editing) {
@@ -84,7 +94,7 @@ export function NumberEditor({
   config,
   look,
   onSetConfig,
-  onSetStyle
+  onSetStyle,
 }: {
   config: NumberConfig
   look: NumberLook
@@ -98,7 +108,12 @@ export function NumberEditor({
   return (
     <div className={s.section}>
       <Row label="Format">
-        <PickerControl ariaLabel="Number format" value={family} options={FAMILY_OPTIONS} onPick={(v) => onSetConfig({ number_family: v })} />
+        <PickerControl
+          ariaLabel="Number format"
+          value={family}
+          options={FAMILY_OPTIONS}
+          onPick={(v) => onSetConfig({ number_family: v })}
+        />
       </Row>
 
       <Reveal open={family === 'currency'} fill>
@@ -115,7 +130,11 @@ export function NumberEditor({
       <Reveal open={!isPercent} fill>
         <Row label="Separators">
           <span className={switchScale}>
-            <Switch checked={config.number_separators ?? true} onChange={(next) => onSetConfig({ number_separators: next })} ariaLabel="Separators" />
+            <Switch
+              checked={config.number_separators ?? true}
+              onChange={(next) => onSetConfig({ number_separators: next })}
+              ariaLabel="Separators"
+            />
           </span>
         </Row>
       </Reveal>
@@ -132,20 +151,32 @@ export function NumberEditor({
       <Reveal open={!isPercent} fill>
         <Row label="Fraction">
           <span className={switchScale}>
-            <Switch checked={fraction} onChange={(next) => onSetConfig({ number_fraction: next })} ariaLabel="Fraction" />
+            <Switch
+              checked={fraction}
+              onChange={(next) => onSetConfig({ number_fraction: next })}
+              ariaLabel="Fraction"
+            />
           </span>
         </Row>
       </Reveal>
 
       <Reveal open={!isPercent && fraction} fill>
         <Row label="Value">
-          <ValueField value={config.number_denominator} onCommit={(n) => onSetConfig({ number_denominator: n })} />
+          <ValueField
+            value={config.number_denominator}
+            onCommit={(n) => onSetConfig({ number_denominator: n })}
+          />
         </Row>
       </Reveal>
 
       <Reveal open={isPercent || fraction} fill>
         <Row label="Style">
-          <PickerControl ariaLabel="Number style" value={look} options={STYLE_OPTIONS} onPick={onSetStyle} />
+          <PickerControl
+            ariaLabel="Number style"
+            value={look}
+            options={STYLE_OPTIONS}
+            onPick={onSetStyle}
+          />
         </Row>
       </Reveal>
     </div>

@@ -7,12 +7,34 @@
 
 // Computed-style props copied onto the measuring mirror so its text lays out exactly like the field's.
 const MIRROR_PROPS = [
-  'boxSizing', 'width', 'height',
-  'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
-  'borderTopWidth', 'borderRightWidth', 'borderBottomWidth', 'borderLeftWidth',
-  'borderTopStyle', 'borderRightStyle', 'borderBottomStyle', 'borderLeftStyle',
-  'fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'fontVariant', 'fontStretch',
-  'letterSpacing', 'wordSpacing', 'lineHeight', 'textAlign', 'textIndent', 'textTransform', 'tabSize'
+  'boxSizing',
+  'width',
+  'height',
+  'paddingTop',
+  'paddingRight',
+  'paddingBottom',
+  'paddingLeft',
+  'borderTopWidth',
+  'borderRightWidth',
+  'borderBottomWidth',
+  'borderLeftWidth',
+  'borderTopStyle',
+  'borderRightStyle',
+  'borderBottomStyle',
+  'borderLeftStyle',
+  'fontFamily',
+  'fontSize',
+  'fontWeight',
+  'fontStyle',
+  'fontVariant',
+  'fontStretch',
+  'letterSpacing',
+  'wordSpacing',
+  'lineHeight',
+  'textAlign',
+  'textIndent',
+  'textTransform',
+  'tabSize',
 ] as const
 
 type Field = HTMLInputElement | HTMLTextAreaElement
@@ -67,7 +89,7 @@ function ensureNodes(): void {
       overflow: 'hidden',
       zIndex: '-1',
       top: '0',
-      left: '0'
+      left: '0',
     })
     document.body.appendChild(mirror)
   }
@@ -111,7 +133,8 @@ function fieldCaret(el: Field): CaretRect | null {
   // Draw nothing if the field has no box (detached / display:none) or the caret scrolled out of view on either
   // axis — so a vertically-scrolled textarea or a collapsed field can't strand a bar over other content.
   if (rect.width === 0 && rect.height === 0) return null
-  if (x < rect.left - 1 || x > rect.right + 1 || y < rect.top - 1 || y > rect.bottom + 1) return null
+  if (x < rect.left - 1 || x > rect.right + 1 || y < rect.top - 1 || y > rect.bottom + 1)
+    return null
   return { x, y, h: styledH }
 }
 
@@ -124,7 +147,11 @@ function editableCaret(el: HTMLElement): CaretRect | null {
   const rect = r.getClientRects()[0] ?? r.getBoundingClientRect()
   if (!rect || (rect.height === 0 && rect.width === 0 && rect.left === 0)) return null // empty line — skip, don't mutate the DOM
   const cs = getComputedStyle(el)
-  return { x: rect.left, y: rect.top, h: parseFloat(cs.lineHeight) || rect.height || parseFloat(cs.fontSize) * 1.4 }
+  return {
+    x: rect.left,
+    y: rect.top,
+    h: parseFloat(cs.lineHeight) || rect.height || parseFloat(cs.fontSize) * 1.4,
+  }
 }
 
 function reposition(): void {

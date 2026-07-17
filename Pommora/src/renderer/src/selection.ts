@@ -2,7 +2,16 @@
 // selection can be stale: the entity was deleted (its id is gone) or renamed/moved (its id
 // survives but its path changed). Pure + dependency-free so it's unit-tested without a DOM.
 
-import type { AreaNode, CollectionNode, NexusTree, PageNode, ProjectNode, SelectionState, SetNode, TopicNode } from '@shared/types'
+import type {
+  AreaNode,
+  CollectionNode,
+  NexusTree,
+  PageNode,
+  ProjectNode,
+  SelectionState,
+  SetNode,
+  TopicNode,
+} from '@shared/types'
 
 /** Every top Collection across ungrouped + user sections. */
 export function allCollections(tree: NexusTree): CollectionNode[] {
@@ -49,7 +58,7 @@ export function buildReconcileIndex(tree: NexusTree): ReconcileIndex {
     contexts: new Set(allContexts(tree).map((c) => c.id)),
     collections: new Set(allCollections(tree).map((c) => c.id)),
     sets: new Map(allSets(tree).map((s) => [s.id, s.path])),
-    pages: new Map(allPages(tree).map((p) => [p.id, p.path]))
+    pages: new Map(allPages(tree).map((p) => [p.id, p.path])),
   }
 }
 

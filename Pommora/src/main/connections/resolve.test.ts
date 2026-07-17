@@ -7,7 +7,7 @@ describe('buildLinkIndex', () => {
       { id: 'a', title: 'Alpha' },
       { id: 'b', title: 'beta' },
       { id: 'a2', title: ' ALPHA ' },
-      { id: 'blank', title: '   ' }
+      { id: 'blank', title: '   ' },
     ])
     expect(idx.get('alpha')).toEqual(['a', 'a2'])
     expect(idx.get('beta')).toEqual(['b'])
@@ -19,7 +19,7 @@ describe('resolveTitle', () => {
   const idx = buildLinkIndex([
     { id: 'a', title: 'Alpha' },
     { id: 'dup1', title: 'Dup' },
-    { id: 'dup2', title: 'dup' }
+    { id: 'dup2', title: 'dup' },
   ])
 
   it('resolves a unique title, flags ambiguity, and reports phantoms', () => {

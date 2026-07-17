@@ -37,7 +37,7 @@ const mount = async (style: ColumnStyle, onChange = vi.fn()): Promise<typeof onC
  *  PickerMenu portals to document.body). */
 const buttonFor = (name: string): HTMLButtonElement => {
   const el = [...document.querySelectorAll<HTMLButtonElement>('button')].find(
-    (b) => b.getAttribute('aria-label') === name || b.textContent === name
+    (b) => b.getAttribute('aria-label') === name || b.textContent === name,
   )
   if (!el) throw new Error(`no button "${name}"`)
   return el

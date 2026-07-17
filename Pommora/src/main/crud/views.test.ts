@@ -18,7 +18,7 @@ const view = (over: Partial<SavedView> & { id: string }): SavedView => ({
   type: 'table',
   property_order: [],
   hidden_properties: [],
-  ...over
+  ...over,
 })
 
 // Write a collection sidecar directly (not via writeSidecar) so foreign keys are controllable.
@@ -52,7 +52,16 @@ describe('view persistence CRUD', () => {
   it('preserves a foreign top-level key + a foreign key on an untouched view', async () => {
     await writeCollectionSidecar({
       plugin_top: 'keep-top',
-      views: [{ id: 'view_keep', name: 'Keep', type: 'table', property_order: [], hidden_properties: [], _plugin: 'keep-view' }]
+      views: [
+        {
+          id: 'view_keep',
+          name: 'Keep',
+          type: 'table',
+          property_order: [],
+          hidden_properties: [],
+          _plugin: 'keep-view',
+        },
+      ],
     })
     const r = await saveView(folder, 'collection', view({ id: 'view_default', name: 'New' }))
     expect(r.ok).toBe(true)
@@ -64,7 +73,7 @@ describe('view persistence CRUD', () => {
 
   it('reorders views by id, keeping unnamed views at the end', async () => {
     await writeCollectionSidecar({
-      views: [view({ id: 'a' }), view({ id: 'b' }), view({ id: 'c' })]
+      views: [view({ id: 'a' }), view({ id: 'b' }), view({ id: 'c' })],
     })
     await reorderViews(folder, 'collection', ['c', 'a'])
     const sidecar = await readRaw('_pagecollection.json')

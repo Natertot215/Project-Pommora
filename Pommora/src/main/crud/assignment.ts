@@ -12,18 +12,30 @@ import { serializeSchemaOp } from './schemaChain'
 import type { CollectionNode, SetNode } from '@shared/types'
 import { ok, fail, type Result } from '@shared/result'
 
-async function read(folder: string): Promise<{ sidecar: Record<string, unknown>; ids: string[] } | null> {
+async function read(
+  folder: string,
+): Promise<{ sidecar: Record<string, unknown>; ids: string[] } | null> {
   const sidecar = await readSidecar(folder, 'collection', pageCollectionSidecar)
   if (sidecar === null) return null
-  return { sidecar: sidecar as Record<string, unknown>, ids: (sidecar.properties as string[] | undefined) ?? [] }
+  return {
+    sidecar: sidecar as Record<string, unknown>,
+    ids: (sidecar.properties as string[] | undefined) ?? [],
+  }
 }
 
-const write = async (folder: string, sidecar: Record<string, unknown>, ids: string[]): Promise<void> =>
-  writeSidecar(folder, 'collection', { ...sidecar, properties: ids })
+const write = async (
+  folder: string,
+  sidecar: Record<string, unknown>,
+  ids: string[],
+): Promise<void> => writeSidecar(folder, 'collection', { ...sidecar, properties: ids })
 
 // Unchained internals — the chained publics compose them; a chained fn awaiting another
 // chained fn would deadlock the schema chain.
-async function assignInner(root: string, collectionFolder: string, propertyId: string): Promise<Result<null>> {
+async function assignInner(
+  root: string,
+  collectionFolder: string,
+  propertyId: string,
+): Promise<Result<null>> {
   const r = await read(collectionFolder)
   if (!r) return fail('not-found', 'Collection not found.')
   if (r.ids.includes(propertyId)) return ok(null)
@@ -31,7 +43,11 @@ async function assignInner(root: string, collectionFolder: string, propertyId: s
   return restoreCachedValues(root, collectionFolder, propertyId)
 }
 
-async function reorderInner(collectionFolder: string, propertyId: string, toIndex: number): Promise<Result<null>> {
+async function reorderInner(
+  collectionFolder: string,
+  propertyId: string,
+  toIndex: number,
+): Promise<Result<null>> {
   const r = await read(collectionFolder)
   if (!r) return fail('not-found', 'Collection not found.')
   const from = r.ids.indexOf(propertyId)
@@ -45,7 +61,11 @@ async function reorderInner(collectionFolder: string, propertyId: string, toInde
 
 /** Assign appends the id (idempotent), then restores any Remove-cache for it (C-3) —
  *  root scopes the registry read the per-value reconciliation needs. */
-export function assignProperty(root: string, collectionFolder: string, propertyId: string): Promise<Result<null>> {
+export function assignProperty(
+  root: string,
+  collectionFolder: string,
+  propertyId: string,
+): Promise<Result<null>> {
   return serializeSchemaOp(() => assignInner(root, collectionFolder, propertyId))
 }
 
@@ -55,7 +75,7 @@ export function assignPropertyAt(
   root: string,
   collectionFolder: string,
   propertyId: string,
-  toIndex?: number
+  toIndex?: number,
 ): Promise<Result<null>> {
   return serializeSchemaOp(async () => {
     const a = await assignInner(root, collectionFolder, propertyId)
@@ -74,10 +94,18 @@ export async function allCollectionFolders(root: string): Promise<string[]> {
     if (node.kind === 'collection') out.push(join(root, node.path))
     for (const s of node.sets ?? []) visit(s)
   }
-  for (const c of [...(tree.collections ?? []), ...tree.userSections.flatMap((s) => s.collections ?? [])]) visit(c)
+  for (const c of [
+    ...(tree.collections ?? []),
+    ...tree.userSections.flatMap((s) => s.collections ?? []),
+  ])
+    visit(c)
   return out
 }
 
-export function reorderAssignment(collectionFolder: string, propertyId: string, toIndex: number): Promise<Result<null>> {
+export function reorderAssignment(
+  collectionFolder: string,
+  propertyId: string,
+  toIndex: number,
+): Promise<Result<null>> {
   return serializeSchemaOp(() => reorderInner(collectionFolder, propertyId, toIndex))
 }

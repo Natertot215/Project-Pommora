@@ -70,6 +70,6 @@ export function buildPageIndex(pages: ConnPage[]): PageIndex {
         })
         .slice(0, limit)
         .map((x) => x.p)
-    }
+    },
   }
 }

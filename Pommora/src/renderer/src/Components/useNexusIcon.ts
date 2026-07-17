@@ -15,7 +15,10 @@ export function useNexusIcon() {
   const [pickerOpen, setPickerOpen] = useState(false)
 
   const openMenu = async (): Promise<void> => {
-    const action = await window.nexus.iconMenu({ hasPhoto: !!profileImage, hasGlyph: !!profileIcon })
+    const action = await window.nexus.iconMenu({
+      hasPhoto: !!profileImage,
+      hasGlyph: !!profileIcon,
+    })
     if (action === 'changeIcon') setPickerOpen(true)
     else if (action === 'addPhoto') {
       const dataUrl = await window.nexus.pickImage()
@@ -38,5 +41,15 @@ export function useNexusIcon() {
     })()
   }
 
-  return { profileImage, profileIcon, openMenu, cropImage, setCropImage, pickerOpen, setPickerOpen, confirmCrop, selectGlyph }
+  return {
+    profileImage,
+    profileIcon,
+    openMenu,
+    cropImage,
+    setCropImage,
+    pickerOpen,
+    setPickerOpen,
+    confirmCrop,
+    selectGlyph,
+  }
 }

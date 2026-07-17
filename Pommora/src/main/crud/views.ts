@@ -25,7 +25,11 @@ const viewsOf = (sidecar: { views?: SavedView[] }): SavedView[] =>
 
 /** Upsert a view by id. A `view_default` sentinel id is swapped for a real `view_<ulid>` and the
  *  assigned id is returned. Other views + foreign keys ride through untouched. */
-export async function saveView(folder: string, kind: ViewContainerKind, view: SavedView): Promise<Result<{ id: string }>> {
+export async function saveView(
+  folder: string,
+  kind: ViewContainerKind,
+  view: SavedView,
+): Promise<Result<{ id: string }>> {
   const sidecar = await readViewSidecar(folder, kind)
   if (sidecar === null) return fail('not-found', 'Container sidecar not found.', kind)
   const id = view.id === DEFAULT_VIEW_ID ? `${VIEW_ID_PREFIX}${newId()}` : view.id
@@ -39,7 +43,11 @@ export async function saveView(folder: string, kind: ViewContainerKind, view: Sa
 }
 
 /** Reorder views to match `orderedIds`; any views not named ride along at the end (defensive). */
-export async function reorderViews(folder: string, kind: ViewContainerKind, orderedIds: string[]): Promise<Result<null>> {
+export async function reorderViews(
+  folder: string,
+  kind: ViewContainerKind,
+  orderedIds: string[],
+): Promise<Result<null>> {
   const sidecar = await readViewSidecar(folder, kind)
   if (sidecar === null) return fail('not-found', 'Container sidecar not found.', kind)
   const views = viewsOf(sidecar)
@@ -47,14 +55,18 @@ export async function reorderViews(folder: string, kind: ViewContainerKind, orde
   const named = new Set(orderedIds)
   const reordered: SavedView[] = [
     ...orderedIds.map((id) => byId.get(id)).filter((v): v is SavedView => v !== undefined),
-    ...views.filter((v) => !named.has(v.id))
+    ...views.filter((v) => !named.has(v.id)),
   ]
   await writeSidecar(folder, kind, { ...sidecar, views: reordered, modified_at: nowIso() })
   return ok(null)
 }
 
 /** Delete a view by id; refuses to remove the last one (a container always keeps ≥1 view). */
-export async function deleteView(folder: string, kind: ViewContainerKind, viewId: string): Promise<Result<null>> {
+export async function deleteView(
+  folder: string,
+  kind: ViewContainerKind,
+  viewId: string,
+): Promise<Result<null>> {
   const sidecar = await readViewSidecar(folder, kind)
   if (sidecar === null) return fail('not-found', 'Container sidecar not found.', kind)
   const views = viewsOf(sidecar)

@@ -16,7 +16,11 @@ export type { DragItem, DragNotify, DragGroupProps, Modifier }
 export { DragGroup, useGroupedDragItem }
 
 /** Reorder a list from the (activeId, overId) a zone reports — for shift-mode zones. */
-export function reorder<T extends { id: string }>(items: T[], activeId: string, overId: string): T[] {
+export function reorder<T extends { id: string }>(
+  items: T[],
+  activeId: string,
+  overId: string,
+): T[] {
   const from = items.findIndex((i) => i.id === activeId)
   const to = items.findIndex((i) => i.id === overId)
   if (from === -1 || to === -1 || from === to) return items
@@ -74,7 +78,15 @@ export function SortableZone(props: SortableZoneProps): React.JSX.Element {
   }
   // Standalone — the single-zone drag engine. `id`/`layout`/`group`/`className` don't apply
   // (it renders no wrapper; the surface provides its container); everything else forwards through.
-  const { id: _id, items, layout: _layout, group: _group, className: _className, children, ...rest } = props
+  const {
+    id: _id,
+    items,
+    layout: _layout,
+    group: _group,
+    className: _className,
+    children,
+    ...rest
+  } = props
   return (
     <Zone ids={items} {...rest}>
       {children}

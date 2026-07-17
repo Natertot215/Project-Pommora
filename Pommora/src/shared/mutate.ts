@@ -15,7 +15,15 @@ export type MutableKind = 'page' | 'collection' | 'set' | 'area' | 'topic' | 'pr
 /** The entities that can own a banner image: Collections + Sets + the three context tiers
  *  (folder sidecars), the homepage + NavView singletons (`.nexus/homepage.json` / `.nexus/navview.json`),
  *  and a page (whose banner is the Swift-compatible `cover` field in its `.md` frontmatter). */
-export type BannerOwnerKind = 'collection' | 'set' | 'area' | 'topic' | 'project' | 'homepage' | 'navview' | 'page'
+export type BannerOwnerKind =
+  | 'collection'
+  | 'set'
+  | 'area'
+  | 'topic'
+  | 'project'
+  | 'homepage'
+  | 'navview'
+  | 'page'
 
 /** A folder container a page or sub-container can be created inside. These match their
  *  SidecarKind names exactly, so main passes them straight to createFolderEntity. */
@@ -24,11 +32,7 @@ export type MutableContainerKind = 'collection' | 'set'
 /** Top-level order groups, persisted in `.nexus/state.json` — top Collections + the three
  *  context tiers. Single source for the union spelled across the engine, store, and IPC
  *  (and re-used in main). */
-export type StateOrderKey =
-  | 'collection_order'
-  | 'area_order'
-  | 'topic_order'
-  | 'project_order'
+export type StateOrderKey = 'collection_order' | 'area_order' | 'topic_order' | 'project_order'
 /** Within-container child-order keys carried by reorderChildren — collections on a vault, sets on a collection. */
 export type ChildOrderKey = 'collection_order' | 'set_order'
 

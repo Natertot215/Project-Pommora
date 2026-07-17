@@ -10,7 +10,12 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { z } from 'zod'
 import { agendaConfigSidecar } from '@shared/schemas'
-import { defaultSelectSeed, defaultStatusSeed, type PropertyDefinition, type PropertyType } from '@shared/properties'
+import {
+  defaultSelectSeed,
+  defaultStatusSeed,
+  type PropertyDefinition,
+  type PropertyType,
+} from '@shared/properties'
 import { isPlainObject } from '@shared/propertyValue'
 import { AGENDA_SUFFIX, type AgendaKind } from '@shared/agenda'
 import { mintPropertyId } from '../ids'
@@ -21,7 +26,12 @@ import { splitEnvelope, mergeFrontmatter } from '../io/pageFile'
 import { serializeJson } from '../io/atomicWrite'
 import { listFilesBySuffix } from '../io/walk'
 import { SchemaTransaction } from '../io/schemaTransaction'
-import { parseDefinitions, droppingUserContexts, validateDefinition, validateName } from '../properties/schema'
+import {
+  parseDefinitions,
+  droppingUserContexts,
+  validateDefinition,
+  validateName,
+} from '../properties/schema'
 import { nowIso } from './util'
 import { ok, fail, type Result } from '@shared/result'
 
@@ -48,7 +58,12 @@ export function stripPageMember(content: string, propertyId: string): string | n
   const next = { ...props }
   delete next[propertyId]
   const body = splitEnvelope(content).body
-  return mergeFrontmatter(content, { properties: next, modified_at: nowIso() }, ['properties', 'modified_at'], body)
+  return mergeFrontmatter(
+    content,
+    { properties: next, modified_at: nowIso() },
+    ['properties', 'modified_at'],
+    body,
+  )
 }
 
 function stripAgendaMember(content: string, propertyId: string): string | null {
@@ -72,13 +87,16 @@ function agendaTarget(kind: AgendaKind): SchemaTarget {
     schema: agendaConfigSidecar,
     schemaKey: 'property_definitions',
     members: (folder) => listFilesBySuffix(folder, AGENDA_SUFFIX[kind]),
-    strip: stripAgendaMember
+    strip: stripAgendaMember,
   }
 }
 
 // MARK: - Shared core
 
-async function readSchema(target: SchemaTarget, folder: string): Promise<{ sidecar: Sidecar; defs: PropertyDefinition[] } | null> {
+async function readSchema(
+  target: SchemaTarget,
+  folder: string,
+): Promise<{ sidecar: Sidecar; defs: PropertyDefinition[] } | null> {
   const sidecar = await readSidecar(folder, target.kind, target.schema)
   if (sidecar === null) return null
   const defs = droppingUserContexts(parseDefinitions((sidecar as Sidecar)[target.schemaKey]))
@@ -89,7 +107,12 @@ function nextSidecar(sidecar: Sidecar, defs: PropertyDefinition[], schemaKey: st
   return { ...sidecar, [schemaKey]: defs, modified_at: nowIso() }
 }
 
-async function stageMemberStrips(tx: SchemaTransaction, target: SchemaTarget, folder: string, propertyId: string): Promise<void> {
+async function stageMemberStrips(
+  tx: SchemaTransaction,
+  target: SchemaTarget,
+  folder: string,
+  propertyId: string,
+): Promise<void> {
   for (const file of await target.members(folder)) {
     let content: string
     try {
@@ -102,7 +125,11 @@ async function stageMemberStrips(tx: SchemaTransaction, target: SchemaTarget, fo
   }
 }
 
-async function addProp(target: SchemaTarget, folder: string, def: PropertyDefinition): Promise<Result<{ id: string }>> {
+async function addProp(
+  target: SchemaTarget,
+  folder: string,
+  def: PropertyDefinition,
+): Promise<Result<{ id: string }>> {
   const s = await readSchema(target, folder)
   if (!s) return fail('not-found', 'Schema not found.', target.kind)
   let candidate: PropertyDefinition = { ...def, id: def.id || mintPropertyId() }
@@ -117,11 +144,20 @@ async function addProp(target: SchemaTarget, folder: string, def: PropertyDefini
   }
   const v = validateDefinition(candidate, s.defs)
   if (!v.ok) return v
-  await writeSidecar(folder, target.kind, nextSidecar(s.sidecar, [...s.defs, candidate], target.schemaKey))
+  await writeSidecar(
+    folder,
+    target.kind,
+    nextSidecar(s.sidecar, [...s.defs, candidate], target.schemaKey),
+  )
   return ok({ id: candidate.id })
 }
 
-async function renameProp(target: SchemaTarget, folder: string, propertyId: string, newName: string): Promise<Result<null>> {
+async function renameProp(
+  target: SchemaTarget,
+  folder: string,
+  propertyId: string,
+  newName: string,
+): Promise<Result<null>> {
   const s = await readSchema(target, folder)
   if (!s) return fail('not-found', 'Schema not found.', target.kind)
   const idx = s.defs.findIndex((d) => d.id === propertyId)
@@ -133,7 +169,12 @@ async function renameProp(target: SchemaTarget, folder: string, propertyId: stri
   return ok(null)
 }
 
-async function reorderProp(target: SchemaTarget, folder: string, propertyId: string, toIndex: number): Promise<Result<null>> {
+async function reorderProp(
+  target: SchemaTarget,
+  folder: string,
+  propertyId: string,
+  toIndex: number,
+): Promise<Result<null>> {
   const s = await readSchema(target, folder)
   if (!s) return fail('not-found', 'Schema not found.', target.kind)
   const from = s.defs.findIndex((d) => d.id === propertyId)
@@ -147,13 +188,21 @@ async function reorderProp(target: SchemaTarget, folder: string, propertyId: str
   return ok(null)
 }
 
-async function deleteProp(target: SchemaTarget, folder: string, propertyId: string): Promise<Result<null>> {
+async function deleteProp(
+  target: SchemaTarget,
+  folder: string,
+  propertyId: string,
+): Promise<Result<null>> {
   const s = await readSchema(target, folder)
   if (!s) return fail('not-found', 'Schema not found.', target.kind)
-  if (!s.defs.some((d) => d.id === propertyId)) return fail('not-found', 'Property not found.', target.kind)
+  if (!s.defs.some((d) => d.id === propertyId))
+    return fail('not-found', 'Property not found.', target.kind)
   const next = s.defs.filter((d) => d.id !== propertyId)
   const tx = new SchemaTransaction()
-  tx.stage(join(folder, SIDECAR_FILENAME[target.kind]), serializeJson(nextSidecar(s.sidecar, next, target.schemaKey)))
+  tx.stage(
+    join(folder, SIDECAR_FILENAME[target.kind]),
+    serializeJson(nextSidecar(s.sidecar, next, target.schemaKey)),
+  )
   await stageMemberStrips(tx, target, folder, propertyId)
   await tx.commit()
   return ok(null)
@@ -164,7 +213,7 @@ async function changeType(
   folder: string,
   propertyId: string,
   newType: PropertyType,
-  opts: { dropConflictingValues?: boolean }
+  opts: { dropConflictingValues?: boolean },
 ): Promise<Result<null>> {
   const s = await readSchema(target, folder)
   if (!s) return fail('not-found', 'Schema not found.', target.kind)
@@ -176,10 +225,17 @@ async function changeType(
     return ok(null)
   }
   if (!opts.dropConflictingValues) {
-    return fail('lossy-change-requires-confirmation', 'Changing this property type drops existing values.', target.kind)
+    return fail(
+      'lossy-change-requires-confirmation',
+      'Changing this property type drops existing values.',
+      target.kind,
+    )
   }
   const tx = new SchemaTransaction()
-  tx.stage(join(folder, SIDECAR_FILENAME[target.kind]), serializeJson(nextSidecar(s.sidecar, next, target.schemaKey)))
+  tx.stage(
+    join(folder, SIDECAR_FILENAME[target.kind]),
+    serializeJson(nextSidecar(s.sidecar, next, target.schemaKey)),
+  )
   await stageMemberStrips(tx, target, folder, propertyId)
   await tx.commit()
   return ok(null)
@@ -187,12 +243,23 @@ async function changeType(
 
 // MARK: - Agenda config schema CRUD (same ops, JSON members)
 
-export const addAgendaProperty = (configFolder: string, kind: AgendaKind, def: PropertyDefinition) =>
-  addProp(agendaTarget(kind), configFolder, def)
-export const renameAgendaProperty = (configFolder: string, kind: AgendaKind, propertyId: string, newName: string) =>
-  renameProp(agendaTarget(kind), configFolder, propertyId, newName)
-export const reorderAgendaProperty = (configFolder: string, kind: AgendaKind, propertyId: string, toIndex: number) =>
-  reorderProp(agendaTarget(kind), configFolder, propertyId, toIndex)
+export const addAgendaProperty = (
+  configFolder: string,
+  kind: AgendaKind,
+  def: PropertyDefinition,
+) => addProp(agendaTarget(kind), configFolder, def)
+export const renameAgendaProperty = (
+  configFolder: string,
+  kind: AgendaKind,
+  propertyId: string,
+  newName: string,
+) => renameProp(agendaTarget(kind), configFolder, propertyId, newName)
+export const reorderAgendaProperty = (
+  configFolder: string,
+  kind: AgendaKind,
+  propertyId: string,
+  toIndex: number,
+) => reorderProp(agendaTarget(kind), configFolder, propertyId, toIndex)
 export const deleteAgendaProperty = (configFolder: string, kind: AgendaKind, propertyId: string) =>
   deleteProp(agendaTarget(kind), configFolder, propertyId)
 export const changeAgendaPropertyType = (
@@ -200,5 +267,5 @@ export const changeAgendaPropertyType = (
   kind: AgendaKind,
   propertyId: string,
   newType: PropertyType,
-  opts: { dropConflictingValues?: boolean } = {}
+  opts: { dropConflictingValues?: boolean } = {},
 ) => changeType(agendaTarget(kind), configFolder, propertyId, newType, opts)

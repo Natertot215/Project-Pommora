@@ -36,7 +36,7 @@ export interface ConnectionAutocomplete {
 // with detectConnectionQuery() in the editor's updateListener.
 export function useConnectionAutocomplete(
   viewRef: RefObject<EditorView | null>,
-  candidatesFor: (query: string) => ConnPage[]
+  candidatesFor: (query: string) => ConnPage[],
 ): ConnectionAutocomplete {
   const [ac, setAc] = useState<AcState | null>(null)
   const [acIndex, setAcIndex] = useState(0)
@@ -46,7 +46,11 @@ export function useConnectionAutocomplete(
     const view = viewRef.current
     if (!view || !ac) return
     const { insert, caret } = connectionInsert(page.title, ac.from)
-    view.dispatch({ changes: { from: ac.from, to: ac.to, insert }, selection: { anchor: caret }, userEvent: 'input' })
+    view.dispatch({
+      changes: { from: ac.from, to: ac.to, insert },
+      selection: { anchor: caret },
+      userEvent: 'input',
+    })
     setAc(null)
     view.focus()
   }
@@ -60,7 +64,7 @@ export function useConnectionAutocomplete(
       if (p) commit(p)
     },
     move: (d) => setAcIndex((i) => Math.max(0, Math.min(i + d, candidates.length - 1))),
-    close: () => setAc(null)
+    close: () => setAc(null),
   }
 
   useEffect(() => setAcIndex(0), [ac?.query])
@@ -79,7 +83,13 @@ export function detectConnectionQuery(view: EditorView, setAc: (s: AcState | nul
   if (sel.empty) {
     const q = autocompleteQuery(view.state.doc.toString(), sel.head)
     const c = q && view.coordsAtPos(sel.head)
-    if (q && c) next = { ...q, left: Math.round(c.left), caretTop: Math.round(c.top), caretBottom: Math.round(c.bottom) }
+    if (q && c)
+      next = {
+        ...q,
+        left: Math.round(c.left),
+        caretTop: Math.round(c.top),
+        caretBottom: Math.round(c.bottom),
+      }
   }
   setAc(next)
 }

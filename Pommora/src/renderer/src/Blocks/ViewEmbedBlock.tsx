@@ -5,7 +5,13 @@ import type { PropertyDefinition } from '@shared/properties'
 import { DEFAULT_VIEW_ID, mintDefaultView, mintNewView, type SavedView } from '@shared/views'
 import { Icon, iconNameOr } from '@renderer/design-system/symbols'
 import { PickerMenu } from '@renderer/design-system/components/PickerMenu'
-import { AccessoryButton, Menu, MenuBottomRow, MenuItem, MenuScrollFrame } from '@renderer/design-system/components/menu'
+import {
+  AccessoryButton,
+  Menu,
+  MenuBottomRow,
+  MenuItem,
+  MenuScrollFrame,
+} from '@renderer/design-system/components/menu'
 import { titleInput as rowInput } from '@renderer/design-system/components/menu/menu.css'
 import { reorder, SortableZone, useDragItem } from '@renderer/design-system/interactions/drag'
 import { activeRow } from '@renderer/Toolbar/viewDropdown.css'
@@ -32,7 +38,9 @@ function coerceConfig(raw: unknown, schema: PropertyDefinition[], fallbackId: st
     typeof v.id === 'string' &&
     typeof v.name === 'string' &&
     typeof v.type === 'string' &&
-    (['property_order', 'hidden_properties', 'sort'] as const).every((k) => v[k] === undefined || Array.isArray(v[k]))
+    (['property_order', 'hidden_properties', 'sort'] as const).every(
+      (k) => v[k] === undefined || Array.isArray(v[k]),
+    )
   if (!shapeOk) return { ...mintDefaultView(schema), id: fallbackId }
   return v.id === DEFAULT_VIEW_ID ? { ...v, id: fallbackId } : v
 }
@@ -49,7 +57,15 @@ const viewIcon = (v: SavedView): string => iconNameOr(v.icon, 'table')
  *  so a title reads uniform with any rendered heading). Editing happens in place on the SAME element via
  *  contentEditable — no input swap, so the field is the text itself: the caret drops in and it reads
  *  smooth. Enter/blur commit, Escape reverts; an empty commit clears back to the source. */
-function EmbedTitle({ title, level, onCommit }: { title: string; level: number; onCommit: (next: string) => void }): React.JSX.Element {
+function EmbedTitle({
+  title,
+  level,
+  onCommit,
+}: {
+  title: string
+  level: number
+  onCommit: (next: string) => void
+}): React.JSX.Element {
   const [editing, setEditing] = useState(false)
   const ref = useRef<HTMLSpanElement>(null)
   const reverting = useRef(false) // Escape sets this so the blur it triggers doesn't commit
@@ -125,7 +141,7 @@ function ViewPill({
   renameNode,
   onSwitch,
   onMenu,
-  onAnimEnd
+  onAnimEnd,
 }: {
   id: string
   view: SavedView
@@ -139,7 +155,9 @@ function ViewPill({
   onAnimEnd: () => void
 }): React.JSX.Element {
   const { setNodeRef, style, handle } = useDragItem(id)
-  const cls = [s.pill, active && s.pillActive, entering && s.pillEntering, exiting && s.pillExiting].filter(Boolean).join(' ')
+  const cls = [s.pill, active && s.pillActive, entering && s.pillEntering, exiting && s.pillExiting]
+    .filter(Boolean)
+    .join(' ')
   return (
     <button
       ref={setNodeRef}
@@ -164,10 +182,13 @@ function ViewPill({
 export function ViewEmbedBlock({
   entry,
   mutateEntry,
-  onActivate
+  onActivate,
 }: {
   entry: ViewBlockEntry
-  mutateEntry: (entryId: string, fn: (raw: Record<string, unknown>) => Record<string, unknown>) => void
+  mutateEntry: (
+    entryId: string,
+    fn: (raw: Record<string, unknown>) => Record<string, unknown>,
+  ) => void
   /** Mark this tile the surface's active one — a view has no text-edit mode, so interacting with it
    *  (any pointerdown inside) is its "busy" signal, which corner-scopes its drag handle like an editor. */
   onActivate?: () => void
@@ -188,17 +209,23 @@ export function ViewEmbedBlock({
   // View-switch slide direction: a higher index (a pill to the right) enters from the right (+), a lower
   // one from the left (−). prevIndexRef holds the last-committed index so the offset reads at switch time.
   const prevIndexRef = useRef(index)
-  const slideFrom = index > prevIndexRef.current ? '24px' : index < prevIndexRef.current ? '-24px' : '0px'
+  const slideFrom =
+    index > prevIndexRef.current ? '24px' : index < prevIndexRef.current ? '-24px' : '0px'
   useEffect(() => {
     prevIndexRef.current = index
   }, [index])
   const embedded = entry.views[index]
   const source: CollectionNode | SetNode | undefined =
-    embedded && tree ? (findCollection(tree, embedded.source_id) ?? findSet(tree, embedded.source_id)) : undefined
+    embedded && tree
+      ? (findCollection(tree, embedded.source_id) ?? findSet(tree, embedded.source_id))
+      : undefined
 
-  const schemaCollection = source && source.kind !== 'collection' ? findCollectionForSet(tree, source.id) : source
+  const schemaCollection =
+    source && source.kind !== 'collection' ? findCollectionForSet(tree, source.id) : source
   const schema = (schemaCollection as CollectionNode | undefined)?.properties ?? []
-  const views = source ? entry.views.map((v, i) => coerceConfig(v.config, schema, `embed:${entry.id}:${i}`)) : []
+  const views = source
+    ? entry.views.map((v, i) => coerceConfig(v.config, schema, `embed:${entry.id}:${i}`))
+    : []
   viewsRef.current = views
   const idKey = views.map((v) => v.id).join(',')
 
@@ -260,10 +287,15 @@ export function ViewEmbedBlock({
     if (locked) return
     mutateEntry(entry.id, (raw) => {
       const arr = rawViews(raw)
-      const used = new Set(arr.map((el) => ((el as { config?: { id?: unknown } })?.config?.id as string) ?? ''))
+      const used = new Set(
+        arr.map((el) => ((el as { config?: { id?: unknown } })?.config?.id as string) ?? ''),
+      )
       let slot = arr.length
       while (used.has(`embed:${entry.id}:${slot}`)) slot++
-      arr.push({ source_id: source.id, config: { ...mintNewView('Untitled', schema), id: `embed:${entry.id}:${slot}` } })
+      arr.push({
+        source_id: source.id,
+        config: { ...mintNewView('Untitled', schema), id: `embed:${entry.id}:${slot}` },
+      })
       return { ...raw, views: arr, active: arr.length - 1 }
     })
   }
@@ -294,7 +326,7 @@ export function ViewEmbedBlock({
       const seq = reorder(
         viewsRef.current.map((v, i) => ({ id: v.id, i })),
         activeId,
-        overId
+        overId,
       )
       const next = seq.map((x) => arr[x.i]).filter((x) => x != null)
       const newActive = seq.findIndex((x) => x.i === index)
@@ -321,7 +353,7 @@ export function ViewEmbedBlock({
     const action = await window.nexus.viewEmbedAreaMenu({
       viewButton: labeled ? 'labeled' : 'icon',
       viewStyle: dropdown ? 'dropdown' : 'toolbar',
-      titleShown
+      titleShown,
     })
     if (action === 'toggle-pill-titles') patchEntry({ view_button: labeled ? 'icon' : undefined })
     else if (action === 'show-title') patchEntry({ title: undefined })
@@ -341,7 +373,8 @@ export function ViewEmbedBlock({
   }
   const pillAnimEnd = (id: string): void => {
     if (exitingId === id) finishExit(id)
-    else if (enteringIds.has(id)) setEnteringIds((s0) => (s0.has(id) ? new Set([...s0].filter((x) => x !== id)) : s0))
+    else if (enteringIds.has(id))
+      setEnteringIds((s0) => (s0.has(id) ? new Set([...s0].filter((x) => x !== id)) : s0))
   }
 
   const renameField = (i: number): React.JSX.Element => (
@@ -369,7 +402,9 @@ export function ViewEmbedBlock({
     </button>
   )
 
-  const newViewButton = <AccessoryButton icon="plus" size={12} box={20} ariaLabel="New View" onClick={addView} />
+  const newViewButton = (
+    <AccessoryButton icon="plus" size={12} box={20} ariaLabel="New View" onClick={addView} />
+  )
 
   const switcher = dropdown ? (
     <button ref={dropRef} type="button" className={s.pill} onClick={() => setListOpen(true)}>
@@ -401,7 +436,15 @@ export function ViewEmbedBlock({
   )
 
   return (
-    <ViewEmbedScopeProvider value={{ source, view, persistConfig: (next) => persistConfig(index, next), locked, setLocked }}>
+    <ViewEmbedScopeProvider
+      value={{
+        source,
+        view,
+        persistConfig: (next) => persistConfig(index, next),
+        locked,
+        setLocked,
+      }}
+    >
       <div className={s.tile} onPointerDownCapture={onActivate}>
         {titleShown && (
           // biome-ignore lint/a11y/noStaticElementInteractions: right-click chrome menu on the title row.
@@ -409,7 +452,11 @@ export function ViewEmbedBlock({
             {/* size omitted → Icon defaults to 1em; the .md-hN class sets the em base, so the icon
                 scales with the title level in lockstep with the text. */}
             {iconShown && <Icon name={viewIcon(view)} className={`md-h${titleLevel}`} />}
-            <EmbedTitle title={entry.display_title ?? source.title} level={titleLevel} onCommit={commitTitle} />
+            <EmbedTitle
+              title={entry.display_title ?? source.title}
+              level={titleLevel}
+              onCommit={commitTitle}
+            />
             {configButton}
           </div>
         )}
@@ -424,7 +471,11 @@ export function ViewEmbedBlock({
           )}
         </div>
         <div className={`${s.body} edge-fade`}>
-          <div key={index} className={s.slideWrap} style={{ '--slide-from': slideFrom } as React.CSSProperties}>
+          <div
+            key={index}
+            className={s.slideWrap}
+            style={{ '--slide-from': slideFrom } as React.CSSProperties}
+          >
             <TableView key={source.id} source={source} />
           </div>
         </div>
@@ -439,11 +490,7 @@ export function ViewEmbedBlock({
           <div className={s.listPane}>
             <MenuScrollFrame
               maxHeight={PICKER_MAX_H}
-              footer={
-                <MenuBottomRow
-                  leading={newViewButton}
-                />
-              }
+              footer={<MenuBottomRow leading={newViewButton} />}
             >
               <Menu>
                 {views.map((v, i) => (

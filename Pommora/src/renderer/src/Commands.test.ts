@@ -2,7 +2,14 @@ import { describe, it, expect } from 'vitest'
 import { matchesCommand } from './Commands'
 
 const key = (k: string, mods: Partial<KeyboardEvent> = {}): KeyboardEvent =>
-  ({ key: k, metaKey: false, ctrlKey: false, altKey: false, shiftKey: false, ...mods }) as KeyboardEvent
+  ({
+    key: k,
+    metaKey: false,
+    ctrlKey: false,
+    altKey: false,
+    shiftKey: false,
+    ...mods,
+  }) as KeyboardEvent
 
 describe('matchesCommand', () => {
   it('matches cmd+e exactly', () => {

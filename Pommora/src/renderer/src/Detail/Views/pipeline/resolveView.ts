@@ -39,9 +39,9 @@ export function resolveView(input: {
       sorter,
       view.collapsed_groups,
       view.ungrouped_placement ?? 'bottom',
-      structuralGrouping ? view.sub_group : undefined
+      structuralGrouping ? view.sub_group : undefined,
     ),
-    locationOrdered ? undefined : view.group_order
+    locationOrdered ? undefined : view.group_order,
   )
   return { columns, groups }
 }

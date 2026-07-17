@@ -7,12 +7,12 @@ export const track = style({
   height: '6px',
   borderRadius: '999px',
   background: vars.color.fill.primary,
-  overflow: 'hidden'
+  overflow: 'hidden',
 })
 
 /** The filled portion — the runtime accent, width-driven. */
 export const fill = style({
   height: '100%',
   borderRadius: '999px',
-  background: 'var(--accent)'
+  background: 'var(--accent)',
 })

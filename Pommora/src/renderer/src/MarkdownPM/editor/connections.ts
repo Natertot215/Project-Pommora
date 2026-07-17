@@ -7,7 +7,9 @@ type GetApi = () => ConnectionsApi | undefined
 function wikiLinkAt(view: EditorView, pos: number): { title: string } | null {
   const line = view.state.doc.lineAt(pos)
   const rel = pos - line.from
-  const tk = tokenize(line.text).find((t) => t.kind === 'wikiLink' && rel >= t.range[0] && rel <= t.range[1])
+  const tk = tokenize(line.text).find(
+    (t) => t.kind === 'wikiLink' && rel >= t.range[0] && rel <= t.range[1],
+  )
   return tk ? { title: line.text.slice(tk.contentRange[0], tk.contentRange[1]) } : null
 }
 
@@ -28,6 +30,6 @@ export function connectionClicks(getApi: GetApi): ReturnType<typeof EditorView.d
       event.preventDefault()
       api.open(res.page)
       return true
-    }
+    },
   })
 }

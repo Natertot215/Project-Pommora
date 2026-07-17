@@ -3,7 +3,13 @@ import { Icon } from '@renderer/design-system/symbols'
 import { chipPill, chipColor } from '@renderer/design-system/tokens'
 import { chipColorFor } from '@renderer/design-system/tokens/colorMap'
 import { DROP_LINE_INSET } from '@renderer/design-system/interactions/shared'
-import { addStatusOption, recolorStatusOption, relabelStatusGroup, moveStatusOption, fallbackTitle } from '@shared/optionModel'
+import {
+  addStatusOption,
+  recolorStatusOption,
+  relabelStatusGroup,
+  moveStatusOption,
+  fallbackTitle,
+} from '@shared/optionModel'
 import type { StatusGroup } from '@shared/properties'
 import { cx } from '@renderer/design-system/cx'
 import { Chip, chipShapeForType } from '../Chip'
@@ -27,7 +33,7 @@ export function StatusEditor({
   onSetGroups,
   onRenameOption,
   onRemoveOption,
-  onClearOption
+  onClearOption,
 }: {
   groups: StatusGroup[]
   onSetGroups: (next: StatusGroup[]) => void
@@ -42,7 +48,7 @@ export function StatusEditor({
   const paletteBtnRef = useRef<HTMLButtonElement>(null)
   const reorder = useStatusReorder(
     groups.map((g) => ({ id: g.id, values: g.options.map((o) => o.value) })),
-    (value, toGroupId, toIndex) => onSetGroups(moveStatusOption(groups, value, toGroupId, toIndex))
+    (value, toGroupId, toIndex) => onSetGroups(moveStatusOption(groups, value, toGroupId, toIndex)),
   )
 
   const commitAdd = (groupId: string, raw: string): void => {
@@ -91,7 +97,12 @@ export function StatusEditor({
                 {g.label}
               </span>
             )}
-            <button type="button" className={s.groupAdd} aria-label={`Add to ${g.label}`} onClick={() => setAdding(g.id)}>
+            <button
+              type="button"
+              className={s.groupAdd}
+              aria-label={`Add to ${g.label}`}
+              onClick={() => setAdding(g.id)}
+            >
               <Icon name="plus" size={s.ICON.optionsAdd} />
             </button>
           </div>
@@ -121,7 +132,11 @@ export function StatusEditor({
                     </span>
                   ) : (
                     <>
-                      <Chip shape={chipShapeForType('status')} color={chipColorFor(o.color ?? g.color)} label={o.label} />
+                      <Chip
+                        shape={chipShapeForType('status')}
+                        color={chipColorFor(o.color ?? g.color)}
+                        label={o.label}
+                      />
                       <span className={s.paletteAnchor}>
                         <button
                           ref={isColoring ? paletteBtnRef : undefined}
@@ -160,7 +175,11 @@ export function StatusEditor({
               </div>
             ) : null}
             {reorder.drop?.groupId === g.id ? (
-              <div className="table-drop-line" aria-hidden style={{ top: reorder.drop.top, left: DROP_LINE_INSET, right: DROP_LINE_INSET }}>
+              <div
+                className="table-drop-line"
+                aria-hidden
+                style={{ top: reorder.drop.top, left: DROP_LINE_INSET, right: DROP_LINE_INSET }}
+              >
                 <span className="table-drop-dot" />
               </div>
             ) : null}

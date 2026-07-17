@@ -2,7 +2,14 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, rmSync, writeFileSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { sessionRoot, openSession, closeSession, resolveRestorePath, isTrashedPath, pruneRecents } from './session'
+import {
+  sessionRoot,
+  openSession,
+  closeSession,
+  resolveRestorePath,
+  isTrashedPath,
+  pruneRecents,
+} from './session'
 
 describe('session — open/close', () => {
   beforeEach(() => closeSession())

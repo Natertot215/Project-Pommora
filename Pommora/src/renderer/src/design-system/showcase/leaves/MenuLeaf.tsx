@@ -5,7 +5,16 @@ import { Icon } from '@renderer/design-system/symbols'
 // A constrained panel so the flush rows read like a real menu (≈ the Figma 230px card).
 function Panel({ children }: { children: ReactNode }): React.JSX.Element {
   return (
-    <div style={{ width: 240, background: '#FFFFFF0A', border: '1px solid #FFFFFF14', borderRadius: 10 }}>{children}</div>
+    <div
+      style={{
+        width: 240,
+        background: '#FFFFFF0A',
+        border: '1px solid #FFFFFF14',
+        borderRadius: 10,
+      }}
+    >
+      {children}
+    </div>
   )
 }
 
@@ -22,12 +31,37 @@ export function MenuLeaf(): React.JSX.Element {
         <Panel>
           <Menu>
             <MenuItem leading={dashed}>Title</MenuItem>
-            <MenuItem leading={dashed} subLabel="Sub-label">Title</MenuItem>
-            <MenuItem leading={dashed} detail="Detail">Title</MenuItem>
-            <MenuItem leading={dashed} trailing={chevron}>Title</MenuItem>
-            <MenuItem leading={<>{chevron}{dashed}</>}>Title</MenuItem>
+            <MenuItem leading={dashed} subLabel="Sub-label">
+              Title
+            </MenuItem>
+            <MenuItem leading={dashed} detail="Detail">
+              Title
+            </MenuItem>
+            <MenuItem leading={dashed} trailing={chevron}>
+              Title
+            </MenuItem>
+            <MenuItem
+              leading={
+                <>
+                  {chevron}
+                  {dashed}
+                </>
+              }
+            >
+              Title
+            </MenuItem>
             <MenuItem>Title</MenuItem>
-            <MenuItem leading={<>{chevron}{dashed}</>} subLabel="Sub-label" detail="Detail" trailing={chevron}>
+            <MenuItem
+              leading={
+                <>
+                  {chevron}
+                  {dashed}
+                </>
+              }
+              subLabel="Sub-label"
+              detail="Detail"
+              trailing={chevron}
+            >
               Title
             </MenuItem>
           </Menu>
@@ -39,7 +73,9 @@ export function MenuLeaf(): React.JSX.Element {
         <Panel>
           <Menu>
             <MenuHeading leading={dashed}>Heading</MenuHeading>
-            <MenuHeading leading={dashed} detail="Detail">Heading</MenuHeading>
+            <MenuHeading leading={dashed} detail="Detail">
+              Heading
+            </MenuHeading>
             <MenuHeading>Heading</MenuHeading>
           </Menu>
         </Panel>

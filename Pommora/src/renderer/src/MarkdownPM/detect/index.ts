@@ -1,11 +1,11 @@
 // Inline matchers return a fresh /g regex per call so callers never share lastIndex.
 import { parse } from '../parser'
 
-export const imageEmbedRegex = (): RegExp => /!\[\[([^\]\r\n]*)\]\]/gd
-export const markdownLinkRegex = (): RegExp => /\[([^\]\r\n]+)\]\(([^)\r\n]+)\)/gd
-export const inlineCodeRegex = (): RegExp => /`([^`\n]+)`/gd
-export const blockLatexRegex = (): RegExp => /(?<!\$)\$\$([\s\S]+?)\$\$/gd
-export const inlineLatexRegex = (): RegExp => /(?<!\$)\$(?!\$)([^$\n]+?)\$(?!\$)/gd
+export const imageEmbedRegex = (): RegExp => /!\[\[([^\]\r\n]*)\]\]/dg
+export const markdownLinkRegex = (): RegExp => /\[([^\]\r\n]+)\]\(([^)\r\n]+)\)/dg
+export const inlineCodeRegex = (): RegExp => /`([^`\n]+)`/dg
+export const blockLatexRegex = (): RegExp => /(?<!\$)\$\$([\s\S]+?)\$\$/dg
+export const inlineLatexRegex = (): RegExp => /(?<!\$)\$(?!\$)([^$\n]+?)\$(?!\$)/dg
 
 export const blockquotePrefixRe = /^[ \t]*(?:>[ \t]?)+/
 
@@ -17,7 +17,8 @@ export function stripQuotePrefix(line: string): string {
 }
 
 /** A line's quote depth: how many `>` levels it's nested under, ignoring list indent. */
-export const quoteDepth = (line: string): number => /^[ \t]*(?:>[ \t]?)*/.exec(line)?.[0].match(/>/g)?.length ?? 0
+export const quoteDepth = (line: string): number =>
+  /^[ \t]*(?:>[ \t]?)*/.exec(line)?.[0].match(/>/g)?.length ?? 0
 
 // A callout HEAD tags a type: `> [!callout] …`. The tag is the discriminator vs a plain quote and is invisible
 // chrome (hidden at render) — `||` is the typing shorthand. Detection is per-HEAD, not per-run: any `[!type]`
@@ -56,7 +57,7 @@ export function calloutLines(lines: string[]): (CalloutLine | undefined)[] {
       out[k] = {
         first: k === i,
         last: k === j - 1,
-        prefixEnd: k === i ? headPrefix.length + (tag?.[0].length ?? 0) : oneLevel
+        prefixEnd: k === i ? headPrefix.length + (tag?.[0].length ?? 0) : oneLevel,
       }
     }
     i = j
@@ -135,7 +136,7 @@ export function parseListMarker(line: string): ListMarker | null {
       level: indentLevel(arrow[1]),
       markerStart,
       markerEnd: markerStart + 1,
-      contentStart: markerStart + 1 + arrow[2].length
+      contentStart: markerStart + 1 + arrow[2].length,
     }
   }
   const m = LIST_MARKER_RE.exec(line)
@@ -151,12 +152,37 @@ export function parseListMarker(line: string): ListMarker | null {
   const bullet = m[3]
 
   if (bullet !== undefined && box && box.inner !== '' && '-*+'.includes(bullet)) {
-    return { kind: 'checkbox', bullet, level, markerStart, markerEnd: box.end, contentStart, box, checked: box.inner !== ' ' }
+    return {
+      kind: 'checkbox',
+      bullet,
+      level,
+      markerStart,
+      markerEnd: box.end,
+      contentStart,
+      box,
+      checked: box.inner !== ' ',
+    }
   }
   if (m[2] !== undefined) {
-    return { kind: 'ordered', digits: m[2], level, markerStart, markerEnd: markerStart + m[2].length + 1, contentStart, box }
+    return {
+      kind: 'ordered',
+      digits: m[2],
+      level,
+      markerStart,
+      markerEnd: markerStart + m[2].length + 1,
+      contentStart,
+      box,
+    }
   }
-  return { kind: 'bullet', bullet, level, markerStart, markerEnd: markerStart + (bullet?.length ?? 1), contentStart, box }
+  return {
+    kind: 'bullet',
+    bullet,
+    level,
+    markerStart,
+    markerEnd: markerStart + (bullet?.length ?? 1),
+    contentStart,
+    box,
+  }
 }
 
 /** parseListMarker that also sees a list behind a `>`/callout prefix — offsets stay full-line-relative, so
@@ -174,7 +200,7 @@ export function parseListMarkerPrefixed(line: string): ListMarker | null {
     markerStart: lm.markerStart + s,
     markerEnd: lm.markerEnd + s,
     contentStart: lm.contentStart + s,
-    box: lm.box ? { ...lm.box, start: lm.box.start + s, end: lm.box.end + s } : undefined
+    box: lm.box ? { ...lm.box, start: lm.box.start + s, end: lm.box.end + s } : undefined,
   }
 }
 
@@ -196,7 +222,9 @@ export function isHeadingLine(line: string): boolean {
 const headingPartsRe = /^(\s{0,3})(#{1,6})([ \t]+)(.*)$/
 /** Decomposes a heading line into its pieces (null if not a syntactic ATX heading). The one heading-shape
  *  regex — level is `hashes.length`, the content start is `indent+hashes+space`. */
-export function headingParts(line: string): { indent: string; hashes: string; space: string; content: string } | null {
+export function headingParts(
+  line: string,
+): { indent: string; hashes: string; space: string; content: string } | null {
   const m = headingPartsRe.exec(line)
   return m ? { indent: m[1], hashes: m[2], space: m[3], content: m[4] } : null
 }

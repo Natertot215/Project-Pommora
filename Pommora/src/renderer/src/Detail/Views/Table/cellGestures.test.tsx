@@ -25,21 +25,21 @@ const statusDef: PropertyDefinition = {
       id: 'upcoming',
       label: 'Upcoming',
       color: 'gray',
-      options: [{ value: 'not_started', label: 'Not started', group_id: 'upcoming' }]
+      options: [{ value: 'not_started', label: 'Not started', group_id: 'upcoming' }],
     },
     {
       id: 'in_progress',
       label: 'In Progress',
       color: 'blue',
-      options: [{ value: 'active', label: 'Active', color: 'blue', group_id: 'in_progress' }]
+      options: [{ value: 'active', label: 'Active', color: 'blue', group_id: 'in_progress' }],
     },
     {
       id: 'done',
       label: 'Done',
       color: 'green',
-      options: [{ value: 'complete', label: 'Complete', color: 'green', group_id: 'done' }]
-    }
-  ]
+      options: [{ value: 'complete', label: 'Complete', color: 'green', group_id: 'done' }],
+    },
+  ],
 }
 const checkboxDef: PropertyDefinition = { id: 'prop_done', name: 'Done', type: 'checkbox' }
 const numberDef: PropertyDefinition = { id: 'prop_n', name: 'Count', type: 'number' }
@@ -51,8 +51,8 @@ const multiDef: PropertyDefinition = {
   type: 'multi_select',
   select_options: [
     { value: 'a', label: 'Alpha' },
-    { value: 'b', label: 'Beta' }
-  ]
+    { value: 'b', label: 'Beta' },
+  ],
 }
 
 const sourceWith = (columnStyles?: Record<string, { look?: string }>): CollectionNode =>
@@ -64,7 +64,7 @@ const sourceWith = (columnStyles?: Record<string, { look?: string }>): Collectio
     sets: [],
     pages: [
       { kind: 'page', id: 'p1', title: 'Page One', path: 'Col/Page One.md' },
-      { kind: 'page', id: 'p2', title: 'Page Two', path: 'Col/Page Two.md' }
+      { kind: 'page', id: 'p2', title: 'Page Two', path: 'Col/Page Two.md' },
     ],
     properties: [statusDef, checkboxDef, numberDef, urlDef, fileDef],
     views: [
@@ -72,11 +72,19 @@ const sourceWith = (columnStyles?: Record<string, { look?: string }>): Collectio
         id: 'view_1',
         name: 'Table',
         type: 'table',
-        property_order: ['_title', 'prop_status', 'prop_done', 'prop_n', 'prop_link', 'prop_files', '_tier1'],
+        property_order: [
+          '_title',
+          'prop_status',
+          'prop_done',
+          'prop_n',
+          'prop_link',
+          'prop_files',
+          '_tier1',
+        ],
         hidden_properties: ['_modified_at'],
-        ...(columnStyles ? { column_styles: columnStyles } : {})
-      }
-    ]
+        ...(columnStyles ? { column_styles: columnStyles } : {}),
+      },
+    ],
   }) as unknown as CollectionNode
 
 const VALUES = {
@@ -87,15 +95,18 @@ const VALUES = {
       prop_done: false,
       prop_n: 42,
       prop_link: 'https://old.com',
-      prop_files: [{ path: 'Assets/trip.png' }]
-    }
+      prop_files: [{ path: 'Assets/trip.png' }],
+    },
   },
-  p2: { id: 'p2', properties: {} }
+  p2: { id: 'p2', properties: {} },
 }
 
 // React intercepts the value property — commit through the native setter so the change event carries.
 const typeInto = (input: HTMLInputElement, value: string): void => {
-  Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set?.call(input, value)
+  Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set?.call(
+    input,
+    value,
+  )
   input.dispatchEvent(new Event('input', { bubbles: true }))
 }
 const key = (input: HTMLElement, k: string): void => {
@@ -125,18 +136,21 @@ beforeEach(() => {
     cellMenu: vi.fn(async () => null),
     columnMenu: vi.fn(async () => null),
     openFile: openFileSpy,
-    openExternal: openExternalSpy
+    openExternal: openExternalSpy,
   }
-  const pair = (singular: string, plural: string): { singular: string; plural: string } => ({ singular, plural })
+  const pair = (singular: string, plural: string): { singular: string; plural: string } => ({
+    singular,
+    plural,
+  })
   useSession.setState({
     tree: {
       contexts: {
         areas: [
           { kind: 'area', id: 'area_work', title: 'Work', path: 'Contexts/Work', color: 'blue' },
-          { kind: 'area', id: 'area_life', title: 'Personal', path: 'Contexts/Personal' }
+          { kind: 'area', id: 'area_life', title: 'Personal', path: 'Contexts/Personal' },
         ],
         topics: [],
-        projects: []
+        projects: [],
       },
       collections: [],
       userSections: [],
@@ -147,12 +161,12 @@ beforeEach(() => {
         pageCollection: pair('Collection', 'Collections'),
         pageSet: pair('Set', 'Sets'),
         agendaTask: pair('Task', 'Tasks'),
-        agendaEvent: pair('Event', 'Events')
-      }
+        agendaEvent: pair('Event', 'Events'),
+      },
     } as never,
     selection: { kind: 'none' } as never,
     select: selectSpy as never,
-    mutate: mutateSpy as never
+    mutate: mutateSpy as never,
   })
 })
 afterEach(() => {
@@ -174,8 +188,11 @@ const statusCell = (): HTMLElement => {
 
 // The value picker is now ONE table-level self-managed pane portaled to document.body (escaping the
 // table's overflow clip) — its DOM lives outside `host`, so query it through the portal marker.
-const pickerButtons = (): HTMLButtonElement[] => [...document.querySelectorAll<HTMLButtonElement>('[data-picker-portal] button')]
-const pickerText = (): string => [...document.querySelectorAll('[data-picker-portal]')].map((e) => e.textContent ?? '').join('')
+const pickerButtons = (): HTMLButtonElement[] => [
+  ...document.querySelectorAll<HTMLButtonElement>('[data-picker-portal] button'),
+]
+const pickerText = (): string =>
+  [...document.querySelectorAll('[data-picker-portal]')].map((e) => e.textContent ?? '').join('')
 
 describe('status cell gestures', () => {
   it('single-click opens the PropertyPicker with every option as a chip', async () => {
@@ -219,7 +236,7 @@ describe('status cell gestures', () => {
       op: 'setProperty',
       path: 'Col/Page One.md',
       propertyId: 'prop_status',
-      value: { kind: 'status', value: 'complete' }
+      value: { kind: 'status', value: 'complete' },
     })
   })
 
@@ -233,13 +250,15 @@ describe('status cell gestures', () => {
       op: 'setProperty',
       path: 'Col/Page One.md',
       propertyId: 'prop_status',
-      value: { kind: 'status', value: 'complete' } // active (in_progress) → done's first option
+      value: { kind: 'status', value: 'complete' }, // active (in_progress) → done's first option
     })
   })
 
   it('an EMPTY checkbox-look status cell never cycles — it opens the picker, options as capsules', async () => {
     await mountTable(sourceWith({ prop_status: { look: 'checkbox' } }))
-    const emptyStatusCell = host.querySelectorAll<HTMLElement>('.data-row')[1].querySelectorAll<HTMLElement>('.data-cell')[1]
+    const emptyStatusCell = host
+      .querySelectorAll<HTMLElement>('.data-row')[1]
+      .querySelectorAll<HTMLElement>('.data-cell')[1]
     await act(async () => {
       emptyStatusCell.click()
     })
@@ -262,15 +281,16 @@ describe('checkbox cell gestures', () => {
       op: 'setProperty',
       path: 'Col/Page One.md',
       propertyId: 'prop_done',
-      value: { kind: 'checkbox', value: true }
+      value: { kind: 'checkbox', value: true },
     })
   })
 
   it('unchecking a checked box strips the property — no stored false', async () => {
-    ;(window as unknown as { nexus: { loadValues: () => Promise<unknown> } }).nexus.loadValues = async () => ({
-      p1: { id: 'p1', properties: { prop_done: true } },
-      p2: { id: 'p2', properties: {} }
-    })
+    ;(window as unknown as { nexus: { loadValues: () => Promise<unknown> } }).nexus.loadValues =
+      async () => ({
+        p1: { id: 'p1', properties: { prop_done: true } },
+        p2: { id: 'p2', properties: {} },
+      })
     await mountTable(sourceWith())
     await act(async () => {
       host.querySelectorAll<HTMLElement>('.data-cell')[2].click()
@@ -279,7 +299,7 @@ describe('checkbox cell gestures', () => {
       op: 'setProperty',
       path: 'Col/Page One.md',
       propertyId: 'prop_done',
-      value: null
+      value: null,
     })
   })
 })
@@ -307,7 +327,7 @@ describe('optimistic value persistence', () => {
 describe('context tier cells', () => {
   const tierCell = (): HTMLElement => host.querySelectorAll<HTMLElement>('.data-cell')[6] // _tier1 last
 
-  it('click opens the context picker listing the tier\'s contexts; toggling writes setTier', async () => {
+  it("click opens the context picker listing the tier's contexts; toggling writes setTier", async () => {
     await mountTable(sourceWith())
     await act(async () => {
       tierCell().click()
@@ -323,7 +343,7 @@ describe('context tier cells', () => {
       op: 'setTier',
       path: 'Col/Page One.md',
       tier: 1,
-      contextIds: ['area_work']
+      contextIds: ['area_work'],
     })
   })
 })
@@ -360,7 +380,7 @@ describe('number cell inline editing', () => {
       op: 'setProperty',
       path: 'Col/Page One.md',
       propertyId: 'prop_n',
-      value: { kind: 'number', value: 43.5 }
+      value: { kind: 'number', value: 43.5 },
     })
   })
 
@@ -374,7 +394,7 @@ describe('number cell inline editing', () => {
       op: 'setProperty',
       path: 'Col/Page One.md',
       propertyId: 'prop_n',
-      value: null
+      value: null,
     })
   })
 
@@ -395,7 +415,7 @@ describe('number cell inline editing', () => {
       op: 'setProperty',
       path: 'Col/Page One.md',
       propertyId: 'prop_n',
-      value: { kind: 'number', value: 7 }
+      value: { kind: 'number', value: 7 },
     })
   })
 })
@@ -418,7 +438,7 @@ describe('menu-entered editing', () => {
       op: 'setProperty',
       path: 'Col/Page One.md',
       propertyId: 'prop_link',
-      value: { kind: 'url', value: 'https://example.com' }
+      value: { kind: 'url', value: 'https://example.com' },
     })
   })
 
@@ -439,7 +459,7 @@ describe('menu-entered editing', () => {
       op: 'rename',
       path: 'Col/Page One.md',
       kind: 'page',
-      newName: 'Renamed Page'
+      newName: 'Renamed Page',
     })
   })
 })
@@ -491,7 +511,7 @@ describe('PropertyPicker (direct mount) — seed values', () => {
       id: 'prop_seed',
       name: 'Status',
       type: 'status',
-      status_groups: defaultStatusSeed()
+      status_groups: defaultStatusSeed(),
     }
     await act(async () => {
       root.render(
@@ -502,7 +522,7 @@ describe('PropertyPicker (direct mount) — seed values', () => {
           triggerRef={{ current: host }}
           onCommit={vi.fn()}
           onDismiss={vi.fn()}
-        />
+        />,
       )
     })
     const labels = pickerButtons().map((b) => b.textContent)
@@ -523,7 +543,7 @@ describe('PropertyPicker (direct mount) — multi-select', () => {
           triggerRef={{ current: host }}
           onCommit={onCommit}
           onDismiss={onDismiss}
-        />
+        />,
       )
     })
     const beta = pickerButtons().find((b) => b.textContent?.includes('Beta'))
@@ -557,9 +577,9 @@ describe('chip hover × — the per-chip remove (pill looks only)', () => {
           name: 'Table',
           type: 'table',
           property_order: ['_title', 'prop_status', 'prop_tags', '_tier1'],
-          hidden_properties: ['_modified_at']
-        }
-      ]
+          hidden_properties: ['_modified_at'],
+        },
+      ],
     }) as unknown as CollectionNode
 
   const mountChips = async (): Promise<void> => {
@@ -567,13 +587,15 @@ describe('chip hover × — the per-chip remove (pill looks only)', () => {
       p1: {
         id: 'p1',
         tier1: ['area_work', 'area_life'],
-        properties: { prop_status: { $status: 'active' }, prop_tags: ['a', 'b'] }
-      }
+        properties: { prop_status: { $status: 'active' }, prop_tags: ['a', 'b'] },
+      },
     })
     await mountTable(chipSource())
   }
   const cell = (i: number): HTMLElement => host.querySelectorAll<HTMLElement>('.data-cell')[i]
-  const removesIn = (el: HTMLElement): HTMLElement[] => [...el.querySelectorAll<HTMLElement>('[aria-label="Remove"]')]
+  const removesIn = (el: HTMLElement): HTMLElement[] => [
+    ...el.querySelectorAll<HTMLElement>('[aria-label="Remove"]'),
+  ]
 
   it('a status pill × clears the property — and never opens the picker', async () => {
     await mountChips()
@@ -587,7 +609,7 @@ describe('chip hover × — the per-chip remove (pill looks only)', () => {
       op: 'setProperty',
       path: 'Col/Page One.md',
       propertyId: 'prop_status',
-      value: null
+      value: null,
     })
     expect(host.textContent).not.toContain('Not started') // no picker options mounted
   })
@@ -603,13 +625,13 @@ describe('chip hover × — the per-chip remove (pill looks only)', () => {
       op: 'setProperty',
       path: 'Col/Page One.md',
       propertyId: 'prop_tags',
-      value: { kind: 'multiSelect', value: ['b'] }
+      value: { kind: 'multiSelect', value: ['b'] },
     })
   })
 
   it('removing the LAST multi option commits the emptied value (whose write deletes the key)', async () => {
     ;(window.nexus as { loadValues: unknown }).loadValues = async () => ({
-      p1: { id: 'p1', properties: { prop_tags: ['a'] } }
+      p1: { id: 'p1', properties: { prop_tags: ['a'] } },
     })
     await mountTable(chipSource())
     const [x] = removesIn(cell(2))
@@ -620,7 +642,7 @@ describe('chip hover × — the per-chip remove (pill looks only)', () => {
       op: 'setProperty',
       path: 'Col/Page One.md',
       propertyId: 'prop_tags',
-      value: { kind: 'multiSelect', value: [] }
+      value: { kind: 'multiSelect', value: [] },
     })
   })
 
@@ -635,16 +657,18 @@ describe('chip hover × — the per-chip remove (pill looks only)', () => {
       op: 'setTier',
       path: 'Col/Page One.md',
       tier: 1,
-      contextIds: ['area_life']
+      contextIds: ['area_life'],
     })
   })
 
   it('capsule + checkbox status looks carry NO × — Clear lives in their menu', async () => {
     ;(window.nexus as { loadValues: unknown }).loadValues = async () => ({
-      p1: { id: 'p1', properties: { prop_status: { $status: 'active' } } }
+      p1: { id: 'p1', properties: { prop_status: { $status: 'active' } } },
     })
     const styled = chipSource()
-    ;(styled.views as Array<{ column_styles?: unknown }>)[0].column_styles = { prop_status: { look: 'capsule' } }
+    ;(styled.views as Array<{ column_styles?: unknown }>)[0].column_styles = {
+      prop_status: { look: 'capsule' },
+    }
     await mountTable(styled)
     expect(removesIn(cell(1)).length).toBe(0)
   })

@@ -12,7 +12,10 @@ describe('splitEnvelope / assembleEnvelope', () => {
   })
 
   it('reads a legacy envelope (separator blank line) to the same body', () => {
-    expect(splitEnvelope('---\nid: X\n---\n\nBody text')).toEqual({ frontmatter: 'id: X', body: 'Body text' })
+    expect(splitEnvelope('---\nid: X\n---\n\nBody text')).toEqual({
+      frontmatter: 'id: X',
+      body: 'Body text',
+    })
   })
 
   it('strips exactly one separator blank line before the body', () => {
@@ -32,7 +35,9 @@ describe('splitEnvelope / assembleEnvelope', () => {
 describe('mergeFrontmatter — foreign preservation (the contract)', () => {
   it('updates a modeled key while preserving foreign keys + nesting', () => {
     const existing = assembleEnvelope('id: OLD\nplugin_key: keepme\nnested:\n  a: 1\n', 'Body')
-    const { frontmatter, body } = splitEnvelope(mergeFrontmatter(existing, { id: 'NEW' }, ['id'], 'Body'))
+    const { frontmatter, body } = splitEnvelope(
+      mergeFrontmatter(existing, { id: 'NEW' }, ['id'], 'Body'),
+    )
     expect(frontmatter).toContain('id: NEW')
     expect(frontmatter).toContain('plugin_key: keepme')
     expect(frontmatter).toContain('nested:')
@@ -49,7 +54,9 @@ describe('mergeFrontmatter — foreign preservation (the contract)', () => {
 
   it('deletes a modeled key when omitted, leaving foreign keys intact', () => {
     const existing = assembleEnvelope('id: X\nicon: star\nplugin: keep\n', 'B')
-    const { frontmatter } = splitEnvelope(mergeFrontmatter(existing, { id: 'X' }, ['id', 'icon'], 'B'))
+    const { frontmatter } = splitEnvelope(
+      mergeFrontmatter(existing, { id: 'X' }, ['id', 'icon'], 'B'),
+    )
     expect(frontmatter).toContain('id: X')
     expect(frontmatter).not.toContain('icon')
     expect(frontmatter).toContain('plugin: keep')

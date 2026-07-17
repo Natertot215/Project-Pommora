@@ -14,13 +14,21 @@ beforeEach(() => {
   ;(window as unknown as { nexus: unknown }).nexus = {
     openPage: vi.fn(async () => ({ ok: true, page: {} })),
     nav: { saveRecents: vi.fn(async () => ({ ok: true })) },
-    tabs: { save: vi.fn(async () => ({ ok: true })), load: vi.fn(async () => ({ ok: true, set: null })) },
+    tabs: {
+      save: vi.fn(async () => ({ ok: true })),
+      load: vi.fn(async () => ({ ok: true, set: null })),
+    },
     systemAccent: vi.fn(async () => '#000000'),
   }
 })
 
 const ctx = (id: string): SelectTarget => ({ kind: 'context', id })
-const uTab = (id: string, target: Tab['target'], navStack: SelectTarget[] = [], navIndex = -1): Tab => ({
+const uTab = (
+  id: string,
+  target: Tab['target'],
+  navStack: SelectTarget[] = [],
+  navIndex = -1,
+): Tab => ({
   id,
   target,
   navStack,
@@ -29,12 +37,24 @@ const uTab = (id: string, target: Tab['target'], navStack: SelectTarget[] = [], 
 
 type State = ReturnType<typeof useSession.getState>
 const seed = (partial: Partial<State>): void => {
-  useSession.setState({ tabs: [], activeTabId: '', tabMru: [], pins: [], recents: [], selection: { kind: 'none' }, tree: null, ...partial })
+  useSession.setState({
+    tabs: [],
+    activeTabId: '',
+    tabMru: [],
+    pins: [],
+    recents: [],
+    selection: { kind: 'none' },
+    tree: null,
+    ...partial,
+  })
 }
 
 describe('store — tab wiring (Phase 0)', () => {
   it('activateTab re-surfaces the target without recording (C-5)', () => {
-    seed({ tabs: [uTab('t1', ctx('a'), [ctx('a')], 0), uTab('t2', ctx('b'), [ctx('b')], 0)], activeTabId: 't1' })
+    seed({
+      tabs: [uTab('t1', ctx('a'), [ctx('a')], 0), uTab('t2', ctx('b'), [ctx('b')], 0)],
+      activeTabId: 't1',
+    })
     useSession.getState().activateTab('t2')
     const s = useSession.getState()
     expect(s.activeTabId).toBe('t2')
@@ -112,7 +132,13 @@ describe('store — tab wiring (Phase 0)', () => {
 
 describe('store — warm tabs (B-2/B-3)', () => {
   const pg = (id: string): SelectTarget => ({ kind: 'page', id, path: `/${id}` })
-  const detail = (id: string): PageDetail => ({ id, title: id.toUpperCase(), path: `/${id}`, frontmatter: {}, body: 'x' })
+  const detail = (id: string): PageDetail => ({
+    id,
+    title: id.toUpperCase(),
+    path: `/${id}`,
+    frontmatter: {},
+    body: 'x',
+  })
 
   it('switching away captures the outgoing page detail; switching back is warm-instant — no fetch, no flash', () => {
     seed({
@@ -133,9 +159,17 @@ describe('store — warm tabs (B-2/B-3)', () => {
   })
 
   it('a renamed entity misses the warm detail (path check) and falls through to the cold fetch', async () => {
-    seed({ tabs: [uTab('t1', pg('a'), [pg('a')], 0)], activeTabId: 't1', selection: pg('a'), pageStatus: 'ready', pageDetail: detail('a') })
+    seed({
+      tabs: [uTab('t1', pg('a'), [pg('a')], 0)],
+      activeTabId: 't1',
+      selection: pg('a'),
+      pageStatus: 'ready',
+      pageDetail: detail('a'),
+    })
     useSession.getState().activateTab('t2-nonexistent') // capture fires on the way out
-    await useSession.getState().select({ kind: 'page', id: 'a', path: '/a-renamed' }, { record: false })
+    await useSession
+      .getState()
+      .select({ kind: 'page', id: 'a', path: '/a-renamed' }, { record: false })
     expect(window.nexus.openPage).toHaveBeenCalledWith('/a-renamed')
   })
 
@@ -143,8 +177,10 @@ describe('store — warm tabs (B-2/B-3)', () => {
     // Warm-instant finishes synchronously, so an earlier in-flight fetch resolves LAST — the fence
     // must drop it or the wrong file renders (and autosaves) under the wrong tab.
     let resolveB!: (v: unknown) => void
-    ;(window.nexus.openPage as ReturnType<typeof vi.fn>).mockImplementation(
-      (path: string) => (path === '/b' ? new Promise((r) => (resolveB = r)) : Promise.resolve({ ok: true, page: detail('a') }))
+    ;(window.nexus.openPage as ReturnType<typeof vi.fn>).mockImplementation((path: string) =>
+      path === '/b'
+        ? new Promise((r) => (resolveB = r))
+        : Promise.resolve({ ok: true, page: detail('a') }),
     )
     seed({
       tabs: [uTab('t1', pg('a'), [pg('a')], 0), uTab('t2', pg('b'), [pg('b')], 0)],
@@ -165,10 +201,19 @@ describe('store — warm tabs (B-2/B-3)', () => {
 
   it('a cold switch pauses on the outgoing view — no loading intermediate, one-commit swap', async () => {
     let resolveB!: (v: unknown) => void
-    ;(window.nexus.openPage as ReturnType<typeof vi.fn>).mockImplementation(
-      (path: string) => (path === '/b' ? new Promise((r) => (resolveB = r)) : Promise.resolve({ ok: true, page: detail('a') }))
+    ;(window.nexus.openPage as ReturnType<typeof vi.fn>).mockImplementation((path: string) =>
+      path === '/b'
+        ? new Promise((r) => (resolveB = r))
+        : Promise.resolve({ ok: true, page: detail('a') }),
     )
-    seed({ tabs: [uTab('t1', pg('a'), [pg('a')], 0)], activeTabId: 't1', selection: pg('a'), pageStatus: 'ready', pageDetail: detail('a'), pageFrozen: false })
+    seed({
+      tabs: [uTab('t1', pg('a'), [pg('a')], 0)],
+      activeTabId: 't1',
+      selection: pg('a'),
+      pageStatus: 'ready',
+      pageDetail: detail('a'),
+      pageFrozen: false,
+    })
     const p = useSession.getState().select(pg('b'))
     let s = useSession.getState()
     expect(s.selection).toEqual(pg('a')) // outgoing view still shown
@@ -185,10 +230,19 @@ describe('store — warm tabs (B-2/B-3)', () => {
 
   it('a navigation mid-pause supersedes the fetch — the stale response never lands', async () => {
     let resolveB!: (v: unknown) => void
-    ;(window.nexus.openPage as ReturnType<typeof vi.fn>).mockImplementation(
-      (path: string) => (path === '/b' ? new Promise((r) => (resolveB = r)) : Promise.resolve({ ok: true, page: detail('a') }))
+    ;(window.nexus.openPage as ReturnType<typeof vi.fn>).mockImplementation((path: string) =>
+      path === '/b'
+        ? new Promise((r) => (resolveB = r))
+        : Promise.resolve({ ok: true, page: detail('a') }),
     )
-    seed({ tabs: [uTab('t1', pg('a'), [pg('a')], 0)], activeTabId: 't1', selection: pg('a'), pageStatus: 'ready', pageDetail: detail('a'), pageFrozen: false })
+    seed({
+      tabs: [uTab('t1', pg('a'), [pg('a')], 0)],
+      activeTabId: 't1',
+      selection: pg('a'),
+      pageStatus: 'ready',
+      pageDetail: detail('a'),
+      pageFrozen: false,
+    })
     const p = useSession.getState().select(pg('b')) // paused on A
     await useSession.getState().select({ kind: 'homepage' }) // user moves on mid-pause
     let s = useSession.getState()
@@ -205,10 +259,19 @@ describe('store — warm tabs (B-2/B-3)', () => {
     vi.useFakeTimers()
     try {
       let resolveB!: (v: unknown) => void
-      ;(window.nexus.openPage as ReturnType<typeof vi.fn>).mockImplementation(
-        (path: string) => (path === '/b' ? new Promise((r) => (resolveB = r)) : Promise.resolve({ ok: true, page: detail('a') }))
+      ;(window.nexus.openPage as ReturnType<typeof vi.fn>).mockImplementation((path: string) =>
+        path === '/b'
+          ? new Promise((r) => (resolveB = r))
+          : Promise.resolve({ ok: true, page: detail('a') }),
       )
-      seed({ tabs: [uTab('t1', pg('a'), [pg('a')], 0)], activeTabId: 't1', selection: pg('a'), pageStatus: 'ready', pageDetail: detail('a'), pageFrozen: false })
+      seed({
+        tabs: [uTab('t1', pg('a'), [pg('a')], 0)],
+        activeTabId: 't1',
+        selection: pg('a'),
+        pageStatus: 'ready',
+        pageDetail: detail('a'),
+        pageFrozen: false,
+      })
       const p = useSession.getState().select(pg('b'))
       expect(useSession.getState().pageFrozen).toBe(true)
       vi.advanceTimersByTime(300) // past the deadline — the loading view takes over
@@ -261,7 +324,12 @@ describe('store — applyTree reconciles EVERY tab (I-2a)', () => {
   it('refreshes an inactive tab on a rename and closes it on a delete, without activating it', async () => {
     const col: SelectTarget = { kind: 'collection', id: 'c1' }
     const t1: Tab = { id: 't1', target: col, navStack: [col], navIndex: 0 }
-    const t2: Tab = { id: 't2', target: page('b', 'Notes/B.md'), navStack: [page('b', 'Notes/B.md')], navIndex: 0 }
+    const t2: Tab = {
+      id: 't2',
+      target: page('b', 'Notes/B.md'),
+      navStack: [page('b', 'Notes/B.md')],
+      navIndex: 0,
+    }
     seed({ tabs: [t1, t2], activeTabId: 't1', tabMru: ['t1', 't2'] })
 
     // Rename: page b moves — the inactive t2 refreshes in place, the active tab stays put.
@@ -279,7 +347,9 @@ describe('store — applyTree reconciles EVERY tab (I-2a)', () => {
 })
 
 describe('store — recents reorder + batched close', () => {
-  const savedRecents = (): unknown => (window as unknown as { nexus: { nav: { saveRecents: { mock: { calls: unknown[][] } } } } }).nexus.nav.saveRecents
+  const savedRecents = (): unknown =>
+    (window as unknown as { nexus: { nav: { saveRecents: { mock: { calls: unknown[][] } } } } })
+      .nexus.nav.saveRecents
 
   it('reorderRecent rewrites the order to the source and persists immediately (drag)', () => {
     const a = ctx('a')
@@ -300,5 +370,4 @@ describe('store — recents reorder + batched close', () => {
     expect(useSession.getState().recents).toEqual([a, b])
     expect(savedRecents()).not.toHaveBeenCalled()
   })
-
 })

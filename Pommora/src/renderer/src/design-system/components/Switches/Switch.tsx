@@ -11,7 +11,7 @@ export function Switch({
   checked,
   onChange,
   disabled = false,
-  ariaLabel
+  ariaLabel,
 }: {
   checked: boolean
   onChange: (next: boolean) => void

@@ -18,7 +18,12 @@ describe('stripPageValue', () => {
   })
 
   it('multi_select: filters the array, deletes the key only when empty', () => {
-    const kept = stripPageValue(page('  prop_m:\n    - a\n    - x\n    - b\n'), 'prop_m', 'x', 'multi_select')
+    const kept = stripPageValue(
+      page('  prop_m:\n    - a\n    - x\n    - b\n'),
+      'prop_m',
+      'x',
+      'multi_select',
+    )
     expect(kept).toContain('a')
     expect(kept).toContain('b')
     expect(kept).not.toContain('- x')
@@ -28,7 +33,12 @@ describe('stripPageValue', () => {
   })
 
   it('multi_select: preserves foreign (non-string) array elements it never targeted', () => {
-    const c = stripPageValue(page('  prop_m:\n    - x\n    - 5\n    - keep\n'), 'prop_m', 'x', 'multi_select')
+    const c = stripPageValue(
+      page('  prop_m:\n    - x\n    - 5\n    - keep\n'),
+      'prop_m',
+      'x',
+      'multi_select',
+    )
     expect(c).not.toBeNull()
     expect(c).toContain('- 5')
     expect(c).toContain('- keep')
@@ -38,35 +48,63 @@ describe('stripPageValue', () => {
 
 describe('replacePageValue (rename cascade)', () => {
   it('select: swaps the matching value', () => {
-    expect(replacePageValue(page('  prop_s: Urgent\n'), 'prop_s', 'Urgent', 'Critical', 'select')).toContain('Critical')
+    expect(
+      replacePageValue(page('  prop_s: Urgent\n'), 'prop_s', 'Urgent', 'Critical', 'select'),
+    ).toContain('Critical')
   })
 
   it('status: swaps inside the $status object', () => {
-    const c = replacePageValue(page('  prop_s:\n    $status: Active\n'), 'prop_s', 'Active', 'Doing', 'status')
+    const c = replacePageValue(
+      page('  prop_s:\n    $status: Active\n'),
+      'prop_s',
+      'Active',
+      'Doing',
+      'status',
+    )
     expect(c).toContain('Doing')
     expect(c).not.toContain('Active')
   })
 
   it('multi_select: swaps one element in place', () => {
-    const c = replacePageValue(page('  prop_m:\n    - a\n    - x\n'), 'prop_m', 'x', 'y', 'multi_select')
+    const c = replacePageValue(
+      page('  prop_m:\n    - a\n    - x\n'),
+      'prop_m',
+      'x',
+      'y',
+      'multi_select',
+    )
     expect(c).toContain('- y')
     expect(c).not.toContain('- x')
   })
 
   it('multi_select: preserves foreign elements when swapping', () => {
-    const c = replacePageValue(page('  prop_m:\n    - x\n    - 5\n'), 'prop_m', 'x', 'y', 'multi_select')
+    const c = replacePageValue(
+      page('  prop_m:\n    - x\n    - 5\n'),
+      'prop_m',
+      'x',
+      'y',
+      'multi_select',
+    )
     expect(c).toContain('- y')
     expect(c).toContain('- 5')
     expect(c).not.toContain('- x')
   })
 
   it('multi_select: renaming into a value already present merges, never duplicates', () => {
-    const c = replacePageValue(page('  prop_m:\n    - x\n    - y\n'), 'prop_m', 'x', 'y', 'multi_select')
+    const c = replacePageValue(
+      page('  prop_m:\n    - x\n    - y\n'),
+      'prop_m',
+      'x',
+      'y',
+      'multi_select',
+    )
     expect(c).not.toBeNull()
     expect(c?.match(/^\s*- y\s*$/gm)?.length ?? 0).toBe(1)
   })
 
   it('returns null when the page does not hold the value', () => {
-    expect(replacePageValue(page('  prop_s: Other\n'), 'prop_s', 'Urgent', 'Critical', 'select')).toBeNull()
+    expect(
+      replacePageValue(page('  prop_s: Other\n'), 'prop_s', 'Urgent', 'Critical', 'select'),
+    ).toBeNull()
   })
 })

@@ -23,7 +23,7 @@ export const DEFAULT_ITEMS: Record<SelectionState['kind'], SubfieldItemId[]> = {
   context: [],
   collection: ['addMenu'],
   set: ['addMenu'],
-  page: ['pageStats']
+  page: ['pageStats'],
 }
 
 /** Lines · Words · Characters for the open page — live as you type (the editing buffer wins over the
@@ -31,7 +31,8 @@ export const DEFAULT_ITEMS: Record<SelectionState['kind'], SubfieldItemId[]> = {
 function PageStatsItem(): React.JSX.Element {
   const pageDetail = useSession((s) => s.pageDetail)
   const liveBody = useSession((s) => s.liveBody)
-  const body = liveBody && liveBody.path === pageDetail?.path ? liveBody.body : (pageDetail?.body ?? '')
+  const body =
+    liveBody && liveBody.path === pageDetail?.path ? liveBody.body : (pageDetail?.body ?? '')
   const stats = useMemo(() => computeStats(body), [body])
   const parts = [stats.lines, stats.words, stats.characters]
   return (
@@ -63,11 +64,20 @@ function AddMenuItem(): React.JSX.Element | null {
   const onAdd = (): void => {
     void window.nexus.popCreateMenu([
       { label: 'New Page', req: { op: 'createPage', parentPath, name: DEFAULT_NEW_NAME } },
-      { label: `New ${containerLabel}`, req: { op: 'createContainer', parentPath, kind: 'set', name: DEFAULT_NEW_NAME } }
+      {
+        label: `New ${containerLabel}`,
+        req: { op: 'createContainer', parentPath, kind: 'set', name: DEFAULT_NEW_NAME },
+      },
     ])
   }
   return (
-    <button type="button" className="subfield-add" onClick={onAdd} aria-label="Add" title={`New Page / New ${containerLabel}`}>
+    <button
+      type="button"
+      className="subfield-add"
+      onClick={onAdd}
+      aria-label="Add"
+      title={`New Page / New ${containerLabel}`}
+    >
       <Icon name="plus" size="sm" />
     </button>
   )

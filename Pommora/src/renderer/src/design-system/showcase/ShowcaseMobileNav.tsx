@@ -9,7 +9,7 @@ import { NavSections } from './NavSections'
 // it, so the two never show at once. Glass comes from the shared frost material.
 export function ShowcaseMobileNav({
   activeId,
-  onSelect
+  onSelect,
 }: {
   activeId: string
   onSelect: (id: string) => void
@@ -22,7 +22,13 @@ export function ShowcaseMobileNav({
   }
   return (
     <div className="sc-mobile">
-      <button type="button" className="sc-mobile-trigger" style={frostMaterial} aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+      <button
+        type="button"
+        className="sc-mobile-trigger"
+        style={frostMaterial}
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+      >
         <Icon name={active.icon} size={15} />
         <span className="sc-mobile-active">{active.label}</span>
         <Icon name={open ? 'chevron-up' : 'chevron-down'} size={15} />

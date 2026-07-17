@@ -9,6 +9,6 @@ import { normalizeTitle, pageLinkPattern } from '@shared/connections'
 export function rewriteConnections(body: string, oldTitle: string, newTitle: string): string {
   const oldKey = normalizeTitle(oldTitle)
   return body.replace(pageLinkPattern(), (match, title: string) =>
-    normalizeTitle(title) === oldKey ? `[[${newTitle}]]` : match
+    normalizeTitle(title) === oldKey ? `[[${newTitle}]]` : match,
   )
 }

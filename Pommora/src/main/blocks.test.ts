@@ -14,7 +14,7 @@ import {
   removeBlockTile,
   rewriteBlockConnections,
   writeBlockDoc,
-  writeMarkdownBlock
+  writeMarkdownBlock,
 } from './blocks'
 
 const HOST = { kind: 'homepage' } as const
@@ -22,7 +22,8 @@ const HOST = { kind: 'homepage' } as const
 let root: string
 const configPath = (): string => join(root, '.nexus', 'homepage.json')
 const sidecarPath = (): string => join(root, '.nexus', 'homepage', '_blocks.json')
-const readConfig = async (): Promise<Record<string, unknown>> => JSON.parse(await readFile(configPath(), 'utf8'))
+const readConfig = async (): Promise<Record<string, unknown>> =>
+  JSON.parse(await readFile(configPath(), 'utf8'))
 
 beforeEach(async () => {
   root = await mkdtemp(join(tmpdir(), 'blocks-'))
@@ -37,7 +38,12 @@ describe('readBlockDoc', () => {
   it('surfaces layout, blocks, and the lock', async () => {
     await writeFile(
       configPath(),
-      JSON.stringify({ banner: 'b.png', layout: { bands: [] }, blocks: [{ id: 'a', type: 'markdown' }], blocks_locked: true })
+      JSON.stringify({
+        banner: 'b.png',
+        layout: { bands: [] },
+        blocks: [{ id: 'a', type: 'markdown' }],
+        blocks_locked: true,
+      }),
     )
     const doc = await readBlockDoc(root, HOST)
     expect(doc.layout).toEqual({ bands: [] })
@@ -48,7 +54,10 @@ describe('readBlockDoc', () => {
 
 describe('writeBlockDoc', () => {
   it('touches only the patched keys — banner and foreign keys survive', async () => {
-    await writeFile(configPath(), JSON.stringify({ banner: 'b.png', swift_future: { x: 1 }, blocks: [] }))
+    await writeFile(
+      configPath(),
+      JSON.stringify({ banner: 'b.png', swift_future: { x: 1 }, blocks: [] }),
+    )
     await writeBlockDoc(root, HOST, { layout: { bands: [] } })
     const cfg = await readConfig()
     expect(cfg.banner).toBe('b.png')
@@ -61,7 +70,11 @@ describe('writeBlockDoc', () => {
     await writeFile(configPath(), JSON.stringify({ banner: 'b.png' }))
     await writeFile(
       sidecarPath(),
-      JSON.stringify({ layout: { bands: [] }, blocks: [{ id: 'a', type: 'markdown' }], blocks_locked: true })
+      JSON.stringify({
+        layout: { bands: [] },
+        blocks: [{ id: 'a', type: 'markdown' }],
+        blocks_locked: true,
+      }),
     )
     const doc = await readBlockDoc(root, HOST)
     expect(doc.layout).toEqual({ bands: [] })
@@ -90,7 +103,7 @@ describe('writeBlockDoc', () => {
     await Promise.all([
       writeBlockDoc(root, HOST, { layout: { bands: [] } }),
       writeBlockDoc(root, HOST, { locked: true }),
-      writeBlockDoc(root, HOST, { blocks: [{ id: 'z', type: 'markdown' }] })
+      writeBlockDoc(root, HOST, { blocks: [{ id: 'z', type: 'markdown' }] }),
     ])
     const cfg = await readConfig()
     expect(cfg.banner).toBe('keep.png')
@@ -124,10 +137,10 @@ describe('markdown block lifecycle', () => {
   it('convert to view stamps a payload-local config id and trashes the markdown file', async () => {
     const id = await createMarkdownBlock(root, HOST)
     await writeBlockDoc(root, HOST, {
-      blocks: [{ id, type: 'markdown', style: 'borderless', swift_key: 1 }]
+      blocks: [{ id, type: 'markdown', style: 'borderless', swift_key: 1 }],
     })
     await convertTileToView(root, HOST, id, [
-      { source_id: 'src1', config: { id: 'source-view-id', name: 'Table', foreign: true } }
+      { source_id: 'src1', config: { id: 'source-view-id', name: 'Table', foreign: true } },
     ])
     const blocks = (await readConfig()).blocks as Array<Record<string, unknown>>
     const entry = blocks[0]
@@ -150,7 +163,9 @@ describe('markdown block lifecycle', () => {
   it('duplicate copies the raw entry + file; a view copy re-mints its config ids', async () => {
     const id = await createMarkdownBlock(root, HOST)
     await writeMarkdownBlock(root, HOST, id, 'body text')
-    await writeBlockDoc(root, HOST, { blocks: [{ id, type: 'markdown', style: 'borderless', alien: 1 }] })
+    await writeBlockDoc(root, HOST, {
+      blocks: [{ id, type: 'markdown', style: 'borderless', alien: 1 }],
+    })
     const dupId = await duplicateBlockTile(root, HOST, id)
     expect(dupId).toBeTruthy()
     expect(await readMarkdownBlock(root, HOST, dupId as string)).toBe('body text')
@@ -159,13 +174,20 @@ describe('markdown block lifecycle', () => {
     expect(copy).toMatchObject({ type: 'markdown', style: 'borderless', alien: 1 })
 
     await writeBlockDoc(root, HOST, {
-      blocks: [{ id: 'v1', type: 'view', views: [{ source_id: 's', config: { id: 'cfg-a', name: 'T' } }] }]
+      blocks: [
+        { id: 'v1', type: 'view', views: [{ source_id: 's', config: { id: 'cfg-a', name: 'T' } }] },
+      ],
     })
     const dupView = await duplicateBlockTile(root, HOST, 'v1')
     const after = (await readConfig()).blocks as Array<Record<string, unknown>>
-    const viewCopy = after.find((b) => b.id === dupView) as { views: Array<{ config: { id: string } }> }
+    const viewCopy = after.find((b) => b.id === dupView) as {
+      views: Array<{ config: { id: string } }>
+    }
     expect(viewCopy.views[0].config.id).not.toBe('cfg-a')
-    expect((after.find((b) => b.id === 'v1') as { views: Array<{ config: { id: string } }> }).views[0].config.id).toBe('cfg-a')
+    expect(
+      (after.find((b) => b.id === 'v1') as { views: Array<{ config: { id: string } }> }).views[0]
+        .config.id,
+    ).toBe('cfg-a')
   })
 
   it('removing a non-markdown tile touches no files', async () => {
@@ -183,8 +205,8 @@ describe('listBlockBodies', () => {
     await writeBlockDoc(root, HOST, {
       blocks: [
         { id: md, type: 'markdown' },
-        { id: 'v1', type: 'view', views: [] }
-      ]
+        { id: 'v1', type: 'view', views: [] },
+      ],
     })
     const bodies = await listBlockBodies(root)
     expect(bodies).toHaveLength(1)

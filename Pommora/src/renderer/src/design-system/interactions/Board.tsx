@@ -2,13 +2,14 @@ import { useState } from 'react'
 import { DragGroup, SortableZone, useGroupedDragItem, type Row } from './drag'
 
 const COLS = ['Todo', 'Doing', 'Done']
-const mk = (labels: string[], p: string): Row[] => labels.map((l, i) => ({ id: `${p}${i}-${l}`, label: l }))
+const mk = (labels: string[], p: string): Row[] =>
+  labels.map((l, i) => ({ id: `${p}${i}-${l}`, label: l }))
 
 export function BoardSurface(): React.JSX.Element {
   const [cols, setCols] = useState<Record<string, Row[]>>({
     Todo: mk(['Draft spec', 'Collect refs', 'Sketch flows'], 't'),
     Doing: mk(['Sidebar resize', 'Glass material'], 'd'),
-    Done: mk(['Window chrome', 'Token sync'], 'n')
+    Done: mk(['Window chrome', 'Token sync'], 'n'),
   })
 
   const labelOf = (id: string): string =>
@@ -32,7 +33,10 @@ export function BoardSurface(): React.JSX.Element {
   }
 
   return (
-    <DragGroup onCommit={onCommit} renderOverlay={(id) => <div className="sx-item ix-overlay">{labelOf(id)}</div>}>
+    <DragGroup
+      onCommit={onCommit}
+      renderOverlay={(id) => <div className="sx-item ix-overlay">{labelOf(id)}</div>}
+    >
       <div className="ix-board">
         {COLS.map((c) => (
           <div className="ix-col" key={c}>
@@ -40,7 +44,12 @@ export function BoardSurface(): React.JSX.Element {
               {c}
               <span className="ix-col-count">{cols[c].length}</span>
             </div>
-            <SortableZone group="board" id={c} items={cols[c].map((it) => it.id)} className="sx-column">
+            <SortableZone
+              group="board"
+              id={c}
+              items={cols[c].map((it) => it.id)}
+              className="sx-column"
+            >
               {cols[c].map((it) => (
                 <Card key={it.id} id={it.id} label={it.label} />
               ))}

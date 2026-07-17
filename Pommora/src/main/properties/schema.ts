@@ -6,7 +6,7 @@
 import {
   propertyDefinition,
   isReservedPropertyId,
-  type PropertyDefinition
+  type PropertyDefinition,
 } from '@shared/properties'
 import { fail, ok, type Result } from '@shared/result'
 
@@ -41,7 +41,7 @@ export function validateName(
   name: string,
   existing: PropertyDefinition[],
   excludeId?: string,
-  opts: { unique?: boolean } = {}
+  opts: { unique?: boolean } = {},
 ): Result<null> {
   const trimmed = name.trim()
   if (!trimmed) return fail('invalid-property', 'A property name cannot be empty.')
@@ -58,7 +58,7 @@ export function validateName(
 export function validateDefinition(
   def: PropertyDefinition,
   existing: PropertyDefinition[],
-  opts?: { unique?: boolean }
+  opts?: { unique?: boolean },
 ): Result<null> {
   const nameCheck = validateName(def.name, existing, def.id, opts)
   if (!nameCheck.ok) return nameCheck

@@ -4,15 +4,21 @@ import { scanConnections } from './scan'
 
 describe('rewriteConnections', () => {
   it('rewrites a normalized-matching link to the new title', () => {
-    expect(rewriteConnections('go to [[Old Page]] now', 'Old Page', 'New Page')).toBe('go to [[New Page]] now')
+    expect(rewriteConnections('go to [[Old Page]] now', 'Old Page', 'New Page')).toBe(
+      'go to [[New Page]] now',
+    )
   })
 
   it('matches case-insensitively and drops a legacy pipe', () => {
-    expect(rewriteConnections('[[old page]] and [[Old Page|01H]]', 'Old Page', 'New')).toBe('[[New]] and [[New]]')
+    expect(rewriteConnections('[[old page]] and [[Old Page|01H]]', 'Old Page', 'New')).toBe(
+      '[[New]] and [[New]]',
+    )
   })
 
   it('leaves non-matching links and image embeds untouched', () => {
-    expect(rewriteConnections('[[Other]] and ![[Old.png]]', 'Old.png', 'X')).toBe('[[Other]] and ![[Old.png]]')
+    expect(rewriteConnections('[[Other]] and ![[Old.png]]', 'Old.png', 'X')).toBe(
+      '[[Other]] and ![[Old.png]]',
+    )
   })
 
   it('rewrites TO a title with internal brackets and it round-trips', () => {
@@ -23,6 +29,8 @@ describe('rewriteConnections', () => {
   })
 
   it('rewrites FROM a title that itself contains brackets', () => {
-    expect(rewriteConnections('[[Notes [WIP] final]] here', 'Notes [WIP] final', 'Done')).toBe('[[Done]] here')
+    expect(rewriteConnections('[[Notes [WIP] final]] here', 'Notes [WIP] final', 'Done')).toBe(
+      '[[Done]] here',
+    )
   })
 })

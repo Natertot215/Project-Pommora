@@ -12,13 +12,16 @@ import { DEFAULT_NEW_NAME } from '@shared/mutate'
 import type { ContextTarget, MutableKind, MutateRequest } from '@shared/mutate'
 
 /** The "New …" creators a container offers; pages + free-standing contexts offer none. */
-function creatorsFor(kind: MutableKind, parentPath: string): { label: string; req: MutateRequest }[] {
+function creatorsFor(
+  kind: MutableKind,
+  parentPath: string,
+): { label: string; req: MutateRequest }[] {
   const name = DEFAULT_NEW_NAME
   switch (kind) {
     case 'collection':
       return [
         { label: 'New Page', req: { op: 'createPage', parentPath, name } },
-        { label: 'New Set', req: { op: 'createContainer', parentPath, kind: 'set', name } }
+        { label: 'New Set', req: { op: 'createContainer', parentPath, kind: 'set', name } },
       ]
     case 'set':
       return [{ label: 'New Page', req: { op: 'createPage', parentPath, name } }]
@@ -33,7 +36,7 @@ export async function showContextMenu(
   win: BrowserWindow,
   target: ContextTarget,
   deps: MutateDeps,
-  onChanged: () => void
+  onChanged: () => void,
 ): Promise<void> {
   const root = sessionRoot()
   if (root === null) return
@@ -41,7 +44,12 @@ export async function showContextMenu(
   const run = async (req: MutateRequest): Promise<void> => {
     const res = await handleMutate(req, deps)
     if (res.ok) onChanged()
-    else await dialog.showMessageBox(win, { type: 'error', message: 'Couldn’t complete that action.', detail: res.error.message })
+    else
+      await dialog.showMessageBox(win, {
+        type: 'error',
+        message: 'Couldn’t complete that action.',
+        detail: res.error.message,
+      })
   }
 
   const items: MenuItemConstructorOptions[] = []
@@ -53,7 +61,7 @@ export async function showContextMenu(
       label: target.alreadyOpen ? 'Open' : 'Open in New Tab',
       click: () => {
         if (!win.isDestroyed()) win.webContents.send('open-in-new-tab', target)
-      }
+      },
     })
     items.push({ type: 'separator' })
   }
@@ -68,7 +76,7 @@ export async function showContextMenu(
     label: 'Rename',
     click: () => {
       if (!win.isDestroyed()) win.webContents.send('begin-rename', target.path)
-    }
+    },
   })
 
   items.push({
@@ -83,10 +91,10 @@ export async function showContextMenu(
         detail:
           deps.trashMode === 'system'
             ? 'It will be moved to the system Trash.'
-            : 'It will be moved to the nexus’s .trash folder (recoverable).'
+            : 'It will be moved to the nexus’s .trash folder (recoverable).',
       })
       if (response === 0) await run({ op: 'delete', path: target.path, kind: target.kind })
-    }
+    },
   })
 
   items.push({ type: 'separator' })
@@ -97,7 +105,7 @@ export async function showContextMenu(
     click: async () => {
       const r = await resolveUnderRoot(root, target.path)
       if (r.ok) shell.showItemInFolder(r.value)
-    }
+    },
   })
 
   Menu.buildFromTemplate(items).popup({ window: win })

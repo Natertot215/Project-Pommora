@@ -5,14 +5,28 @@ import { keyboardNext, ARROW_DIRS } from './keyboard'
 
 // A column of uniform 10px-tall slots at y = 0,10,20,...
 const column = (n: number): Box[] =>
-  Array.from({ length: n }, (_, i) => ({ left: 0, top: i * 10, width: 100, height: 10, cx: 50, cy: i * 10 + 5 }))
+  Array.from({ length: n }, (_, i) => ({
+    left: 0,
+    top: i * 10,
+    width: 100,
+    height: 10,
+    cx: 50,
+    cy: i * 10 + 5,
+  }))
 
 // A `cols`-wide grid of 100px cells.
 const grid = (count: number, cols: number): Box[] =>
   Array.from({ length: count }, (_, i) => {
     const c = i % cols
     const r = Math.floor(i / cols)
-    return { left: c * 100, top: r * 100, width: 100, height: 100, cx: c * 100 + 50, cy: r * 100 + 50 }
+    return {
+      left: c * 100,
+      top: r * 100,
+      width: 100,
+      height: 100,
+      cx: c * 100 + 50,
+      cy: r * 100 + 50,
+    }
   })
 
 describe('reflow — the displacement core', () => {

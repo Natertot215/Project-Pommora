@@ -19,7 +19,8 @@ describe('fusedTableCount', () => {
 
 describe('tableMergeGuard — the transaction filter that refuses a fusing deletion', () => {
   const sep = `${t1}\n\n${t2}` // two tables fenced by a blank line
-  const guarded = (doc: string): EditorState => EditorState.create({ doc, extensions: [tableMergeGuard] })
+  const guarded = (doc: string): EditorState =>
+    EditorState.create({ doc, extensions: [tableMergeGuard] })
 
   it('cancels deleting the blank line between two tables — the doc is left unchanged', () => {
     // remove one of the two separator newlines, which would fuse the tables

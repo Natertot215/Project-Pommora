@@ -18,8 +18,8 @@ function tree(pages: { id: string; path: string }[]): NexusTree {
         title: 'Notes',
         path: 'Notes',
         sets: [],
-        pages: pages.map((p) => ({ kind: 'page', id: p.id, title: 'P', path: p.path }))
-      }
+        pages: pages.map((p) => ({ kind: 'page', id: p.id, title: 'P', path: p.path })),
+      },
     ],
     userSections: [],
     labels: DEFAULT_LABELS,
@@ -27,7 +27,7 @@ function tree(pages: { id: string; path: string }[]): NexusTree {
     timeFormat: 'twelveHour',
     personalization: {},
     commands: {},
-    registry: []
+    registry: [],
   }
 }
 
@@ -44,7 +44,9 @@ describe('reconcileSelection', () => {
 
   it('drops a selection whose entity was deleted', () => {
     const t = tree([{ id: 'p1', path: 'Notes/A.md' }])
-    expect(reconcileSelection(t, { kind: 'page', id: 'gone', path: 'Notes/Z.md' })).toEqual({ kind: 'none' })
+    expect(reconcileSelection(t, { kind: 'page', id: 'gone', path: 'Notes/Z.md' })).toEqual({
+      kind: 'none',
+    })
     expect(reconcileSelection(t, { kind: 'collection', id: 'gone' })).toEqual({ kind: 'none' })
   })
 
@@ -53,7 +55,7 @@ describe('reconcileSelection', () => {
     expect(reconcileSelection(t, { kind: 'page', id: 'p1', path: 'Notes/Old.md' })).toEqual({
       kind: 'page',
       id: 'p1',
-      path: 'Notes/Renamed.md'
+      path: 'Notes/Renamed.md',
     })
   })
 
@@ -80,13 +82,13 @@ describe('reconcileSelection', () => {
                   id: 's2',
                   title: 'Sub',
                   path: 'C/S/Sub',
-                  pages: [{ kind: 'page', id: 'subp', title: 'SubP', path: 'C/S/Sub/SubP.md' }]
-                }
-              ]
-            }
-          ]
-        }
-      ]
+                  pages: [{ kind: 'page', id: 'subp', title: 'SubP', path: 'C/S/Sub/SubP.md' }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
     }
     const subPage: SelectionState = { kind: 'page', id: 'subp', path: 'C/S/Sub/SubP.md' }
     const setPage: SelectionState = { kind: 'page', id: 'sp', path: 'C/S/SP.md' }
@@ -104,7 +106,10 @@ describe('reconcileSelection', () => {
 
   it('keeps a collection selection by id; drops it when the collection is gone', () => {
     const t = tree([])
-    expect(reconcileSelection(t, { kind: 'collection', id: 'c1' })).toEqual({ kind: 'collection', id: 'c1' })
+    expect(reconcileSelection(t, { kind: 'collection', id: 'c1' })).toEqual({
+      kind: 'collection',
+      id: 'c1',
+    })
     expect(reconcileSelection(t, { kind: 'collection', id: 'gone' })).toEqual({ kind: 'none' })
   })
 
@@ -125,18 +130,24 @@ describe('reconcileSelection', () => {
               title: 'S',
               path: 'C/S',
               pages: [],
-              sets: [{ kind: 'set', id: 's2', title: 'Sub', path: 'C/S/Sub', pages: [] }]
-            }
-          ]
-        }
-      ]
+              sets: [{ kind: 'set', id: 's2', title: 'Sub', path: 'C/S/Sub', pages: [] }],
+            },
+          ],
+        },
+      ],
     }
     // unchanged path → same reference
     const set1: SelectionState = { kind: 'set', id: 's1', path: 'C/S' }
     expect(reconcileSelection(t, set1)).toBe(set1)
     // a deep Sub-Set is found too, and a stale path is refreshed
-    expect(reconcileSelection(t, { kind: 'set', id: 's2', path: 'C/S/Old' })).toEqual({ kind: 'set', id: 's2', path: 'C/S/Sub' })
+    expect(reconcileSelection(t, { kind: 'set', id: 's2', path: 'C/S/Old' })).toEqual({
+      kind: 'set',
+      id: 's2',
+      path: 'C/S/Sub',
+    })
     // gone → dropped
-    expect(reconcileSelection(t, { kind: 'set', id: 'gone', path: 'C/X' })).toEqual({ kind: 'none' })
+    expect(reconcileSelection(t, { kind: 'set', id: 'gone', path: 'C/X' })).toEqual({
+      kind: 'none',
+    })
   })
 })

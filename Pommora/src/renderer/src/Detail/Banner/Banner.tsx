@@ -27,7 +27,8 @@ export function Banner({ owner }: { owner: BannerOwner }): React.JSX.Element {
   // than popping. `banner-home-icon` carries the slide transition.
   const homeIcon = (): React.ReactNode => {
     const cls = iconHidden ? 'banner-home-icon is-hidden' : 'banner-home-icon'
-    if (nexus?.profileImage) return <img className={cls} src={assetUrl(nexus.profileImage)} alt="" />
+    if (nexus?.profileImage)
+      return <img className={cls} src={assetUrl(nexus.profileImage)} alt="" />
     return <Icon name={nexus?.profileIcon ?? 'house'} className={cls} />
   }
   const openHomeTitleMenu = async (e: React.MouseEvent): Promise<void> => {
@@ -53,9 +54,18 @@ export function Banner({ owner }: { owner: BannerOwner }): React.JSX.Element {
   }
   const homeTitle = (className: string): React.ReactNode =>
     editingHome ? (
-      <EditableInput value={owner.name} className={className} onCommit={commitHome} onCancel={() => setEditingHome(false)} />
+      <EditableInput
+        value={owner.name}
+        className={className}
+        onCommit={commitHome}
+        onCancel={() => setEditingHome(false)}
+      />
     ) : (
-      <span className={className} onDoubleClick={() => setEditingHome(true)} title="Double-click to rename">
+      <span
+        className={className}
+        onDoubleClick={() => setEditingHome(true)}
+        title="Double-click to rename"
+      >
         {owner.name}
       </span>
     )
@@ -122,7 +132,14 @@ export function Banner({ owner }: { owner: BannerOwner }): React.JSX.Element {
         onClose={() => setIconPickerOpen(false)}
         triggerRef={iconRef}
         value={owner.icon}
-        onSelect={(id) => void mutate({ op: 'setIcon', path: owner.path, kind: owner.kind as MutableKind, icon: id })}
+        onSelect={(id) =>
+          void mutate({
+            op: 'setIcon',
+            path: owner.path,
+            kind: owner.kind as MutableKind,
+            icon: id,
+          })
+        }
       />
     </div>
   )

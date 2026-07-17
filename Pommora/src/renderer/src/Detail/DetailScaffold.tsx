@@ -12,7 +12,7 @@ import { captureWarm, readWarm } from '../Tabs/warmCache'
  */
 export function DetailScaffold({
   owner,
-  children
+  children,
 }: {
   owner: BannerOwner | null
   children?: React.ReactNode
@@ -44,7 +44,14 @@ export function DetailScaffold({
   }, [activeTabId, warmKey])
 
   return (
-    <div ref={ref} className={'detail-scroll' + (owner ? ' has-header' : '') + (owner && isSurfaceKind(owner.kind) ? ' is-surface' : '')}>
+    <div
+      ref={ref}
+      className={
+        'detail-scroll' +
+        (owner ? ' has-header' : '') +
+        (owner && isSurfaceKind(owner.kind) ? ' is-surface' : '')
+      }
+    >
       {owner ? <Banner owner={owner} /> : null}
       <div className="detail-body">{children}</div>
     </div>

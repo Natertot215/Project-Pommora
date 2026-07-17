@@ -72,7 +72,7 @@
   color: var(--label-secondary);
   padding: 2px 0 10px;
 }
-.ix-feel-row input[type='range'] {
+.ix-feel-row input[type="range"] {
   width: 100%;
   accent-color: var(--accent);
   cursor: pointer;

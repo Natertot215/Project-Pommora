@@ -10,7 +10,7 @@ import {
   resizeDivider,
   resizeStackPair,
   splitAtTile,
-  stretchTileHeight
+  stretchTileHeight,
 } from './ops'
 import { computeGeometry } from './rects'
 

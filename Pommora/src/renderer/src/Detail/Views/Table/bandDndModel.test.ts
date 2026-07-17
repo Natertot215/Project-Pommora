@@ -9,7 +9,7 @@ import {
   flattenBands,
   propertyOrderAfterDrop,
   reparentFsOrder,
-  structuralOrderAfterDrop
+  structuralOrderAfterDrop,
 } from './bandDndModel'
 
 const sg = (key: string, children?: ResolvedGroup[]): ResolvedGroup => ({
@@ -17,10 +17,20 @@ const sg = (key: string, children?: ResolvedGroup[]): ResolvedGroup => ({
   kind: 'structural-set',
   items: [],
   ...(children ? { children } : {}),
-  isCollapsed: false
+  isCollapsed: false,
 })
-const prop = (key: string): ResolvedGroup => ({ key, kind: 'property', items: [], isCollapsed: false })
-const ungrouped: ResolvedGroup = { key: '_ungrouped', kind: 'ungrouped', items: [], isCollapsed: false }
+const prop = (key: string): ResolvedGroup => ({
+  key,
+  kind: 'property',
+  items: [],
+  isCollapsed: false,
+})
+const ungrouped: ResolvedGroup = {
+  key: '_ungrouped',
+  kind: 'ungrouped',
+  items: [],
+  isCollapsed: false,
+}
 
 // A[A1, A2], B[B1] + a loose tail — the plan's 2-level fixture.
 const tree = [sg('A', [sg('A1'), sg('A2')]), sg('B', [sg('B1')]), ungrouped]
@@ -36,7 +46,7 @@ describe('flattenBands', () => {
       { id: 'A1', kind: 'set', depth: 1, parentId: 'A' },
       { id: 'A2', kind: 'set', depth: 1, parentId: 'A' },
       { id: 'B', kind: 'set', depth: 0, parentId: null },
-      { id: 'B1', kind: 'set', depth: 1, parentId: 'B' }
+      { id: 'B1', kind: 'set', depth: 1, parentId: 'B' },
     ])
   })
 
@@ -47,7 +57,7 @@ describe('flattenBands', () => {
   it('includes property bands and excludes the ungrouped tail', () => {
     expect(flattenBands([prop('open'), prop('done'), ungrouped], new Set())).toEqual([
       { id: 'open', kind: 'property', depth: 0, parentId: null },
-      { id: 'done', kind: 'property', depth: 0, parentId: null }
+      { id: 'done', kind: 'property', depth: 0, parentId: null },
     ])
   })
 })
@@ -98,21 +108,30 @@ describe('bandSlot', () => {
       beforeId: null,
       impliedParentId: null,
       nestInto: null,
-      lineY: 120
+      lineY: 120,
     })
   })
 
   it('splits property bands in half and never nests them', () => {
     const pBands = flattenBands([prop('open'), prop('done'), ungrouped], new Set())
     const pRows = measure(['open', 'done'])
-    expect(bandSlot(buildBandIndex(pBands, pRows), 34, 'open', 48)).toMatchObject({ beforeId: 'done', nestInto: null })
-    expect(bandSlot(buildBandIndex(pBands, pRows), 40, 'open', 48)).toMatchObject({ beforeId: null, nestInto: null })
+    expect(bandSlot(buildBandIndex(pBands, pRows), 34, 'open', 48)).toMatchObject({
+      beforeId: 'done',
+      nestInto: null,
+    })
+    expect(bandSlot(buildBandIndex(pBands, pRows), 40, 'open', 48)).toMatchObject({
+      beforeId: null,
+      nestInto: null,
+    })
   })
 
   it('a collapsed set band still nests from its header region', () => {
     const cBands = flattenBands(tree, new Set(['A']))
     const cRows = measure(['A', 'B', 'B1'])
-    expect(bandSlot(buildBandIndex(cBands, cRows), 23, 'B1', 72)).toMatchObject({ nestInto: 'A', impliedParentId: 'A' })
+    expect(bandSlot(buildBandIndex(cBands, cRows), 23, 'B1', 72)).toMatchObject({
+      nestInto: 'A',
+      impliedParentId: 'A',
+    })
   })
 })
 
@@ -122,30 +141,36 @@ describe('bandSlot — non-adjacent headers (data rows between them)', () => {
   const gapRows: MeasuredRow[] = [
     { id: 'A', top: 0, bottom: 20, mid: 10 },
     { id: 'A1', top: 100, bottom: 120, mid: 110 },
-    { id: 'B', top: 200, bottom: 220, mid: 210 }
+    { id: 'B', top: 200, bottom: 220, mid: 210 },
   ]
 
-  it('F2 regression: hovering a group\'s data rows nests into THAT group — never the next header\'s slot', () => {
-    expect(bandSlot(buildBandIndex(bands, gapRows), 60, 'B', 300)).toMatchObject({ nestInto: 'A', impliedParentId: 'A' })
+  it("F2 regression: hovering a group's data rows nests into THAT group — never the next header's slot", () => {
+    expect(bandSlot(buildBandIndex(bands, gapRows), 60, 'B', 300)).toMatchObject({
+      nestInto: 'A',
+      impliedParentId: 'A',
+    })
   })
 
-  it('an illegal nest over the dragged band\'s own rows falls to the boundary outside its subtree', () => {
+  it("an illegal nest over the dragged band's own rows falls to the boundary outside its subtree", () => {
     const slot = bandSlot(buildBandIndex(bands, gapRows), 60, 'A', 300)
     expect(slot?.nestInto).toBeNull()
     expect(slot).toMatchObject({ beforeId: 'B', impliedParentId: null })
   })
 
   it('the LAST set band nests from its row region too; root-append starts only past endY', () => {
-    expect(bandSlot(buildBandIndex(bands, gapRows), 260, 'A1', 300)).toMatchObject({ nestInto: 'B', impliedParentId: 'B' })
+    expect(bandSlot(buildBandIndex(bands, gapRows), 260, 'A1', 300)).toMatchObject({
+      nestInto: 'B',
+      impliedParentId: 'B',
+    })
     expect(bandSlot(buildBandIndex(bands, gapRows), 350, 'A1', 300)).toEqual({
       beforeId: null,
       impliedParentId: null,
       nestInto: null,
-      lineY: 300
+      lineY: 300,
     })
   })
 
-  it('a nestable band\'s intent never flickers walking top-to-bottom through its whole region', () => {
+  it("a nestable band's intent never flickers walking top-to-bottom through its whole region", () => {
     const intents = [2, 8, 17, 19, 30, 60, 99].map((y) => {
       const s = bandSlot(buildBandIndex(bands, gapRows), y, 'B', 300)
       return s?.nestInto ?? `before:${s?.beforeId}`
@@ -153,14 +178,23 @@ describe('bandSlot — non-adjacent headers (data rows between them)', () => {
     expect(intents).toEqual(['before:A', 'A', 'A', 'A', 'A', 'A', 'A'])
   })
 
-  it('a property band\'s row region reads as the after-slot at the region boundary', () => {
+  it("a property band's row region reads as the after-slot at the region boundary", () => {
     const pBands = flattenBands([prop('open'), prop('done'), ungrouped], new Set())
     const pRows: MeasuredRow[] = [
       { id: 'open', top: 0, bottom: 20, mid: 10 },
-      { id: 'done', top: 100, bottom: 120, mid: 110 }
+      { id: 'done', top: 100, bottom: 120, mid: 110 },
     ]
-    expect(bandSlot(buildBandIndex(pBands, pRows), 60, 'done', 300)).toMatchObject({ beforeId: null, impliedParentId: null, nestInto: null })
-    expect(bandSlot(buildBandIndex(pBands, pRows), 160, 'open', 300)).toEqual({ beforeId: null, impliedParentId: null, nestInto: null, lineY: 120 })
+    expect(bandSlot(buildBandIndex(pBands, pRows), 60, 'done', 300)).toMatchObject({
+      beforeId: null,
+      impliedParentId: null,
+      nestInto: null,
+    })
+    expect(bandSlot(buildBandIndex(pBands, pRows), 160, 'open', 300)).toEqual({
+      beforeId: null,
+      impliedParentId: null,
+      nestInto: null,
+      lineY: 120,
+    })
   })
 })
 
@@ -189,7 +223,7 @@ describe('structuralOrderAfterDrop', () => {
       'A',
       'A2',
       'A1',
-      'B1'
+      'B1',
     ])
   })
 
@@ -203,7 +237,7 @@ describe('structuralOrderAfterDrop', () => {
       'A1',
       'A2',
       'B1',
-      'A'
+      'A',
     ])
   })
 })
@@ -213,12 +247,12 @@ describe('propertyOrderAfterDrop', () => {
     expect(propertyOrderAfterDrop(['open', 'active', 'done'], 'done', 'open')).toEqual([
       'done',
       'open',
-      'active'
+      'active',
     ])
     expect(propertyOrderAfterDrop(['open', 'active', 'done'], 'open', null)).toEqual([
       'active',
       'done',
-      'open'
+      'open',
     ])
   })
 })

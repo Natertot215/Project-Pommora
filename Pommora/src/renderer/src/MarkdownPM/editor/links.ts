@@ -7,7 +7,9 @@ import { tokenize } from '../tokens'
 function externalLinkAt(view: EditorView, pos: number): { url: string } | null {
   const line = view.state.doc.lineAt(pos)
   const rel = pos - line.from
-  const tk = tokenize(line.text).find((t) => t.kind === 'link' && rel >= t.range[0] && rel <= t.range[1])
+  const tk = tokenize(line.text).find(
+    (t) => t.kind === 'link' && rel >= t.range[0] && rel <= t.range[1],
+  )
   if (!tk) return null
   const closer = line.text.slice(tk.markerRanges[1][0], tk.markerRanges[1][1])
   const url = closer.slice(2, -1)
@@ -27,6 +29,6 @@ export function externalLinkClicks(): ReturnType<typeof EditorView.domEventHandl
       event.preventDefault()
       void window.nexus.openExternal(hit.url)
       return true
-    }
+    },
   })
 }

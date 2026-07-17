@@ -12,7 +12,11 @@ import { nowIso } from './util'
 type ContainerKind = 'collection' | 'set'
 
 /** Only the keys a surface wants to change; omitted keys ride through untouched. */
-export type ContainerConfigPatch = { open_in?: OpenIn; view_button?: ViewButton; view_style?: ViewStyle }
+export type ContainerConfigPatch = {
+  open_in?: OpenIn
+  view_button?: ViewButton
+  view_style?: ViewStyle
+}
 
 function readCfgSidecar(folder: string, kind: ContainerKind) {
   return kind === 'collection'
@@ -27,7 +31,11 @@ function definedOnly(patch: ContainerConfigPatch): Record<string, unknown> {
   return out
 }
 
-export async function setContainerConfig(folder: string, kind: ContainerKind, patch: ContainerConfigPatch): Promise<Result<null>> {
+export async function setContainerConfig(
+  folder: string,
+  kind: ContainerKind,
+  patch: ContainerConfigPatch,
+): Promise<Result<null>> {
   if (kind === 'set' && patch.open_in !== undefined) {
     return fail('operation-failed', 'Open In is collection-owned.', kind)
   }

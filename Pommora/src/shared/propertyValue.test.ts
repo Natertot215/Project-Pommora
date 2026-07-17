@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { applyPropertyValue, parsePropertyValue, encodePropertyValue, type PropertyValue } from './propertyValue'
+import {
+  applyPropertyValue,
+  parsePropertyValue,
+  encodePropertyValue,
+  type PropertyValue,
+} from './propertyValue'
 
 describe('parsePropertyValue — classification (locked precedence)', () => {
   const cases: Array<[string, unknown, PropertyValue]> = [
@@ -13,7 +18,7 @@ describe('parsePropertyValue — classification (locked precedence)', () => {
     [
       'file',
       [{ path: 'x/y.png', original_name: 'y.png' }],
-      { kind: 'file', value: [{ path: 'x/y.png', original_name: 'y.png' }] }
+      { kind: 'file', value: [{ path: 'x/y.png', original_name: 'y.png' }] },
     ],
     ['multiSelect', ['a', 'b'], { kind: 'multiSelect', value: ['a', 'b'] }],
     ['empty array → multiSelect([]) (NOT file)', [], { kind: 'multiSelect', value: [] }],
@@ -22,12 +27,24 @@ describe('parsePropertyValue — classification (locked precedence)', () => {
     ['url', 'https://example.com', { kind: 'url', value: 'https://example.com' }],
     // A `[alias](url)` is a plain string by shape (starts with `[`, no scheme) — the codec reads it as
     // select; resolveFieldValue re-tags it to the column's declared type (url → url, select → select).
-    ['bracketed markdown-link → select by shape', '[Docs](https://example.com)', { kind: 'select', value: '[Docs](https://example.com)' }],
+    [
+      'bracketed markdown-link → select by shape',
+      '[Docs](https://example.com)',
+      { kind: 'select', value: '[Docs](https://example.com)' },
+    ],
     ['datetime', '2026-01-15T10:30:00Z', { kind: 'datetime', value: '2026-01-15T10:30:00Z' }],
-    ['datetime offset', '2026-01-15T10:30:00+02:00', { kind: 'datetime', value: '2026-01-15T10:30:00+02:00' }],
+    [
+      'datetime offset',
+      '2026-01-15T10:30:00+02:00',
+      { kind: 'datetime', value: '2026-01-15T10:30:00+02:00' },
+    ],
     ['bare date → date-only datetime', '2026-01-15', { kind: 'datetime', value: '2026-01-15' }],
     ['select (plain string)', 'in-progress', { kind: 'select', value: 'in-progress' }],
-    ['select (datetime w/o tz falls through)', '2026-01-15T10:30:00', { kind: 'select', value: '2026-01-15T10:30:00' }]
+    [
+      'select (datetime w/o tz falls through)',
+      '2026-01-15T10:30:00',
+      { kind: 'select', value: '2026-01-15T10:30:00' },
+    ],
   ]
   for (const [name, raw, expected] of cases) {
     it(name, () => expect(parsePropertyValue(raw)).toEqual(expected))
@@ -42,17 +59,26 @@ describe('round-trip — encode(parse(x)) === x for canonical on-disk shapes', (
     42,
     0,
     [{ $ctx: 'A' }, { $ctx: 'B' }],
-    [{ path: 'x/y.png', original_name: 'y.png', added_at: '2026-01-01T00:00:00Z', mime_type: 'image/png' }],
+    [
+      {
+        path: 'x/y.png',
+        original_name: 'y.png',
+        added_at: '2026-01-01T00:00:00Z',
+        mime_type: 'image/png',
+      },
+    ],
     ['a', 'b'],
     [],
     { $status: 'todo' },
     'https://example.com',
     '2026-01-15T10:30:00Z',
     '2026-01-15',
-    'in-progress'
+    'in-progress',
   ]
   for (const value of canonical) {
-    it(JSON.stringify(value), () => expect(encodePropertyValue(parsePropertyValue(value))).toEqual(value))
+    it(JSON.stringify(value), () =>
+      expect(encodePropertyValue(parsePropertyValue(value))).toEqual(value),
+    )
   }
 })
 
@@ -91,7 +117,7 @@ describe('applyPropertyValue — the no-empties rule (no value, no key)', () => 
     { kind: 'select', value: '' },
     { kind: 'status', value: '' },
     { kind: 'url', value: '' },
-    { kind: 'datetime', value: '' }
+    { kind: 'datetime', value: '' },
   ]
   for (const v of empties) {
     it(`an empty ${v.kind} deletes the key — never writes []/''`, () => {
@@ -100,7 +126,10 @@ describe('applyPropertyValue — the no-empties rule (no value, no key)', () => 
   }
 
   it('checkbox false and number 0 are real values and stay', () => {
-    expect(applyPropertyValue(base, 'p', { kind: 'checkbox', value: false })).toEqual({ ...base, p: false })
+    expect(applyPropertyValue(base, 'p', { kind: 'checkbox', value: false })).toEqual({
+      ...base,
+      p: false,
+    })
     expect(applyPropertyValue(base, 'p', { kind: 'number', value: 0 })).toEqual({ ...base, p: 0 })
   })
 })

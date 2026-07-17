@@ -15,7 +15,7 @@ const COLOR_GROUPS: Array<[string, Record<string, string>]> = [
   ['Surface', vars.color.surface],
   ['Fills', vars.color.fill],
   ['States', vars.color.state],
-  ['Separators', vars.color.separator]
+  ['Separators', vars.color.separator],
 ]
 
 type SwatchItem = { id: string; name: string; color: string }
@@ -23,7 +23,13 @@ type SwatchItem = { id: string; name: string; color: string }
 // Presentational swatch. Reads its rendered color back off the inner chip (so the
 // shown hex can't drift from the token); optional drag bindings sit on the outer
 // node — distinct from the read-back ref, so they never collide.
-function SwatchView({ name, color, dragRef, style, handle }: {
+function SwatchView({
+  name,
+  color,
+  dragRef,
+  style,
+  handle,
+}: {
   name: string
   color: string
   dragRef?: (el: HTMLDivElement | null) => void
@@ -50,9 +56,15 @@ function SwatchDraggable({ id, name, color }: SwatchItem): React.JSX.Element {
 // A color group. On desktop it's a reorderable gallery (grid reflow); on a compact
 // screen the swatches are static so the page scrolls (a draggable item sets
 // touch-action:none, which would trap touch scrolling on the tall grid).
-function SwatchGroup({ label, group }: { label: string; group: Record<string, string> }): React.JSX.Element {
+function SwatchGroup({
+  label,
+  group,
+}: {
+  label: string
+  group: Record<string, string>
+}): React.JSX.Element {
   const [items, setItems] = useState<SwatchItem[]>(() =>
-    Object.entries(group).map(([n, c]) => ({ id: n, name: humanize(n), color: c }))
+    Object.entries(group).map(([n, c]) => ({ id: n, name: humanize(n), color: c })),
   )
   const compact = useIsCompact()
   const cells = (
@@ -62,7 +74,7 @@ function SwatchGroup({ label, group }: { label: string; group: Record<string, st
           <SwatchView key={it.id} name={it.name} color={it.color} />
         ) : (
           <SwatchDraggable key={it.id} id={it.id} name={it.name} color={it.color} />
-        )
+        ),
       )}
     </div>
   )
@@ -105,8 +117,15 @@ function AccentDemo(): React.JSX.Element {
             <button
               key={a}
               type="button"
-              className={'ds-accent-chip' + (a === active ? ' is-active' : '') + (a === 'system' ? ' is-system' : '')}
-              style={{ background: a === 'system' ? systemColor ?? vars.color.solid.grey : vars.color.solid[a] }}
+              className={
+                'ds-accent-chip' +
+                (a === active ? ' is-active' : '') +
+                (a === 'system' ? ' is-system' : '')
+              }
+              style={{
+                background:
+                  a === 'system' ? (systemColor ?? vars.color.solid.grey) : vars.color.solid[a],
+              }}
               onClick={() => pick(a)}
               title={a}
               aria-label={a}
@@ -115,7 +134,9 @@ function AccentDemo(): React.JSX.Element {
         </div>
         <div className="ds-accent-samples">
           <span className="ds-accent-btn">Accent button</span>
-          <span className={chipPill} style={tint('var(--accent)')}>Accent</span>
+          <span className={chipPill} style={tint('var(--accent)')}>
+            Accent
+          </span>
           <span className="ds-accent-link">Accent text</span>
         </div>
       </div>
@@ -153,7 +174,12 @@ function TintScale(): React.JSX.Element {
         <div className="ds-tint-row" key={name}>
           <span className="ds-tint-rowlabel">{humanize(name)}</span>
           {TINT_ORDER.map((k) => (
-            <span key={k} className="ds-tint-swatch" style={{ background: tintAt(color, TINT_STEPS[k]) }} title={`${name} · ${k} ${TINT_STEPS[k]}%`} />
+            <span
+              key={k}
+              className="ds-tint-swatch"
+              style={{ background: tintAt(color, TINT_STEPS[k]) }}
+              title={`${name} · ${k} ${TINT_STEPS[k]}%`}
+            />
           ))}
         </div>
       ))}
@@ -163,7 +189,15 @@ function TintScale(): React.JSX.Element {
       items={colors.map(([n]) => n)}
       layout="grid"
       getItemLabel={(id) => humanize(id)}
-      onReorder={(a, o) => setColors((x) => reorder(x.map(([n, c]) => ({ id: n, c })), a, o).map(({ id, c }) => [id, c] as (typeof x)[number]))}
+      onReorder={(a, o) =>
+        setColors((x) =>
+          reorder(
+            x.map(([n, c]) => ({ id: n, c })),
+            a,
+            o,
+          ).map(({ id, c }) => [id, c] as (typeof x)[number]),
+        )
+      }
     >
       <>
         {colors.map(([name, color]) => (

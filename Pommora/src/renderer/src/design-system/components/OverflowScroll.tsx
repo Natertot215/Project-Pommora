@@ -35,7 +35,7 @@ export function slideScrollBack(scroller: HTMLElement): void {
  */
 export function OverflowScroll({
   children,
-  className
+  className,
 }: {
   children: ReactNode
   className?: string

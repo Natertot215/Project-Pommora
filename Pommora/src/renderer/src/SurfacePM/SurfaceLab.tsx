@@ -53,7 +53,7 @@ export function SurfaceLab(): React.JSX.Element {
   const addTile = (): void => {
     const first = tileIds(layout)[0]
     setLayout(
-      first ? splitAtTile(layout, first, 'w', nextId, 0.35) : insertBand(layout, 0, nextId, 200)
+      first ? splitAtTile(layout, first, 'w', nextId, 0.35) : insertBand(layout, 0, nextId, 200),
     )
   }
   const addBand = (): void => setLayout(insertBand(layout, layout.bands.length, nextId, 180))
@@ -69,13 +69,13 @@ export function SurfaceLab(): React.JSX.Element {
           fontSize: 15,
           fontWeight: 600,
           color: 'var(--label-secondary)',
-          userSelect: 'none'
+          userSelect: 'none',
         }}
       >
         {id.replace(/^[ts]/, '')}
       </div>
     ),
-    []
+    [],
   )
 
   return (

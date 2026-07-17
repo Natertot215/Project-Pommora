@@ -51,10 +51,13 @@ function isRecentEntry(v: unknown): v is RecentEntry {
 
 /** Both sidecars, read leniently in parallel: absent / corrupt → empty; invalid entries dropped. */
 export async function readNavState(root: string): Promise<NavState> {
-  const [recentsRaw, favoritesRaw] = await Promise.all([readJsonArray(recentsPath(root)), readJsonArray(favoritesPath(root))])
+  const [recentsRaw, favoritesRaw] = await Promise.all([
+    readJsonArray(recentsPath(root)),
+    readJsonArray(favoritesPath(root)),
+  ])
   return {
     recents: recentsRaw.filter(isRecentEntry),
-    favorites: favoritesRaw.filter(isNavTarget)
+    favorites: favoritesRaw.filter(isNavTarget),
   }
 }
 
@@ -98,7 +101,10 @@ function clearTimer(): void {
 export function scheduleRecentsWrite(root: string, entries: RecentEntry[]): void {
   pending = { root, entries }
   clearTimer()
-  timer = setTimeout(() => void flushRecents().catch((e) => console.error('nav recents debounced flush failed:', e)), RECENTS_DEBOUNCE_MS)
+  timer = setTimeout(
+    () => void flushRecents().catch((e) => console.error('nav recents debounced flush failed:', e)),
+    RECENTS_DEBOUNCE_MS,
+  )
 }
 
 /** Immediate recents write (pin toggle). Supersedes and cancels any pending debounced write so a

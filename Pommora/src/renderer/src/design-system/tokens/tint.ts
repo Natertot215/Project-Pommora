@@ -18,7 +18,7 @@ export const TINT_STEPS = {
   secondary: 40,
   tertiary: 20,
   quaternary: 15,
-  solid: 100
+  solid: 100,
 } as const
 
 export type TintStep = keyof typeof TINT_STEPS
@@ -37,5 +37,5 @@ export const tintAt = (base: string, step: number): string =>
 export const tint = (base: string): { background: string; borderColor: string; color: string } => ({
   background: tintAt(base, TINT_STEPS.primary),
   borderColor: tintAt(base, TINT_STEPS.secondary),
-  color: `color-mix(in srgb, ${base} ${TINT_STEPS.quaternary}%, ${labelPrimary})`
+  color: `color-mix(in srgb, ${base} ${TINT_STEPS.quaternary}%, ${labelPrimary})`,
 })

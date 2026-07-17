@@ -12,7 +12,8 @@ export function popTabMenu(win: BrowserWindow, ctx: TabMenuContext): Promise<Tab
       resolve(a)
     }
     const items: MenuItemConstructorOptions[] = []
-    if (!ctx.isNewTab) items.push({ label: ctx.pinned ? 'Unpin' : 'Pin', click: pick(ctx.pinned ? 'unpin' : 'pin') })
+    if (!ctx.isNewTab)
+      items.push({ label: ctx.pinned ? 'Unpin' : 'Pin', click: pick(ctx.pinned ? 'unpin' : 'pin') })
     if (!ctx.pinned) {
       if (items.length > 0) items.push({ type: 'separator' })
       items.push({ label: 'Close', click: pick('close') })
@@ -25,7 +26,7 @@ export function popTabMenu(win: BrowserWindow, ctx: TabMenuContext): Promise<Tab
       window: win,
       callback: () => {
         if (!acted) resolve(null)
-      }
+      },
     })
   })
 }

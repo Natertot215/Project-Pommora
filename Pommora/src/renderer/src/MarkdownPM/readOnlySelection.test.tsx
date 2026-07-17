@@ -20,7 +20,9 @@ async function mount(readOnly: boolean): Promise<void> {
   document.body.appendChild(container)
   root = createRoot(container)
   await act(async () => {
-    root.render(createElement(MarkdownEditor, { initialBody: 'hello world', onChange: () => {}, readOnly }))
+    root.render(
+      createElement(MarkdownEditor, { initialBody: 'hello world', onChange: () => {}, readOnly }),
+    )
   })
 }
 

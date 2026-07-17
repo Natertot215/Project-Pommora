@@ -10,7 +10,7 @@ export const ARROW_DIRS: Record<string, Dir> = {
   ArrowUp: { x: 0, y: -1 },
   ArrowDown: { x: 0, y: 1 },
   ArrowLeft: { x: -1, y: 0 },
-  ArrowRight: { x: 1, y: 0 }
+  ArrowRight: { x: 1, y: 0 },
 }
 
 /** Next slot index from `over` in arrow direction `dir`. Returns `over` if nothing lies ahead. */

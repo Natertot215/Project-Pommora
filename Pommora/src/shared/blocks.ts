@@ -30,26 +30,26 @@ export interface RawColumn {
 export const rawTileSchema: z.ZodType<RawTile> = z.object({
   kind: z.literal('tile'),
   id: z.string().min(1),
-  h: z.number()
+  h: z.number(),
 })
 
 export const rawRowSchema: z.ZodType<RawRow> = z.lazy(() =>
   z.object({
     kind: z.literal('row'),
     ratios: z.array(z.number()),
-    children: z.array(z.union([rawTileSchema, rawRowSchema, rawColumnSchema])).min(1)
-  })
+    children: z.array(z.union([rawTileSchema, rawRowSchema, rawColumnSchema])).min(1),
+  }),
 )
 
 export const rawColumnSchema: z.ZodType<RawColumn> = z.lazy(() =>
   z.object({
     kind: z.literal('column'),
-    children: z.array(z.union([rawTileSchema, rawRowSchema, rawColumnSchema])).min(1)
-  })
+    children: z.array(z.union([rawTileSchema, rawRowSchema, rawColumnSchema])).min(1),
+  }),
 )
 
 export const rawLayoutSchema = z.object({
-  bands: z.array(z.object({ node: z.union([rawTileSchema, rawRowSchema, rawColumnSchema]) }))
+  bands: z.array(z.object({ node: z.union([rawTileSchema, rawRowSchema, rawColumnSchema]) })),
 })
 
 /** The BlockHost seam (D-2): which entity's sidecar holds the doc. The homepage
@@ -136,7 +136,7 @@ const markdownEntry = z.looseObject({
   type: z.literal('markdown'),
   style: styleField,
   locked: lockedField,
-  zoom: zoomField
+  zoom: zoomField,
 })
 const pageEntry = z.looseObject({
   id: z.string().min(1),
@@ -146,12 +146,12 @@ const pageEntry = z.looseObject({
   banner: z.boolean().optional().catch(undefined),
   title: z.boolean().optional().catch(undefined),
   locked: lockedField,
-  zoom: zoomField
+  zoom: zoomField,
 })
 // Elements are looseObjects too — a strict element shape would strip nested foreign keys (E-1).
 const embeddedView = z.looseObject({
   source_id: z.string().min(1),
-  config: z.unknown().optional() // zod 4 treats a bare unknown() key as required
+  config: z.unknown().optional(), // zod 4 treats a bare unknown() key as required
 })
 const viewEntry = z.looseObject({
   id: z.string().min(1),
@@ -166,7 +166,7 @@ const viewEntry = z.looseObject({
   view_button: z.enum(['icon', 'labeled']).optional().catch(undefined),
   view_style: z.enum(['dropdown', 'toolbar']).optional().catch(undefined),
   locked: lockedField,
-  zoom: zoomField
+  zoom: zoomField,
 })
 const knownEntry = z.union([markdownEntry, pageEntry, viewEntry])
 
@@ -222,7 +222,8 @@ export type BlocksSaveResult = { ok: true } | { ok: false; error: string }
  *  only: the ORIGINAL values are what get written, since zod's parse output strips
  *  unknown keys and foreign keys must survive (E-1). Returns the problem, or null. */
 export function blockPatchProblem(patch: BlockDocPatch): string | null {
-  if ('layout' in patch && !rawLayoutSchema.safeParse(patch.layout).success) return 'Malformed layout.'
+  if ('layout' in patch && !rawLayoutSchema.safeParse(patch.layout).success)
+    return 'Malformed layout.'
   if ('blocks' in patch && !Array.isArray(patch.blocks)) return 'blocks must be an array.'
   if ('locked' in patch && typeof patch.locked !== 'boolean') return 'locked must be a boolean.'
   return null

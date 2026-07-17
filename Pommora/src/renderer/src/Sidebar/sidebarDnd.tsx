@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
-  type ReactNode
+  type ReactNode,
 } from 'react'
 import { createPortal } from 'react-dom'
 import { text } from '@renderer/design-system/tokens'
@@ -15,7 +15,16 @@ import { announce } from '@renderer/design-system/interactions/a11y'
 import { findScroller, startAutoScroll } from '@renderer/design-system/interactions/autoscroll'
 import type { FolderPlacement, NexusTree } from '@shared/types'
 import type { MutateRequest } from '@shared/mutate'
-import { buildIndex, nextOrder, setContainerOf, isSelfOrDescendant, slotInGroup, type Entry, type Index, type MeasuredRow } from './sidebarDndModel'
+import {
+  buildIndex,
+  nextOrder,
+  setContainerOf,
+  isSelfOrDescendant,
+  slotInGroup,
+  type Entry,
+  type Index,
+  type MeasuredRow,
+} from './sidebarDndModel'
 
 // Sidebar drag-and-drop — the "sidebar" behavior (chosen 2026-06-19): an Apple-style insertion
 // LINE marks the exact drop, the picked-up row stays muted in place, and a ghost rides the cursor.
@@ -40,10 +49,24 @@ const IDLE: DragState = { id: null, ghostX: 0, ghostY: 0, target: null }
 
 // Gesture lifecycle: idle → pending (pressed, not yet past the activation threshold) →
 // active (dragging). pending and active carry the same fields; idle carries none.
-type Handlers = { move: (e: PointerEvent) => void; up: (e: PointerEvent) => void; cancel: (e: PointerEvent) => void; key: (e: KeyboardEvent) => void }
+type Handlers = {
+  move: (e: PointerEvent) => void
+  up: (e: PointerEvent) => void
+  cancel: (e: PointerEvent) => void
+  key: (e: KeyboardEvent) => void
+}
 type Gesture =
   | { kind: 'idle' }
-  | { kind: 'pending' | 'active'; id: string; el: HTMLElement; pid: number; startX: number; startY: number; grabX: number; handlers: Handlers }
+  | {
+      kind: 'pending' | 'active'
+      id: string
+      el: HTMLElement
+      pid: number
+      startX: number
+      startY: number
+      grabX: number
+      handlers: Handlers
+    }
 
 type Value = {
   draggingId: string | null
@@ -57,7 +80,7 @@ export function SidebarDnd({
   onCommit,
   setPlacement = 'top',
   subSetPlacement = 'top',
-  children
+  children,
 }: {
   tree: NexusTree
   onCommit: (commit: MutateRequest) => void
@@ -152,7 +175,7 @@ export function SidebarDnd({
           depth: entry.depth,
           lineY: edge - contentTop,
           commit: { op: 'movePage', path: dragged.path, newParentPath: entry.parentPath, order },
-          noop: entry.parentId === dragged.parentId && sameOrder(order, container.pageIds)
+          noop: entry.parentId === dragged.parentId && sameOrder(order, container.pageIds),
         }
       }
       // Over a container header → drop in at the top of its pages.
@@ -162,7 +185,7 @@ export function SidebarDnd({
         depth: entry.depth + 1,
         lineY: over.bottom - contentTop,
         commit: { op: 'movePage', path: dragged.path, newParentPath: entry.path, order },
-        noop: over.id === dragged.parentId && sameOrder(order, entry.pageIds)
+        noop: over.id === dragged.parentId && sameOrder(order, entry.pageIds),
       }
     }
 
@@ -194,9 +217,13 @@ export function SidebarDnd({
           const firstRow = measured.find((m) => m.id === beforeId)
           lineY = (firstRow ? firstRow.top : headEdge) - contentTop
         } else {
-          const placement = target.kind === 'collection' ? placements.current.set : placements.current.subSet
-          const pageBottoms = target.pageIds.map((id) => measured.find((m) => m.id === id)?.bottom).filter((b): b is number => b != null)
-          const edge = placement === 'bottom' && pageBottoms.length ? Math.max(...pageBottoms) : headEdge
+          const placement =
+            target.kind === 'collection' ? placements.current.set : placements.current.subSet
+          const pageBottoms = target.pageIds
+            .map((id) => measured.find((m) => m.id === id)?.bottom)
+            .filter((b): b is number => b != null)
+          const edge =
+            placement === 'bottom' && pageBottoms.length ? Math.max(...pageBottoms) : headEdge
           lineY = edge - contentTop
         }
       }
@@ -205,7 +232,7 @@ export function SidebarDnd({
         depth: target.depth + 1,
         lineY,
         commit: { op: 'moveSet', path: dragged.path, newParentPath: target.path, order },
-        noop: target.id === dragged.parentId && sameOrder(order, group)
+        noop: target.id === dragged.parentId && sameOrder(order, group),
       }
     }
 
@@ -223,14 +250,20 @@ export function SidebarDnd({
     const order = nextOrder(group, g.id, beforeId)
     const commit = reorderCommit(dragged, idx, order)
     if (!commit) return null
-    return { depth: overEntry.depth, lineY: edge - contentTop, commit, noop: sameOrder(order, group) }
+    return {
+      depth: overEntry.depth,
+      lineY: edge - contentTop,
+      commit,
+      noop: sameOrder(order, group),
+    }
   }
 
   // Only a scroll that moves the rows themselves (the nav, an ancestor, the window) shifts the
   // frozen rects — a row's inner hover-marquee scroll never changes row geometry, so it must not
   // trigger an O(rows) re-measure on its per-frame ticks.
   const markSnapshotDirty = (e: Event): void => {
-    if (e.target instanceof Element && contentRef.current && !e.target.contains(contentRef.current)) return
+    if (e.target instanceof Element && contentRef.current && !e.target.contains(contentRef.current))
+      return
     snapshotDirty.current = true
   }
 
@@ -259,7 +292,6 @@ export function SidebarDnd({
     setDrag(IDLE)
   }
 
-
   const begin = (id: string, e: ReactPointerEvent): void => {
     if (e.button !== 0 || !e.isPrimary || gesture.current.kind !== 'idle') return
     if ((e.target as HTMLElement).closest?.('input, textarea, [contenteditable="true"]')) return
@@ -267,7 +299,16 @@ export function SidebarDnd({
     if (!el) return
     const r = el.getBoundingClientRect()
     const handlers: Handlers = { move: onMovePtr, up: onUp, cancel: onCancel, key: onKey }
-    gesture.current = { kind: 'pending', id, el, pid: e.pointerId, startX: e.clientX, startY: e.clientY, grabX: e.clientX - r.left, handlers }
+    gesture.current = {
+      kind: 'pending',
+      id,
+      el,
+      pid: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      grabX: e.clientX - r.left,
+      handlers,
+    }
     // The gesture listeners live on the WINDOW, never the row: a mid-drag tree push (watcher) can
     // move or remount the row's DOM node, which silently releases pointer capture and would starve
     // row-hosted listeners — freezing the ghost, eating the drop, and wedging the gesture so no
@@ -297,7 +338,13 @@ export function SidebarDnd({
       // ACTIVATION so the dampen ramp measures from the drag; onScrolled re-resolves a held-still drag.
       const sc = findScroller(g.el, 'y')
       if (sc) {
-        stopScroll.current = startAutoScroll({ getPoint: () => lastPoint.current, scroller: sc, dragEl: g.el, axis: 'y', onScrolled: resolveSlot })
+        stopScroll.current = startAutoScroll({
+          getPoint: () => lastPoint.current,
+          scroller: sc,
+          dragEl: g.el,
+          axis: 'y',
+          onScrolled: resolveSlot,
+        })
       }
       announce(`Picked up ${base(indexRef.current.byId.get(g.id)?.path ?? '')}.`)
     }
@@ -312,7 +359,12 @@ export function SidebarDnd({
     if (g.kind !== 'active') return
     const target = computeTarget(lastPoint.current.y)
     live.current = target
-    setDrag({ id: g.id, ghostX: lastPoint.current.x - g.grabX, ghostY: lastPoint.current.y, target })
+    setDrag({
+      id: g.id,
+      ghostX: lastPoint.current.x - g.grabX,
+      ghostY: lastPoint.current.y,
+      target,
+    })
   }
 
   function onUp(e: PointerEvent): void {
@@ -366,10 +418,20 @@ export function SidebarDnd({
               borderRadius: 2,
               background: 'var(--accent)',
               pointerEvents: 'none',
-              zIndex: 20
+              zIndex: 20,
             }}
           >
-            <span style={{ position: 'absolute', left: -3, top: -2.5, width: 7, height: 7, borderRadius: '50%', background: 'var(--accent)' }} />
+            <span
+              style={{
+                position: 'absolute',
+                left: -3,
+                top: -2.5,
+                width: 7,
+                height: 7,
+                borderRadius: '50%',
+                background: 'var(--accent)',
+              }}
+            />
           </div>
         )}
       </div>
@@ -390,12 +452,12 @@ export function SidebarDnd({
               WebkitBackdropFilter: 'blur(6px)',
               boxShadow: '0 14px 34px #00000073',
               pointerEvents: 'none',
-              zIndex: 1000
+              zIndex: 1000,
             }}
           >
             {draggedLabel}
           </div>,
-          document.body
+          document.body,
         )}
     </Ctx.Provider>
   )
@@ -405,7 +467,8 @@ const base = (p: string): string => {
   const n = p.slice(p.lastIndexOf('/') + 1)
   return n.endsWith('.md') ? n.slice(0, -3) : n
 }
-const sameOrder = (a: string[], b: string[]): boolean => a.length === b.length && a.every((x, i) => x === b[i])
+const sameOrder = (a: string[], b: string[]): boolean =>
+  a.length === b.length && a.every((x, i) => x === b[i])
 
 // The ordered sibling group a Collection / context entity reorders within — all top-level groups
 // held in `.nexus/state.json`. (Sets have their own reparent-aware branch in computeTarget and
@@ -454,6 +517,6 @@ export function useSidebarDrag(id: string): {
   return {
     ref: (el) => ctx.registerRow(id, el),
     handle: { onPointerDown: (e) => ctx.begin(id, e) },
-    isDragging: ctx.draggingId === id
+    isDragging: ctx.draggingId === id,
   }
 }

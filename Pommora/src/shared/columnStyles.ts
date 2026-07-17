@@ -3,7 +3,18 @@
 
 import { z } from 'zod'
 
-export const COLUMN_LOOKS = ['pill', 'capsule', 'checkbox', 'switch', 'title', 'full', 'filename', 'path', 'number', 'bar'] as const
+export const COLUMN_LOOKS = [
+  'pill',
+  'capsule',
+  'checkbox',
+  'switch',
+  'title',
+  'full',
+  'filename',
+  'path',
+  'number',
+  'bar',
+] as const
 export type ColumnLook = (typeof COLUMN_LOOKS)[number]
 
 export const DATE_FORMATS = ['short', 'full', 'dayMonthYear', 'monthDayYear', 'relative'] as const
@@ -22,7 +33,7 @@ export const columnStyle = z.looseObject({
   look: z.enum(COLUMN_LOOKS).optional().catch(undefined),
   date_format: z.enum(DATE_FORMATS).optional().catch(undefined),
   time_format: z.enum(TIME_FORMATS).optional().catch(undefined),
-  weekday: z.enum(WEEKDAY_FORMATS).optional().catch(undefined)
+  weekday: z.enum(WEEKDAY_FORMATS).optional().catch(undefined),
 })
 export type ColumnStyle = z.infer<typeof columnStyle>
 

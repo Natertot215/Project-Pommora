@@ -15,7 +15,8 @@ afterEach(async () => {
 })
 
 const idPath = () => nexusConfig(root, NEXUS_CONFIG_FILES.identity)
-const readId = async (): Promise<Record<string, unknown>> => JSON.parse(await readFile(idPath(), 'utf8'))
+const readId = async (): Promise<Record<string, unknown>> =>
+  JSON.parse(await readFile(idPath(), 'utf8'))
 const writeId = async (v: object): Promise<void> => {
   await mkdir(nexusDir(root), { recursive: true })
   await writeFile(idPath(), JSON.stringify(v))

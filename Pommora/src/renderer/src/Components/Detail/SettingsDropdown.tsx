@@ -14,7 +14,7 @@ import * as s from './settingsPane.css'
  */
 export function SettingsDropdown({
   closing = false,
-  notchInsetRight
+  notchInsetRight,
 }: {
   closing?: boolean
   /** Beak aim, forwarded to the glass shell — from the pane's right edge to the Settings button. */

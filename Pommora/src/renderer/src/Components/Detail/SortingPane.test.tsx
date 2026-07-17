@@ -28,10 +28,10 @@ const statusDef: PropertyDefinition = {
       color: 'gray',
       options: [
         { value: 'todo', label: 'Todo', group_id: 'g1' },
-        { value: 'done', label: 'Done', group_id: 'g1' }
-      ]
-    }
-  ]
+        { value: 'done', label: 'Done', group_id: 'g1' },
+      ],
+    },
+  ],
 }
 const dateDef: PropertyDefinition = { id: 'prop_when', name: 'When', type: 'datetime' }
 const fileDef: PropertyDefinition = { id: 'prop_file', name: 'Attachment', type: 'file' }
@@ -44,7 +44,7 @@ const view = (over?: Partial<SavedView>): SavedView => ({
   type: 'table',
   property_order: ['_title'],
   hidden_properties: [],
-  ...over
+  ...over,
 })
 
 const source = {
@@ -54,7 +54,7 @@ const source = {
   path: 'Col',
   sets: [],
   pages: [],
-  properties: schema
+  properties: schema,
 } as unknown as CollectionNode
 
 let host: HTMLDivElement
@@ -63,7 +63,9 @@ let saveSpy: ReturnType<typeof vi.fn>
 
 const mount = async (v: SavedView): Promise<void> => {
   await act(async () => {
-    root.render(<SortingPane source={source} view={v} schema={schema} label="Settings" onBack={() => {}} />)
+    root.render(
+      <SortingPane source={source} view={v} schema={schema} label="Settings" onBack={() => {}} />,
+    )
   })
 }
 const texts = (): string => host.textContent ?? ''
@@ -82,7 +84,7 @@ beforeEach(() => {
   saveSpy = vi.fn(async () => ({ ok: true }))
   ;(window as unknown as { nexus: unknown }).nexus = {
     views: { save: saveSpy },
-    activeViews: { set: vi.fn(async () => {}) }
+    activeViews: { set: vi.fn(async () => {}) },
   }
   useSession.setState({ load: vi.fn(async () => {}) as never })
 })
@@ -126,27 +128,29 @@ describe('SortingPane rows', () => {
     await mount(view({ sort: [{ property_id: 'prop_when', direction: 'ascending' }] }))
     const trigger = host.querySelector('button[aria-label="Sub-Sort"]') as HTMLElement
     await click(trigger)
-    await click([...document.querySelectorAll('button')].find((el) => el.textContent?.includes('Status')))
+    await click(
+      [...document.querySelectorAll('button')].find((el) => el.textContent?.includes('Status')),
+    )
     expect(lastSaved().sort).toEqual([
       { property_id: 'prop_when', direction: 'ascending' },
-      { property_id: 'prop_status', direction: 'ascending' }
+      { property_id: 'prop_status', direction: 'ascending' },
     ])
     await mount(
       view({
         sort: [
           { property_id: 'prop_when', direction: 'ascending' },
-          { property_id: 'prop_status', direction: 'descending' }
-        ]
-      })
+          { property_id: 'prop_status', direction: 'descending' },
+        ],
+      }),
     )
     expect(texts()).toContain('Reversed') // the sub Order shares the primary's per-type vocabulary
     await mount(
       view({
         sort: [
           { property_id: 'prop_when', direction: 'ascending' },
-          { property_id: 'prop_check', direction: 'descending' }
-        ]
-      })
+          { property_id: 'prop_check', direction: 'descending' },
+        ],
+      }),
     )
     expect(texts()).toContain('Descending') // a checkbox sub reads the value vocabulary
   })
@@ -165,15 +169,15 @@ describe('SortingPane rows', () => {
         sort: [
           { property_id: 'prop_when', direction: 'ascending' },
           { property_id: 'prop_status', direction: 'ascending' },
-          { property_id: '_title', direction: 'descending' }
-        ]
-      })
+          { property_id: '_title', direction: 'descending' },
+        ],
+      }),
     )
     await click(rowWithText('Sort By')?.closest('[class]'))
     await click(rowWithText('Title')?.closest('[class]'))
     expect(lastSaved().sort).toEqual([
       { property_id: '_title', direction: 'ascending' },
-      { property_id: 'prop_status', direction: 'ascending' }
+      { property_id: 'prop_status', direction: 'ascending' },
     ])
   })
 
@@ -190,16 +194,24 @@ describe('SortingPane rows', () => {
     await click(trigger)
     await click([...document.querySelectorAll('button')].find((el) => el.textContent === 'Custom'))
     expect(lastSaved().sort).toEqual([
-      { property_id: 'prop_status', direction: 'descending', order: ['done', 'todo'] } // seeded reversed
+      { property_id: 'prop_status', direction: 'descending', order: ['done', 'todo'] }, // seeded reversed
     ])
-    await mount(view({ sort: [{ property_id: 'prop_status', direction: 'ascending', order: ['done', 'todo'] }] }))
+    await mount(
+      view({
+        sort: [{ property_id: 'prop_status', direction: 'ascending', order: ['done', 'todo'] }],
+      }),
+    )
     expect(texts()).toContain('Custom')
     expect(texts()).toContain('Options') // the draggable CustomList heading
     expect(texts().indexOf('Done')).toBeLessThan(texts().indexOf('Todo'))
   })
 
   it('Default strips a custom order back off the criterion', async () => {
-    await mount(view({ sort: [{ property_id: 'prop_status', direction: 'ascending', order: ['done', 'todo'] }] }))
+    await mount(
+      view({
+        sort: [{ property_id: 'prop_status', direction: 'ascending', order: ['done', 'todo'] }],
+      }),
+    )
     const trigger = host.querySelectorAll('button[aria-label="Order"]')[0] as HTMLElement
     await click(trigger)
     await click([...document.querySelectorAll('button')].find((el) => el.textContent === 'Default'))

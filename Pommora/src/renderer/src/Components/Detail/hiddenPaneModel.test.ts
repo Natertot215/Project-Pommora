@@ -14,7 +14,7 @@ const view = (property_order: string[], hidden_properties: string[]): SavedView 
   name: 'Table',
   type: 'table',
   property_order,
-  hidden_properties
+  hidden_properties,
 })
 
 describe('hiddenListIds', () => {
@@ -25,7 +25,11 @@ describe('hiddenListIds', () => {
 
   it('lists hidden tiers first (fixed order), then props, trails Modified, drops stale ids', () => {
     const schema = [def('a')]
-    expect(hiddenListIds([tier1, modifiedAt, 'stale', 'a'], schema)).toEqual([tier1, 'a', modifiedAt])
+    expect(hiddenListIds([tier1, modifiedAt, 'stale', 'a'], schema)).toEqual([
+      tier1,
+      'a',
+      modifiedAt,
+    ])
   })
 })
 
@@ -34,7 +38,7 @@ describe('placeInShown', () => {
     const v = view([title, 'a', 'b', 'h', 'c'], ['h'])
     expect(placeInShown(v, [title, 'a', 'b', 'c'], ['a', 'b', 'c'], 'c', 0)).toEqual({
       property_order: [title, 'c', 'a', 'b', 'h'],
-      hidden_properties: ['h']
+      hidden_properties: ['h'],
     })
   })
 
@@ -44,7 +48,7 @@ describe('placeInShown', () => {
       title,
       'b',
       'a',
-      tier3
+      tier3,
     ])
   })
 
@@ -52,7 +56,7 @@ describe('placeInShown', () => {
     const v = view([title, 'a', 'b', 'h'], ['h'])
     expect(placeInShown(v, [title, 'a', 'b'], ['a', 'b'], 'h', 1)).toEqual({
       property_order: [title, 'a', 'h', 'b'],
-      hidden_properties: []
+      hidden_properties: [],
     })
   })
 
@@ -60,13 +64,17 @@ describe('placeInShown', () => {
     const v = view(['a'], ['h'])
     expect(placeInShown(v, ['a'], ['a'], 'h', 1)).toEqual({
       property_order: ['a', 'h'],
-      hidden_properties: []
+      hidden_properties: [],
     })
   })
 
   it('preserves foreign property_order ids at the tail', () => {
     const v = view(['a', 'future_key', 'b'], [])
-    expect(placeInShown(v, ['a', 'b'], ['a', 'b'], 'b', 0).property_order).toEqual(['b', 'a', 'future_key'])
+    expect(placeInShown(v, ['a', 'b'], ['a', 'b'], 'b', 0).property_order).toEqual([
+      'b',
+      'a',
+      'future_key',
+    ])
   })
 })
 
@@ -86,12 +94,12 @@ describe('hiddenPaneSlot', () => {
   const rows: MeasuredRow[] = [
     { id: 'a', top: 0, bottom: 20, mid: 10 },
     { id: 'b', top: 20, bottom: 40, mid: 30 },
-    { id: 'h', top: 60, bottom: 80, mid: 70 }
+    { id: 'h', top: 60, bottom: 80, mid: 70 },
   ]
   const byId = new Map<string, PaneRow>([
     ['a', { id: 'a', group: 'assigned' }],
     ['b', { id: 'b', group: 'assigned' }],
-    ['h', { id: 'h', group: 'all' }]
+    ['h', { id: 'h', group: 'all' }],
   ])
   const regions = { assigned: { top: 0, bottom: 50 }, all: { top: 50, bottom: 100 } }
 
@@ -99,7 +107,7 @@ describe('hiddenPaneSlot', () => {
     expect(hiddenPaneSlot(rows, byId, regions, 35, 'a')?.drop).toEqual({
       kind: 'reorder-assigned',
       propId: 'a',
-      toIndex: 1
+      toIndex: 1,
     })
   })
 
@@ -107,7 +115,7 @@ describe('hiddenPaneSlot', () => {
     expect(hiddenPaneSlot(rows, byId, regions, 5, 'h')?.drop).toEqual({
       kind: 'assign',
       propId: 'h',
-      toIndex: 0
+      toIndex: 0,
     })
   })
 

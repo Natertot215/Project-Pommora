@@ -39,11 +39,18 @@ export function derivePinnedTabs(pins: PinEntry[]): Tab[] {
  *  the stateful "Open" vs "Open in New Tab" menu labels (I-1). */
 export function isOpenInTabs(tabs: Tab[], pins: PinEntry[], target: SelectTarget): boolean {
   const key = navKey(target)
-  return tabs.some((t) => t.target.kind !== 'newtab' && navKey(t.target) === key) || pins.some((p) => navKey(p) === key)
+  return (
+    tabs.some((t) => t.target.kind !== 'newtab' && navKey(t.target) === key) ||
+    pins.some((p) => navKey(p) === key)
+  )
 }
 
 /** Map a context-menu target to its drivable selection (area/topic/project collapse to `context`). */
-export function contextTargetToSelect(t: { kind: MutableKind; id: string; path: string }): SelectTarget {
+export function contextTargetToSelect(t: {
+  kind: MutableKind
+  id: string
+  path: string
+}): SelectTarget {
   switch (t.kind) {
     case 'page':
       return { kind: 'page', id: t.id, path: t.path }
@@ -111,7 +118,12 @@ export function openTab(
   }
   const nextTabs = tabs.map((t) =>
     t.id === active.id
-      ? { ...t, target, navStack: [...t.navStack.slice(0, t.navIndex + 1), target], navIndex: t.navIndex + 1 }
+      ? {
+          ...t,
+          target,
+          navStack: [...t.navStack.slice(0, t.navIndex + 1), target],
+          navIndex: t.navIndex + 1,
+        }
       : t,
   )
   return { tabs: nextTabs, activeTabId: active.id }
@@ -160,7 +172,8 @@ export function closeTab(
 
   const live = new Set([...pinnedIds, ...nextTabs.map((t) => t.id)])
   const mruTop = nextMru.find((m) => live.has(m))
-  const spatial = nextTabs[Math.min(idx, nextTabs.length - 1)]?.id ?? pinnedIds[pinnedIds.length - 1]
+  const spatial =
+    nextTabs[Math.min(idx, nextTabs.length - 1)]?.id ?? pinnedIds[pinnedIds.length - 1]
   return { tabs: nextTabs, activeTabId: mruTop ?? spatial, mru: nextMru }
 }
 
@@ -245,7 +258,8 @@ export function reconcileTabs(
   const nextMru = mru.filter((id) => live.has(id))
   if (live.has(activeTabId)) return { tabs: nextTabs, activeTabId, mru: nextMru, changed: true }
   const focus = nextMru[0] ?? nextTabs[0]?.id ?? pinnedIds[pinnedIds.length - 1]
-  if (focus !== undefined) return { tabs: nextTabs, activeTabId: focus, mru: nextMru, changed: true }
+  if (focus !== undefined)
+    return { tabs: nextTabs, activeTabId: focus, mru: nextMru, changed: true }
   const seeded = newTabTab(newId)
   return { tabs: [seeded], activeTabId: seeded.id, mru: [seeded.id], changed: true }
 }

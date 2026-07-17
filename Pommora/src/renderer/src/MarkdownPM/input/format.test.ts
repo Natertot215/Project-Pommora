@@ -76,8 +76,12 @@ describe('setBlock', () => {
     const t = '|  |  |  |\n| ------ | ------ | ------ |\n|  |  |  |\n|  |  |  |'
     const below = '| A | B |\n| --- | --- |\n| 1 | 2 |'
     // caret on the blank line directly above a table → table fenced by a blank line on each side
-    expect(apply(`text\n\n${below}`, setBlock(`text\n\n${below}`, 5, 'table'))).toBe(`text\n\n${t}\n\n${below}`)
+    expect(apply(`text\n\n${below}`, setBlock(`text\n\n${below}`, 5, 'table'))).toBe(
+      `text\n\n${t}\n\n${below}`,
+    )
     // a blank line already follows → not doubled
-    expect(apply(`text\n\n\n${below}`, setBlock(`text\n\n\n${below}`, 5, 'table'))).toBe(`text\n\n${t}\n\n${below}`)
+    expect(apply(`text\n\n\n${below}`, setBlock(`text\n\n\n${below}`, 5, 'table'))).toBe(
+      `text\n\n${t}\n\n${below}`,
+    )
   })
 })

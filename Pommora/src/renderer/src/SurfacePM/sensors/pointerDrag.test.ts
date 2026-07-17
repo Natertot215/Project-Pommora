@@ -12,14 +12,19 @@ function harness(threshold?: number) {
   const moves: Array<[number, number]> = []
   let ended: boolean | null = null
   startPointerDrag(
-    { currentTarget: el, pointerId: 1, clientX: 100, clientY: 100 } as unknown as React.PointerEvent,
+    {
+      currentTarget: el,
+      pointerId: 1,
+      clientX: 100,
+      clientY: 100,
+    } as unknown as React.PointerEvent,
     {
       ...(threshold === undefined ? {} : { threshold }),
       onMove: (dx, dy) => moves.push([dx, dy]),
       onEnd: (c) => {
         ended = c
-      }
-    }
+      },
+    },
   )
   const fire = (type: string, x: number, y: number): void => {
     el.dispatchEvent(Object.assign(new Event(type), { clientX: x, clientY: y, pointerId: 1 }))

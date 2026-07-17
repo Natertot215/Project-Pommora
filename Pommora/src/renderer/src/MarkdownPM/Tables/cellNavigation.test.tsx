@@ -19,13 +19,13 @@ if (!('ResizeObserver' in globalThis)) {
 const model: TableModel = {
   columns: [
     { align: null, dashes: 3 },
-    { align: null, dashes: 3 }
+    { align: null, dashes: 3 },
   ],
   header: ['A', 'B'],
   rows: [
     ['c1', 'c2'],
-    ['d1', 'd2']
-  ]
+    ['d1', 'd2'],
+  ],
 }
 
 const noop = (): void => {}
@@ -38,7 +38,7 @@ const props = {
   onMenu: noop,
   onTableDrag: noop,
   onUndo: noop,
-  onRedo: noop
+  onRedo: noop,
 }
 
 let container: HTMLDivElement
@@ -70,14 +70,31 @@ function cellEl(row: number, col: number): HTMLElement {
 async function clickCell(row: number, col: number): Promise<void> {
   const div = cellEl(row, col).querySelector('.mdpm-tbl-cell-static') as HTMLElement
   await act(async () => {
-    div.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, cancelable: true, button: 0, clientX: 4, clientY: 4 }))
-    div.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0, clientX: 4, clientY: 4 }))
+    div.dispatchEvent(
+      new MouseEvent('pointerdown', {
+        bubbles: true,
+        cancelable: true,
+        button: 0,
+        clientX: 4,
+        clientY: 4,
+      }),
+    )
+    div.dispatchEvent(
+      new MouseEvent('mousedown', {
+        bubbles: true,
+        cancelable: true,
+        button: 0,
+        clientX: 4,
+        clientY: 4,
+      }),
+    )
   })
 }
 
 const editors = (): NodeListOf<Element> => container.querySelectorAll('.cm-editor')
 const activeText = (): string | undefined =>
-  (container.querySelector('.cm-editor.cm-focused .cm-content') as HTMLElement | null)?.textContent ?? undefined
+  (container.querySelector('.cm-editor.cm-focused .cm-content') as HTMLElement | null)
+    ?.textContent ?? undefined
 const focusInEditor = (): boolean => {
   const ed = container.querySelector('.cm-editor')
   return !!ed && !!document.activeElement && ed.contains(document.activeElement)
@@ -113,7 +130,13 @@ describe('table single-live-cell navigation', () => {
   it('the activating mousedown is preventDefault-ed so the browser cannot steal focus (the two-click bug)', async () => {
     await mount()
     const div = cellEl(1, 0).querySelector('.mdpm-tbl-cell-static') as HTMLElement
-    const ev = new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0, clientX: 4, clientY: 4 })
+    const ev = new MouseEvent('mousedown', {
+      bubbles: true,
+      cancelable: true,
+      button: 0,
+      clientX: 4,
+      clientY: 4,
+    })
     await act(async () => {
       div.dispatchEvent(ev)
     })

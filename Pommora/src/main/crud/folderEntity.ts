@@ -23,7 +23,7 @@ export async function createFolderEntity(
   parentDir: string,
   kind: SidecarKind,
   name: string,
-  extra: Record<string, unknown> = {}
+  extra: Record<string, unknown> = {},
 ): Promise<Result<{ id: string; path: string }>> {
   if (invalidName(name)) return fail('invalid-name', `"${name}" is not a valid name.`, kind)
   const folder = join(parentDir, name)
@@ -41,7 +41,7 @@ export async function createFolderEntity(
 /** Rename a folder entity (filename = title). No-op if the name is unchanged. */
 export async function renameFolderEntity(
   absFolder: string,
-  newName: string
+  newName: string,
 ): Promise<Result<{ path: string }>> {
   if (invalidName(newName)) return fail('invalid-name', `"${newName}" is not a valid name.`)
   const target = join(dirname(absFolder), newName)
@@ -55,11 +55,12 @@ export async function renameFolderEntity(
  *  there. The whole subtree (its pages + sidecar) moves with it. movePage, folder-level. */
 export async function moveFolderEntity(
   absFolder: string,
-  newParentDir: string
+  newParentDir: string,
 ): Promise<Result<{ path: string }>> {
   const target = join(newParentDir, basename(absFolder))
   if (target === absFolder) return ok({ path: absFolder })
-  if (await pathExists(target)) return fail('exists', `"${basename(absFolder)}" already exists there.`)
+  if (await pathExists(target))
+    return fail('exists', `"${basename(absFolder)}" already exists there.`)
   await rename(absFolder, target)
   return ok({ path: target })
 }
@@ -67,7 +68,7 @@ export async function moveFolderEntity(
 /** Delete a folder entity by moving it to the nexus-local .trash (recoverable). */
 export async function deleteFolderEntity(
   nexusRoot: string,
-  absFolder: string
+  absFolder: string,
 ): Promise<Result<{ trashedTo: string }>> {
   if (!(await pathExists(absFolder))) return fail('not-found', 'Nothing to delete.')
   return ok({ trashedTo: await trashWithTimestamp(nexusRoot, absFolder) })
@@ -79,7 +80,7 @@ export async function updateFolderSidecar<S extends z.ZodType>(
   absFolder: string,
   kind: SidecarKind,
   schema: S,
-  patch: Partial<z.infer<S>>
+  patch: Partial<z.infer<S>>,
 ): Promise<Result<z.infer<S>>> {
   const current = await readSidecar(absFolder, kind, schema)
   if (current === null) return fail('not-found', 'Sidecar not found or invalid.', kind)

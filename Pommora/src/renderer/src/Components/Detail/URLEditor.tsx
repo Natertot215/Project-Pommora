@@ -8,11 +8,19 @@ import { ColorPicker } from './ColorPicker'
 import * as s from './settingsPane.css'
 
 type LinkDisplay = 'link-url' | 'link-title'
-export type LinkConfig = { link_underline?: boolean; link_display?: LinkDisplay; link_color?: string | undefined }
+export type LinkConfig = {
+  link_underline?: boolean
+  link_display?: LinkDisplay
+  link_color?: string | undefined
+}
 
 /** The link colour resolved for the pane: its chip key, display label, and the raw CSS colour that
  *  themes the pane (shared with the URL cell via solidColorCss). Absent = the system accent, "Default". */
-function resolveLinkColor(color: string | undefined): { name: ChipColorName; label: string; css: string } {
+function resolveLinkColor(color: string | undefined): {
+  name: ChipColorName
+  label: string
+  css: string
+} {
   if (!color) return { name: 'accent', label: 'Default', css: solidColorCss(undefined) }
   const name = chipColorFor(color)
   return { name, label: colorLabel(name), css: solidColorCss(color) }
@@ -29,7 +37,7 @@ export function URLEditor({
   underline,
   display,
   color,
-  onSetConfig
+  onSetConfig,
 }: {
   underline: boolean
   display: LinkDisplay
@@ -45,7 +53,11 @@ export function URLEditor({
       <div className={s.configRow}>
         <span className={s.configLabel}>Underline</span>
         <span className={s.switchScale}>
-          <Switch checked={underline} onChange={(v) => onSetConfig({ link_underline: v })} ariaLabel="Underline links" />
+          <Switch
+            checked={underline}
+            onChange={(v) => onSetConfig({ link_underline: v })}
+            ariaLabel="Underline links"
+          />
         </span>
       </div>
       <div className={s.configRow}>
@@ -61,7 +73,12 @@ export function URLEditor({
       <div className={s.configRow}>
         <span className={s.configLabel}>Color</span>
         <span className={s.colorCluster}>
-          <button ref={chipRef} type="button" className={s.colorChip} onClick={() => setColoring((v) => !v)}>
+          <button
+            ref={chipRef}
+            type="button"
+            className={s.colorChip}
+            onClick={() => setColoring((v) => !v)}
+          >
             <Chip shape="label" color={link.name} label={link.label} />
           </button>
           <ColorPicker

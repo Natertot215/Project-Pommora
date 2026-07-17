@@ -7,7 +7,7 @@ import {
   tierFieldName,
   defaultStatusSeed,
   RESERVED_PROPERTY_ID,
-  type PropertyDefinition
+  type PropertyDefinition,
 } from './properties'
 
 describe('propertyType', () => {
@@ -22,7 +22,7 @@ describe('propertyType', () => {
       'url',
       'context',
       'last_edited_time',
-      'file'
+      'file',
     ]) {
       expect(propertyType.safeParse(t).success).toBe(true)
     }
@@ -44,7 +44,7 @@ describe('propertyDefinition', () => {
       reverse_name: 'Stages',
       // foreign / display-config keys ride through (looseObject)
       display_as: 'pill',
-      plugin_meta: { keep: true }
+      plugin_meta: { keep: true },
     }
     const parsed = propertyDefinition.parse(def)
     expect(parsed).toEqual(def)
@@ -55,7 +55,7 @@ describe('propertyDefinition', () => {
       id: RESERVED_PROPERTY_ID.tier1,
       name: 'Areas',
       type: 'context',
-      context_target: { kind: 'context_tier', tier: 1 }
+      context_target: { kind: 'context_tier', tier: 1 },
     }
     expect(propertyDefinition.safeParse(def).success).toBe(true)
   })
@@ -66,7 +66,12 @@ describe('propertyDefinition', () => {
   })
 
   it('drops a non-string checkbox_color to undefined rather than failing the def', () => {
-    const parsed = propertyDefinition.parse({ id: 'p', name: 'x', type: 'checkbox', checkbox_color: 42 })
+    const parsed = propertyDefinition.parse({
+      id: 'p',
+      name: 'x',
+      type: 'checkbox',
+      checkbox_color: 42,
+    })
     expect(parsed.checkbox_color).toBeUndefined()
   })
 
@@ -80,19 +85,30 @@ describe('propertyDefinition', () => {
       number_separators: true,
       number_decimals: 2,
       number_fraction: true,
-      number_denominator: 100
+      number_denominator: 100,
     }
     expect(propertyDefinition.parse(def)).toEqual(def)
   })
 
   it('drops a non-string number_family to undefined rather than failing the def', () => {
-    const parsed = propertyDefinition.parse({ id: 'p', name: 'x', type: 'number', number_family: 9 })
+    const parsed = propertyDefinition.parse({
+      id: 'p',
+      name: 'x',
+      type: 'number',
+      number_family: 9,
+    })
     expect(parsed.number_family).toBeUndefined()
   })
 
   it('accepts number_decimals as the literal "hidden" or an integer', () => {
-    expect(propertyDefinition.parse({ id: 'p', name: 'x', type: 'number', number_decimals: 'hidden' }).number_decimals).toBe('hidden')
-    expect(propertyDefinition.parse({ id: 'p', name: 'x', type: 'number', number_decimals: 3 }).number_decimals).toBe(3)
+    expect(
+      propertyDefinition.parse({ id: 'p', name: 'x', type: 'number', number_decimals: 'hidden' })
+        .number_decimals,
+    ).toBe('hidden')
+    expect(
+      propertyDefinition.parse({ id: 'p', name: 'x', type: 'number', number_decimals: 3 })
+        .number_decimals,
+    ).toBe(3)
   })
 
   it('requires id, name, and a valid type', () => {
@@ -130,5 +146,4 @@ describe('status seed relabel', () => {
       expect(grp.options[0].color).toBe(grp.color)
     }
   })
-
 })

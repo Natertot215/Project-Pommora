@@ -19,7 +19,7 @@ class ResizeObserverStub {
 
 const defs: PropertyDefinition[] = [
   { id: 'prop_status', name: 'Status', type: 'status', status_groups: defaultStatusSeed() },
-  { id: 'prop_n', name: 'Count', type: 'number' }
+  { id: 'prop_n', name: 'Count', type: 'number' },
 ]
 
 let host: HTMLDivElement
@@ -46,13 +46,17 @@ beforeEach(() => {
       reorder: vi.fn(async () => ({ ok: true })),
       delete: vi.fn(async () => ({ ok: true })),
       assign: assignSpy,
-      changeType: vi.fn(async () => ({ ok: true }))
+      changeType: vi.fn(async () => ({ ok: true })),
     },
     property: { delete: destroySpy },
     propertyMenu: propertyMenuSpy,
-    showError: vi.fn(async () => {})
+    showError: vi.fn(async () => {}),
   }
-  useSession.setState({ load: loadSpy as never, tree: { registry: [] } as never, renamingProperty: null })
+  useSession.setState({
+    load: loadSpy as never,
+    tree: { registry: [] } as never,
+    renamingProperty: null,
+  })
 })
 afterEach(() => {
   act(() => root.unmount())
@@ -63,13 +67,17 @@ const source = { id: 'col1', kind: 'collection', path: 'Col', title: 'Col', view
 
 const mountPane = async (schema: PropertyDefinition[] = defs): Promise<void> => {
   await act(async () => {
-    root.render(<PropertiesPane collectionPath="Col" schema={schema} onBack={() => {}} source={source} />)
+    root.render(
+      <PropertiesPane collectionPath="Col" schema={schema} onBack={() => {}} source={source} />,
+    )
   })
 }
 
 /** The row whose title span reads exactly `name` (clicks bubble to the MenuItem div). */
 const rowFor = (name: string): HTMLElement => {
-  const span = [...host.querySelectorAll<HTMLElement>('span')].find((el) => el.textContent === name && el.children.length === 0)
+  const span = [...host.querySelectorAll<HTMLElement>('span')].find(
+    (el) => el.textContent === name && el.children.length === 0,
+  )
   if (!span) throw new Error(`no row titled "${name}"`)
   return span
 }
@@ -150,7 +158,8 @@ describe('the All Properties section (T5)', () => {
 
 describe('the two-region drag (T6) — state-level; geometry truth lives in the live pass', () => {
   const deleteSpy = (): ReturnType<typeof vi.fn> =>
-    (window as unknown as { nexus: { schema: { delete: ReturnType<typeof vi.fn> } } }).nexus.schema.delete
+    (window as unknown as { nexus: { schema: { delete: ReturnType<typeof vi.fn> } } }).nexus.schema
+      .delete
 
   /** Rects: assigned rows at 10-30 / 30-50 (region 10-50); all block at 70-110 with x1 at 70-90. */
   const stubGeometry = (): void => {
@@ -267,11 +276,12 @@ describe('native menus + the inline-rename channel (T7)', () => {
       host.querySelector<HTMLButtonElement>('[aria-label="Property Menu"]')!.click()
     })
     expect(propertyMenuSpy).toHaveBeenCalledWith({ kind: 'editor', name: 'Status' })
-    const del = (window as unknown as { nexus: { schema: { delete: ReturnType<typeof vi.fn> } } }).nexus.schema.delete
+    const del = (window as unknown as { nexus: { schema: { delete: ReturnType<typeof vi.fn> } } })
+      .nexus.schema.delete
     expect(del).toHaveBeenCalledWith('Col', 'prop_status')
   })
 
-  it("⋮ Delete (main-confirmed) runs the global property.delete — and the footer Delete row is GONE (A-8/D-1)", async () => {
+  it('⋮ Delete (main-confirmed) runs the global property.delete — and the footer Delete row is GONE (A-8/D-1)', async () => {
     propertyMenuSpy.mockResolvedValueOnce('property:destroy')
     await openEditor()
     expect(host.textContent).not.toContain('Delete Property') // the old footer row died
@@ -285,13 +295,19 @@ describe('native menus + the inline-rename channel (T7)', () => {
     propertyMenuSpy.mockResolvedValueOnce('property:rename')
     await mountPane()
     await act(async () => {
-      host.querySelector('[data-prop="prop_status"]')!.querySelector('[class*="item"]')!.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true }))
+      host
+        .querySelector('[data-prop="prop_status"]')!
+        .querySelector('[class*="item"]')!
+        .dispatchEvent(new MouseEvent('contextmenu', { bubbles: true }))
     })
     expect(propertyMenuSpy).toHaveBeenCalledWith({ kind: 'assigned-row', name: 'Status' })
     const input = host.querySelector<HTMLInputElement>('.row-title-input')
     expect(input).toBeTruthy()
     await act(async () => {
-      Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set?.call(input, 'Stage')
+      Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set?.call(
+        input,
+        'Stage',
+      )
       input!.dispatchEvent(new Event('input', { bubbles: true }))
       input!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
       input!.blur()
@@ -308,7 +324,10 @@ describe('native menus + the inline-rename channel (T7)', () => {
       rowFor('All Properties').click()
     })
     await act(async () => {
-      host.querySelector('[data-prop="prop_x"]')!.querySelector('[class*="item"]')!.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true }))
+      host
+        .querySelector('[data-prop="prop_x"]')!
+        .querySelector('[class*="item"]')!
+        .dispatchEvent(new MouseEvent('contextmenu', { bubbles: true }))
     })
     expect(propertyMenuSpy).toHaveBeenCalledWith({ kind: 'registry-row', name: 'Effort' })
   })

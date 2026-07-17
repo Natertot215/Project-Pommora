@@ -4,7 +4,9 @@
 .banner {
   position: relative;
   height: 230px; /* Swift ContainerBannerView.bannerHeight */
-  border-bottom: var(--border-heading); /* the shared heading↔body seam (same token as the table heading) */
+  border-bottom: var(
+    --border-heading
+  ); /* the shared heading↔body seam (same token as the table heading) */
 }
 .banner-img {
   display: block;
@@ -165,7 +167,9 @@
   color: var(--text-dim);
   cursor: default;
   opacity: 0;
-  transition: opacity var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
+  transition:
+    opacity var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard);
 }
 .add-banner-strip:hover .add-banner-btn,
 .add-banner-btn:focus-visible {

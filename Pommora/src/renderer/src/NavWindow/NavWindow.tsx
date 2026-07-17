@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+} from 'react'
 import { GlassPane, GlassWindow } from '@renderer/design-system/materials'
 import { Icon } from '@renderer/design-system/symbols'
 import { cx } from '@renderer/design-system/cx'
@@ -18,7 +25,13 @@ const RAIL = { min: 120, def: 200, max: 320 }
 type DragMode = 'move' | 'rail' | 'nw' | 'ne' | 'sw' | 'se'
 
 // Module-scope so geometry survives the useExitPresence unmount (reopen restores last position/size).
-const geo = { x: null as number | null, y: null as number | null, w: WIN.defW, h: WIN.defH, rail: RAIL.def }
+const geo = {
+  x: null as number | null,
+  y: null as number | null,
+  w: WIN.defW,
+  h: WIN.defH,
+  rail: RAIL.def,
+}
 // Persists the List/Gallery choice across opens (the pane remounts each open via useExitPresence).
 let savedViewMode: 'list' | 'gallery' = 'list'
 
@@ -110,7 +123,8 @@ function NavWindowBody({ closing }: { closing: boolean }): React.JSX.Element {
   const closeOnSelect = useSession((s) => s.tree?.personalization.navCloseOnSelect !== false)
   const goClose = (target: NavTarget): void => go(target, closeOnSelect ? closeNav : undefined)
   // The row/card menu's "Open in New Tab" (D-3) — same reconcile + close-on-select pipeline as a click.
-  const goNewTab = (target: NavTarget): void => go(target, closeOnSelect ? closeNav : undefined, { newTab: true })
+  const goNewTab = (target: NavTarget): void =>
+    go(target, closeOnSelect ? closeNav : undefined, { newTab: true })
   // Rail Style toggle — List ⇄ Gallery. The choice persists across opens (module-scoped, like geo).
   const [viewMode, setViewMode] = useState<'list' | 'gallery'>(savedViewMode)
   const toggleViewMode = (): void =>
@@ -127,7 +141,15 @@ function NavWindowBody({ closing }: { closing: boolean }): React.JSX.Element {
     const el = e.currentTarget
     const pid = e.pointerId
     el.setPointerCapture(pid)
-    const s = { x: e.clientX, y: e.clientY, gx: geo.x ?? 0, gy: geo.y ?? 0, gw: geo.w, gh: geo.h, rail: geo.rail }
+    const s = {
+      x: e.clientX,
+      y: e.clientY,
+      gx: geo.x ?? 0,
+      gy: geo.y ?? 0,
+      gw: geo.w,
+      gh: geo.h,
+      rail: geo.rail,
+    }
     const move = (ev: PointerEvent): void => {
       const dx = ev.clientX - s.x
       const dy = ev.clientY - s.y
@@ -172,10 +194,22 @@ function NavWindowBody({ closing }: { closing: boolean }): React.JSX.Element {
     if ((e.target as HTMLElement).matches(DRAG_SURFACES)) startDrag('move', e)
   }
 
-  const style = { left: geo.x ?? 0, top: geo.y ?? 0, width: geo.w, height: geo.h, '--navwindow-rail': `${geo.rail}px` } as CSSProperties
+  const style = {
+    left: geo.x ?? 0,
+    top: geo.y ?? 0,
+    width: geo.w,
+    height: geo.h,
+    '--navwindow-rail': `${geo.rail}px`,
+  } as CSSProperties
 
   return (
-    <GlassPane className={`navwindow${closing ? ' closing' : ''}`} style={style} role="dialog" aria-label="Navigation" onPointerDown={onWindowDown}>
+    <GlassPane
+      className={`navwindow${closing ? ' closing' : ''}`}
+      style={style}
+      role="dialog"
+      aria-label="Navigation"
+      onPointerDown={onWindowDown}
+    >
       <button type="button" className="navwindow-close" aria-label="Close" onClick={closeNav}>
         <Icon name="x" size={14} />
       </button>
@@ -184,31 +218,82 @@ function NavWindowBody({ closing }: { closing: boolean }): React.JSX.Element {
           <div className="navwindow-rail-list edge-fade">
             <NavList items={resolvedFavorites} onSelect={goClose} onOpenNewTab={goNewTab} />
           </div>
-          <button type="button" className={cx('navwindow-style-toggle', text.footnote.emphasized)} onClick={toggleViewMode}>
+          <button
+            type="button"
+            className={cx('navwindow-style-toggle', text.footnote.emphasized)}
+            onClick={toggleViewMode}
+          >
             <Icon name="chevrons-up-down" size={12} />
             <span>{viewMode === 'list' ? 'List' : 'Gallery'}</span>
           </button>
         </GlassWindow>
-        <div className="navwindow-rail-resize" onPointerDown={(e) => startDrag('rail', e)} role="separator" aria-orientation="vertical" aria-label="Resize favorites" />
+        <div
+          className="navwindow-rail-resize"
+          onPointerDown={(e) => startDrag('rail', e)}
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize favorites"
+        />
         <div className="navwindow-main">
           <div className="navwindow-search">
-            <input ref={searchRef} className={text.body.standard} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search…" spellCheck={false} />
+            <input
+              ref={searchRef}
+              className={text.body.standard}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search…"
+              spellCheck={false}
+            />
           </div>
           <div className="navwindow-main-scroll edge-fade">
             {results ? (
-              <NavList items={results.items} extras={results.extras} onSelect={goClose} onOpenNewTab={goNewTab} />
+              <NavList
+                items={results.items}
+                extras={results.extras}
+                onSelect={goClose}
+                onOpenNewTab={goNewTab}
+              />
             ) : viewMode === 'gallery' ? (
-              <NavGallery pins={resolvedPins} items={shownRecents} onReorderRecent={reorderShownRecent} onSelect={goClose} onOpenNewTab={goNewTab} />
+              <NavGallery
+                pins={resolvedPins}
+                items={shownRecents}
+                onReorderRecent={reorderShownRecent}
+                onSelect={goClose}
+                onOpenNewTab={goNewTab}
+              />
             ) : (
-              <NavList pins={resolvedPins} items={shownRecents} reorderable onReorderRecent={reorderShownRecent} onSelect={goClose} onOpenNewTab={goNewTab} />
+              <NavList
+                pins={resolvedPins}
+                items={shownRecents}
+                reorderable
+                onReorderRecent={reorderShownRecent}
+                onSelect={goClose}
+                onOpenNewTab={goNewTab}
+              />
             )}
           </div>
         </div>
       </div>
-      <div className="navwindow-resize navwindow-resize-nw" onPointerDown={(e) => startDrag('nw', e)} aria-label="Resize" />
-      <div className="navwindow-resize navwindow-resize-ne" onPointerDown={(e) => startDrag('ne', e)} aria-label="Resize" />
-      <div className="navwindow-resize navwindow-resize-sw" onPointerDown={(e) => startDrag('sw', e)} aria-label="Resize" />
-      <div className="navwindow-resize navwindow-resize-se" onPointerDown={(e) => startDrag('se', e)} aria-label="Resize" />
+      <div
+        className="navwindow-resize navwindow-resize-nw"
+        onPointerDown={(e) => startDrag('nw', e)}
+        aria-label="Resize"
+      />
+      <div
+        className="navwindow-resize navwindow-resize-ne"
+        onPointerDown={(e) => startDrag('ne', e)}
+        aria-label="Resize"
+      />
+      <div
+        className="navwindow-resize navwindow-resize-sw"
+        onPointerDown={(e) => startDrag('sw', e)}
+        aria-label="Resize"
+      />
+      <div
+        className="navwindow-resize navwindow-resize-se"
+        onPointerDown={(e) => startDrag('se', e)}
+        aria-label="Resize"
+      />
     </GlassPane>
   )
 }

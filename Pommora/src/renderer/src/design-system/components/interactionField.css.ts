@@ -16,8 +16,8 @@ export const field = style([
     background: inputFieldVar,
     color: c.label.primary,
     width: '100%',
-    boxSizing: 'border-box'
-  }
+    boxSizing: 'border-box',
+  },
 ])
 
 /** The bare <input> variant — identical chrome, no native border/outline, no focus ring (Nathan:
@@ -28,6 +28,6 @@ export const input = style([
     border: 'none',
     outline: 'none',
     font: 'inherit',
-    selectors: { '&:focus, &:focus-visible': { outline: 'none', boxShadow: 'none' } }
-  }
+    selectors: { '&:focus, &:focus-visible': { outline: 'none', boxShadow: 'none' } },
+  },
 ])

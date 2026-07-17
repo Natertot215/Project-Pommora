@@ -3,7 +3,7 @@
 // callouts keep their own grip, and the table widget supplies its own — so the rail grip covers paragraph,
 // code, hr, and a list (grabbed at item 1, the list block's first line).
 import { Decoration, EditorView, WidgetType } from '@codemirror/view'
-import { docString } from "./docCache";
+import { docString } from './docCache'
 import type { Extension, Range } from '@codemirror/state'
 import { blockAt, blockStarts } from './blockModel'
 import { lineElementAt } from './lineDom'
@@ -37,8 +37,10 @@ const gripWidget = new GripWidget()
 export const blockHandles = EditorView.decorations.compute(['doc'], (state) => {
   const ranges: Range<Decoration>[] = []
   for (const b of blockStarts(docString(state.doc))) {
-    if (GRIP_KINDS.has(b.kind)) ranges.push(Decoration.line({ class: 'md-block-handle' }).range(b.from))
-    else if (b.kind === 'blockquote') ranges.push(Decoration.widget({ widget: gripWidget, side: -1 }).range(b.from))
+    if (GRIP_KINDS.has(b.kind))
+      ranges.push(Decoration.line({ class: 'md-block-handle' }).range(b.from))
+    else if (b.kind === 'blockquote')
+      ranges.push(Decoration.widget({ widget: gripWidget, side: -1 }).range(b.from))
   }
   return Decoration.set(ranges, true)
 })
@@ -78,7 +80,8 @@ export function blockGripHover(onHotChange?: (line: HTMLElement | null) => void)
       if (lineFrom !== cachedFrom) {
         cachedFrom = lineFrom
         const block = blockAt(docString(view.state.doc), pos)
-        cachedFirstFrom = block && GRIP_BLOCKS.has(block.kind) ? view.state.doc.lineAt(block.from).from : -1
+        cachedFirstFrom =
+          block && GRIP_BLOCKS.has(block.kind) ? view.state.doc.lineAt(block.from).from : -1
       }
       setHot(cachedFirstFrom < 0 ? null : lineElementAt(view, cachedFirstFrom))
       report(hovered)
@@ -86,6 +89,6 @@ export function blockGripHover(onHotChange?: (line: HTMLElement | null) => void)
     mouseleave() {
       setHot(null)
       report(null)
-    }
+    },
   })
 }

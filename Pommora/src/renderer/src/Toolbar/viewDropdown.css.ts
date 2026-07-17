@@ -3,7 +3,7 @@ import { tintAt, TINT_STEPS } from '../design-system/tokens/tint'
 
 // ── KNOBS — the ViewDropdown button geometry (tune here) ──
 const BUTTON = {
-  padX: '8px' // horizontal padding around the segment (same both states; the label slot carries the gap)
+  padX: '8px', // horizontal padding around the segment (same both states; the label slot carries the gap)
 }
 
 // ── KNOB — the active-view row's highlight ring thickness (px) ──
@@ -16,7 +16,7 @@ export const wrapper = style({
   display: 'flex',
   alignItems: 'center',
   pointerEvents: 'auto',
-  WebkitAppRegion: 'no-drag'
+  WebkitAppRegion: 'no-drag',
 } as Parameters<typeof style>[0])
 
 /** The dropdown anchor — hangs straight down, centred on the button (the beak points up at its
@@ -27,7 +27,7 @@ export const anchor = style({
   left: '50%',
   transform: 'translateX(-50%)',
   zIndex: 10,
-  vars: { '--dropdown-origin': 'top center' }
+  vars: { '--dropdown-origin': 'top center' },
 })
 
 /** The view button — one padding for both states; the segment's own gap is zeroed so the collapsing
@@ -41,7 +41,9 @@ export const buttonSlot = style({ display: 'contents' })
 
 /** The active view's row — a tint-primary inset ring (the tile-selection tone) so you can see which
  *  view you're in while the dropdown stays open. Inset, so it rides within the row's radius, no reflow. */
-export const activeRow = style({ boxShadow: `inset 0 0 0 ${HIGHLIGHT_RING} ${tintAt('var(--accent)', TINT_STEPS.primary)}` })
+export const activeRow = style({
+  boxShadow: `inset 0 0 0 ${HIGHLIGHT_RING} ${tintAt('var(--accent)', TINT_STEPS.primary)}`,
+})
 
 /** The ViewPane row's push chevron. It's a <button> in the toolbar's DOM, so `.app-toolbar button`'s
  *  control-tone rule (0,1,1) would paint it bright — the `&&` (0,2,0) pins it to the row's label-secondary
@@ -52,5 +54,5 @@ export const chevronButton = style({
   padding: 0,
   cursor: 'default',
   display: 'flex',
-  selectors: { '&&': { color: 'var(--label-secondary)' } }
+  selectors: { '&&': { color: 'var(--label-secondary)' } },
 })

@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { knownBlock, type BlockEntry, type BlockHostRef, type BlockStyle, type PagePickerItem, type ViewPick, type ViewPickerItem } from '@shared/blocks'
+import {
+  knownBlock,
+  type BlockEntry,
+  type BlockHostRef,
+  type BlockStyle,
+  type PagePickerItem,
+  type ViewPick,
+  type ViewPickerItem,
+} from '@shared/blocks'
 import { FEEL_PRESETS } from '@renderer/design-system/interactions/feel'
 import { buildPageIndex, flattenPages, type ConnectionsApi } from '@renderer/MarkdownPM/connections'
 import { attachBelow, insertBand, removeTile as removeLeaf } from '@renderer/SurfacePM/core/ops'
@@ -24,36 +32,44 @@ const NEW_TILE_H = 160
 
 /** The page-picker drill tree: Collections → their pages, Sets nesting inside — every
  *  row wearing its entity icon (custom, else the kind default). */
-function pagePickerItems(tree: NexusTree, defaultIcons?: Partial<Record<EntityIconKind, string>>): PagePickerItem[] {
+function pagePickerItems(
+  tree: NexusTree,
+  defaultIcons?: Partial<Record<EntityIconKind, string>>,
+): PagePickerItem[] {
   const pageItem = (p: { id: string; title: string; icon?: string }): PagePickerItem => ({
     label: p.title,
     icon: iconNameOr(p.icon, defaultEntityIcon('page', defaultIcons)),
-    pick: p.id
+    pick: p.id,
   })
   const setItem = (s: SetNode): PagePickerItem => ({
     label: s.title,
     icon: iconNameOr(s.icon, defaultEntityIcon('set', defaultIcons)),
-    submenu: [...(s.sets ?? []).map(setItem), ...s.pages.map(pageItem)]
+    submenu: [...(s.sets ?? []).map(setItem), ...s.pages.map(pageItem)],
   })
   const collectionItem = (c: CollectionNode): PagePickerItem => ({
     label: c.title,
     icon: iconNameOr(c.icon, defaultEntityIcon('collection', defaultIcons)),
-    submenu: [...c.sets.map(setItem), ...c.pages.map(pageItem)]
+    submenu: [...c.sets.map(setItem), ...c.pages.map(pageItem)],
   })
-  return [...tree.collections, ...tree.userSections.flatMap((u) => u.collections)].map(collectionItem)
+  return [...tree.collections, ...tree.userSections.flatMap((u) => u.collections)].map(
+    collectionItem,
+  )
 }
 
 /** The view-source drill (G-9): Collections → Sets chevron above that container's
  *  views, a + Custom footer per drill (D-5a: the source is picked here, always).
  *  Sub-Sets carry no views, so only depth-1 Sets drill. */
-function viewPickerItems(tree: NexusTree, defaultIcons?: Partial<Record<EntityIconKind, string>>): ViewPickerItem[] {
+function viewPickerItems(
+  tree: NexusTree,
+  defaultIcons?: Partial<Record<EntityIconKind, string>>,
+): ViewPickerItem[] {
   const containerViews = (node: CollectionNode | SetNode): ViewPickerItem[] => [
     ...(node.views ?? []).map((v) => ({
       label: v.name,
       icon: iconNameOr(v.icon, 'table'),
-      pick: { source_id: node.id, view_id: v.id }
+      pick: { source_id: node.id, view_id: v.id },
     })),
-    { label: '+ Custom', pick: { source_id: node.id, custom: true }, footer: true }
+    { label: '+ Custom', pick: { source_id: node.id, custom: true }, footer: true },
   ]
   const collectionItem = (c: CollectionNode): ViewPickerItem => ({
     label: c.title,
@@ -64,11 +80,13 @@ function viewPickerItems(tree: NexusTree, defaultIcons?: Partial<Record<EntityIc
       ...c.sets.map((s) => ({
         label: s.title,
         icon: iconNameOr(s.icon, defaultEntityIcon('set', defaultIcons)),
-        submenu: containerViews(s)
-      }))
-    ]
+        submenu: containerViews(s),
+      })),
+    ],
   })
-  return [...tree.collections, ...tree.userSections.flatMap((u) => u.collections)].map(collectionItem)
+  return [...tree.collections, ...tree.userSections.flatMap((u) => u.collections)].map(
+    collectionItem,
+  )
 }
 
 // The host-facing block surface (G-2): the SurfacePM engine over a persisted
@@ -78,7 +96,8 @@ function viewPickerItems(tree: NexusTree, defaultIcons?: Partial<Record<EntityIc
 // click-out or Esc exits it.
 
 export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Element | null {
-  const { layout, blocks, ready, setLayout, commitLayout, refreshEntries, saveBlocks } = useBlockDoc(host)
+  const { layout, blocks, ready, setLayout, commitLayout, refreshEntries, saveBlocks } =
+    useBlockDoc(host)
   const [editingId, setEditingId] = useState<string | null>(null)
   // Tiles mid-removal: their editor's flush-on-unmount must NOT run — the write
   // would land after the trash and resurrect the file as an entry-less orphan.
@@ -116,7 +135,11 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
       map.set(c.path, { title: c.title, icon: c.icon, kind: 'collection' })
       for (const s of c.sets) addSet(s)
     }
-    for (const c of [...(tree?.collections ?? []), ...(tree?.userSections ?? []).flatMap((u) => u.collections)]) addCol(c)
+    for (const c of [
+      ...(tree?.collections ?? []),
+      ...(tree?.userSections ?? []).flatMap((u) => u.collections),
+    ])
+      addCol(c)
     return map
   }, [tree])
 
@@ -160,7 +183,7 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
       commitLayout((cur) => removeLeaf(cur, id))
       void window.nexus.blocks.removeTile(host, id).then(refreshEntries)
     },
-    [commitLayout, refreshEntries, host]
+    [commitLayout, refreshEntries, host],
   )
   const suppressFlush = useCallback((id: string) => removing.current.has(id), [])
 
@@ -171,7 +194,7 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
       setEditingId((cur) => (cur === id ? null : cur))
       void window.nexus.blocks.convertToPage(host, id, pageId).then(refreshEntries)
     },
-    [refreshEntries, host]
+    [refreshEntries, host],
   )
 
   // Link View: the drill pane resolved a view to COPY (or + Custom → the blank default
@@ -184,14 +207,17 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
       if (!container) return
       const config = pick.custom
         ? mintDefaultView(
-            (container.kind === 'collection' ? container : findCollectionForSet(tree, container.id))?.properties ?? []
+            (container.kind === 'collection' ? container : findCollectionForSet(tree, container.id))
+              ?.properties ?? [],
           )
         : (container.views ?? []).find((v) => v.id === pick.view_id)
       if (!config) return
       setEditingId((cur) => (cur === id ? null : cur))
-      void window.nexus.blocks.convertToView(host, id, [{ source_id: pick.source_id, config }]).then(refreshEntries)
+      void window.nexus.blocks
+        .convertToView(host, id, [{ source_id: pick.source_id, config }])
+        .then(refreshEntries)
     },
-    [tree, refreshEntries, host]
+    [tree, refreshEntries, host],
   )
 
   // The handle menu is the in-app PickerMenu (G-16), anchored to the clicked handle;
@@ -203,9 +229,13 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
   }, [])
   const setStyle = useCallback(
     (id: string, style: BlockStyle) => {
-      saveBlocks((cur) => cur.map((b) => (knownBlock(b)?.id === id ? { ...(b as Record<string, unknown>), style } : b)))
+      saveBlocks((cur) =>
+        cur.map((b) =>
+          knownBlock(b)?.id === id ? { ...(b as Record<string, unknown>), style } : b,
+        ),
+      )
     },
-    [saveBlocks]
+    [saveBlocks],
   )
   // Per-tile content lock (B-5) — the raw entry spreads so foreign fields survive (E-1); absent = unlocked.
   const toggleLock = useCallback(
@@ -219,10 +249,10 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
           if (next.locked === true) delete next.locked
           else next.locked = true
           return next
-        })
+        }),
       )
     },
-    [saveBlocks]
+    [saveBlocks],
   )
   const duplicateBlock = useCallback(
     (id: string) => {
@@ -233,7 +263,7 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
         commitLayout((cur) => attachBelow(cur, id, r.id, getTile(cur, id)?.h ?? NEW_TILE_H))
       })
     },
-    [refreshEntries, commitLayout, host]
+    [refreshEntries, commitLayout, host],
   )
   const confirmRemove = useCallback(
     (id: string) => {
@@ -241,7 +271,7 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
         if (ok) removeBlock(id)
       })
     },
-    [removeBlock]
+    [removeBlock],
   )
 
   const tileClassName = useCallback(
@@ -251,11 +281,11 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
         editingId === id ? 'is-editing-tile' : null,
         entries.get(id)?.locked ? 'is-locked' : null, // frozen gestures (SurfaceView) + a resting cursor
         handleMenu?.id === id ? 'handle-pinned' : null, // the open picker's anchor stays shown
-        zoomStep(entries.get(id)?.zoom).cls || null // per-block Scale (G-10); 1.0 has no class
+        zoomStep(entries.get(id)?.zoom).cls || null, // per-block Scale (G-10); 1.0 has no class
       ].filter(Boolean)
       return classes.length ? classes.join(' ') : undefined
     },
-    [entries, editingId, handleMenu]
+    [entries, editingId, handleMenu],
   )
 
   // The view-entry payload writer: hands the embed the RAW entry to transform — updater
@@ -268,10 +298,10 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
           const e = knownBlock(raw)
           if (e?.id !== entryId || e.type !== 'view') return raw
           return fn(raw as Record<string, unknown>)
-        })
+        }),
       )
     },
-    [saveBlocks]
+    [saveBlocks],
   )
 
   // Per-block Scale writer (G-10): patches the RAW entry so foreign keys survive (E-1); clears `zoom`
@@ -285,10 +315,10 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
           if (factor === 1) delete next.zoom
           else next.zoom = factor
           return next
-        })
+        }),
       )
     },
-    [saveBlocks]
+    [saveBlocks],
   )
 
   const renderTile = useCallback(
@@ -310,14 +340,27 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
         const page = pagesById.get(entry.page_id)
         if (!page) return <div className="blk-inert" /> // dead reference — inert, space holds (E-2)
         return (
-          <PageEmbedBlock page={page} entryId={entry.id} editing={editingId === id} onBeginEdit={setEditingId} connections={connections} locked={entry.locked ?? false} />
+          <PageEmbedBlock
+            page={page}
+            entryId={entry.id}
+            editing={editingId === id}
+            onBeginEdit={setEditingId}
+            connections={connections}
+            locked={entry.locked ?? false}
+          />
         )
       }
       if (entry?.type === 'view')
-        return <ViewEmbedBlock entry={entry} mutateEntry={mutateViewEntry} onActivate={() => setEditingId(id)} />
+        return (
+          <ViewEmbedBlock
+            entry={entry}
+            mutateEntry={mutateViewEntry}
+            onActivate={() => setEditingId(id)}
+          />
+        )
       return <div className="blk-inert" /> // no/foreign/unknown entry — space holds, nothing breaks
     },
-    [entries, editingId, connections, suppressFlush, pagesById, host, mutateViewEntry]
+    [entries, editingId, connections, suppressFlush, pagesById, host, mutateViewEntry],
   )
 
   // Right-click on the surface background creates a block (G-9's Block default,
@@ -332,11 +375,11 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
         commitLayout((cur) =>
           target.kind === 'wedge'
             ? attachBelow(cur, target.above, r.id, target.fillPx)
-            : insertBand(cur, cur.bands.length, r.id, NEW_TILE_H)
+            : insertBand(cur, cur.bands.length, r.id, NEW_TILE_H),
         )
       })
     },
-    [commitLayout, refreshEntries, host]
+    [commitLayout, refreshEntries, host],
   )
 
   if (!ready) return null
@@ -345,14 +388,24 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
   const menuEntry = handleMenu ? entries.get(handleMenu.id) : undefined
   const menuPage = menuEntry?.type === 'page' ? pagesById.get(menuEntry.page_id) : undefined
   const menuPageInfo = menuPage
-    ? { title: menuPage.title, icon: iconNameOr(menuPage.icon, defaultEntityIcon('page', defaultIcons)) }
+    ? {
+        title: menuPage.title,
+        icon: iconNameOr(menuPage.icon, defaultEntityIcon('page', defaultIcons)),
+      }
     : undefined
-  const menuLoc = menuPage ? containersByPath.get(menuPage.path.split('/').slice(0, -1).join('/')) : undefined
+  const menuLoc = menuPage
+    ? containersByPath.get(menuPage.path.split('/').slice(0, -1).join('/'))
+    : undefined
   const menuLocInfo = menuLoc
-    ? { title: menuLoc.title, icon: iconNameOr(menuLoc.icon, defaultEntityIcon(menuLoc.kind, defaultIcons)) }
+    ? {
+        title: menuLoc.title,
+        icon: iconNameOr(menuLoc.icon, defaultEntityIcon(menuLoc.kind, defaultIcons)),
+      }
     : undefined
   return (
-    <div className={`blk-surface${editingId ? ' has-live-editor' : ''}${hostLocked ? ' is-host-locked' : ''}`}>
+    <div
+      className={`blk-surface${editingId ? ' has-live-editor' : ''}${hostLocked ? ' is-host-locked' : ''}`}
+    >
       {/* Blocks reflow on Glide — the roomier displacement feel for big surfaces. */}
       <SurfaceView
         layout={layout}
@@ -379,7 +432,9 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
           onDuplicate={() => duplicateBlock(handleMenu.id)}
           onRemove={() => confirmRemove(handleMenu.id)}
           onToggleLock={() => toggleLock(handleMenu.id)}
-          onOpenPage={() => menuPage && select({ kind: 'page', id: menuPage.id, path: menuPage.path })}
+          onOpenPage={() =>
+            menuPage && select({ kind: 'page', id: menuPage.id, path: menuPage.path })
+          }
           zoom={menuEntry?.zoom}
           onSetZoom={(factor) => setBlockZoom(handleMenu.id, factor)}
           containerLocked={hostLocked}

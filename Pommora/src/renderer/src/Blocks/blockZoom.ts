@@ -18,9 +18,10 @@ export interface ZoomStep {
 
 const step = (factor: number): ZoomStep => ({
   factor,
-  cls: factor === DEFAULT_ZOOM ? '' : `blk-zoom-${String(Math.round(factor * 100)).padStart(3, '0')}`,
+  cls:
+    factor === DEFAULT_ZOOM ? '' : `blk-zoom-${String(Math.round(factor * 100)).padStart(3, '0')}`,
   inline: `${factor}x`,
-  label: `${factor.toFixed(2)}x`
+  label: `${factor.toFixed(2)}x`,
 })
 
 export const ZOOM_STEPS: ZoomStep[] = ZOOM_FACTORS.map(step)
@@ -30,5 +31,7 @@ export const ZOOM_STEPS: ZoomStep[] = ZOOM_FACTORS.map(step)
  *  step and is clearable through the picker — never silently stuck at a scale the picker can't show. */
 export function zoomStep(factor?: number): ZoomStep {
   const target = factor ?? DEFAULT_ZOOM
-  return ZOOM_STEPS.reduce((best, s) => (Math.abs(s.factor - target) < Math.abs(best.factor - target) ? s : best))
+  return ZOOM_STEPS.reduce((best, s) =>
+    Math.abs(s.factor - target) < Math.abs(best.factor - target) ? s : best,
+  )
 }

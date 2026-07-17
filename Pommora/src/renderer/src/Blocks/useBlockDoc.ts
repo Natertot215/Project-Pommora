@@ -27,13 +27,16 @@ export function useBlockDoc(host: BlockHostRef): BlockDocSession {
   const [state, setState] = useState<BlockDocState>({
     layout: emptyLayout(),
     blocks: [],
-    ready: false
+    ready: false,
   })
   const hostRef = useRef(host)
   hostRef.current = host
-  const pending = useRef<{ timer: ReturnType<typeof setTimeout> | null; layout: SurfaceLayout | null }>({
+  const pending = useRef<{
+    timer: ReturnType<typeof setTimeout> | null
+    layout: SurfaceLayout | null
+  }>({
     timer: null,
-    layout: null
+    layout: null,
   })
 
   // The always-current layout — async continuations (IPC .then) must never build
@@ -72,7 +75,7 @@ export function useBlockDoc(host: BlockHostRef): BlockDocSession {
       p.layout = layout
       p.timer = setTimeout(flush, SAVE_DEBOUNCE_MS)
     },
-    [flush]
+    [flush],
   )
 
   // Immediate variant — structural mutations (tile create/remove) write the layout
@@ -87,7 +90,7 @@ export function useBlockDoc(host: BlockHostRef): BlockDocSession {
       pending.current.layout = layout
       flush()
     },
-    [flush]
+    [flush],
   )
 
   /** Re-pull the entry list after a main-side blocks[] mutation; the local layout stays. */

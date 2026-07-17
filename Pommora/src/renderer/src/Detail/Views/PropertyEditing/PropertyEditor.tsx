@@ -14,7 +14,7 @@ export function PropertyEditor({
   validate,
   color,
   onCommit,
-  onCancel
+  onCancel,
 }: {
   initial: string
   numeric?: boolean
@@ -43,14 +43,18 @@ export function PropertyEditor({
   commitRef.current = onCommit
   useEffect(
     () => () => {
-      if (!done.current && textRef.current !== initial) finish(() => commitRef.current(textRef.current))
+      if (!done.current && textRef.current !== initial)
+        finish(() => commitRef.current(textRef.current))
     },
     // biome-ignore lint/correctness/useExhaustiveDependencies: unmount-only flush; refs carry the latest.
-    []
+    [],
   )
   return (
     <input
-      className={cx('property-editor', validate != null && text.trim() !== '' && !validate(text.trim()) && 'property-editor-ghost')}
+      className={cx(
+        'property-editor',
+        validate != null && text.trim() !== '' && !validate(text.trim()) && 'property-editor-ghost',
+      )}
       style={color ? { color } : undefined}
       autoFocus
       value={text}

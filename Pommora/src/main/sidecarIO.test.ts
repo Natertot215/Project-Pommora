@@ -20,7 +20,7 @@ describe('sidecar read/write', () => {
     expect(await readSidecar(dir, 'collection', pageCollectionSidecar)).toMatchObject({
       id: 'T1',
       icon: 'box',
-      page_order: ['p1']
+      page_order: ['p1'],
     })
   })
 

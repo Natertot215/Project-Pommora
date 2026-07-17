@@ -8,7 +8,7 @@ import {
   deleteAgendaItem,
   updateAgendaItem,
   updateAgendaProperty,
-  setAgendaTier
+  setAgendaTier,
 } from './agendaEntity'
 
 let root: string
@@ -22,7 +22,8 @@ afterEach(async () => {
   await rm(root, { recursive: true, force: true })
 })
 
-const read = async (p: string): Promise<Record<string, unknown>> => JSON.parse(await readFile(p, 'utf8'))
+const read = async (p: string): Promise<Record<string, unknown>> =>
+  JSON.parse(await readFile(p, 'utf8'))
 
 describe('createAgendaItem', () => {
   it('writes a task with a fresh ULID + EKReminder defaults', async () => {
@@ -38,7 +39,7 @@ describe('createAgendaItem', () => {
       completed: false,
       priority: 0,
       tier1: [],
-      properties: {}
+      properties: {},
     })
     expect(t.created_at).toBeTruthy()
   })
@@ -47,12 +48,15 @@ describe('createAgendaItem', () => {
     expect((await createAgendaItem(tasks, 'event', 'NoTimes')).ok).toBe(false)
     const r = await createAgendaItem(tasks, 'event', 'Standup', {
       start_at: '2026-06-15T09:00:00.000Z',
-      end_at: '2026-06-15T09:15:00.000Z'
+      end_at: '2026-06-15T09:15:00.000Z',
     })
     expect(r.ok).toBe(true)
     if (!r.ok) return
     expect(r.value.path.endsWith('Standup.event.json')).toBe(true)
-    expect(await read(r.value.path)).toMatchObject({ all_day: false, start_at: '2026-06-15T09:00:00.000Z' })
+    expect(await read(r.value.path)).toMatchObject({
+      all_day: false,
+      start_at: '2026-06-15T09:00:00.000Z',
+    })
   })
 
   it('rejects duplicate + unsafe names', async () => {
@@ -81,7 +85,7 @@ describe('renameAgendaItem / deleteAgendaItem', () => {
     await writeFile(
       c.value.path,
       JSON.stringify({ ...(await read(c.value.path)), modified_at: '2000-01-01T00:00:00.000Z' }),
-      'utf8'
+      'utf8',
     )
 
     const r = await renameAgendaItem(c.value.path, 'New')
@@ -107,7 +111,10 @@ describe('updates preserve foreign keys + siblings', () => {
     const raw = await read(c.value.path)
     await writeFile(c.value.path, JSON.stringify({ ...raw, plugin_key: 'keep' }), 'utf8')
 
-    const r = await updateAgendaItem(c.value.path, { completed: true, completed_at: '2026-06-15T00:00:00.000Z' })
+    const r = await updateAgendaItem(c.value.path, {
+      completed: true,
+      completed_at: '2026-06-15T00:00:00.000Z',
+    })
     expect(r.ok).toBe(true)
     const t = await read(c.value.path)
     expect(t.completed).toBe(true)
@@ -120,7 +127,10 @@ describe('updates preserve foreign keys + siblings', () => {
     if (!c.ok) throw new Error('setup')
     await updateAgendaProperty(c.value.path, '_status', { kind: 'status', value: 'todo' })
     await updateAgendaProperty(c.value.path, 'prop_rel', { kind: 'context', value: ['01H'] })
-    expect((await read(c.value.path)).properties).toEqual({ _status: { $status: 'todo' }, prop_rel: [{ $ctx: '01H' }] })
+    expect((await read(c.value.path)).properties).toEqual({
+      _status: { $status: 'todo' },
+      prop_rel: [{ $ctx: '01H' }],
+    })
     await updateAgendaProperty(c.value.path, '_status', null)
     expect((await read(c.value.path)).properties).toEqual({ prop_rel: [{ $ctx: '01H' }] })
   })

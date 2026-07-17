@@ -6,9 +6,9 @@ const tree = {
   contexts: {
     areas: [{ id: 'a1', kind: 'area', title: 'Personal', path: 'Personal', color: 'blue' }],
     topics: [{ id: 't1', kind: 'topic', title: 'Reading', path: 'Reading' }],
-    projects: [{ id: 'p1', kind: 'project', title: 'Pommora', path: 'Pommora' }]
+    projects: [{ id: 'p1', kind: 'project', title: 'Pommora', path: 'Pommora' }],
   },
-  labels: DEFAULT_LABELS
+  labels: DEFAULT_LABELS,
 } as unknown as NexusTree
 
 describe('buildContextsById', () => {

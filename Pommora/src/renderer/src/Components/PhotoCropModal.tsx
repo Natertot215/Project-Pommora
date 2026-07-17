@@ -21,7 +21,7 @@ const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.m
 export function PhotoCropModal({
   image,
   onCancel,
-  onConfirm
+  onConfirm,
 }: {
   image: string
   onCancel: () => void
@@ -67,7 +67,10 @@ export function PhotoCropModal({
   const onPointerMove = (e: React.PointerEvent): void => {
     const d = drag.current
     if (!d) return
-    setOffset({ x: clamp(d.ox + (e.clientX - d.px), -maxX, maxX), y: clamp(d.oy + (e.clientY - d.py), -maxY, maxY) })
+    setOffset({
+      x: clamp(d.ox + (e.clientX - d.px), -maxX, maxX),
+      y: clamp(d.oy + (e.clientY - d.py), -maxY, maxY),
+    })
   }
   const endDrag = (e: React.PointerEvent): void => {
     drag.current = null
@@ -82,7 +85,10 @@ export function PhotoCropModal({
   const choose = async (): Promise<void> => {
     const img = imgRef.current
     if (!img || !nat || busy) return
-    const ctx = Object.assign(document.createElement('canvas'), { width: OUTPUT, height: OUTPUT }).getContext('2d')
+    const ctx = Object.assign(document.createElement('canvas'), {
+      width: OUTPUT,
+      height: OUTPUT,
+    }).getContext('2d')
     if (!ctx) return
     setBusy(true)
     // Map the circle's bounding box (viewport coords) back to source pixels via `eff`.
@@ -112,28 +118,60 @@ export function PhotoCropModal({
             src={image}
             alt=""
             draggable={false}
-            onLoad={(e) => setNat({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })}
+            onLoad={(e) =>
+              setNat({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })
+            }
             onError={() => setError(true)}
-            style={{ position: 'absolute', left: imgLeft, top: imgTop, width: dispW, height: dispH, pointerEvents: 'none' }}
+            style={{
+              position: 'absolute',
+              left: imgLeft,
+              top: imgTop,
+              width: dispW,
+              height: dispH,
+              pointerEvents: 'none',
+            }}
           />
-          <div className={s.surround} style={{ backdropFilter: 'blur(1.5px) brightness(0.5)', WebkitBackdropFilter: 'blur(1.5px) brightness(0.5)', WebkitMaskImage: surroundMask, maskImage: surroundMask }} />
-          <div className={s.ring} style={{ left: INSET, top: INSET, width: CIRCLE, height: CIRCLE }} />
+          <div
+            className={s.surround}
+            style={{
+              backdropFilter: 'blur(1.5px) brightness(0.5)',
+              WebkitBackdropFilter: 'blur(1.5px) brightness(0.5)',
+              WebkitMaskImage: surroundMask,
+              maskImage: surroundMask,
+            }}
+          />
+          <div
+            className={s.ring}
+            style={{ left: INSET, top: INSET, width: CIRCLE, height: CIRCLE }}
+          />
         </div>
         {error ? (
           <span className={s.message}>Couldn’t load that image.</span>
         ) : (
-          <input className={s.slider} type="range" min={1} max={4} step={0.01} value={zoom} onChange={(e) => setZoom(Number(e.target.value))} />
+          <input
+            className={s.slider}
+            type="range"
+            min={1}
+            max={4}
+            step={0.01}
+            value={zoom}
+            onChange={(e) => setZoom(Number(e.target.value))}
+          />
         )}
         <div className={s.actions}>
           <button className={s.button} onClick={onCancel} disabled={busy}>
             Cancel
           </button>
-          <button className={s.buttonPrimary} onClick={() => void choose()} disabled={busy || !nat || error}>
+          <button
+            className={s.buttonPrimary}
+            onClick={() => void choose()}
+            disabled={busy || !nat || error}
+          >
             Choose
           </button>
         </div>
       </GlassSurface>
     </div>,
-    document.body
+    document.body,
   )
 }

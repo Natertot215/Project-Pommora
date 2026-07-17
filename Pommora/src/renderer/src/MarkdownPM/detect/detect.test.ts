@@ -13,7 +13,7 @@ import {
   calloutLines,
   lineInCallout,
   calloutHeadPrefixLen,
-  parseListMarkerPrefixed
+  parseListMarkerPrefixed,
 } from './index'
 import { pageLinkPattern } from '@shared/connections'
 

@@ -9,8 +9,21 @@ import { ACTIVATION, suppressNextClick } from '@renderer/design-system/interacti
 // hard rule); a mid-drag scroll dirties the snapshot. Escape aborts. The drop-line lives in the target
 // group and its Y is relative to that group's list container.
 
-type Handlers = { move: (e: PointerEvent) => void; up: () => void; cancel: () => void; key: (e: KeyboardEvent) => void }
-type Gesture = { value: string; sx: number; sy: number; active: boolean; toGroupId: string; toIndex: number; handlers: Handlers }
+type Handlers = {
+  move: (e: PointerEvent) => void
+  up: () => void
+  cancel: () => void
+  key: (e: KeyboardEvent) => void
+}
+type Gesture = {
+  value: string
+  sx: number
+  sy: number
+  active: boolean
+  toGroupId: string
+  toIndex: number
+  handlers: Handlers
+}
 type SnapRow = { value: string; top: number; bottom: number }
 type SnapGroup = { id: string; top: number; bottom: number; containerTop: number; rows: SnapRow[] }
 
@@ -18,7 +31,7 @@ type SnapGroup = { id: string; top: number; bottom: number; containerTop: number
  *  the snapshot iterates. Passing it keeps the hook's geometry aligned with what's rendered. */
 export function useStatusReorder(
   order: { id: string; values: string[] }[],
-  onMove: (value: string, toGroupId: string, toIndex: number) => void
+  onMove: (value: string, toGroupId: string, toIndex: number) => void,
 ): {
   registerGroup: (groupId: string, el: HTMLElement | null) => void
   registerRow: (value: string, el: HTMLElement | null) => void
@@ -67,7 +80,7 @@ export function useStatusReorder(
         top: cRect?.top ?? 0,
         bottom: cRect?.bottom ?? 0,
         containerTop: cRect?.top ?? 0,
-        rows: rowRects
+        rows: rowRects,
       }
     })
   }
@@ -170,7 +183,15 @@ export function useStatusReorder(
     if (e.button !== 0 || !e.isPrimary || g.current) return
     if ((e.target as HTMLElement).closest?.('button, input, [contenteditable="true"]')) return
     const handlers: Handlers = { move: onPtrMove, up: onUp, cancel: onCancel, key: onKey }
-    g.current = { value, sx: e.clientX, sy: e.clientY, active: false, toGroupId: '', toIndex: 0, handlers }
+    g.current = {
+      value,
+      sx: e.clientX,
+      sy: e.clientY,
+      active: false,
+      toGroupId: '',
+      toIndex: 0,
+      handlers,
+    }
     window.addEventListener('pointermove', handlers.move)
     window.addEventListener('pointerup', handlers.up)
     window.addEventListener('pointercancel', handlers.cancel)

@@ -1,6 +1,9 @@
 import { useRef, useState } from 'react'
 import type { CollectionNode, SetNode } from '@shared/types'
-import { SegmentedButton, type Segment } from '@renderer/design-system/components/Segmented-Controls'
+import {
+  SegmentedButton,
+  type Segment,
+} from '@renderer/design-system/components/Segmented-Controls'
 import { useDismiss } from '@renderer/design-system/components/Popover'
 import { MenuSurface } from '@renderer/design-system/components/menu'
 import { iconNameOr } from '@renderer/design-system/symbols'
@@ -40,14 +43,16 @@ function ViewDropdownInner({ node }: { node: CollectionNode | SetNode }): React.
   const labeled = (node.viewButton ?? 'icon') === 'labeled'
 
   const schema =
-    node.kind === 'collection' ? (node.properties ?? []) : (findCollectionForSet(tree, node.id)?.properties ?? [])
+    node.kind === 'collection'
+      ? (node.properties ?? [])
+      : (findCollectionForSet(tree, node.id)?.properties ?? [])
   const { view } = useActiveView(node, schema)
 
   const onContextMenu = async (e: React.MouseEvent): Promise<void> => {
     e.preventDefault()
     const action = await window.nexus.viewButtonMenu({
       viewButton: node.viewButton ?? 'icon',
-      viewStyle: node.viewStyle ?? 'dropdown'
+      viewStyle: node.viewStyle ?? 'dropdown',
     })
     if (!action) return
     const patch =
@@ -64,7 +69,7 @@ function ViewDropdownInner({ node }: { node: CollectionNode | SetNode }): React.
     icon: iconNameOr(view.icon, 'table'),
     title: 'Views',
     active: open,
-    onClick: () => setOpen((o) => !o)
+    onClick: () => setOpen((o) => !o),
   }
 
   return (
@@ -73,7 +78,11 @@ function ViewDropdownInner({ node }: { node: CollectionNode | SetNode }): React.
           slot so a right-click on the open pane (a sibling below) never reaches it. */}
       {/* biome-ignore lint/a11y/noStaticElementInteractions: the interactive control is the Segmented button inside. */}
       <span className={s.buttonSlot} onContextMenu={(e) => void onContextMenu(e)}>
-        <SegmentedButton segments={[{ ...segment, label: view.name }]} className={s.button} labelCollapsed={!labeled} />
+        <SegmentedButton
+          segments={[{ ...segment, label: view.name }]}
+          className={s.button}
+          labelCollapsed={!labeled}
+        />
       </span>
       {paneP.mounted && (
         <div className={s.anchor}>

@@ -45,27 +45,49 @@ const TIER_KIND = { areas: 'area', topics: 'topic', projects: 'project' } as con
 export function buildResolveIndex(tree: NexusTree): ResolveIndex {
   const ix: ResolveIndex = new Map()
   const di = tree.personalization.defaultIcons
-  const colIcon = (n: { icon?: string }): string => iconNameOr(n.icon, defaultEntityIcon('collection', di))
+  const colIcon = (n: { icon?: string }): string =>
+    iconNameOr(n.icon, defaultEntityIcon('collection', di))
   const setIcon = (n: { icon?: string }): string => iconNameOr(n.icon, defaultEntityIcon('set', di))
 
-  ix.set('homepage', { icon: iconNameOr(tree.nexus.profileIcon, 'house'), title: tree.nexus.name, path: [] })
+  ix.set('homepage', {
+    icon: iconNameOr(tree.nexus.profileIcon, 'house'),
+    title: tree.nexus.name,
+    path: [],
+  })
   for (const tier of ['areas', 'topics', 'projects'] as const) {
     const kind = TIER_KIND[tier]
-    const tierCrumb: PathCrumb = { icon: defaultEntityIcon(kind, di), title: tree.labels[kind].singular }
-    for (const c of tree.contexts[tier]) ix.set(`context:${c.id}`, { icon: iconNameOr(c.icon, defaultEntityIcon(kind, di)), title: c.title, path: [tierCrumb] })
+    const tierCrumb: PathCrumb = {
+      icon: defaultEntityIcon(kind, di),
+      title: tree.labels[kind].singular,
+    }
+    for (const c of tree.contexts[tier])
+      ix.set(`context:${c.id}`, {
+        icon: iconNameOr(c.icon, defaultEntityIcon(kind, di)),
+        title: c.title,
+        path: [tierCrumb],
+      })
   }
-  const walkSets = (sets: NexusTree['collections'][number]['sets'] | undefined, parents: PathCrumb[]): void => {
+  const walkSets = (
+    sets: NexusTree['collections'][number]['sets'] | undefined,
+    parents: PathCrumb[],
+  ): void => {
     for (const s of sets ?? []) {
       ix.set(`set:${s.id}`, { icon: setIcon(s), title: s.title, path: parents })
       const chain = [...parents, { icon: setIcon(s), title: s.title }]
-      for (const p of s.pages) ix.set(`page:${p.id}`, { icon: defaultEntityIcon('page', di), title: p.title, path: chain })
+      for (const p of s.pages)
+        ix.set(`page:${p.id}`, { icon: defaultEntityIcon('page', di), title: p.title, path: chain })
       walkSets(s.sets, chain)
     }
   }
   for (const col of allCollections(tree)) {
     ix.set(`collection:${col.id}`, { icon: colIcon(col), title: col.title, path: [] })
     const colCrumb: PathCrumb = { icon: colIcon(col), title: col.title }
-    for (const p of col.pages) ix.set(`page:${p.id}`, { icon: defaultEntityIcon('page', di), title: p.title, path: [colCrumb] })
+    for (const p of col.pages)
+      ix.set(`page:${p.id}`, {
+        icon: defaultEntityIcon('page', di),
+        title: p.title,
+        path: [colCrumb],
+      })
     walkSets(col.sets, [colCrumb])
   }
   return ix
@@ -82,7 +104,15 @@ export function resolveWith(index: ResolveIndex, entry: RecentEntry): ResolvedNa
   const key = navKey(entry)
   const core = index.get(key)
   if (!core) return null
-  return { key, target: cleanTarget(entry), kind: entry.kind, title: core.title, icon: core.icon, path: core.path, pinned: entry.pinned }
+  return {
+    key,
+    target: cleanTarget(entry),
+    kind: entry.kind,
+    title: core.title,
+    icon: core.icon,
+    path: core.path,
+    pinned: entry.pinned,
+  }
 }
 
 /** Resolve one entry against the tree (single-entry convenience; builds an index for that one call). */

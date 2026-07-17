@@ -19,7 +19,21 @@ import './navGallery.css'
 
 const thumbFile = (key: string): string => key.replace(':', '-')
 
-export function NavGallery({ pins, items, frozenLayout, onReorderRecent, onSelect, onOpenNewTab }: { pins: ResolvedNav[]; items: ResolvedNav[]; frozenLayout?: boolean; onReorderRecent?: (activeKey: string, overKey: string) => void; onSelect: (target: NavTarget) => void; onOpenNewTab?: (target: NavTarget) => void }): React.JSX.Element {
+export function NavGallery({
+  pins,
+  items,
+  frozenLayout,
+  onReorderRecent,
+  onSelect,
+  onOpenNewTab,
+}: {
+  pins: ResolvedNav[]
+  items: ResolvedNav[]
+  frozenLayout?: boolean
+  onReorderRecent?: (activeKey: string, overKey: string) => void
+  onSelect: (target: NavTarget) => void
+  onOpenNewTab?: (target: NavTarget) => void
+}): React.JSX.Element {
   const reorderPin = useSession((s) => s.reorderPin)
   const reorderRecentStore = useSession((s) => s.reorderRecent)
   // A host (NavWindow) can override to also rewrite its frozen snapshot; NavView uses the store directly.
@@ -47,24 +61,57 @@ export function NavGallery({ pins, items, frozenLayout, onReorderRecent, onSelec
           </SortableZone>
         )}
         {frozenLayout ? (
-          items.map((it) => <GalleryCard key={it.key} it={it} nexusId={nexusId} onSelect={onSelect} onMenu={openMenu} />)
+          items.map((it) => (
+            <GalleryCard
+              key={it.key}
+              it={it}
+              nexusId={nexusId}
+              onSelect={onSelect}
+              onMenu={openMenu}
+            />
+          ))
         ) : (
           <SortableZone items={items.map((r) => r.key)} layout="grid" onReorder={reorderRecent}>
             {items.map(card)}
           </SortableZone>
         )}
       </div>
-      {menu && <NavRowMenu item={menu.item} x={menu.x} y={menu.y} onClose={() => setMenu(null)} onOpenNewTab={onOpenNewTab} />}
+      {menu && (
+        <NavRowMenu
+          item={menu.item}
+          x={menu.x}
+          y={menu.y}
+          onClose={() => setMenu(null)}
+          onOpenNewTab={onOpenNewTab}
+        />
+      )}
     </div>
   )
 }
 
-function DraggableCard(props: { it: ResolvedNav; nexusId: string; onSelect: (t: NavTarget) => void; onMenu: (it: ResolvedNav, e: React.MouseEvent) => void }): React.JSX.Element {
+function DraggableCard(props: {
+  it: ResolvedNav
+  nexusId: string
+  onSelect: (t: NavTarget) => void
+  onMenu: (it: ResolvedNav, e: React.MouseEvent) => void
+}): React.JSX.Element {
   const drag = useDragItem(props.it.key)
   return <GalleryCard {...props} drag={drag} />
 }
 
-function GalleryCard({ it, nexusId, onSelect, onMenu, drag }: { it: ResolvedNav; nexusId: string; onSelect: (t: NavTarget) => void; onMenu: (it: ResolvedNav, e: React.MouseEvent) => void; drag?: DragItem }): React.JSX.Element {
+function GalleryCard({
+  it,
+  nexusId,
+  onSelect,
+  onMenu,
+  drag,
+}: {
+  it: ResolvedNav
+  nexusId: string
+  onSelect: (t: NavTarget) => void
+  onMenu: (it: ResolvedNav, e: React.MouseEvent) => void
+  drag?: DragItem
+}): React.JSX.Element {
   const selection = useSession((s) => s.selection)
   const version = useSession((s) => s.thumbVersions[it.key] ?? 0)
   const pinTarget = useSession((s) => s.pinTarget)
@@ -98,7 +145,7 @@ function GalleryCard({ it, nexusId, onSelect, onMenu, drag }: { it: ResolvedNav;
             e.preventDefault()
             onSelect(it.target)
           }
-        }
+        },
       })}
       className={cx('nav-gallery-card', active && 'is-active', drag?.isDragging && 'is-dragging')}
       onClick={open}
@@ -106,34 +153,34 @@ function GalleryCard({ it, nexusId, onSelect, onMenu, drag }: { it: ResolvedNav;
     >
       <div className="nav-gallery-card-body hover-pop">
         <div className="nav-gallery-thumb">
-        {failed ? (
-          <div className="nav-gallery-ph">
-            <EntityGlyph item={it} size={22} />
-          </div>
-        ) : (
-          <img src={src} loading="lazy" alt="" onError={() => setFailed(true)} />
-        )}
-        {pinnable && (
-          // stopPropagation on pointerdown too — else the press bubbles to the card's drag handle and
-          // arms a reorder instead of toggling the pin.
-          <button
-            type="button"
-            className={cx('nav-gallery-pin', it.pinned && 'is-pinned')}
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={togglePin}
-            aria-label={it.pinned ? 'Unpin' : 'Pin'}
-          >
-            <Icon name="pin" size={13} />
-          </button>
-        )}
-      </div>
-      <div className="nav-gallery-text">
-        <OverflowScroll className={cx('nav-gallery-title', text.footnote.emphasized)}>
-          <EntityGlyph item={it} size={13} className="nav-gallery-title-icon" />
-          {it.title}
-        </OverflowScroll>
-        <NavCrumbs path={it.path} className="nav-gallery-loc" iconSize={11} />
-      </div>
+          {failed ? (
+            <div className="nav-gallery-ph">
+              <EntityGlyph item={it} size={22} />
+            </div>
+          ) : (
+            <img src={src} loading="lazy" alt="" onError={() => setFailed(true)} />
+          )}
+          {pinnable && (
+            // stopPropagation on pointerdown too — else the press bubbles to the card's drag handle and
+            // arms a reorder instead of toggling the pin.
+            <button
+              type="button"
+              className={cx('nav-gallery-pin', it.pinned && 'is-pinned')}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={togglePin}
+              aria-label={it.pinned ? 'Unpin' : 'Pin'}
+            >
+              <Icon name="pin" size={13} />
+            </button>
+          )}
+        </div>
+        <div className="nav-gallery-text">
+          <OverflowScroll className={cx('nav-gallery-title', text.footnote.emphasized)}>
+            <EntityGlyph item={it} size={13} className="nav-gallery-title-icon" />
+            {it.title}
+          </OverflowScroll>
+          <NavCrumbs path={it.path} className="nav-gallery-loc" iconSize={11} />
+        </div>
       </div>
     </div>
   )

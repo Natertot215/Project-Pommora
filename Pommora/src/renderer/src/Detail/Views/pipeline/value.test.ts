@@ -7,7 +7,7 @@ const schema: PropertyDefinition[] = [
   { id: 'prop_status', name: 'Status', type: 'status' },
   { id: 'prop_sel', name: 'Sel', type: 'select' },
   { id: 'prop_when', name: 'When', type: 'datetime' },
-  { id: 'prop_num', name: 'Num', type: 'number' }
+  { id: 'prop_num', name: 'Num', type: 'number' },
 ]
 
 // Every assertion below resolves against `schema` (the declared-type coercion needs it) — one bound
@@ -27,9 +27,9 @@ const row: ViewRow = {
       prop_sel: 'opt_a',
       prop_when: '2026-06-15T09:00:00Z',
       prop_num: 42,
-      prop_bad: [1, 'mixed']
-    }
-  }
+      prop_bad: [1, 'mixed'],
+    },
+  },
 }
 
 describe('declaredType', () => {
@@ -58,7 +58,7 @@ describe('resolveFieldValue', () => {
     expect(rfv(row, '_title')).toEqual({ kind: 'select', value: 'My Page' })
     expect(rfv(row, '_modified_at')).toEqual({
       kind: 'datetime',
-      value: '2026-06-20T10:00:00Z'
+      value: '2026-06-20T10:00:00Z',
     })
     expect(rfv(row, '_tier1')).toEqual({ kind: 'context', value: ['01AREA'] })
     expect(rfv(row, '_tier2')).toEqual({ kind: 'context', value: [] })
@@ -69,7 +69,7 @@ describe('resolveFieldValue', () => {
     expect(rfv(row, 'prop_sel')).toEqual({ kind: 'select', value: 'opt_a' })
     expect(rfv(row, 'prop_when')).toEqual({
       kind: 'datetime',
-      value: '2026-06-15T09:00:00Z'
+      value: '2026-06-15T09:00:00Z',
     })
     expect(rfv(row, 'prop_num')).toEqual({ kind: 'number', value: 42 })
   })
@@ -95,7 +95,7 @@ describe('resolveFieldValue memoization', () => {
       id: 'p1',
       title: 'One',
       path: 'C/One.md',
-      frontmatter: { id: 'p1', properties: { prop_s: { $status: 'open' } }, tier1: ['a'] }
+      frontmatter: { id: 'p1', properties: { prop_s: { $status: 'open' } }, tier1: ['a'] },
     }
     // Identity-stability holds for NON-coerced kinds (the cached parse is returned as-is, tested here).
     // A coerced plain-string kind (url/select/datetime re-tagged to the column) returns a FRESH object
@@ -108,7 +108,12 @@ describe('resolveFieldValue memoization', () => {
   it('a fresh frontmatter identity re-resolves (the optimistic-patch / reload contract)', () => {
     const fm1 = { id: 'p1', properties: { prop_s: { $status: 'open' } } }
     const fm2 = { id: 'p1', properties: { prop_s: { $status: 'done' } } }
-    const rowAt = (frontmatter: ViewRow['frontmatter']): ViewRow => ({ id: 'p1', title: 'One', path: 'C/One.md', frontmatter })
+    const rowAt = (frontmatter: ViewRow['frontmatter']): ViewRow => ({
+      id: 'p1',
+      title: 'One',
+      path: 'C/One.md',
+      frontmatter,
+    })
     const before = rfv(rowAt(fm1), 'prop_s')
     const after = rfv(rowAt(fm2), 'prop_s')
     expect(before).toMatchObject({ kind: 'status', value: 'open' })
@@ -127,40 +132,50 @@ describe('resolveFieldValue memoization', () => {
 describe('resolveFieldValue — declared-type coercion (the plain-string kinds follow the column)', () => {
   const typedSchema: PropertyDefinition[] = [
     { id: 'prop_link', name: 'Link', type: 'url' },
-    { id: 'prop_tag', name: 'Tag', type: 'select' }
+    { id: 'prop_tag', name: 'Tag', type: 'select' },
   ]
   const rowOf = (properties: Record<string, unknown>): ViewRow => ({
     id: 'r',
     title: 'R',
     path: 'C/r.md',
-    frontmatter: { id: 'r', properties }
+    frontmatter: { id: 'r', properties },
   })
 
   it('a url column reads an aliased [alias](url) value as url, not a select pill', () => {
-    expect(resolveFieldValue(rowOf({ prop_link: '[Docs](https://example.com)' }), 'prop_link', typedSchema)).toEqual({
+    expect(
+      resolveFieldValue(
+        rowOf({ prop_link: '[Docs](https://example.com)' }),
+        'prop_link',
+        typedSchema,
+      ),
+    ).toEqual({
       kind: 'url',
-      value: '[Docs](https://example.com)'
+      value: '[Docs](https://example.com)',
     })
   })
 
   it('a url column reads a bare URL as url (shape already agrees — no re-tag)', () => {
-    expect(resolveFieldValue(rowOf({ prop_link: 'https://example.com' }), 'prop_link', typedSchema)).toEqual({
+    expect(
+      resolveFieldValue(rowOf({ prop_link: 'https://example.com' }), 'prop_link', typedSchema),
+    ).toEqual({
       kind: 'url',
-      value: 'https://example.com'
+      value: 'https://example.com',
     })
   })
 
   it('a select column keeps a link-shaped value as select (build-breaker #2 — never stolen to url)', () => {
-    expect(resolveFieldValue(rowOf({ prop_tag: '[URGENT](tel:911)' }), 'prop_tag', typedSchema)).toEqual({
+    expect(
+      resolveFieldValue(rowOf({ prop_tag: '[URGENT](tel:911)' }), 'prop_tag', typedSchema),
+    ).toEqual({
       kind: 'select',
-      value: '[URGENT](tel:911)'
+      value: '[URGENT](tel:911)',
     })
   })
 
   it('a plain select option is untouched', () => {
     expect(resolveFieldValue(rowOf({ prop_tag: 'opt_a' }), 'prop_tag', typedSchema)).toEqual({
       kind: 'select',
-      value: 'opt_a'
+      value: 'opt_a',
     })
   })
 })

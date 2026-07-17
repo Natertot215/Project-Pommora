@@ -5,7 +5,7 @@ import { RESERVED_PROPERTY_ID, type PropertyDefinition } from '@shared/propertie
 const schema: PropertyDefinition[] = [
   { id: 'prop_status', name: 'Status', type: 'status' },
   { id: 'prop_n', name: 'Count', type: 'number' },
-  { id: 'prop_done', name: 'Done', type: 'checkbox' }
+  { id: 'prop_done', name: 'Done', type: 'checkbox' },
 ]
 
 describe('widthFor', () => {
@@ -22,7 +22,11 @@ describe('widthFor', () => {
   })
 
   it('falls back for an unknown column', () => {
-    expect(widthFor('prop_gone', schema)).toEqual({ min: 80, default: 140, max: Number.POSITIVE_INFINITY })
+    expect(widthFor('prop_gone', schema)).toEqual({
+      min: 80,
+      default: 140,
+      max: Number.POSITIVE_INFINITY,
+    })
   })
 })
 

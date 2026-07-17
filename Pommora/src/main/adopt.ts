@@ -40,7 +40,7 @@ async function stampPage(absFile: string): Promise<boolean> {
 async function stampFolder(
   absDir: string,
   kind: FolderKind,
-  parentId: string | null
+  parentId: string | null,
 ): Promise<{ id: string; wrote: boolean }> {
   const existing = (await readJsonObject(join(absDir, SIDECAR_FILENAME[kind]))) ?? {}
   const existingId = asString(existing.id)
@@ -60,7 +60,7 @@ async function stampTree(
   relDir: string,
   kind: FolderKind,
   parentId: string | null,
-  excluded: string[]
+  excluded: string[],
 ): Promise<number> {
   const self = await stampFolder(absDir, kind, parentId)
   let count = self.wrote ? 1 : 0
@@ -105,7 +105,10 @@ export async function stampAdopted(root: string): Promise<{ stamped: number }> {
     }
     // Don't fabricate a Collection from an empty, sidecar-less folder (stray junk). One that
     // already has a sidecar, or holds pages/subfolders, is real content and gets adopted.
-    if (!(await pathExists(join(abs, SIDECAR_FILENAME.collection))) && (await isEmptyOfContent(abs, e.name, excluded))) {
+    if (
+      !(await pathExists(join(abs, SIDECAR_FILENAME.collection))) &&
+      (await isEmptyOfContent(abs, e.name, excluded))
+    ) {
       continue
     }
     stamped += await stampTree(abs, e.name, 'collection', null, excluded)
@@ -114,7 +117,11 @@ export async function stampAdopted(root: string): Promise<{ stamped: number }> {
 }
 
 /** True when a folder holds no adoptable content: no `.md` pages and no non-excluded subfolders. */
-async function isEmptyOfContent(absDir: string, relDir: string, excluded: string[]): Promise<boolean> {
+async function isEmptyOfContent(
+  absDir: string,
+  relDir: string,
+  excluded: string[],
+): Promise<boolean> {
   for (const e of await listEntries(absDir)) {
     if (e.isFile() && !e.name.startsWith('_') && e.name.toLowerCase().endsWith('.md')) return false
     if (e.isDirectory() && !shouldSkipDir(e.name, `${relDir}/${e.name}`, excluded)) return false

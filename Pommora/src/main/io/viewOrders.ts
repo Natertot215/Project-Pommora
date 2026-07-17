@@ -26,7 +26,11 @@ export async function readViewOrders(root: string): Promise<ViewOrders> {
 
 /** Set (or, with an empty array, clear) the manual order for a view; leaves other views intact.
  *  Serialized on the file so two overlapping writes can't lose each other's read-merge-write. */
-export async function writeViewOrders(root: string, viewId: string, order: string[]): Promise<void> {
+export async function writeViewOrders(
+  root: string,
+  viewId: string,
+  order: string[],
+): Promise<void> {
   await serializeOnFile(viewOrdersPath(root), async () => {
     const current = await readViewOrders(root)
     if (order.length === 0) delete current[viewId]

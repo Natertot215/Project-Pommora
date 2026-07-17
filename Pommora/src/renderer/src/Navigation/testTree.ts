@@ -12,7 +12,7 @@ export function makeTree(): NexusTree {
     contexts: {
       areas: [{ kind: 'area', id: 'a1', title: 'Work', path: 'Work' }],
       topics: [{ kind: 'topic', id: 't1', title: 'Reading', path: 'Reading' }],
-      projects: [{ kind: 'project', id: 'pr1', title: 'Pommora', path: 'Pommora' }]
+      projects: [{ kind: 'project', id: 'pr1', title: 'Pommora', path: 'Pommora' }],
     },
     collections: [
       {
@@ -28,10 +28,10 @@ export function makeTree(): NexusTree {
             title: 'Ideas',
             path: 'Notes/Ideas',
             pages: [{ kind: 'page', id: 'p2', title: 'Nested Beta', path: 'Notes/Ideas/Beta.md' }],
-            sets: []
-          }
-        ]
-      }
+            sets: [],
+          },
+        ],
+      },
     ],
     userSections: [],
     labels: DEFAULT_LABELS,
@@ -39,6 +39,6 @@ export function makeTree(): NexusTree {
     timeFormat: 'twelveHour',
     personalization: {},
     commands: {},
-    registry: []
+    registry: [],
   }
 }

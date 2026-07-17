@@ -24,7 +24,7 @@ export async function createAgendaItem(
   parentDir: string,
   kind: AgendaKind,
   name: string,
-  fields: Raw = {}
+  fields: Raw = {},
 ): Promise<Result<{ id: string; path: string }>> {
   if (invalidName(name)) return fail('invalid-name', `"${name}" is not a valid name.`, kind)
   const file = join(parentDir, name + AGENDA_SUFFIX[kind])
@@ -40,11 +40,18 @@ export async function createAgendaItem(
     properties: {},
     alarm_offsets: [],
     created_at: now,
-    modified_at: now
+    modified_at: now,
   }
   const item: Raw =
     kind === 'task'
-      ? { ...base, due_floating: false, due_all_day: false, completed: false, priority: 0, ...fields }
+      ? {
+          ...base,
+          due_floating: false,
+          due_all_day: false,
+          completed: false,
+          priority: 0,
+          ...fields,
+        }
       : { ...base, all_day: false, alarm_absolute: [], ...fields }
   if (kind === 'event' && (typeof item.start_at !== 'string' || typeof item.end_at !== 'string')) {
     return fail('invalid-event', 'An event needs start_at and end_at.', kind)
@@ -54,8 +61,12 @@ export async function createAgendaItem(
 }
 
 /** Rename an agenda item, preserving its `.task.json` / `.event.json` suffix. */
-export async function renameAgendaItem(absFile: string, newName: string): Promise<Result<{ path: string }>> {
-  if (invalidName(newName)) return fail('invalid-name', `"${newName}" is not a valid name.`, 'agenda')
+export async function renameAgendaItem(
+  absFile: string,
+  newName: string,
+): Promise<Result<{ path: string }>> {
+  if (invalidName(newName))
+    return fail('invalid-name', `"${newName}" is not a valid name.`, 'agenda')
   const kind = agendaKindOf(absFile)
   if (!kind) return fail('not-agenda', 'Not an agenda item file.', 'agenda')
   const target = join(dirname(absFile), newName + AGENDA_SUFFIX[kind])
@@ -69,7 +80,10 @@ export async function renameAgendaItem(absFile: string, newName: string): Promis
 }
 
 /** Delete an agenda item by moving it to the nexus-local .trash (recoverable). */
-export async function deleteAgendaItem(nexusRoot: string, absFile: string): Promise<Result<{ trashedTo: string }>> {
+export async function deleteAgendaItem(
+  nexusRoot: string,
+  absFile: string,
+): Promise<Result<{ trashedTo: string }>> {
   if (!(await pathExists(absFile))) return fail('not-found', 'Nothing to delete.', 'agenda')
   return ok({ trashedTo: await trashWithTimestamp(nexusRoot, absFile) })
 }
@@ -88,7 +102,7 @@ export async function updateAgendaItem(absFile: string, patch: Raw): Promise<Res
 export async function updateAgendaProperty(
   absFile: string,
   propertyId: string,
-  value: PropertyValue | null
+  value: PropertyValue | null,
 ): Promise<Result<null>> {
   const raw = await readJsonObject(absFile)
   if (!raw) return fail('not-found', 'Agenda item not found.', 'agenda')
@@ -98,7 +112,11 @@ export async function updateAgendaProperty(
 }
 
 /** Set an agenda item's tier-N context links (bare ULID array at the root). tier 1–3. */
-export async function setAgendaTier(absFile: string, tier: number, contextIds: string[]): Promise<Result<null>> {
+export async function setAgendaTier(
+  absFile: string,
+  tier: number,
+  contextIds: string[],
+): Promise<Result<null>> {
   if (tier < 1 || tier > 3) return fail('invalid-tier', `Tier ${tier} is not 1–3.`, 'agenda')
   const raw = await readJsonObject(absFile)
   if (!raw) return fail('not-found', 'Agenda item not found.', 'agenda')

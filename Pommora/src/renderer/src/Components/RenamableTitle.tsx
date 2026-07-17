@@ -10,7 +10,7 @@ export function RenamableTitle({
   path,
   kind,
   title,
-  className
+  className,
 }: {
   path: string
   kind: MutableKind

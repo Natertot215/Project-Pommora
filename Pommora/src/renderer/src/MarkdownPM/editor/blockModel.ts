@@ -7,12 +7,28 @@
 // Block math (`$$…$$`) is intentionally NOT a distinct kind: it's a span token. A multi-line `$$…$$` containing
 // a blank line splits into two paragraphs with orphaned `$$` (the one known V1 gap — it CORRUPTS, not just
 // mis-selects; fix with a `blockMathRanges` when it earns it).
-import { calloutLines, isBlockquoteLine, isHeadingLine, isThematicBreakLine, lineOffsets, parseListMarkerPrefixed, type CalloutLine } from '../detect'
+import {
+  calloutLines,
+  isBlockquoteLine,
+  isHeadingLine,
+  isThematicBreakLine,
+  lineOffsets,
+  parseListMarkerPrefixed,
+  type CalloutLine,
+} from '../detect'
 import { fencedCodeRanges } from '../decorations/intent'
 import { tableRegions } from '../Tables/regions'
 import { headingSections } from './folding'
 
-export type BlockKind = 'heading' | 'list' | 'callout' | 'blockquote' | 'code' | 'table' | 'hr' | 'paragraph'
+export type BlockKind =
+  | 'heading'
+  | 'list'
+  | 'callout'
+  | 'blockquote'
+  | 'code'
+  | 'table'
+  | 'hr'
+  | 'paragraph'
 
 export interface Block {
   from: number // line start of the block's first line
@@ -43,8 +59,10 @@ function blockContext(doc: string): BlockContext {
   const callout = calloutLines(lines)
   const fences = fencedCodeRanges(doc)
   const tables = tableRegions(doc)
-  const inFence = (i: number): boolean => i >= 0 && i < n && fences.some(([f, t]) => starts[i] >= f && starts[i] <= t)
-  const inTable = (i: number): boolean => i >= 0 && i < n && tables.some((r) => starts[i] >= r.from && starts[i] <= r.to)
+  const inFence = (i: number): boolean =>
+    i >= 0 && i < n && fences.some(([f, t]) => starts[i] >= f && starts[i] <= t)
+  const inTable = (i: number): boolean =>
+    i >= 0 && i < n && tables.some((r) => starts[i] >= r.from && starts[i] <= r.to)
 
   // List membership: marker lines PLUS their indented continuations (a wrapped item body), but only where a
   // run actually holds a marker — so a bare indented paragraph isn't swept in. A blank line breaks a run, so
@@ -69,7 +87,16 @@ function blockContext(doc: string): BlockContext {
   const hr = lines.map(isThematicBreakLine)
   const bq = lines.map(isBlockquoteLine)
   const claimed = (i: number): boolean =>
-    i < 0 || i >= n || lines[i].trim() === '' || !!callout[i] || bq[i] || inFence(i) || inTable(i) || heading[i] || listMember[i] || hr[i]
+    i < 0 ||
+    i >= n ||
+    lines[i].trim() === '' ||
+    !!callout[i] ||
+    bq[i] ||
+    inFence(i) ||
+    inTable(i) ||
+    heading[i] ||
+    listMember[i] ||
+    hr[i]
 
   // Box-first precedence: a callout/quote line resolves to its box; code/table beat heading/list so a `#`/`-`
   // inside a fence or table isn't mis-read; hr beats paragraph so it's never absorbed. paragraph is the catch-all.
@@ -125,7 +152,9 @@ export function blockAt(doc: string, pos: number): Block | null {
       return tableBlockAt(doc, starts[li])
     case 'heading': {
       const sec = headingSections(doc).find((s) => s.from === starts[li])
-      return sec ? { from: sec.from, to: sec.to, kind: 'heading' } : { from: starts[li], to: ends[li], kind: 'heading' }
+      return sec
+        ? { from: sec.from, to: sec.to, kind: 'heading' }
+        : { from: starts[li], to: ends[li], kind: 'heading' }
     }
     case 'list': {
       let a = li

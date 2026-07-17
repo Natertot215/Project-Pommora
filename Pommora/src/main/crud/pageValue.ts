@@ -20,7 +20,12 @@ const SKIP = Symbol('skip')
 
 /** Rewrite the raw stored value so `target` is stripped or replaced, preserving foreign content.
  *  Returns SKIP when the value doesn't hold `target`; otherwise the next value (null = delete key). */
-function rewriteRaw(raw: unknown, type: PropertyType, target: string, edit: ValueEdit): unknown | typeof SKIP {
+function rewriteRaw(
+  raw: unknown,
+  type: PropertyType,
+  target: string,
+  edit: ValueEdit,
+): unknown | typeof SKIP {
   if (type === 'multi_select') {
     if (!Array.isArray(raw) || !raw.includes(target)) return SKIP
     if (edit.op === 'replace') {
@@ -42,7 +47,13 @@ function rewriteRaw(raw: unknown, type: PropertyType, target: string, edit: Valu
   return edit.op === 'replace' ? edit.to : null
 }
 
-function applyEdit(content: string, propertyId: string, type: PropertyType, target: string, edit: ValueEdit): string | null {
+function applyEdit(
+  content: string,
+  propertyId: string,
+  type: PropertyType,
+  target: string,
+  edit: ValueEdit,
+): string | null {
   const rawProps = splitFrontmatter(content).properties
   const props = isPlainObject(rawProps) ? rawProps : {}
   const nextValue = rewriteRaw(props[propertyId], type, target, edit)
@@ -51,11 +62,21 @@ function applyEdit(content: string, propertyId: string, type: PropertyType, targ
   if (nextValue === null) delete next[propertyId]
   else next[propertyId] = nextValue
   const body = splitEnvelope(content).body
-  return mergeFrontmatter(content, { properties: next, modified_at: nowIso() }, ['properties', 'modified_at'], body)
+  return mergeFrontmatter(
+    content,
+    { properties: next, modified_at: nowIso() },
+    ['properties', 'modified_at'],
+    body,
+  )
 }
 
 /** Remove one option's value from a page. Returns null if the page didn't hold it. */
-export function stripPageValue(content: string, propertyId: string, value: string, type: PropertyType): string | null {
+export function stripPageValue(
+  content: string,
+  propertyId: string,
+  value: string,
+  type: PropertyType,
+): string | null {
   return applyEdit(content, propertyId, type, value, { op: 'strip' })
 }
 
@@ -65,7 +86,7 @@ export function replacePageValue(
   propertyId: string,
   oldValue: string,
   newValue: string,
-  type: PropertyType
+  type: PropertyType,
 ): string | null {
   return applyEdit(content, propertyId, type, oldValue, { op: 'replace', to: newValue })
 }

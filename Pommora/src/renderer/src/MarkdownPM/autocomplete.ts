@@ -16,7 +16,8 @@ export function autocompleteQuery(doc: string, caret: number): AutocompleteQuery
   for (let m = re.exec(line); m; m = re.exec(line)) {
     const open = m.index
     const close = m.index + m[0].length
-    if (rel >= open + 2 && rel <= close - 2) return { query: m[1], from: lineStart + open, to: lineStart + close }
+    if (rel >= open + 2 && rel <= close - 2)
+      return { query: m[1], from: lineStart + open, to: lineStart + close }
   }
   return null
 }
@@ -37,5 +38,7 @@ const AC_GAP = 4
 // viewport-relative (the panel is position:fixed), so this works the same from the main editor or a cell.
 export function acPanelTop(caretTop: number, caretBottom: number, count: number): number {
   const h = Math.min(count, AC_MAX_ROWS) * AC_ROW_H + AC_PADDING
-  return caretBottom + AC_GAP + h > window.innerHeight ? caretTop - h - AC_GAP : caretBottom + AC_GAP
+  return caretBottom + AC_GAP + h > window.innerHeight
+    ? caretTop - h - AC_GAP
+    : caretBottom + AC_GAP
 }

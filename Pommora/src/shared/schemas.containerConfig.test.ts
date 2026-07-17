@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { coerceOpenIn, coerceViewButton, coerceViewStyle, pageCollectionSidecar, pageSetSidecar } from './schemas'
+import {
+  coerceOpenIn,
+  coerceViewButton,
+  coerceViewStyle,
+  pageCollectionSidecar,
+  pageSetSidecar,
+} from './schemas'
 
 describe('open_in coercion', () => {
   it('coerces legacy window/compact to the new enum', () => {
@@ -25,14 +31,25 @@ describe('view_button / view_style coercion', () => {
 
 describe('container sidecar round-trip', () => {
   it('collection keeps open_in (coerced) + view_button + view_style + foreign keys', () => {
-    const c = pageCollectionSidecar.parse({ id: 'c1', open_in: 'window', view_button: 'labeled', view_style: 'toolbar', foreign: 'kept' })
+    const c = pageCollectionSidecar.parse({
+      id: 'c1',
+      open_in: 'window',
+      view_button: 'labeled',
+      view_style: 'toolbar',
+      foreign: 'kept',
+    })
     expect(c.open_in).toBe('full-page')
     expect(c.view_button).toBe('labeled')
     expect(c.view_style).toBe('toolbar')
     expect((c as Record<string, unknown>).foreign).toBe('kept')
   })
   it('set keeps view_button + view_style (no open_in field)', () => {
-    const s = pageSetSidecar.parse({ id: 's1', parent_id: 'c1', view_button: 'icon', view_style: 'dropdown' })
+    const s = pageSetSidecar.parse({
+      id: 's1',
+      parent_id: 'c1',
+      view_button: 'icon',
+      view_style: 'dropdown',
+    })
     expect(s.view_button).toBe('icon')
     expect(s.view_style).toBe('dropdown')
     expect('open_in' in s).toBe(false)

@@ -11,7 +11,7 @@ const GRID = {
   edgeY: 8, // grid insets against the dividers above/below
   tileRadius: 8, // tile corner radius
   tileBorder: 2, // tile border width
-  tileAspect: 1.5 // wider than tall (the Figma proportion)
+  tileAspect: 1.5, // wider than tall (the Figma proportion)
 }
 
 /** The 3×2 type grid. */
@@ -19,7 +19,7 @@ export const grid = style({
   display: 'grid',
   gridTemplateColumns: 'repeat(3, 1fr)',
   gap: `${GRID.gapY}px ${GRID.gapX}px`,
-  padding: `${GRID.edgeY}px 0`
+  padding: `${GRID.edgeY}px 0`,
 })
 
 /** One type tile — a rounded rect, wider than tall, holding only its type glyph over the glass. The glyph
@@ -37,7 +37,7 @@ export const tile = style({
   background: 'none',
   padding: 0,
   cursor: 'default',
-  selectors: { '&&': { color: c.solid.grey } }
+  selectors: { '&&': { color: c.solid.grey } },
 })
 
 /** The selected type — accent border at tint-primary. */

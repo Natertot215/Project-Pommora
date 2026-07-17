@@ -77,9 +77,12 @@ export function EdgeLensGlass({
   saturate,
   aberration,
   radius,
-  specular
+  specular,
 }: EdgeLensProps): React.JSX.Element {
-  const map = useMemo(() => makeBevelMap(width, height, radius, bevel), [width, height, radius, bevel])
+  const map = useMemo(
+    () => makeBevelMap(width, height, radius, bevel),
+    [width, height, radius, bevel],
+  )
   const fid = 'el' + useId().replace(/:/g, '')
   const bf = `blur(${blur}px) saturate(${saturate}%) url(#${fid})`
   const chan = (rgb: 'r' | 'g' | 'b'): string =>
@@ -92,20 +95,55 @@ export function EdgeLensGlass({
     <>
       <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden>
         <filter id={fid} x="0%" y="0%" width="100%" height="100%" colorInterpolationFilters="sRGB">
-          <feImage href={map} x="0" y="0" width={width} height={height} preserveAspectRatio="none" result="map" />
+          <feImage
+            href={map}
+            x="0"
+            y="0"
+            width={width}
+            height={height}
+            preserveAspectRatio="none"
+            result="map"
+          />
           {aberration > 0 ? (
             <>
-              <feDisplacementMap in="SourceGraphic" in2="map" scale={scale + aberration} xChannelSelector="R" yChannelSelector="G" result="dr" />
+              <feDisplacementMap
+                in="SourceGraphic"
+                in2="map"
+                scale={scale + aberration}
+                xChannelSelector="R"
+                yChannelSelector="G"
+                result="dr"
+              />
               <feColorMatrix in="dr" values={chan('r')} result="cr" />
-              <feDisplacementMap in="SourceGraphic" in2="map" scale={scale} xChannelSelector="R" yChannelSelector="G" result="dg" />
+              <feDisplacementMap
+                in="SourceGraphic"
+                in2="map"
+                scale={scale}
+                xChannelSelector="R"
+                yChannelSelector="G"
+                result="dg"
+              />
               <feColorMatrix in="dg" values={chan('g')} result="cg" />
-              <feDisplacementMap in="SourceGraphic" in2="map" scale={scale - aberration} xChannelSelector="R" yChannelSelector="G" result="db" />
+              <feDisplacementMap
+                in="SourceGraphic"
+                in2="map"
+                scale={scale - aberration}
+                xChannelSelector="R"
+                yChannelSelector="G"
+                result="db"
+              />
               <feColorMatrix in="db" values={chan('b')} result="cb" />
               <feBlend in="cr" in2="cg" mode="screen" result="rg" />
               <feBlend in="rg" in2="cb" mode="screen" />
             </>
           ) : (
-            <feDisplacementMap in="SourceGraphic" in2="map" scale={scale} xChannelSelector="R" yChannelSelector="G" />
+            <feDisplacementMap
+              in="SourceGraphic"
+              in2="map"
+              scale={scale}
+              xChannelSelector="R"
+              yChannelSelector="G"
+            />
           )}
         </filter>
       </svg>
@@ -117,7 +155,7 @@ export function EdgeLensGlass({
           border: `1px solid ${hexA('#FFFFFF', 20)}`,
           backdropFilter: bf,
           WebkitBackdropFilter: bf,
-          boxShadow: `inset 0 1px 0 ${hexA('#FFFFFF', Math.round(specular * 100))}, inset 0 0 0 1px #FFFFFF10, 0 10px 30px #00000055`
+          boxShadow: `inset 0 1px 0 ${hexA('#FFFFFF', Math.round(specular * 100))}, inset 0 0 0 1px #FFFFFF10, 0 10px 30px #00000055`,
         }}
       />
     </>

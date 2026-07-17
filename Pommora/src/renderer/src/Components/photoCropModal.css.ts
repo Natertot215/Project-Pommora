@@ -11,7 +11,7 @@ export const backdrop = style({
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  background: `color-mix(in srgb, ${c.system.black} 45%, transparent)`
+  background: `color-mix(in srgb, ${c.system.black} 45%, transparent)`,
 })
 
 /** Dialog panel — layout on top of the GlassSurface frost Material (the design-system surface glass). */
@@ -23,7 +23,7 @@ export const panel = style({
   padding: '18px',
   borderRadius: '12px',
   border: `1px solid ${c.separator.border}`,
-  boxShadow: `0 20px 60px color-mix(in srgb, ${c.system.black} 55%, transparent)`
+  boxShadow: `0 20px 60px color-mix(in srgb, ${c.system.black} 55%, transparent)`,
 })
 
 export const title = style([text.headline.emphasized, { color: c.label.primary }])
@@ -36,7 +36,7 @@ export const viewport = style({
   background: c.surface.primary,
   cursor: 'grab',
   touchAction: 'none',
-  userSelect: 'none'
+  userSelect: 'none',
 })
 export const grabbing = style({ cursor: 'grabbing' })
 
@@ -48,21 +48,41 @@ export const ring = style({
   position: 'absolute',
   borderRadius: '50%',
   border: `1px solid ${c.label.secondary}`,
-  pointerEvents: 'none'
+  pointerEvents: 'none',
 })
 
 export const slider = style({ width: '100%', accentColor: 'var(--accent)', cursor: 'pointer' })
 
 export const message = style([text.footnote.standard, { color: c.label.secondary }])
 
-export const actions = style({ display: 'flex', gap: '8px', alignSelf: 'stretch', justifyContent: 'flex-end' })
+export const actions = style({
+  display: 'flex',
+  gap: '8px',
+  alignSelf: 'stretch',
+  justifyContent: 'flex-end',
+})
 
-const buttonBase = { padding: '5px 14px', borderRadius: '7px', border: 'none', cursor: 'default' } as const
+const buttonBase = {
+  padding: '5px 14px',
+  borderRadius: '7px',
+  border: 'none',
+  cursor: 'default',
+} as const
 export const button = style([
   text.body.standard,
-  { ...buttonBase, color: c.label.primary, background: c.fill.secondary, selectors: { '&:hover': { background: c.fill.primary } } }
+  {
+    ...buttonBase,
+    color: c.label.primary,
+    background: c.fill.secondary,
+    selectors: { '&:hover': { background: c.fill.primary } },
+  },
 ])
 export const buttonPrimary = style([
   text.body.emphasized,
-  { ...buttonBase, color: c.label.primary, background: 'var(--accent)', selectors: { '&:disabled': { opacity: 0.5 } } }
+  {
+    ...buttonBase,
+    color: c.label.primary,
+    background: 'var(--accent)',
+    selectors: { '&:disabled': { opacity: 0.5 } },
+  },
 ])

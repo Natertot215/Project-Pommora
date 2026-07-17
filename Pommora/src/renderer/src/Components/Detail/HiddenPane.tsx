@@ -23,13 +23,22 @@ function rowIcon(id: string, schema: PropertyDefinition[]): ReactNode {
   const def = schema.find((d) => d.id === id)
   if (def) return <PropertyTypeIcon type={def.type} size={s.ICON.doc} />
   if (id === RESERVED_PROPERTY_ID.title) return <PropertyTypeIcon type="title" size={s.ICON.doc} />
-  if (id === RESERVED_PROPERTY_ID.modifiedAt) return <PropertyTypeIcon type="last_edited_time" size={s.ICON.doc} />
+  if (id === RESERVED_PROPERTY_ID.modifiedAt)
+    return <PropertyTypeIcon type="last_edited_time" size={s.ICON.doc} />
   return <PropertyTypeIcon type="context" size={s.ICON.doc} />
 }
 
 /** The eye toggle — rest shows the current state's glyph, hover previews the toggle: a hidden
  *  row runs the same pair in reverse (Nathan's spec). Both glyphs mount; CSS swaps them. */
-function EyeToggle({ hidden, name, onToggle }: { hidden: boolean; name: string; onToggle: () => void }): React.JSX.Element {
+function EyeToggle({
+  hidden,
+  name,
+  onToggle,
+}: {
+  hidden: boolean
+  name: string
+  onToggle: () => void
+}): React.JSX.Element {
   return (
     <button
       type="button"
@@ -61,7 +70,7 @@ function VisibilityGroups({
   hiddenSet,
   schema,
   nameFor,
-  onToggle
+  onToggle,
 }: {
   shownIds: string[]
   hiddenIds: string[]
@@ -77,7 +86,11 @@ function VisibilityGroups({
         <Icon name="eye" size={s.ICON.eye} />
       </span>
     ) : (
-      <EyeToggle hidden={hiddenSet.has(id)} name={nameFor(id)} onToggle={() => onToggle(id, hiddenSet.has(id))} />
+      <EyeToggle
+        hidden={hiddenSet.has(id)}
+        name={nameFor(id)}
+        onToggle={() => onToggle(id, hiddenSet.has(id))}
+      />
     )
   return (
     <>
@@ -92,10 +105,18 @@ function VisibilityGroups({
       </div>
       {/* No heading — the ghost IS the shown/hidden boundary (Nathan's call). The zone grows into
           the pane's slack so the hide-highlight reads even while nothing's hidden. */}
-      <div data-group="all" ref={allRef} className={cx(s.hiddenZone, allHighlighted && s.allHighlight)}>
+      <div
+        data-group="all"
+        ref={allRef}
+        className={cx(s.hiddenZone, allHighlighted && s.allHighlight)}
+      >
         {hiddenIds.map((id) => (
           <RowShell key={id} id={id}>
-            <MenuItem className={cx(flushTrailing, s.hiddenRow)} leading={rowIcon(id, schema)} trailing={eyeFor(id)}>
+            <MenuItem
+              className={cx(flushTrailing, s.hiddenRow)}
+              leading={rowIcon(id, schema)}
+              trailing={eyeFor(id)}
+            >
               {nameFor(id)}
             </MenuItem>
           </RowShell>
@@ -125,7 +146,7 @@ export function VisibilityList({
   footer,
   label = 'Settings',
   current,
-  maxHeight
+  maxHeight,
 }: {
   source: CollectionNode | SetNode
   schema: PropertyDefinition[]
@@ -163,11 +184,15 @@ export function VisibilityList({
 
   const paneRows: PaneRow[] = [
     ...shownIds.map((id) => ({ id, group: 'assigned' as const })),
-    ...hiddenIds.map((id) => ({ id, group: 'all' as const }))
+    ...hiddenIds.map((id) => ({ id, group: 'all' as const })),
   ]
 
   return (
-    <MenuScrollFrame header={<MenuPaneTopRow label={label} current={current} onBack={onBack} />} footer={footer} maxHeight={maxHeight}>
+    <MenuScrollFrame
+      header={<MenuPaneTopRow label={label} current={current} onBack={onBack} />}
+      footer={footer}
+      maxHeight={maxHeight}
+    >
       <PaneDnd rows={paneRows} labelFor={nameFor} onDrop={handleDrop} slot={hiddenPaneSlot}>
         <VisibilityGroups
           shownIds={shownIds}
@@ -186,12 +211,20 @@ export function VisibilityList({
 export function HiddenPane({
   source,
   schema,
-  onBack
+  onBack,
 }: {
   source: CollectionNode | SetNode
   schema: PropertyDefinition[]
   onBack: () => void
 }): React.JSX.Element | null {
   const { view } = useActiveView(source, schema)
-  return <VisibilityList source={source} schema={schema} view={view} onBack={onBack} current="Visibility" />
+  return (
+    <VisibilityList
+      source={source}
+      schema={schema}
+      view={view}
+      onBack={onBack}
+      current="Visibility"
+    />
+  )
 }

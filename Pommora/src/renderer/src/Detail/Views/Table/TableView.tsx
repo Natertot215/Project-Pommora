@@ -1,7 +1,18 @@
 import { memo, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { UNGROUPED } from '@shared/types'
-import type { CollectionNode, NexusTree, ResolvedColumn, ResolvedGroup, SetNode, ViewRow } from '@shared/types'
-import { type PropertyDefinition, type PropertyType, RESERVED_PROPERTY_ID } from '@shared/properties'
+import type {
+  CollectionNode,
+  NexusTree,
+  ResolvedColumn,
+  ResolvedGroup,
+  SetNode,
+  ViewRow,
+} from '@shared/types'
+import {
+  type PropertyDefinition,
+  type PropertyType,
+  RESERVED_PROPERTY_ID,
+} from '@shared/properties'
 import type { PageFrontmatter } from '@shared/schemas'
 import type { ColumnStyle } from '@shared/columnStyles'
 import type { CellMenuContext } from '@shared/cellMenu'
@@ -25,7 +36,13 @@ import type { SetTreeNode } from '../pipeline/group'
 import { buildResolveContext, type ResolveContext } from './resolveContext'
 import { buildSetIcons, buildSetNames, buildSetPaths, groupLabel } from './cellResolve'
 import { BandDnd, type BandDrop } from './bandDnd'
-import { allStructuralIds, flattenBands, propertyOrderAfterDrop, reparentFsOrder, structuralOrderAfterDrop } from './bandDndModel'
+import {
+  allStructuralIds,
+  flattenBands,
+  propertyOrderAfterDrop,
+  reparentFsOrder,
+  structuralOrderAfterDrop,
+} from './bandDndModel'
 import { nextOrder } from '@renderer/Sidebar/sidebarDndModel'
 import { Cell } from './Cell'
 import { PropertyTypeIcon } from '@renderer/Components/Detail/PropertyTypes'
@@ -63,7 +80,7 @@ function DatetimeCellPicker({
   open,
   triggerRef,
   onDismiss,
-  children
+  children,
 }: {
   open: boolean
   triggerRef: RefObject<HTMLElement | null>
@@ -79,7 +96,10 @@ function DatetimeCellPicker({
 
 /** A Collection uses its own schema; a Set inherits its ancestor Collection's (schema lives only on
  *  the Collection). [] when the owning Collection can't be found. */
-function resolveContainerSchema(tree: NexusTree, source: CollectionNode | SetNode): PropertyDefinition[] {
+function resolveContainerSchema(
+  tree: NexusTree,
+  source: CollectionNode | SetNode,
+): PropertyDefinition[] {
   if (source.kind === 'collection') return source.properties ?? []
   const collections = [...tree.collections, ...tree.userSections.flatMap((s) => s.collections)]
   const owns = (sets: SetNode[] | undefined): boolean =>
@@ -90,13 +110,18 @@ function resolveContainerSchema(tree: NexusTree, source: CollectionNode | SetNod
 /** The view to render: the per-machine active view if still present, else the first saved view, else
  *  a freshly-minted default (sentinel id until first saved). Exported: the Visibility pane picks the
  *  same view by the same rule. */
-export function pickView(source: CollectionNode | SetNode, activeId: string | undefined, schema: PropertyDefinition[]): SavedView {
+export function pickView(
+  source: CollectionNode | SetNode,
+  activeId: string | undefined,
+  schema: PropertyDefinition[],
+): SavedView {
   const views = source.views ?? []
   const active = activeId ? views.find((v) => v.id === activeId) : undefined
   return active ?? views[0] ?? mintDefaultView(schema)
 }
 
-const sameIds = (a: string[], b: string[]): boolean => a.length === b.length && a.every((x, i) => x === b[i])
+const sameIds = (a: string[], b: string[]): boolean =>
+  a.length === b.length && a.every((x, i) => x === b[i])
 
 /** The right-click menu context for a cell (A-13): title = page meta; url/file = the column's Style
  *  radios + Edit; status/datetime (picker-based) = Style + Clear; the inline-clearable style types
@@ -107,13 +132,14 @@ function cellMenuContextFor(
   col: ResolvedColumn,
   type: PropertyType | 'title' | 'tier' | undefined,
   style: ColumnStyle,
-  filled: boolean
+  filled: boolean,
 ): CellMenuContext | null {
   if (col.kind === 'title') return { kind: 'title' }
   if (col.kind === 'tier') return filled ? { kind: 'clear-only' } : null
   if (type === 'url') return { kind: 'link', filled }
   if (type === 'file') return { kind: 'style-edit', type: 'file', current: style }
-  if (type === 'status' || type === 'datetime') return { kind: 'style-only', type, current: style, clearable: filled }
+  if (type === 'status' || type === 'datetime')
+    return { kind: 'style-only', type, current: style, clearable: filled }
   if (type === 'checkbox' || type === 'number' || type === 'last_edited_time') {
     return { kind: 'style-only', type, current: style }
   }
@@ -170,7 +196,9 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // swaps source identity mid-flight (HIGH-3); key={source.id} already remounts real switches.
   const [bandOverride, setBandOverride] = useState<Partial<SavedView> | null>(null)
   const [manualOverride, setManualOverride] = useState<string[] | null>(null)
-  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set(view.collapsed_groups ?? []))
+  const [collapsed, setCollapsed] = useState<Set<string>>(
+    () => new Set(view.collapsed_groups ?? []),
+  )
   const [collapsing, setCollapsing] = useState<string | null>(null)
   // Columns whose tracks are sliding to a wider per-style min after a look change (E-13): enables the
   // same grid-template-columns transition as Hide for one beat, cleared on transitionend. Populated by
@@ -216,7 +244,8 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   const [resizing, setResizing] = useState(false)
   const triggerElRef = useRef<HTMLElement | null>(null)
   const lastPicker = useRef<{ rowId: string; colId: string } | null>(null)
-  if (editing?.mode === 'picker') lastPicker.current = { rowId: editing.rowId, colId: editing.colId }
+  if (editing?.mode === 'picker')
+    lastPicker.current = { rowId: editing.rowId, colId: editing.colId }
   // Its rename twin — the TextPicker alias field keeps its exiting cell through the Bloom-out the same way.
   const renameNonce = useRef(0)
   const lastRename = useRef<{ rowId: string; colId: string; nonce: number } | null>(null)
@@ -257,7 +286,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
       ...view,
       property_order: orderOverride ?? view.property_order,
       hidden_properties: hiddenOverride ?? view.hidden_properties,
-      ...bandOverride
+      ...bandOverride,
     }
   }, [view, orderOverride, hiddenOverride, bandOverride])
   // Manual row order (viewOrders cache) is the sort tiebreaker (D-5/D-6) — passed to the pipeline when
@@ -295,7 +324,10 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   const structuralOrder = groupPropId === undefined && sortKeys === 0
   const dragDisabled = !(canReorderWithin || canReassign)
   // Optimistic property patches feed the pipeline so a reassigned row re-groups before the watcher round-trips.
-  const effectiveValues = useMemo(() => (valueOverride ? { ...values, ...valueOverride } : values), [values, valueOverride])
+  const effectiveValues = useMemo(
+    () => (valueOverride ? { ...values, ...valueOverride } : values),
+    [values, valueOverride],
+  )
   const { columns, groups, setTree } = useMemo(() => {
     const { rows, setTree } = flattenContainer(source, effectiveValues)
     return { ...resolveView({ rows, setTree, view: liveView, schema, manualOrder }), setTree }
@@ -303,7 +335,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   const ctx = useMemo(
     () => (tree ? buildResolveContext(tree, schema) : null),
     // biome-ignore lint/correctness/useExhaustiveDependencies: buildResolveContext reads only contexts + labels — keying on those slices keeps ctx identity across unrelated tree pushes, so memoized rows hold.
-    [tree?.contexts, tree?.labels, schema]
+    [tree?.contexts, tree?.labels, schema],
   )
   // One mounted observer, two targets, one job (the overflowing flag): the view (pane resizes) and
   // the grid (min-width sizes its box only while the columns overflow the pane — in the fit regime
@@ -315,7 +347,9 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
       const cs = getComputedStyle(el)
       const pads = Number.parseFloat(cs.paddingLeft) + Number.parseFloat(cs.paddingRight)
       const gridEl = el.querySelector('.table-grid')
-      const zoom = gridEl ? Number.parseFloat(getComputedStyle(gridEl).getPropertyValue('zoom')) || 1 : 1
+      const zoom = gridEl
+        ? Number.parseFloat(getComputedStyle(gridEl).getPropertyValue('zoom')) || 1
+        : 1
       setOverflowing(reflowRef.current * zoom > el.clientWidth - pads + 1)
     }
     check()
@@ -375,7 +409,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
         const group = {
           ...liveView.group,
           order_mode: 'manual' as const,
-          order: propertyOrderAfterDrop(present, draggedId, drop.beforeId)
+          order: propertyOrderAfterDrop(present, draggedId, drop.beforeId),
         }
         commitBand({ group })
         return
@@ -386,25 +420,47 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
       // global reorder: only the beforeId's bucket value matters, targetParentId is ignored. The
       // key→bucket map builds once per drop, never a walk per lookup.
       const bucketByKey = new Map(
-        groups.flatMap((g) => (g.children ?? []).flatMap((c) => (c.bucket !== undefined ? [[c.key, c.bucket] as const] : [])))
+        groups.flatMap((g) =>
+          (g.children ?? []).flatMap((c) =>
+            c.bucket !== undefined ? [[c.key, c.bucket] as const] : [],
+          ),
+        ),
       )
       const draggedBucket = bucketByKey.get(draggedId)
       const beforeBucket = drop.beforeId === null ? null : (bucketByKey.get(drop.beforeId) ?? null)
       if (draggedBucket === undefined) return
       const present = [...new Set(bucketByKey.values())]
-      commitBand({ sub_group: { ...liveView.sub_group, order: propertyOrderAfterDrop(present, draggedBucket, beforeBucket) } })
+      commitBand({
+        sub_group: {
+          ...liveView.sub_group,
+          order: propertyOrderAfterDrop(present, draggedBucket, beforeBucket),
+        },
+      })
       return
     }
-    const group_order = structuralOrderAfterDrop(liveView.group_order ?? [], allStructuralIds(groups), draggedId, drop.beforeId)
+    const group_order = structuralOrderAfterDrop(
+      liveView.group_order ?? [],
+      allStructuralIds(groups),
+      draggedId,
+      drop.beforeId,
+    )
     if (drop.kind === 'reorder') {
       if (structuralGrouping && liveView.structural_order_mode === 'location') {
         // C-1c: Location mode — the same-parent reorder IS the filesystem write; group_order stays
         // untouched (preserved for the flip back to Custom). The reparent branch below is mode-blind
         // by design: its group_order write is the slot preservation.
         const parentPath = dragged.parentId === null ? source.path : setPaths.get(dragged.parentId)
-        const siblingIds = dragged.parentId === null ? setTree.map((n) => n.id) : (childIdsOf(setTree, dragged.parentId) ?? [])
+        const siblingIds =
+          dragged.parentId === null
+            ? setTree.map((n) => n.id)
+            : (childIdsOf(setTree, dragged.parentId) ?? [])
         if (!parentPath) return
-        void mutate({ op: 'reorderChildren', parentPath, key: 'set_order', order: nextOrder(siblingIds, draggedId, drop.beforeId) })
+        void mutate({
+          op: 'reorderChildren',
+          parentPath,
+          key: 'set_order',
+          order: nextOrder(siblingIds, draggedId, drop.beforeId),
+        })
         return
       }
       commitBand({ group_order })
@@ -412,13 +468,24 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     }
     const path = setPaths.get(draggedId)
     const destPath = drop.targetParentId === null ? source.path : setPaths.get(drop.targetParentId)
-    const destChildIds = drop.targetParentId === null ? setTree.map((n) => n.id) : childIdsOf(setTree, drop.targetParentId)
+    const destChildIds =
+      drop.targetParentId === null
+        ? setTree.map((n) => n.id)
+        : childIdsOf(setTree, drop.targetParentId)
     if (!path || !destPath || !destChildIds) return
     // One drop, two writers, possibly ONE sidecar (a de-nest to root): the fs move lands before the
     // view write — views.save and set_order are both read-modify-writes on the container sidecar.
     // A failed move (a name collision at the destination) commits NOTHING — no phantom order.
     void (async () => {
-      if (!(await mutate({ op: 'moveSet', path, newParentPath: destPath, order: reparentFsOrder(destChildIds, draggedId) }))) return
+      if (
+        !(await mutate({
+          op: 'moveSet',
+          path,
+          newParentPath: destPath,
+          order: reparentFsOrder(destChildIds, draggedId),
+        }))
+      )
+        return
       commitBandRef.current({ group_order })
     })()
   }
@@ -428,7 +495,9 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   const persistView = (patch: Partial<SavedView>): void => {
     // Adopt-only (G-1): if this fires while the entry-mint is still in flight, it awaits the minted id
     // and saves against it — never mints a rival default from its own sentinel.
-    void saveView(mergeOverrides(liveView, widthOverride, alignOverride, collapsed, patch, styleOverride))
+    void saveView(
+      mergeOverrides(liveView, widthOverride, alignOverride, collapsed, patch, styleOverride),
+    )
   }
   const toggleCollapse = (key: string): void => {
     const next = new Set(collapsed)
@@ -442,7 +511,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
       columns.map((c) => c.id),
       liveView.property_order,
       activeId,
-      overId
+      overId,
     )
     setOrderOverride(next)
     persistView({ property_order: next })
@@ -456,7 +525,13 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   }
   const commitResize = (id: string, width: number): void => {
     setResizing(false)
-    persistView({ column_widths: { ...liveView.column_widths, ...widthOverride, [id]: clampWidth(width, id, schema, colStyle(id).look) } })
+    persistView({
+      column_widths: {
+        ...liveView.column_widths,
+        ...widthOverride,
+        [id]: clampWidth(width, id, schema, colStyle(id).look),
+      },
+    })
   }
   // Hide animates the column shut on the disclosure token (E-11): setCollapsing drives its grid track to
   // 0 (colWidth → 0, animated via .col-hiding); commitHide fires on the header's grid-template-columns
@@ -497,36 +572,52 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   }
   // A column's resolved display style (B-1..B-5): the live override keys, over the saved per-view
   // entry, over the type default.
-  const colStyle = (id: string): ColumnStyle => ({ ...styleFor(id, schema, liveView), ...styleOverride[id] })
+  const colStyle = (id: string): ColumnStyle => ({
+    ...styleFor(id, schema, liveView),
+    ...styleOverride[id],
+  })
   // Set one style key: applies live via the override, persists per-key into column_styles — the align
   // pattern; the patch carries the not-yet-committed value so a state-batch can't drop it.
   const setColumnStyle = (id: string, key: keyof ColumnStyle & string, value: string): void => {
     const merged = { ...styleOverride[id], [key]: value } as ColumnStyle
     setStyleOverride((prev) => ({ ...prev, [id]: merged }))
-    persistView({ column_styles: mergeStyleRecords(liveView.column_styles, { ...styleOverride, [id]: merged }) })
+    persistView({
+      column_styles: mergeStyleRecords(liveView.column_styles, { ...styleOverride, [id]: merged }),
+    })
   }
   // Set a column's alignment: applies live via the override, persists to the SavedView column_alignments.
   const setColumnAlign = (id: string, align: ColumnAlign): void => {
     setAlignOverride((prev) => ({ ...prev, [id]: align }))
-    persistView({ column_alignments: { ...liveView.column_alignments, ...alignOverride, [id]: align } })
+    persistView({
+      column_alignments: { ...liveView.column_alignments, ...alignOverride, [id]: align },
+    })
   }
   // Right-click a header → native column menu (E-1/E-5): Align + Style + Hide. Title is the primary
   // column — fixed left, not hideable, no style — so it pops nothing. The style ctx rides only for a
   // schema-declared property type; the shared builder decides which types actually get items.
-  const openHeaderMenu = async (id: string, isTitle: boolean, e: React.MouseEvent): Promise<void> => {
+  const openHeaderMenu = async (
+    id: string,
+    isTitle: boolean,
+    e: React.MouseEvent,
+  ): Promise<void> => {
     e.preventDefault()
     const t = declaredType(id, schema)
-    const style = t !== undefined && t !== 'title' && t !== 'tier' ? { type: t, current: colStyle(id) } : undefined
+    const style =
+      t !== undefined && t !== 'title' && t !== 'tier'
+        ? { type: t, current: colStyle(id) }
+        : undefined
     const action = await window.nexus.columnMenu({
       align: colAlign(id),
       alignable: !isTitle,
       hideable: !isTitle,
       iconsShown: isTitle ? undefined : !(liveView.hide_column_icons ?? true),
-      style
+      style,
     })
     if (action === 'column:hide') hideColumn(id)
-    else if (action === 'column:toggle-icons') persistView({ hide_column_icons: !(liveView.hide_column_icons ?? true) })
-    else if (action?.startsWith('align:')) setColumnAlign(id, action.slice('align:'.length) as ColumnAlign)
+    else if (action === 'column:toggle-icons')
+      persistView({ hide_column_icons: !(liveView.hide_column_icons ?? true) })
+    else if (action?.startsWith('align:'))
+      setColumnAlign(id, action.slice('align:'.length) as ColumnAlign)
     else if (action?.startsWith('style:')) {
       const parsed = parseStyleAction(action)
       if (parsed) setColumnStyle(id, parsed.key, parsed.value)
@@ -537,15 +628,20 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   const commitCellValue = (row: ViewRow, propertyId: string, value: PropertyValue | null): void => {
     const patched: PageFrontmatter = {
       ...row.frontmatter,
-      properties: applyPropertyValue(row.frontmatter.properties, propertyId, value)
+      properties: applyPropertyValue(row.frontmatter.properties, propertyId, value),
     }
     setValueOverride((prev) => ({ ...prev, [row.id]: patched }))
     void mutate({ op: 'setProperty', path: row.path, propertyId, value })
   }
   // A context column's pickable list — the NEXUS's contexts for its tier (reserved tier columns
   // read their fixed level; a user context prop reads its def's target tier). Null for anything else.
-  const contextOptionsFor = (col: ResolvedColumn): Array<{ value: string; label: string; color?: string }> | null => {
-    const level = col.kind === 'tier' ? TIER_LEVEL_BY_ID[col.id] : schema.find((d) => d.id === col.id)?.context_target?.tier
+  const contextOptionsFor = (
+    col: ResolvedColumn,
+  ): Array<{ value: string; label: string; color?: string }> | null => {
+    const level =
+      col.kind === 'tier'
+        ? TIER_LEVEL_BY_ID[col.id]
+        : schema.find((d) => d.id === col.id)?.context_target?.tier
     if (!level || !tree) return null
     return contextOptionsForTier(level, tree)
   }
@@ -594,7 +690,10 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
         setEditing({ rowId: row.id, colId: col.id, mode: 'picker' })
         return
       }
-      const next = nextCycleValue(current, schema.find((d) => d.id === col.id))
+      const next = nextCycleValue(
+        current,
+        schema.find((d) => d.id === col.id),
+      )
       if (next !== null) commitCellValue(row, col.id, { kind: 'status', value: next })
     } else if (t === 'checkbox') {
       e.stopPropagation()
@@ -602,7 +701,13 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
       // Checked → strip the key (a checkbox is true-or-absent, never a stored `false`); else set true.
       const checked = v.kind === 'checkbox' && v.value
       commitCellValue(row, col.id, checked ? null : { kind: 'checkbox', value: true })
-    } else if (t === 'status' || t === 'select' || t === 'multi_select' || t === 'context' || t === 'datetime') {
+    } else if (
+      t === 'status' ||
+      t === 'select' ||
+      t === 'multi_select' ||
+      t === 'context' ||
+      t === 'datetime'
+    ) {
       e.stopPropagation()
       setEditing({ rowId: row.id, colId: col.id, mode: 'picker' })
     } else if (t === 'number') {
@@ -640,7 +745,8 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     setEditing(null)
     const trimmed = raw.trim()
     if (col.kind === 'title') {
-      if (trimmed && trimmed !== row.title) void mutate({ op: 'rename', path: row.path, kind: 'page', newName: trimmed })
+      if (trimmed && trimmed !== row.title)
+        void mutate({ op: 'rename', path: row.path, kind: 'page', newName: trimmed })
       return
     }
     const t = declaredType(col.id, schema)
@@ -654,26 +760,42 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
       const cur = resolveFieldValue(row, col.id, schema)
       const alias = cur.kind === 'url' ? parseLink(cur.value).alias : undefined
       if (isValidLink(trimmed))
-        commitCellValue(row, col.id, { kind: 'url', value: serializeLink({ url: normalizeLinkUrl(trimmed), alias }) })
+        commitCellValue(row, col.id, {
+          kind: 'url',
+          value: serializeLink({ url: normalizeLinkUrl(trimmed), alias }),
+        })
     } else if (t === 'file') {
       const v = resolveFieldValue(row, col.id, schema)
       const refs = v.kind === 'file' ? v.value : []
-      if (trimmed === '') return commitCellValue(row, col.id, refs.length > 1 ? { kind: 'file', value: refs.slice(1) } : null)
-      commitCellValue(row, col.id, { kind: 'file', value: refs.length ? [{ ...refs[0], path: trimmed }, ...refs.slice(1)] : [{ path: trimmed }] })
+      if (trimmed === '')
+        return commitCellValue(
+          row,
+          col.id,
+          refs.length > 1 ? { kind: 'file', value: refs.slice(1) } : null,
+        )
+      commitCellValue(row, col.id, {
+        kind: 'file',
+        value: refs.length
+          ? [{ ...refs[0], path: trimmed }, ...refs.slice(1)]
+          : [{ path: trimmed }],
+      })
     }
   }
   // The inline text/number editor, mounted in the editing cell and REPLACING its content. The value
   // pickers (status/select/multi/context) + the datetime picker are the table-level `cellPicker` below
   // — they portal off the cell, so they never live inside it (and so never clip to the table's scroll).
   const cellEditor = (row: ViewRow, col: ResolvedColumn): React.ReactNode => {
-    if (editing?.mode !== 'editor' || editing.rowId !== row.id || editing.colId !== col.id) return null
+    if (editing?.mode !== 'editor' || editing.rowId !== row.id || editing.colId !== col.id)
+      return null
     const t = declaredType(col.id, schema)
     return (
       <PropertyEditor
         initial={editorInitial(row, col)}
         numeric={t === 'number'}
         validate={t === 'url' ? isValidLink : undefined}
-        color={t === 'url' ? solidColorCss(schema.find((d) => d.id === col.id)?.link_color) : undefined}
+        color={
+          t === 'url' ? solidColorCss(schema.find((d) => d.id === col.id)?.link_color) : undefined
+        }
         onCommit={(raw) => commitEditorText(row, col, raw)}
         onCancel={() => setEditing(null)}
       />
@@ -718,9 +840,13 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
             value={v.kind === 'datetime' ? v.value : null}
             timeFormat={tree?.timeFormat}
             formatDateValue={(k, condensed) =>
-              condensed ? condensedDate(k, dateFmt, condensed.withYear) : formatDate(k, dateFmt, 'none')
+              condensed
+                ? condensedDate(k, dateFmt, condensed.withYear)
+                : formatDate(k, dateFmt, 'none')
             }
-            onChange={(iso) => commitCellValue(row, col.id, iso ? { kind: 'datetime', value: iso } : null)}
+            onChange={(iso) =>
+              commitCellValue(row, col.id, iso ? { kind: 'datetime', value: iso } : null)
+            }
           />
         </DatetimeCellPicker>
       )
@@ -728,7 +854,9 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     const contextOptions = contextOptionsFor(col)
     // A reserved tier column has no schema def — a minimal synthetic one satisfies the picker,
     // whose options come from `contextOptions` anyway.
-    const def = schema.find((d) => d.id === col.id) ?? (contextOptions ? { id: col.id, name: '', type: 'context' as const } : undefined)
+    const def =
+      schema.find((d) => d.id === col.id) ??
+      (contextOptions ? { id: col.id, name: '', type: 'context' as const } : undefined)
     if (!def) return null
     return (
       <PropertyPicker
@@ -796,7 +924,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
         onCommit={(alias) => {
           commitCellValue(row, col.id, {
             kind: 'url',
-            value: serializeLink({ url: parseLink(raw).url, alias: alias.trim() || undefined })
+            value: serializeLink({ url: parseLink(raw).url, alias: alias.trim() || undefined }),
           })
           setEditing(null)
         }}
@@ -807,7 +935,11 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // Right-click a cell → its native menu (A-13: always a menu, never an action). Title = page meta;
   // style-bearing types = the COLUMN's Style radios; link/file add Edit; picker-based cells add
   // Clear (status gets Style + Clear; select/multi/context/tier get Clear alone).
-  const openCellMenu = async (row: ViewRow, col: ResolvedColumn, e: React.MouseEvent): Promise<void> => {
+  const openCellMenu = async (
+    row: ViewRow,
+    col: ResolvedColumn,
+    e: React.MouseEvent,
+  ): Promise<void> => {
     e.preventDefault()
     e.stopPropagation()
     // Captured before the await — the synthetic event is recycled by the time the menu resolves, so
@@ -823,14 +955,17 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     const action = await window.nexus.cellMenu(ctx)
     if (!action) return
     if (action === 'title:newtab')
-      void useSession.getState().select({ kind: 'page', id: row.id, path: row.path }, { newTab: true })
+      void useSession
+        .getState()
+        .select({ kind: 'page', id: row.id, path: row.path }, { newTab: true })
     else if (action === 'title:icon') {
       iconCellRef.current = cellEl
       setIconTarget({ path: row.path, icon: typeof row.icon === 'string' ? row.icon : undefined })
       setIconPickerOpen(true)
-    }
-    else if (action === 'title:delete') void mutate({ op: 'delete', path: row.path, kind: 'page' })
-    else if (action === 'title:rename' || action === 'cell:edit') setEditing({ rowId: row.id, colId: col.id, mode: 'editor' })
+    } else if (action === 'title:delete')
+      void mutate({ op: 'delete', path: row.path, kind: 'page' })
+    else if (action === 'title:rename' || action === 'cell:edit')
+      setEditing({ rowId: row.id, colId: col.id, mode: 'editor' })
     else if (action === 'cell:rename') {
       triggerElRef.current = cellEl
       renameNonce.current += 1
@@ -849,7 +984,12 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   const colWidth = (id: string): number =>
     collapsing === id
       ? 0
-      : clampWidth(widthOverride[id] ?? liveView.column_widths?.[id] ?? widthFor(id, schema).default, id, schema, colStyle(id).look)
+      : clampWidth(
+          widthOverride[id] ?? liveView.column_widths?.[id] ?? widthFor(id, schema).default,
+          id,
+          schema,
+          colStyle(id).look,
+        )
 
   // ---- Memoized-row inputs: every prop a DataRow receives must hold identity across unrelated
   // re-renders (a tree push, an editing toggle, a drag frame), so React.memo can bail per row. ----
@@ -859,9 +999,12 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   const { alignByCol, styleByCol } = useMemo(
     () => ({
       alignByCol: columns.map((c) => alignOverride[c.id] ?? alignFor(c.id, schema, liveView)),
-      styleByCol: columns.map((c) => ({ ...styleFor(c.id, schema, liveView), ...styleOverride[c.id] }))
+      styleByCol: columns.map((c) => ({
+        ...styleFor(c.id, schema, liveView),
+        ...styleOverride[c.id],
+      })),
     }),
-    [columns, schema, liveView, alignOverride, styleOverride]
+    [columns, schema, liveView, alignOverride, styleOverride],
   )
   // Slide detection (E-13): mark any column whose look just changed to one whose rendered width grows,
   // so its track eases to the new per-style min. Render-phase + a prev-look ref, so it catches EVERY
@@ -873,16 +1016,21 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     const prev = prevLooks.current[c.id]
     prevLooks.current[c.id] = look
     if (prev === undefined || prev === look) return
-    const basis = widthOverride[c.id] ?? liveView.column_widths?.[c.id] ?? widthFor(c.id, schema).default
-    if (clampWidth(basis, c.id, schema, look) > clampWidth(basis, c.id, schema, prev)) widened.push(c.id)
+    const basis =
+      widthOverride[c.id] ?? liveView.column_widths?.[c.id] ?? widthFor(c.id, schema).default
+    if (clampWidth(basis, c.id, schema, look) > clampWidth(basis, c.id, schema, prev))
+      widened.push(c.id)
   })
   if (widened.some((id) => !sliding.has(id))) setSliding((s) => new Set([...s, ...widened]))
   // The gap-shift geometry for a live column drag — identity changes on slot flips only (the
   // cursor-follow is the grid-level CSS var), which is exactly when rows must re-render.
   const dragShift = useMemo(
-    () => (colDrag ? { from: colDrag.from, to: colDrag.to, width: colWidth(columns[colDrag.from].id) } : null),
+    () =>
+      colDrag
+        ? { from: colDrag.from, to: colDrag.to, width: colWidth(columns[colDrag.from].id) }
+        : null,
     // biome-ignore lint/correctness/useExhaustiveDependencies: colWidth's inputs (widths, collapsing) are static during a drag; keying on colDrag + columns is the change surface.
-    [colDrag, columns]
+    [colDrag, columns],
   )
   // ONE stable handler identity for every row — calls read the freshest closures through the ref,
   // so memoized rows never re-render for handler churn (and never call a stale state writer).
@@ -893,9 +1041,9 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
       menu: (row, col, e) => void cellApiRef.current.openCellMenu(row, col, e),
       click: (row, col, e) => cellApiRef.current.onCellClick(row, col, e),
       overlay: (row, col) => cellApiRef.current.cellEditor(row, col),
-      remove: (row, col, next) => cellApiRef.current.removeCellValue(row, col, next)
+      remove: (row, col, next) => cellApiRef.current.removeCellValue(row, col, next),
     }),
-    []
+    [],
   )
   // The inline editor's target cell (mode 'editor' only — the picker is the table-level cellPicker).
   // Flows to rows as a primitive so ONLY the editing row re-renders on open/close.
@@ -921,7 +1069,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     return {
       dataRows: rows,
       rowPath: new Map(rows.map((r) => [r.id, r.path] as const)),
-      rowGroup: new Map(rows.map((r) => [r.id, r.groupKey] as const))
+      rowGroup: new Map(rows.map((r) => [r.id, r.groupKey] as const)),
     }
   }, [groups])
 
@@ -996,7 +1144,10 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
       for (let i = 0; i < cur; i++) curLeft += colWidth(columns[i].id) * zoom
       const curRight = curLeft + colWidth(columns[cur].id) * zoom
       let to = cur
-      if (projected < curLeft - COL_SHIFT_HYSTERESIS || projected > curRight + COL_SHIFT_HYSTERESIS) {
+      if (
+        projected < curLeft - COL_SHIFT_HYSTERESIS ||
+        projected > curRight + COL_SHIFT_HYSTERESIS
+      ) {
         let edge = gridLeft
         to = columns.length - 1
         for (let i = 0; i < columns.length; i++) {
@@ -1073,12 +1224,16 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
         const prior = values[pageId]
         const patched: PageFrontmatter = {
           ...(prior ?? { id: pageId }),
-          properties: applyPropertyValue(prior?.properties, groupPropId, value)
+          properties: applyPropertyValue(prior?.properties, groupPropId, value),
         }
         setValueOverride((prev) => ({ ...prev, [pageId]: patched }))
       }
       void (async () => {
-        if (bucketChanged && !(await mutate({ op: 'setProperty', path, propertyId: groupPropId, value }))) return
+        if (
+          bucketChanged &&
+          !(await mutate({ op: 'setProperty', path, propertyId: groupPropId, value }))
+        )
+          return
         if (setChanged) await mutate({ op: 'movePage', path, newParentPath: destPath })
       })()
       return
@@ -1087,7 +1242,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     const prior = values[pageId]
     const patched: PageFrontmatter = {
       ...(prior ?? { id: pageId }),
-      properties: applyPropertyValue(prior?.properties, groupPropId, value)
+      properties: applyPropertyValue(prior?.properties, groupPropId, value),
     }
     setValueOverride((prev) => ({ ...prev, [pageId]: patched }))
     void mutate({ op: 'setProperty', path, propertyId: groupPropId, value })
@@ -1105,7 +1260,12 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
       const firstPath = groupPages.length ? rowPath.get(groupPages[0]) : undefined
       if (firstPath) {
         const containerPath = firstPath.slice(0, firstPath.lastIndexOf('/'))
-        void mutate({ op: 'movePage', path: firstPath, newParentPath: containerPath, order: groupPages })
+        void mutate({
+          op: 'movePage',
+          path: firstPath,
+          newParentPath: containerPath,
+          order: groupPages,
+        })
       }
       return
     }
@@ -1155,7 +1315,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
           />
         )
       }),
-      ...(g.children ?? []).flatMap((child) => renderRows(child, itemDepth, itemsVisible))
+      ...(g.children ?? []).flatMap((child) => renderRows(child, itemDepth, itemsVisible)),
     ]
     // Ungrouped root band: no header, no disclosure — its rows sit flush in the grid.
     if (g.kind === 'ungrouped') return members
@@ -1164,7 +1324,11 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     // the DOM. Each row keeps its own grid reading the inherited --cols, so wrapping never breaks the
     // column alignment (A-2).
     return [
-      <div key={`gh-${g.key}`} className={cx('group-header-row', g.bucket !== undefined && 'sub-band')} style={{ paddingLeft: groupIndent(depth) }}>
+      <div
+        key={`gh-${g.key}`}
+        className={cx('group-header-row', g.bucket !== undefined && 'sub-band')}
+        style={{ paddingLeft: groupIndent(depth) }}
+      >
         <GroupHeader
           group={g}
           view={liveView}
@@ -1175,7 +1339,10 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
           // Only a Collection's direct-child Sets open (the sidebar's selectable rule) — deeper
           // sub-Sets are expand-only organizing folders.
           onOpen={
-            g.kind === 'structural-set' && source.kind === 'collection' && depth === 0 && setPaths.has(g.key)
+            g.kind === 'structural-set' &&
+            source.kind === 'collection' &&
+            depth === 0 &&
+            setPaths.has(g.key)
               ? () => void select({ kind: 'set', id: g.key, path: setPaths.get(g.key) as string })
               : undefined
           }
@@ -1185,7 +1352,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
       </div>,
       <Reveal key={`rv-${g.key}`} open={!isCollapsed}>
         {members}
-      </Reveal>
+      </Reveal>,
     ]
   }
 
@@ -1201,64 +1368,64 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
         }}
       />
       <BandDnd bands={bands} labelFor={bandLabel} onDrop={onBandDrop}>
-      <TableRowDnd
-        rows={dataRows}
-        disabled={dragDisabled}
-        canReorderWithin={canReorderWithin}
-        canReassign={canReassign}
-        reorderTo={reorderTo}
-        reassign={reassignRow}
-      >
-        <div
-          className={cx(
-            'table-grid',
-            text.body.standard,
-            liveView.hide_borders && 'no-borders',
-            columns.length === 1 && 'single-column',
-            collapsing != null && 'col-hiding',
-            sliding.size > 0 && 'col-sliding',
-            colDrag != null && 'col-dragging-active',
-            resizing && 'col-resizing-active'
-          )}
-          style={{ minWidth: reflowWidth, ['--cols']: cols } as React.CSSProperties}
+        <TableRowDnd
+          rows={dataRows}
+          disabled={dragDisabled}
+          canReorderWithin={canReorderWithin}
+          canReassign={canReassign}
+          reorderTo={reorderTo}
+          reassign={reassignRow}
         >
-          {/* Header band — each header grabs to smooth-shift its whole column (A-4); the filler sits
+          <div
+            className={cx(
+              'table-grid',
+              text.body.standard,
+              liveView.hide_borders && 'no-borders',
+              columns.length === 1 && 'single-column',
+              collapsing != null && 'col-hiding',
+              sliding.size > 0 && 'col-sliding',
+              colDrag != null && 'col-dragging-active',
+              resizing && 'col-resizing-active',
+            )}
+            style={{ minWidth: reflowWidth, ['--cols']: cols } as React.CSSProperties}
+          >
+            {/* Header band — each header grabs to smooth-shift its whole column (A-4); the filler sits
               outside the columns, inert. The transitionend on the animated track set commits a column
               hide (E-11) — transform transitions (the drag) carry a different propertyName, so they pass. */}
-          <div
-            className="table-head"
-            onTransitionEnd={(e) => {
-              if (e.propertyName !== 'grid-template-columns') return
-              commitHide() // no-op unless a hide is in flight
-              setSliding((s) => (s.size ? new Set() : s)) // the style-min slide(s) settled
-            }}
-          >
-            {columns.map((c, i) => (
-              <ColumnHeader
-                key={c.id}
-                id={c.id}
-                label={columnLabel(c.id, schema, ctx.labels)}
-                icon={headerIcon(c.id)}
-                width={colWidth(c.id)}
-                align={colAlign(c.id)}
-                transform={colTransform(i)}
-                dragging={colDrag?.from === i}
-                onDragStart={(e) => startColumnDrag(e, i)}
-                onResize={resizeColumn}
-                onResizeStart={() => setResizing(true)}
-                onResizeCommit={commitResize}
-                onContextMenu={(e) => void openHeaderMenu(c.id, c.kind === 'title', e)}
-              />
-            ))}
-            {/* Trailing filler in the 1fr track — also the :last-child anchor that keeps the last real
+            <div
+              className="table-head"
+              onTransitionEnd={(e) => {
+                if (e.propertyName !== 'grid-template-columns') return
+                commitHide() // no-op unless a hide is in flight
+                setSliding((s) => (s.size ? new Set() : s)) // the style-min slide(s) settled
+              }}
+            >
+              {columns.map((c, i) => (
+                <ColumnHeader
+                  key={c.id}
+                  id={c.id}
+                  label={columnLabel(c.id, schema, ctx.labels)}
+                  icon={headerIcon(c.id)}
+                  width={colWidth(c.id)}
+                  align={colAlign(c.id)}
+                  transform={colTransform(i)}
+                  dragging={colDrag?.from === i}
+                  onDragStart={(e) => startColumnDrag(e, i)}
+                  onResize={resizeColumn}
+                  onResizeStart={() => setResizing(true)}
+                  onResizeCommit={commitResize}
+                  onContextMenu={(e) => void openHeaderMenu(c.id, c.kind === 'title', e)}
+                />
+              ))}
+              {/* Trailing filler in the 1fr track — also the :last-child anchor that keeps the last real
                 column's right divider (Table.css). Empty but load-bearing; don't remove. */}
-            <div className="cell-filler" aria-hidden="true" />
-          </div>
-          {/* Rows (E-3) — the drop-line DnD (tableDnd) wraps the whole grid; group-header rows aren't
+              <div className="cell-filler" aria-hidden="true" />
+            </div>
+            {/* Rows (E-3) — the drop-line DnD (tableDnd) wraps the whole grid; group-header rows aren't
               drag items. */}
-          {groups.flatMap((g) => renderRows(g, 0, true))}
-        </div>
-      </TableRowDnd>
+            {groups.flatMap((g) => renderRows(g, 0, true))}
+          </div>
+        </TableRowDnd>
       </BandDnd>
       {cellPicker()}
       {renameField()}
@@ -1282,7 +1449,7 @@ function ColumnHeader({
   onResize,
   onResizeStart,
   onResizeCommit,
-  onContextMenu
+  onContextMenu,
 }: {
   id: string
   label: string
@@ -1375,7 +1542,7 @@ const DataRow = memo(function DataRow({
   hideIcon,
   selected,
   dragDisabled,
-  lead
+  lead,
 }: {
   row: ViewRow
   columns: ResolvedColumn[]
@@ -1398,7 +1565,12 @@ const DataRow = memo(function DataRow({
   return (
     <div
       ref={ref}
-      className={cx('data-row', selected && 'selected', isDragging && 'row-dragging', lead && 'row-lead')}
+      className={cx(
+        'data-row',
+        selected && 'selected',
+        isDragging && 'row-dragging',
+        lead && 'row-lead',
+      )}
       // The whole row is a drag surface, not just the gutter grip — grabbing ANY cell arms the reorder, so a
       // horizontal scroll that pushes the grip out of reach can't block it. A press-release (no move past
       // ACTIVATION) is each CELL's gesture (A-7: only the title navigates; the row background is a no-op);
@@ -1406,7 +1578,10 @@ const DataRow = memo(function DataRow({
       {...(dragDisabled ? {} : handle)}
     >
       {columns.map((c, i) => {
-        const style: React.CSSProperties = { transform: gapShift(dragShift, i), textAlign: alignByCol[i] }
+        const style: React.CSSProperties = {
+          transform: gapShift(dragShift, i),
+          textAlign: alignByCol[i],
+        }
         // The lead cell's indent (loose-inset + group nesting) is a LEFT treatment — it tucks left-read
         // content like the Title. A centered first column (a checkbox/switch/chip moved before the Title)
         // must NOT get it: the indent eats the narrow cell and shoves the control off-centre / past the
@@ -1431,7 +1606,12 @@ const DataRow = memo(function DataRow({
         return i === 0 ? (
           <div
             key={c.id}
-            className={cx('data-cell', 'cell-lead', dragShift?.from === i && 'col-dragging', stateCx)}
+            className={cx(
+              'data-cell',
+              'cell-lead',
+              dragShift?.from === i && 'col-dragging',
+              stateCx,
+            )}
             style={style}
             onContextMenu={(e) => api.menu(row, c, e)}
             onClick={(e) => {
@@ -1439,7 +1619,12 @@ const DataRow = memo(function DataRow({
             }}
           >
             {!dragDisabled && (
-              <span className="row-grip" {...handle} onClick={(e) => e.stopPropagation()} aria-label="Drag to reorder">
+              <span
+                className="row-grip"
+                {...handle}
+                onClick={(e) => e.stopPropagation()}
+                aria-label="Drag to reorder"
+              >
                 <Icon name="grip-vertical" size={14} />
               </span>
             )}

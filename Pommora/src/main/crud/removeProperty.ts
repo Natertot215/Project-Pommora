@@ -19,13 +19,21 @@ import { SIDECAR_FILENAME } from '../paths'
 import { writeJson } from '../io/atomicWrite'
 import { readFrontmatterFields, mergeFrontmatter, splitEnvelope } from '../io/pageFile'
 import { readRegistry } from '../io/propertiesRegistry'
-import { applyPropertyValue, isPlainObject, type FileRef, type PropertyValue } from '@shared/propertyValue'
+import {
+  applyPropertyValue,
+  isPlainObject,
+  type FileRef,
+  type PropertyValue,
+} from '@shared/propertyValue'
 import type { PropertyDefinition } from '@shared/properties'
 import { serializeSchemaOp } from './schemaChain'
 import { nowIso } from './util'
 import { ok, type Result } from '@shared/result'
 
-export function removeProperty(collectionFolder: string, propertyId: string): Promise<Result<null>> {
+export function removeProperty(
+  collectionFolder: string,
+  propertyId: string,
+): Promise<Result<null>> {
   return serializeSchemaOp(() => removeInner(collectionFolder, propertyId))
 }
 
@@ -61,7 +69,7 @@ async function removeInner(collectionFolder: string, propertyId: string): Promis
     ...sidecar,
     properties: ids.filter((id) => id !== propertyId),
     property_cache: cache,
-    modified_at: nowIso()
+    modified_at: nowIso(),
   })
   for (const file of files) {
     await rewritePageSerialized(file, (content) => stripPageMember(content, propertyId))
@@ -89,7 +97,9 @@ export function reconcileCachedValue(def: PropertyDefinition, raw: unknown): Pro
     case 'datetime':
       return typeof raw === 'string' && raw ? { kind: 'datetime', value: raw } : null
     case 'select':
-      return typeof raw === 'string' && options.includes(raw) ? { kind: 'select', value: raw } : null
+      return typeof raw === 'string' && options.includes(raw)
+        ? { kind: 'select', value: raw }
+        : null
     case 'status': {
       const v = isPlainObject(raw) && typeof raw.$status === 'string' ? raw.$status : null
       return v !== null && options.includes(v) ? { kind: 'status', value: v } : null
@@ -100,14 +110,23 @@ export function reconcileCachedValue(def: PropertyDefinition, raw: unknown): Pro
       return kept.length ? { kind: 'multiSelect', value: kept } : null
     }
     case 'context': {
-      if (isPlainObject(raw) && typeof raw.$ctx === 'string') return { kind: 'context', value: [raw.$ctx] }
-      if (Array.isArray(raw) && raw.length && raw.every((x) => isPlainObject(x) && typeof x.$ctx === 'string')) {
+      if (isPlainObject(raw) && typeof raw.$ctx === 'string')
+        return { kind: 'context', value: [raw.$ctx] }
+      if (
+        Array.isArray(raw) &&
+        raw.length &&
+        raw.every((x) => isPlainObject(x) && typeof x.$ctx === 'string')
+      ) {
         return { kind: 'context', value: raw.map((x) => (x as { $ctx: string }).$ctx) }
       }
       return null
     }
     case 'file': {
-      if (Array.isArray(raw) && raw.length && raw.every((x) => isPlainObject(x) && typeof x.path === 'string')) {
+      if (
+        Array.isArray(raw) &&
+        raw.length &&
+        raw.every((x) => isPlainObject(x) && typeof x.path === 'string')
+      ) {
         return { kind: 'file', value: raw as FileRef[] }
       }
       return null
@@ -123,7 +142,7 @@ export function reconcileCachedValue(def: PropertyDefinition, raw: unknown): Pro
 export async function restoreCachedValues(
   root: string,
   collectionFolder: string,
-  propertyId: string
+  propertyId: string,
 ): Promise<Result<null>> {
   const sidecar = await readSidecar(collectionFolder, 'collection', pageCollectionSidecar)
   if (!sidecar) return ok(null)
@@ -153,7 +172,12 @@ export async function restoreCachedValues(
       await rewritePageSerialized(file, (content) => {
         const fields = readFrontmatterFields(content)
         const properties = applyPropertyValue(fields.properties, propertyId, value)
-        return mergeFrontmatter(content, { properties, modified_at: nowIso() }, ['properties', 'modified_at'], splitEnvelope(content).body)
+        return mergeFrontmatter(
+          content,
+          { properties, modified_at: nowIso() },
+          ['properties', 'modified_at'],
+          splitEnvelope(content).body,
+        )
       })
     }
   }
@@ -161,7 +185,11 @@ export async function restoreCachedValues(
   // cache intact for a re-run rather than dropping the values it hadn't restored yet.
   const cache = { ...cacheAll }
   delete cache[propertyId]
-  const nextSidecar: Record<string, unknown> = { ...sidecar, property_cache: cache, modified_at: nowIso() }
+  const nextSidecar: Record<string, unknown> = {
+    ...sidecar,
+    property_cache: cache,
+    modified_at: nowIso(),
+  }
   if (Object.keys(cache).length === 0) delete nextSidecar.property_cache
   await writeJson(join(collectionFolder, SIDECAR_FILENAME.collection), nextSidecar)
   return ok(null)

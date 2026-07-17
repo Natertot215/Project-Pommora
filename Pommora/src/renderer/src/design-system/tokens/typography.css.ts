@@ -17,7 +17,7 @@ export const font = createGlobalTheme(':root', {
     standard: '400',
     emphasized: '500',
     semibold: '600',
-    bold: '700'
+    bold: '700',
   },
   // Size + line height, co-located per style (px), matching the Figma ramp.
   scale: {
@@ -31,8 +31,8 @@ export const font = createGlobalTheme(':root', {
     control: { size: '12px', line: '15px' },
     caption: { size: '11px', line: '14px' },
     footnote: { size: '10px', line: '13px' },
-    subline: { size: '10px', line: '12px' }
-  }
+    subline: { size: '10px', line: '12px' },
+  },
 })
 
 type ScaleKey = keyof typeof font.scale
@@ -46,13 +46,13 @@ const ramp = (key: ScaleKey): Record<WeightKey, string> => {
     fontFamily: font.family,
     fontSize: font.scale[key].size,
     lineHeight: font.scale[key].line,
-    letterSpacing: 0
+    letterSpacing: 0,
   }
   return {
     standard: style({ ...base, fontWeight: font.weight.standard }),
     emphasized: style({ ...base, fontWeight: font.weight.emphasized }),
     semibold: style({ ...base, fontWeight: font.weight.semibold }),
-    bold: style({ ...base, fontWeight: font.weight.bold })
+    bold: style({ ...base, fontWeight: font.weight.bold }),
   }
 }
 
@@ -72,7 +72,7 @@ export const text = {
   control: ramp('control'),
   caption: ramp('caption'),
   footnote: ramp('footnote'),
-  subline: ramp('subline')
+  subline: ramp('subline'),
 }
 
 /**
@@ -96,8 +96,8 @@ export const truncateHoverScroll = style({
       overflowX: 'auto',
       textOverflow: 'clip',
       maskImage: 'linear-gradient(to right, transparent 0, #000 var(--scroll-fade, 0px))',
-      WebkitMaskImage: 'linear-gradient(to right, transparent 0, #000 var(--scroll-fade, 0px))'
+      WebkitMaskImage: 'linear-gradient(to right, transparent 0, #000 var(--scroll-fade, 0px))',
     },
-    '&::-webkit-scrollbar': { display: 'none' }
-  }
+    '&::-webkit-scrollbar': { display: 'none' },
+  },
 })

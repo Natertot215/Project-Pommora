@@ -17,26 +17,26 @@ describe('resolveEdge', () => {
   it('east/west resolve to the nearest row divider', () => {
     expect(resolveEdge(l, 'a', 'e')).toEqual({
       kind: 'divider',
-      ref: { band: 0, path: [], index: 0 }
+      ref: { band: 0, path: [], index: 0 },
     })
     expect(resolveEdge(l, 'c', 'w')).toEqual({
       kind: 'divider',
-      ref: { band: 0, path: [], index: 0 }
+      ref: { band: 0, path: [], index: 0 },
     })
     expect(resolveEdge(l, 'd', 'w')).toEqual({
       kind: 'divider',
-      ref: { band: 0, path: [1, 1], index: 0 }
+      ref: { band: 0, path: [1, 1], index: 0 },
     })
   })
 
   it('north resolves to the stacked boundary above', () => {
     expect(resolveEdge(l, 'c', 'n')).toEqual({
       kind: 'stack',
-      ref: { band: 0, path: [1], index: 0 }
+      ref: { band: 0, path: [1], index: 0 },
     })
     expect(resolveEdge(l, 'd', 'n')).toEqual({
       kind: 'stack',
-      ref: { band: 0, path: [1], index: 0 }
+      ref: { band: 0, path: [1], index: 0 },
     })
   })
 
@@ -60,7 +60,12 @@ describe('resolveEdge', () => {
     expect(resolveEdge(bands, 'top', 'n')).toBeNull() // first band — nothing above
 
     // a split band above declines — no single height to give
-    const splitAbove = insertBand(splitAtTile(insertBand({ bands: [] }, 0, 'x', 200), 'x', 'e', 'y'), 1, 'z', 160)
+    const splitAbove = insertBand(
+      splitAtTile(insertBand({ bands: [] }, 0, 'x', 200), 'x', 'e', 'y'),
+      1,
+      'z',
+      160,
+    )
     expect(resolveEdge(splitAbove, 'z', 'n')).toBeNull()
   })
 })

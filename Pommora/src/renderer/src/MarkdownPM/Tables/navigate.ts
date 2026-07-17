@@ -9,7 +9,7 @@ export function nextCell(
   cols: number,
   row: number,
   col: number,
-  dir: NavDir
+  dir: NavDir,
 ): NavTarget {
   if (dir === 'next') {
     if (col + 1 < cols) return { row, col: col + 1 }

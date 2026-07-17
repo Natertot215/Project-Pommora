@@ -29,7 +29,7 @@ describe('hitTest', () => {
     expect(hitTest(geo, two, 'a', 500, geo.totalHeight - 4)).toEqual({
       kind: 'tile',
       id: 'b',
-      edge: 's'
+      edge: 's',
     })
   })
 
@@ -51,13 +51,13 @@ describe('hitTest', () => {
     expect(hitTest(geo, two, 'b', 500, 110, 10, prev)).toEqual({
       kind: 'tile',
       id: 'a',
-      edge: 's'
+      edge: 's',
     })
     // A different tile ignores the previous edge entirely.
     expect(hitTest(geo, two, 'a', 500, 300, 10, prev)).toEqual({
       kind: 'tile',
       id: 'b',
-      edge: 'n'
+      edge: 'n',
     })
   })
 })

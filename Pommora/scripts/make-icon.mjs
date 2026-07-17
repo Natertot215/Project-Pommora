@@ -47,7 +47,9 @@ const FILL = [data[fi], data[fi + 1], data[fi + 2]]
 const scaleFactor = (CANVAS + OVER * 2) / Math.max(bw, bh)
 const sW = Math.round(W * scaleFactor)
 const sH = Math.round(H * scaleFactor)
-execSync(`sips -z ${sH} ${sW} build/pommora-icon-src.png --out /tmp/_scaled.png`, { stdio: 'ignore' })
+execSync(`sips -z ${sH} ${sW} build/pommora-icon-src.png --out /tmp/_scaled.png`, {
+  stdio: 'ignore',
+})
 const scaled = PNG.sync.read(readFileSync('/tmp/_scaled.png'))
 
 // 4) Centre-crop to the canvas on the (scaled) squircle centre; dark fill behind.
@@ -74,4 +76,6 @@ for (let y = 0; y < CANVAS; y++) {
   }
 }
 writeFileSync('build/icon.png', PNG.sync.write(out))
-console.log(`squircle bbox=${bw}x${bh} fill=${FILL} scale=${scaleFactor.toFixed(3)} -> build/icon.png`)
+console.log(
+  `squircle bbox=${bw}x${bh} fill=${FILL} scale=${scaleFactor.toFixed(3)} -> build/icon.png`,
+)

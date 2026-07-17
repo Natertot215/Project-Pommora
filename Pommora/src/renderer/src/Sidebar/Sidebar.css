@@ -64,7 +64,7 @@
 /* The divider aligns with the top of the sidebar content (the 46px traffic-light line); its bottom
    inset is a tunable knob. A pseudo-element — a border can't be partial-height. */
 .sidebar-ribbon::after {
-  content: '';
+  content: "";
   position: absolute;
   top: 46px;
   bottom: var(--ribbon-divider-bottom);
@@ -218,7 +218,9 @@
   background: transparent;
   color: var(--label-secondary);
   cursor: pointer;
-  transition: opacity var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard),
+  transition:
+    opacity var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard),
     background var(--duration-fast) var(--ease-standard);
 }
 .sidebar-toggle:hover {
@@ -256,8 +258,11 @@
   opacity: 0;
   transform: translateX(-6px);
   pointer-events: none;
-  transition: opacity var(--duration-base) var(--ease-standard), transform var(--duration-base) var(--ease-standard),
-    color var(--duration-fast) var(--ease-standard), background var(--duration-fast) var(--ease-standard);
+  transition:
+    opacity var(--duration-base) var(--ease-standard),
+    transform var(--duration-base) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard),
+    background var(--duration-fast) var(--ease-standard);
 }
 .shell.sidebar-hidden .sidebar-expand {
   opacity: 1;
@@ -335,7 +340,9 @@
    cursor + an insertion line marks the drop (line + ghost live in sidebarDnd.tsx). No hover
    affordance — rows keep the default cursor until a drag starts, then show `grabbing`. --- */
 .tree-item.dragging {
-  opacity: var(--state-ghost); /* the shared row-drag ghost — same token as the table row + MarkdownPM line */
+  opacity: var(
+    --state-ghost
+  ); /* the shared row-drag ghost — same token as the table row + MarkdownPM line */
   cursor: grabbing; /* the wrapper IS the pointer-capture target, so its cursor wins for the whole drag */
 }
 .tree-item.dragging .row {

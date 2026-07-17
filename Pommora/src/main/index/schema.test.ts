@@ -9,9 +9,11 @@ afterEach(() => {
 })
 
 const tableNames = (d: Db): string[] =>
-  (d.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all() as { name: string }[]).map(
-    (r) => r.name
-  )
+  (
+    d.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all() as {
+      name: string
+    }[]
+  ).map((r) => r.name)
 
 describe('applySchema', () => {
   it('creates all 10 tables (Model A — no page_types)', () => {
@@ -29,7 +31,7 @@ describe('applySchema', () => {
       'page_collections',
       'page_sets',
       'pages',
-      'property_definitions'
+      'property_definitions',
     ])
   })
 

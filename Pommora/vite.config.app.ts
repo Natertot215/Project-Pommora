@@ -13,8 +13,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@shared': resolve('src/shared'),
-      '@renderer': resolve('src/renderer/src')
-    }
+      '@renderer': resolve('src/renderer/src'),
+    },
   },
-  build: { outDir: resolve('dist-app'), emptyOutDir: true }
+  build: { outDir: resolve('dist-app'), emptyOutDir: true },
 })

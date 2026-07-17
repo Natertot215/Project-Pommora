@@ -9,14 +9,18 @@
 // infrastructure — the index synthesizes tier *links* directly from the raw tierN arrays
 // (build.ts), independent of this effective-schema view.
 
-import { RESERVED_PROPERTY_ID, isReservedPropertyId, type PropertyDefinition } from '@shared/properties'
+import {
+  RESERVED_PROPERTY_ID,
+  isReservedPropertyId,
+  type PropertyDefinition,
+} from '@shared/properties'
 
 const FALLBACK_ICON = 'square.grid.2x2'
 
 const DESCRIPTORS: { id: string; level: number }[] = [
   { id: RESERVED_PROPERTY_ID.tier1, level: 1 },
   { id: RESERVED_PROPERTY_ID.tier2, level: 2 },
-  { id: RESERVED_PROPERTY_ID.tier3, level: 3 }
+  { id: RESERVED_PROPERTY_ID.tier3, level: 3 },
 ]
 
 /** The Type's user-defined properties followed by the three merged tier properties.
@@ -30,12 +34,12 @@ const DESCRIPTORS: { id: string; level: number }[] = [
  *  singleton lands); a missing label falls back to "Tier N". */
 export function mergeTierProperties(
   stored: PropertyDefinition[],
-  tierPlural?: (level: number) => string | undefined
+  tierPlural?: (level: number) => string | undefined,
 ): PropertyDefinition[] {
   // Keep user-defined props (+ a reserved `_modified_at` column override if present);
   // strip every existing tier / reserved entry so we re-emit canonical tier props.
   const userDefined = stored.filter(
-    (d) => !isReservedPropertyId(d.id) || d.id === RESERVED_PROPERTY_ID.modifiedAt
+    (d) => !isReservedPropertyId(d.id) || d.id === RESERVED_PROPERTY_ID.modifiedAt,
   )
 
   const tiers: PropertyDefinition[] = DESCRIPTORS.map((d) => {
@@ -45,7 +49,7 @@ export function mergeTierProperties(
       name: sidecar?.name ?? tierPlural?.(d.level) ?? `Tier ${d.level}`,
       type: 'context',
       icon: sidecar?.icon ?? FALLBACK_ICON,
-      context_target: { kind: 'context_tier', tier: d.level }
+      context_target: { kind: 'context_tier', tier: d.level },
     }
     if (sidecar?.reverse_name !== undefined) def.reverse_name = sidecar.reverse_name
     if (sidecar?.reverse_icon !== undefined) def.reverse_icon = sidecar.reverse_icon

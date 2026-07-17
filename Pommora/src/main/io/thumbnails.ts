@@ -26,7 +26,14 @@ function hexToRgb(hex: string): [number, number, number] {
  *  by copying the banner block just below it up over the chrome (chrome gone, banner reads continuous); with
  *  no banner that strip is empty, so it's filled with the window bg. Rebuilt at the same scaleFactor so the
  *  downscale that follows is unchanged. */
-function maskTopBand(img: NativeImage, maskTopDip: number, fill: 'banner' | 'window', sf: number, width: number, height: number): NativeImage {
+function maskTopBand(
+  img: NativeImage,
+  maskTopDip: number,
+  fill: 'banner' | 'window',
+  sf: number,
+  width: number,
+  height: number,
+): NativeImage {
   const rows = Math.min(Math.round(maskTopDip * sf), height)
   if (rows < 1) return img
   const bmp = img.toBitmap() // B, G, R, A
@@ -55,14 +62,21 @@ export function thumbRel(nexusId: string, key: string): string {
   return `.nexus/assets/${nexusId}/thumbnails/${key}.jpg`
 }
 
-const thumbsDir = (root: string, nexusId: string): string => join(root, '.nexus', 'assets', nexusId, 'thumbnails')
+const thumbsDir = (root: string, nexusId: string): string =>
+  join(root, '.nexus', 'assets', nexusId, 'thumbnails')
 
 /** Capture the content-only rect as a downscaled JPEG, overwrite its keyed file, return its asset URL —
  *  or null on a bad/blank capture (the card falls back to a placeholder). `capturePage(rect)` returns an
  *  empty image on HiDPI (the rect-crop bug), so we grab the whole page and crop in device pixels. `rect`
  *  is DIP; `scaleFactor` (the renderer's devicePixelRatio, which folds in both the display scale and any
  *  page zoom) maps it onto the captured image's pixels. */
-export async function captureThumbnail(win: BrowserWindow, root: string, navKey: string, rect: ThumbRect, scaleFactor: number): Promise<string | null> {
+export async function captureThumbnail(
+  win: BrowserWindow,
+  root: string,
+  navKey: string,
+  rect: ThumbRect,
+  scaleFactor: number,
+): Promise<string | null> {
   if (rect.width < 1 || rect.height < 1) return null
   const img = await win.webContents.capturePage()
   if (img.isEmpty()) return null
@@ -75,7 +89,14 @@ export async function captureThumbnail(win: BrowserWindow, root: string, navKey:
   if (width < 1 || height < 1) return null
   const cropped = img.crop({ x, y, width, height })
   if (cropped.isEmpty()) return null
-  const masked = maskTopBand(cropped, rect.maskTop ?? 0, rect.maskFill ?? 'window', sf, width, height)
+  const masked = maskTopBand(
+    cropped,
+    rect.maskTop ?? 0,
+    rect.maskFill ?? 'window',
+    sf,
+    width,
+    height,
+  )
   const buf = masked.resize({ width: THUMB_WIDTH, quality: 'good' }).toJPEG(78)
   const { id: nexusId } = await ensureIdentity(root)
   const key = thumbKey(navKey)
@@ -97,5 +118,9 @@ export async function evictThumbnails(root: string, liveKeys: string[]): Promise
     return
   }
   const live = new Set(liveKeys.map(thumbKey))
-  await Promise.all(names.filter((n) => n.endsWith('.jpg') && !live.has(n.slice(0, -4))).map((n) => rm(join(dir, n), { force: true })))
+  await Promise.all(
+    names
+      .filter((n) => n.endsWith('.jpg') && !live.has(n.slice(0, -4)))
+      .map((n) => rm(join(dir, n), { force: true })),
+  )
 }

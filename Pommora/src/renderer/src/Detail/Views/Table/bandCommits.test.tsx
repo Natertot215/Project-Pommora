@@ -10,7 +10,12 @@ import { createRoot, type Root } from 'react-dom/client'
 import type { PropertyDefinition } from '@shared/properties'
 import type { CollectionNode } from '@shared/types'
 import type { SavedView } from '@shared/views'
-import { firePointer, pressEscape, stubPointerCapture, stubRect } from '@renderer/testing/pointerHarness'
+import {
+  firePointer,
+  pressEscape,
+  stubPointerCapture,
+  stubRect,
+} from '@renderer/testing/pointerHarness'
 import { useSession } from '../../../store'
 import { TableView } from './TableView'
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -33,24 +38,29 @@ const statusDef: PropertyDefinition = {
       id: 'upcoming',
       label: 'Upcoming',
       color: 'gray',
-      options: [{ value: 'not_started', label: 'Not started', group_id: 'upcoming' }]
+      options: [{ value: 'not_started', label: 'Not started', group_id: 'upcoming' }],
     },
     {
       id: 'in_progress',
       label: 'In Progress',
       color: 'blue',
-      options: [{ value: 'active', label: 'Active', color: 'blue', group_id: 'in_progress' }]
+      options: [{ value: 'active', label: 'Active', color: 'blue', group_id: 'in_progress' }],
     },
     {
       id: 'done',
       label: 'Done',
       color: 'green',
-      options: [{ value: 'complete', label: 'Complete', color: 'green', group_id: 'done' }]
-    }
-  ]
+      options: [{ value: 'complete', label: 'Complete', color: 'green', group_id: 'done' }],
+    },
+  ],
 }
 
-const page = (id: string, title: string, path: string): Record<string, unknown> => ({ kind: 'page', id, title, path })
+const page = (id: string, title: string, path: string): Record<string, unknown> => ({
+  kind: 'page',
+  id,
+  title,
+  path,
+})
 
 /** A[A1], B + a loose root page. */
 const structuralSource = (view?: Partial<SavedView>): CollectionNode =>
@@ -66,9 +76,9 @@ const structuralSource = (view?: Partial<SavedView>): CollectionNode =>
         title: 'A',
         path: 'Col/A',
         pages: [page('pA', 'In A', 'Col/A/In A.md')],
-        sets: [{ kind: 'set', id: 'sA1', title: 'A1', path: 'Col/A/A1', pages: [], sets: [] }]
+        sets: [{ kind: 'set', id: 'sA1', title: 'A1', path: 'Col/A/A1', pages: [], sets: [] }],
       },
-      { kind: 'set', id: 'sB', title: 'B', path: 'Col/B', pages: [], sets: [] }
+      { kind: 'set', id: 'sB', title: 'B', path: 'Col/B', pages: [], sets: [] },
     ],
     pages: [page('pLoose', 'Loose', 'Col/Loose.md')],
     properties: [statusDef],
@@ -80,9 +90,9 @@ const structuralSource = (view?: Partial<SavedView>): CollectionNode =>
         property_order: ['_title', 'prop_status'],
         hidden_properties: [],
         group: { kind: 'structural' },
-        ...view
-      }
-    ]
+        ...view,
+      },
+    ],
   }) as unknown as CollectionNode
 
 const propertySource = (): CollectionNode =>
@@ -106,15 +116,15 @@ const propertySource = (): CollectionNode =>
           property_id: 'prop_status',
           order_mode: 'configured',
           empty_placement: 'bottom',
-          hide_empty_groups: false
-        }
-      }
-    ]
+          hide_empty_groups: false,
+        },
+      },
+    ],
   }) as unknown as CollectionNode
 
 const VALUES = {
   p1: { id: 'p1', properties: { prop_status: { $status: 'active' } } },
-  p2: { id: 'p2', properties: { prop_status: { $status: 'complete' } } }
+  p2: { id: 'p2', properties: { prop_status: { $status: 'complete' } } },
 }
 
 let host: HTMLDivElement
@@ -139,9 +149,12 @@ beforeEach(() => {
     views: { save: saveSpy },
     cellMenu: vi.fn(async () => null),
     columnMenu: vi.fn(async () => null),
-    contextMenu: contextMenuSpy
+    contextMenu: contextMenuSpy,
   }
-  const pair = (singular: string, plural: string): { singular: string; plural: string } => ({ singular, plural })
+  const pair = (singular: string, plural: string): { singular: string; plural: string } => ({
+    singular,
+    plural,
+  })
   useSession.setState({
     tree: {
       contexts: { areas: [], topics: [], projects: [] },
@@ -154,13 +167,13 @@ beforeEach(() => {
         pageCollection: pair('Collection', 'Collections'),
         pageSet: pair('Set', 'Sets'),
         agendaTask: pair('Task', 'Tasks'),
-        agendaEvent: pair('Event', 'Events')
-      }
+        agendaEvent: pair('Event', 'Events'),
+      },
     } as never,
     selection: { kind: 'none' } as never,
     select: selectSpy as never,
     renamingPath: null,
-    mutate: mutateSpy as never
+    mutate: mutateSpy as never,
   })
 })
 afterEach(() => {
@@ -184,7 +197,8 @@ function stubBandRects(): void {
   for (const [i, el] of [...headers].entries()) stubRect(el, { top: i * 24, bottom: i * 24 + 24 })
 }
 
-const headerTexts = (): string[] => [...host.querySelectorAll('.group-header')].map((el) => el.textContent ?? '')
+const headerTexts = (): string[] =>
+  [...host.querySelectorAll('.group-header')].map((el) => el.textContent ?? '')
 
 const dragBand = async (index: number, toY: number): Promise<void> => {
   const glyphs = host.querySelectorAll('.band-glyph')
@@ -272,7 +286,7 @@ describe('property band reorder', () => {
       order_mode: 'manual',
       order: ['not_started', 'complete', 'active'],
       empty_placement: 'bottom',
-      hide_empty_groups: false
+      hide_empty_groups: false,
     })
     expect(lastSavedView().group_order).toBeUndefined()
     expect(mutateSpy).not.toHaveBeenCalled()
@@ -282,14 +296,16 @@ describe('property band reorder', () => {
 
 describe('location order mode (structural_order_mode: location)', () => {
   it('same-parent band reorder writes reorderChildren — group_order untouched', async () => {
-    await mountTable(structuralSource({ collapsed_groups: ['sA'], structural_order_mode: 'location' })) // bands: A (collapsed), B
+    await mountTable(
+      structuralSource({ collapsed_groups: ['sA'], structural_order_mode: 'location' }),
+    ) // bands: A (collapsed), B
     await dragBand(1, 2) // B above A
     await drop()
     expect(mutateSpy).toHaveBeenCalledExactlyOnceWith({
       op: 'reorderChildren',
       parentPath: 'Col',
       key: 'set_order',
-      order: ['sB', 'sA']
+      order: ['sB', 'sA'],
     })
     expect(saveSpy).not.toHaveBeenCalled()
   })
@@ -302,7 +318,7 @@ describe('location order mode (structural_order_mode: location)', () => {
       op: 'moveSet',
       path: 'Col/B',
       newParentPath: 'Col/A',
-      order: ['sA1', 'sB']
+      order: ['sA1', 'sB'],
     })
     expect(saveSpy).toHaveBeenCalledOnce()
     expect(lastSavedView().group_order).toEqual(['sA', 'sA1', 'sB'])
@@ -323,9 +339,16 @@ const subGroupSource = (view?: Partial<SavedView>): CollectionNode =>
         title: 'A',
         path: 'Col/A',
         pages: [page('pA1', 'A One', 'Col/A/A One.md'), page('pA2', 'A Two', 'Col/A/A Two.md')],
-        sets: []
+        sets: [],
       },
-      { kind: 'set', id: 'sB', title: 'B', path: 'Col/B', pages: [page('pB', 'B One', 'Col/B/B One.md')], sets: [] }
+      {
+        kind: 'set',
+        id: 'sB',
+        title: 'B',
+        path: 'Col/B',
+        pages: [page('pB', 'B One', 'Col/B/B One.md')],
+        sets: [],
+      },
     ],
     pages: [],
     properties: [statusDef],
@@ -338,20 +361,21 @@ const subGroupSource = (view?: Partial<SavedView>): CollectionNode =>
         hidden_properties: [],
         group: { kind: 'structural' },
         sub_group: { property_id: 'prop_status', order_mode: 'manual' },
-        ...view
-      }
-    ]
+        ...view,
+      },
+    ],
   }) as unknown as CollectionNode
 
 const SUB_VALUES = {
   pA1: { id: 'pA1', properties: { prop_status: { $status: 'active' } } },
   pA2: { id: 'pA2', properties: { prop_status: { $status: 'complete' } } },
-  pB: { id: 'pB', properties: { prop_status: { $status: 'active' } } }
+  pB: { id: 'pB', properties: { prop_status: { $status: 'active' } } },
 }
 
 describe('sub-group bucket band drag', () => {
   beforeEach(() => {
-    ;(window as unknown as { nexus: { loadValues: () => Promise<unknown> } }).nexus.loadValues = async () => SUB_VALUES
+    ;(window as unknown as { nexus: { loadValues: () => Promise<unknown> } }).nexus.loadValues =
+      async () => SUB_VALUES
   })
 
   // bands: A(0), A/active(1), A/complete(2), B(3), B/active(4)
@@ -360,7 +384,11 @@ describe('sub-group bucket band drag', () => {
     await dragBand(2, 26) // A/complete above A/active (top zone of band 1)
     await drop()
     expect(saveSpy).toHaveBeenCalledOnce()
-    expect(lastSavedView().sub_group).toEqual({ property_id: 'prop_status', order_mode: 'manual', order: ['complete', 'active'] })
+    expect(lastSavedView().sub_group).toEqual({
+      property_id: 'prop_status',
+      order_mode: 'manual',
+      order: ['complete', 'active'],
+    })
     expect(mutateSpy).not.toHaveBeenCalled()
   })
 
@@ -369,12 +397,18 @@ describe('sub-group bucket band drag', () => {
     await dragBand(2, 98) // A/complete before B/active (top zone of band 4)
     await drop()
     expect(saveSpy).toHaveBeenCalledOnce()
-    expect(lastSavedView().sub_group).toEqual({ property_id: 'prop_status', order_mode: 'manual', order: ['complete', 'active'] })
+    expect(lastSavedView().sub_group).toEqual({
+      property_id: 'prop_status',
+      order_mode: 'manual',
+      order: ['complete', 'active'],
+    })
     expect(mutateSpy).not.toHaveBeenCalled()
   })
 
   it('outside manual mode the bucket drag is inert', async () => {
-    await mountTable(subGroupSource({ sub_group: { property_id: 'prop_status', order_mode: 'configured' } }))
+    await mountTable(
+      subGroupSource({ sub_group: { property_id: 'prop_status', order_mode: 'configured' } }),
+    )
     await dragBand(2, 26)
     await drop()
     expect(saveSpy).not.toHaveBeenCalled()
@@ -384,7 +418,8 @@ describe('sub-group bucket band drag', () => {
 
 describe('sub-group row drop (F-2 — the set × bucket matrix)', () => {
   beforeEach(() => {
-    ;(window as unknown as { nexus: { loadValues: () => Promise<unknown> } }).nexus.loadValues = async () => SUB_VALUES
+    ;(window as unknown as { nexus: { loadValues: () => Promise<unknown> } }).nexus.loadValues =
+      async () => SUB_VALUES
   })
 
   /** Rects: table-dnd box + each data-row stacked at 24px from y=100 (pA1, pA2, pB in DOM order). */
@@ -392,7 +427,8 @@ describe('sub-group row drop (F-2 — the set × bucket matrix)', () => {
     const box = host.querySelector('.table-dnd')
     if (box) stubRect(box, { top: 0, bottom: 400 })
     const rows = host.querySelectorAll('.data-row')
-    for (const [i, el] of [...rows].entries()) stubRect(el, { top: 100 + i * 24, bottom: 100 + i * 24 + 24 })
+    for (const [i, el] of [...rows].entries())
+      stubRect(el, { top: 100 + i * 24, bottom: 100 + i * 24 + 24 })
   }
   const dragRow = async (index: number, toY: number): Promise<void> => {
     const grips = host.querySelectorAll('.row-grip')
@@ -413,9 +449,13 @@ describe('sub-group row drop (F-2 — the set × bucket matrix)', () => {
       op: 'setProperty',
       path: 'Col/A/A Two.md',
       propertyId: 'prop_status',
-      value: { kind: 'status', value: 'active' }
+      value: { kind: 'status', value: 'active' },
     })
-    expect(mutateSpy).toHaveBeenNthCalledWith(2, { op: 'movePage', path: 'Col/A/A Two.md', newParentPath: 'Col/B' })
+    expect(mutateSpy).toHaveBeenNthCalledWith(2, {
+      op: 'movePage',
+      path: 'Col/A/A Two.md',
+      newParentPath: 'Col/B',
+    })
   })
 
   it('same set, different bucket → setProperty alone', async () => {
@@ -426,7 +466,7 @@ describe('sub-group row drop (F-2 — the set × bucket matrix)', () => {
       op: 'setProperty',
       path: 'Col/A/A Two.md',
       propertyId: 'prop_status',
-      value: { kind: 'status', value: 'active' }
+      value: { kind: 'status', value: 'active' },
     })
   })
 
@@ -434,7 +474,11 @@ describe('sub-group row drop (F-2 — the set × bucket matrix)', () => {
     await mountTable(subGroupSource())
     stubRowRects()
     await dragRow(2, 105) // pB (sB/active) into pA1's region (sA/active)
-    expect(mutateSpy).toHaveBeenCalledExactlyOnceWith({ op: 'movePage', path: 'Col/B/B One.md', newParentPath: 'Col/A' })
+    expect(mutateSpy).toHaveBeenCalledExactlyOnceWith({
+      op: 'movePage',
+      path: 'Col/B/B One.md',
+      newParentPath: 'Col/A',
+    })
   })
 })
 
@@ -447,7 +491,7 @@ describe('band reparent', () => {
       op: 'moveSet',
       path: 'Col/B',
       newParentPath: 'Col/A',
-      order: ['sA1', 'sB'] // current children + APPEND — never the visual slot (C-4)
+      order: ['sA1', 'sB'], // current children + APPEND — never the visual slot (C-4)
     })
     expect(saveSpy).toHaveBeenCalledOnce()
     expect(lastSavedView().group_order).toEqual(['sA', 'sA1', 'sB'])
@@ -465,7 +509,12 @@ describe('band reparent', () => {
 
   it('a persist landing during the reparent round-trip is not clobbered by the deferred commit (F3)', async () => {
     let resolveMove: (v: boolean) => void = () => {}
-    mutateSpy.mockImplementation(() => new Promise((r) => { resolveMove = r }))
+    mutateSpy.mockImplementation(
+      () =>
+        new Promise((r) => {
+          resolveMove = r
+        }),
+    )
     await mountTable(structuralSource())
     await dragBand(2, 12) // nest B into A — the commit defers behind the fs round-trip
     await drop()
@@ -491,7 +540,7 @@ describe('band reparent', () => {
       op: 'moveSet',
       path: 'Col/A/A1',
       newParentPath: 'Col',
-      order: ['sA', 'sB', 'sA1']
+      order: ['sA', 'sB', 'sA1'],
     })
     expect(lastSavedView().group_order).toEqual(['sA', 'sA1', 'sB'])
   })
@@ -499,18 +548,22 @@ describe('band reparent', () => {
 
 describe('band header — the sidebar interaction model', () => {
   const glyphOf = (label: string): HTMLElement => {
-    const header = [...host.querySelectorAll('.group-header')].find((h) => h.textContent?.includes(label))
+    const header = [...host.querySelectorAll('.group-header')].find((h) =>
+      h.textContent?.includes(label),
+    )
     return header?.querySelector('.band-glyph') as HTMLElement
   }
   const headerOf = (label: string): HTMLElement =>
-    [...host.querySelectorAll('.group-header')].find((h) => h.textContent?.includes(label)) as HTMLElement
+    [...host.querySelectorAll('.group-header')].find((h) =>
+      h.textContent?.includes(label),
+    ) as HTMLElement
 
   it('a single glyph click toggles the disclosure (persisted)', async () => {
     await mountTable(structuralSource())
     await act(async () => {
       glyphOf('A').dispatchEvent(new MouseEvent('click', { bubbles: true }))
     })
-    expect((lastSavedView().collapsed_groups ?? [])).toContain('sA')
+    expect(lastSavedView().collapsed_groups ?? []).toContain('sA')
   })
 
   it('double-clicking an openable Set band selects it; a sub-Set band does not', async () => {
@@ -542,11 +595,19 @@ describe('band header — the sidebar interaction model', () => {
     const input = host.querySelector('.band-title-input') as HTMLInputElement
     expect(input).toBeTruthy()
     await act(async () => {
-      Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set?.call(input, 'Alpha')
+      Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set?.call(
+        input,
+        'Alpha',
+      )
       input.dispatchEvent(new Event('input', { bubbles: true }))
       input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
       input.blur()
     })
-    expect(mutateSpy).toHaveBeenCalledWith({ op: 'rename', path: 'Col/A', kind: 'set', newName: 'Alpha' })
+    expect(mutateSpy).toHaveBeenCalledWith({
+      op: 'rename',
+      path: 'Col/A',
+      kind: 'set',
+      newName: 'Alpha',
+    })
   })
 })

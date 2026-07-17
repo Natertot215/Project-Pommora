@@ -22,7 +22,7 @@ const agendaBase = z.looseObject({
   recurrence: z.looseObject({}).optional(),
   alarm_offsets: z.array(z.number()).optional(), // seconds; negative = before
   calendar_id: z.string().optional(),
-  eventkit_uuid: z.string().optional()
+  eventkit_uuid: z.string().optional(),
 })
 
 /** AgendaTask — has an optional due date, completion, priority, and a "not before" start. */
@@ -33,7 +33,7 @@ export const agendaTask = agendaBase.extend({
   start_at: z.string().optional(),
   completed: z.boolean().optional(),
   completed_at: z.string().optional(),
-  priority: z.number().optional()
+  priority: z.number().optional(),
 })
 export type AgendaTask = z.infer<typeof agendaTask>
 
@@ -43,7 +43,7 @@ export const agendaEvent = agendaBase.extend({
   end_at: z.string().optional(),
   all_day: z.boolean().optional(),
   location: z.string().optional(),
-  alarm_absolute: z.array(z.string()).optional()
+  alarm_absolute: z.array(z.string()).optional(),
 })
 export type AgendaEvent = z.infer<typeof agendaEvent>
 
@@ -52,7 +52,7 @@ export type AgendaKind = 'task' | 'event'
 /** The on-disk filename suffix per kind (the item's kind authority + title boundary). */
 export const AGENDA_SUFFIX: Record<AgendaKind, string> = {
   task: '.task.json',
-  event: '.event.json'
+  event: '.event.json',
 }
 
 /** The agenda kind of a file by its suffix, or null if it isn't an agenda item. */

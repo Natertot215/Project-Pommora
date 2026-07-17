@@ -10,17 +10,20 @@ const primitive = createGlobalTheme(':root', {
     system: {
       grey: '#71717A',
       white: '#E1E1E1',
-      black: '#010101'
-    }
-  }
+      black: '#010101',
+    },
+  },
 })
 
 // base @ alpha — apply an opacity to a primitive. color-mix(… X%, transparent) is
 // the project's established opacity mechanism (see tint.ts / theme-vars.css.ts),
 // so a derived token references the primitive var rather than baking its hex.
-const greyA = (pct: string): string => `color-mix(in srgb, ${primitive.color.system.grey} ${pct}, transparent)`
-const whiteA = (pct: string): string => `color-mix(in srgb, ${primitive.color.system.white} ${pct}, transparent)`
-const blackA = (pct: string): string => `color-mix(in srgb, ${primitive.color.system.black} ${pct}, transparent)`
+const greyA = (pct: string): string =>
+  `color-mix(in srgb, ${primitive.color.system.grey} ${pct}, transparent)`
+const whiteA = (pct: string): string =>
+  `color-mix(in srgb, ${primitive.color.system.white} ${pct}, transparent)`
+const blackA = (pct: string): string =>
+  `color-mix(in srgb, ${primitive.color.system.black} ${pct}, transparent)`
 
 // Derived tokens mirrored from the Figma color collection.
 const derived = createGlobalTheme(':root', {
@@ -36,7 +39,7 @@ const derived = createGlobalTheme(':root', {
       purple: '#BF5AF2',
       lavender: '#A78BCC',
       grey: '#8E8E93',
-      greyDefault: '#48484A'
+      greyDefault: '#48484A',
     },
     // Label tones — system-white at full / 65% / 35% (separate from the type ramp). `control` is the
     // on-control label (white 80%) worn by control chrome — toolbar / subfield / editor / switches / the
@@ -45,18 +48,18 @@ const derived = createGlobalTheme(':root', {
       primary: primitive.color.system.white,
       control: whiteA('80%'),
       secondary: whiteA('65%'),
-      tertiary: whiteA('35%')
+      tertiary: whiteA('35%'),
     },
     // The app substrate — the base background (Figma "Background"). Single source:
     // @shared/theme WINDOW_BG, so the Electron window + this token never drift.
     background: {
-      window: WINDOW_BG
+      window: WINDOW_BG,
     },
     // Content surfaces layered on the window (Figma "Surface").
     surface: {
       primary: '#202022',
       secondary: '#2A2A2E',
-      tertiary: '#3A3A3E'
+      tertiary: '#3A3A3E',
     },
     // Overlay fills over a surface — system-grey ramp at 20 / 15 / 10 / 6 / 4%.
     fill: {
@@ -64,22 +67,22 @@ const derived = createGlobalTheme(':root', {
       secondary: greyA('15%'),
       tertiary: greyA('10%'),
       quaternary: greyA('6%'),
-      quinary: greyA('4%')
+      quinary: greyA('4%'),
     },
     // Interaction states (Figma "States") — system-grey at hover 2.5% / selected 5%. `muted` is a
     // system-black 10% de-emphasis veil for dimming a surface a step darker.
     state: {
       hover: greyA('2.5%'),
       selected: greyA('5%'),
-      muted: blackA('10%')
+      muted: blackA('10%'),
     },
     // Hairlines (Figma "Separator") — system-grey at line/border 25% / segment 20%.
     separator: {
       line: greyA('25%'),
       border: greyA('25%'),
-      segment: greyA('20%')
-    }
-  }
+      segment: greyA('20%'),
+    },
+  },
 })
 
 // Semantic alias — the Interaction Field surface (text inputs / editable fields), exposed under the
@@ -87,8 +90,8 @@ const derived = createGlobalTheme(':root', {
 // fill var, so retuning the input surface is a single edit here. Consume via `inputFieldVar`.
 globalStyle(':root', {
   vars: {
-    '--input-field': derived.color.fill.quaternary
-  }
+    '--input-field': derived.color.fill.quaternary,
+  },
 })
 export const inputFieldVar = 'var(--input-field)'
 
@@ -96,8 +99,8 @@ export const inputFieldVar = 'var(--input-field)'
 // pickers). Not a colour, but this is the design-system's named-token home. Consume via `shadowStandardVar`.
 globalStyle(':root', {
   vars: {
-    '--shadow-standard': '0 8px 25px #00000040'
-  }
+    '--shadow-standard': '0 8px 25px #00000040',
+  },
 })
 export const shadowStandardVar = 'var(--shadow-standard)'
 
@@ -105,6 +108,6 @@ export const shadowStandardVar = 'var(--shadow-standard)'
 export const vars = {
   color: {
     ...derived.color,
-    system: primitive.color.system
-  }
+    system: primitive.color.system,
+  },
 }

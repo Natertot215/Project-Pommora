@@ -9,17 +9,30 @@ export type ViewButtonMenuAction = 'toggle-title' | 'style-dropdown' | 'style-to
 
 export function popViewButtonMenu(
   win: BrowserWindow,
-  current: { viewButton: ViewButton; viewStyle: ViewStyle }
+  current: { viewButton: ViewButton; viewStyle: ViewStyle },
 ): Promise<ViewButtonMenuAction | null> {
   return popReturningMenu<ViewButtonMenuAction>(win, (pick) => [
-    { label: current.viewButton === 'labeled' ? 'Hide Title' : 'Show Title', click: pick('toggle-title') },
+    {
+      label: current.viewButton === 'labeled' ? 'Hide Title' : 'Show Title',
+      click: pick('toggle-title'),
+    },
     { type: 'separator' },
     {
       label: 'Style',
       submenu: [
-        { label: 'Dropdown', type: 'checkbox', checked: current.viewStyle === 'dropdown', click: pick('style-dropdown') },
-        { label: 'Toolbar', type: 'checkbox', checked: current.viewStyle === 'toolbar', click: pick('style-toolbar') }
-      ]
-    }
+        {
+          label: 'Dropdown',
+          type: 'checkbox',
+          checked: current.viewStyle === 'dropdown',
+          click: pick('style-dropdown'),
+        },
+        {
+          label: 'Toolbar',
+          type: 'checkbox',
+          checked: current.viewStyle === 'toolbar',
+          click: pick('style-toolbar'),
+        },
+      ],
+    },
   ])
 }

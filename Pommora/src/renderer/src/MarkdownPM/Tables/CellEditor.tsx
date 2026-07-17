@@ -22,7 +22,11 @@ const silentEdit = Annotation.define<boolean>()
 // equivalent, kept cell-local since the cell doesn't scrollIntoView and varies the userEvent).
 function applyEdit(view: EditorView, e: Edit | null, userEvent: string): boolean {
   if (!e) return false
-  view.dispatch({ changes: { from: e.from, to: e.to, insert: e.insert }, selection: { anchor: e.selection }, userEvent })
+  view.dispatch({
+    changes: { from: e.from, to: e.to, insert: e.insert },
+    selection: { anchor: e.selection },
+    userEvent,
+  })
   return true
 }
 
@@ -33,7 +37,7 @@ export function CellEditor({
   onUndo,
   onRedo,
   caretCoords,
-  connections
+  connections,
 }: {
   initial: string
   onCommit: (text: string) => void
@@ -58,7 +62,7 @@ export function CellEditor({
 
   const { ac, setAc, candidates, acIndex, acTop, commit, acCtl } = useConnectionAutocomplete(
     viewRef,
-    (query) => connections?.()?.candidates(query, AC_MAX) ?? []
+    (query) => connections?.()?.candidates(query, AC_MAX) ?? [],
   )
 
   useEffect(() => {
@@ -76,32 +80,58 @@ export function CellEditor({
           Prec.highest(
             keymap.of([
               // Tab accepts an open connection candidate (like Enter); otherwise it moves to the next cell.
-              { key: 'Tab', run: () => (acCtl.current.open ? acCtl.current.pick() : onNavigateRef.current('next'), true) },
+              {
+                key: 'Tab',
+                run: () => (
+                  acCtl.current.open ? acCtl.current.pick() : onNavigateRef.current('next'), true
+                ),
+              },
               { key: 'Shift-Tab', run: () => (onNavigateRef.current('prev'), true) },
               // With the connection panel open these keys drive it; otherwise they navigate cells.
-              { key: 'Enter', run: () => (acCtl.current.open ? acCtl.current.pick() : onNavigateRef.current('down'), true) },
-              { key: 'ArrowDown', run: () => (acCtl.current.open ? (acCtl.current.move(1), true) : false) },
-              { key: 'ArrowUp', run: () => (acCtl.current.open ? (acCtl.current.move(-1), true) : false) },
-              { key: 'Escape', run: () => (acCtl.current.open ? (acCtl.current.close(), true) : false) },
+              {
+                key: 'Enter',
+                run: () => (
+                  acCtl.current.open ? acCtl.current.pick() : onNavigateRef.current('down'), true
+                ),
+              },
+              {
+                key: 'ArrowDown',
+                run: () => (acCtl.current.open ? (acCtl.current.move(1), true) : false),
+              },
+              {
+                key: 'ArrowUp',
+                run: () => (acCtl.current.open ? (acCtl.current.move(-1), true) : false),
+              },
+              {
+                key: 'Escape',
+                run: () => (acCtl.current.open ? (acCtl.current.close(), true) : false),
+              },
               // Shift+Enter is the in-cell line break — a real newline (the cell grows taller; the row does
               // NOT split, because cellToSource serializes the newline as <br> on disk).
-              { key: 'Shift-Enter', run: (view) => (view.dispatch(view.state.replaceSelection('\n')), true) },
+              {
+                key: 'Shift-Enter',
+                run: (view) => (view.dispatch(view.state.replaceSelection('\n')), true),
+              },
               // Backspace inside an empty auto-pair deletes both halves (the cell otherwise falls to the default
               // single-char delete, which would leave the stray closer); same autoDelete the page editor uses.
               {
                 key: 'Backspace',
                 run: (view) => {
                   const s = view.state.selection.main
-                  return applyEdit(view, autoDelete(view.state.doc.toString(), s.from, s.to), 'delete')
-                }
+                  return applyEdit(
+                    view,
+                    autoDelete(view.state.doc.toString(), s.from, s.to),
+                    'delete',
+                  )
+                },
               },
               // Undo/redo scope to the whole page (the main editor's history) like everywhere else — not a
               // per-cell stack. The main editor can't catch these itself (the widget's ignoreEvent), so the
               // cell forwards them.
               { key: 'Mod-z', run: () => (onUndoRef.current(), true) },
               { key: 'Mod-Shift-z', run: () => (onRedoRef.current(), true) },
-              { key: 'Mod-y', run: () => (onRedoRef.current(), true) }
-            ])
+              { key: 'Mod-y', run: () => (onRedoRef.current(), true) },
+            ]),
           ),
           keymap.of(defaultKeymap),
           // Character-pair auto-pairing only (not the main editor's list/blockquote input) so the `[[…]]`
@@ -115,15 +145,15 @@ export function CellEditor({
             blur: () => {
               setAc(null)
               return false
-            }
+            },
           }),
           EditorView.updateListener.of((u) => {
             if (u.docChanged && !u.transactions.some((t) => t.annotation(silentEdit)))
               onCommitRef.current(u.state.doc.toString())
             if (u.docChanged || u.selectionSet) detectConnectionQuery(u.view, setAc)
-          })
-        ]
-      })
+          }),
+        ],
+      }),
     })
     viewRef.current = view
     // Focus + land the caret: at the click point (posAtCoords) if one was captured, else at the end.
@@ -152,7 +182,7 @@ export function CellEditor({
     if (!view || view.state.doc.toString() === initial) return
     view.dispatch({
       changes: { from: 0, to: view.state.doc.length, insert: initial },
-      annotations: silentEdit.of(true)
+      annotations: silentEdit.of(true),
     })
   }, [initial])
 
@@ -169,7 +199,7 @@ export function CellEditor({
           query={ac?.query ?? ''}
           onPick={commit}
         />,
-        document.body
+        document.body,
       )}
     </>
   )

@@ -6,14 +6,18 @@ import { resolveTitle } from './resolve'
 import type { ConnectionEdge, LinkIndex } from '@shared/connections'
 
 /** The resolved page→page edges originating from `sourceId`'s body. */
-export function connectionEdges(sourceId: string, body: string, index: LinkIndex): ConnectionEdge[] {
+export function connectionEdges(
+  sourceId: string,
+  body: string,
+  index: LinkIndex,
+): ConnectionEdge[] {
   return scanConnections(body).map((c) => {
     const { status, targetId } = resolveTitle(c.normalizedTitle, index)
     const edge: ConnectionEdge = {
       sourceId,
       normalizedTitle: c.normalizedTitle,
       status,
-      multiplicity: c.multiplicity
+      multiplicity: c.multiplicity,
     }
     if (targetId !== undefined) edge.targetId = targetId
     return edge

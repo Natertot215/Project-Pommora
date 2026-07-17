@@ -3,8 +3,20 @@ import type { CollectionNode, SetNode } from '@shared/types'
 import type { PropertyDefinition } from '@shared/properties'
 import { DEFAULT_VIEW_ID, type SavedView, type ViewFormat, type ViewType } from '@shared/views'
 import { Icon, type IconName } from '@renderer/design-system/symbols'
-import { MenuItem, MenuSeparator, MenuPaneTopRow, MenuScrollFrame, AccessoryButton } from '../../design-system/components/menu'
-import { detail, flushTrailing, footingLabel, footingSymbol, side } from '../../design-system/components/menu/menu.css'
+import {
+  MenuItem,
+  MenuSeparator,
+  MenuPaneTopRow,
+  MenuScrollFrame,
+  AccessoryButton,
+} from '../../design-system/components/menu'
+import {
+  detail,
+  flushTrailing,
+  footingLabel,
+  footingSymbol,
+  side,
+} from '../../design-system/components/menu/menu.css'
 import { PickerMenu } from '../../design-system/components/PickerMenu'
 import { useSession } from '../../store'
 import { useSaveView } from '@renderer/Embeds/ViewEmbedScope'
@@ -26,7 +38,7 @@ const TYPE_GLYPH: Record<ViewType, IconName> = {
   list: 'list-rounded',
   gallery: 'layout-dashboard',
   calendar: 'calendar-days',
-  timeline: 'chart-gantt'
+  timeline: 'chart-gantt',
 }
 const IMPLEMENTED: ReadonlySet<ViewType> = new Set(['table'])
 const isMac = navigator.platform.toLowerCase().includes('mac')
@@ -48,9 +60,13 @@ const LEAF_ROWS: { id: Leaf; label: string; icon: IconName }[] = [
   { id: 'layout', label: 'Layout', icon: 'layout-dashboard' },
   { id: 'group', label: 'Group', icon: 'layers' },
   { id: 'filter', label: 'Filter', icon: 'list-filter' },
-  { id: 'sort', label: 'Sort', icon: 'arrow-up-down' }
+  { id: 'sort', label: 'Sort', icon: 'arrow-up-down' },
 ]
-const LEAF_CURRENT: Record<Exclude<Leaf, 'layout'>, string> = { group: 'Grouping', filter: 'Filtering', sort: 'Sorting' }
+const LEAF_CURRENT: Record<Exclude<Leaf, 'layout'>, string> = {
+  group: 'Grouping',
+  filter: 'Filtering',
+  sort: 'Sorting',
+}
 
 /**
  * ViewSettings — the shared per-view editor, both doors (D-1). The full door (a ViewPane row's
@@ -65,7 +81,7 @@ export function ViewSettings({
   schema,
   door,
   onBack,
-  onClose
+  onClose,
 }: {
   source: CollectionNode | SetNode
   view: SavedView
@@ -95,7 +111,10 @@ export function ViewSettings({
   const openItemMenu = async (): Promise<void> => {
     const action = await window.nexus.viewItemMenu(canDelete)
     if (action === 'view:duplicate') {
-      const res = await window.nexus.views.save(source.path, source.kind, { ...view, id: DEFAULT_VIEW_ID })
+      const res = await window.nexus.views.save(source.path, source.kind, {
+        ...view,
+        id: DEFAULT_VIEW_ID,
+      })
       if (res.ok) {
         const ids = views.map((v) => v.id).filter((id) => id !== res.id)
         const at = ids.indexOf(view.id)
@@ -134,9 +153,21 @@ export function ViewSettings({
         footer={<LayoutToggles source={source} view={view} />}
       />
     ) : leaf === 'group' ? (
-      <GroupingPane source={source} view={view} schema={schema} label="Views" onBack={() => setLeaf(null)} />
+      <GroupingPane
+        source={source}
+        view={view}
+        schema={schema}
+        label="Views"
+        onBack={() => setLeaf(null)}
+      />
     ) : leaf === 'sort' ? (
-      <SortingPane source={source} view={view} schema={schema} label="Views" onBack={() => setLeaf(null)} />
+      <SortingPane
+        source={source}
+        view={view}
+        schema={schema}
+        label="Views"
+        onBack={() => setLeaf(null)}
+      />
     ) : leaf ? (
       <MenuPaneTopRow label="Views" current={LEAF_CURRENT[leaf]} onBack={() => setLeaf(null)} />
     ) : null
@@ -185,7 +216,11 @@ export function ViewSettings({
           <span className={footingLabel}>Format</span>
         </MenuItem>
         {formatOpen && (
-          <PickerMenu open={formatOpen} onDismiss={() => setFormatOpen(false)} triggerRef={formatRef}>
+          <PickerMenu
+            open={formatOpen}
+            onDismiss={() => setFormatOpen(false)}
+            triggerRef={formatRef}
+          >
             {(['standard', 'compact'] as ViewFormat[]).map((f) => (
               <button
                 key={f}
@@ -209,7 +244,13 @@ export function ViewSettings({
         label="Views"
         onBack={onBack}
         trailing={
-          <AccessoryButton icon="ellipsis-vertical" size={14} box={20} ariaLabel="View menu" onClick={() => void openItemMenu()} />
+          <AccessoryButton
+            icon="ellipsis-vertical"
+            size={14}
+            box={20}
+            ariaLabel="View menu"
+            onClick={() => void openItemMenu()}
+          />
         }
       />
     ) : (
@@ -250,6 +291,12 @@ export function ViewSettings({
   // leaf (Layout/Group/Filter/Sort) slides in over the editor instead of hard-swapping. Flat door never
   // opens a leaf, so this stays parked on the main frame.
   return (
-    <PaneSlider open={leaf !== null} root={mainFrame} detail={leafPane} minWidth={LEAF_MIN_WIDTH} minHeight={LEAF_MIN_HEIGHT} />
+    <PaneSlider
+      open={leaf !== null}
+      root={mainFrame}
+      detail={leafPane}
+      minWidth={LEAF_MIN_WIDTH}
+      minHeight={LEAF_MIN_HEIGHT}
+    />
   )
 }

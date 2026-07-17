@@ -8,7 +8,10 @@ import { Icon } from '@renderer/design-system/symbols'
  * agenda entity, so clicking doesn't open anything (a detail surface is future work).
  */
 export function AgendaMode(): React.JSX.Element {
-  const [data, setData] = useState<{ tasks: AgendaEntry[]; events: AgendaEntry[] }>({ tasks: [], events: [] })
+  const [data, setData] = useState<{ tasks: AgendaEntry[]; events: AgendaEntry[] }>({
+    tasks: [],
+    events: [],
+  })
   useEffect(() => {
     let live = true
     void window.nexus.agenda.list().then((r) => {

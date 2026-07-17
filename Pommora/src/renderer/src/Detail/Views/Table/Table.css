@@ -181,7 +181,7 @@
    no track width; the radius reuses the bar width so the thin caps fully round. */
 .col-header:not(:last-child)::after,
 .col-header:first-child::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
@@ -261,7 +261,7 @@
 /* Resize / reorder reveal — every column's vertical hairline (each cell's right edge) fades in while a
    column is being resized (col-resizing-active) or reordered (col-dragging-active), and fades back out. */
 .table-grid.no-borders .data-cell::after {
-  content: '';
+  content: "";
   position: absolute;
   inset-block: 0;
   right: 0;
@@ -277,10 +277,11 @@
 }
 /* Active-cell accent ring — a rounded accent outline (not an inside fill) around the cell being edited. */
 .table-grid.no-borders .data-cell::before {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
-  border: var(--table-border-width) solid color-mix(in srgb, var(--accent) var(--tint-secondary), transparent);
+  border: var(--table-border-width) solid
+    color-mix(in srgb, var(--accent) var(--tint-secondary), transparent);
   border-radius: var(--cell-active-radius);
   opacity: 0;
   transition: opacity var(--duration-base) var(--ease-standard);
@@ -364,8 +365,13 @@
 }
 .row-grip {
   position: absolute;
-  left: calc(-1 * var(--gutter)); /* the views gutter, left of the grid (same lane as the chevron) */
-  width: var(--gutter); /* span the lane so justify-content centres the glyph in it, not flush-left */
+  left: calc(
+    -1 *
+    var(--gutter)
+  ); /* the views gutter, left of the grid (same lane as the chevron) */
+  width: var(
+    --gutter
+  ); /* span the lane so justify-content centres the glyph in it, not flush-left */
   top: 50%;
   transform: translateY(-50%);
   display: inline-flex;
@@ -393,7 +399,9 @@
      twice (--block-zoom²) and shrink group headers out of proportion with the rows. */
   zoom: var(--zoom);
   padding-top: var(--group-gap-top); /* inter-section gap */
-  padding-bottom: var(--cell-padding-y); /* matches data-cell vertical padding — gap before the first row */
+  padding-bottom: var(
+    --cell-padding-y
+  ); /* matches data-cell vertical padding — gap before the first row */
 }
 /* A sub-group bucket header reads as a row, not a section — its gap collapses to the row rhythm. */
 .group-header-row.sub-band {
@@ -476,7 +484,9 @@
   /* In the views gutter, one --gutter left of the header content — which now starts flush on the grid
      (groupIndent has no cell-padding-x base), so the chevron lands in the grip lane. */
   left: calc(-1 * var(--gutter));
-  width: var(--gutter); /* span the lane so justify-content centres the chevron in it, not flush-left */
+  width: var(
+    --gutter
+  ); /* span the lane so justify-content centres the chevron in it, not flush-left */
   top: 50%;
   transform: translateY(-50%);
   justify-content: center;

@@ -33,7 +33,7 @@ export async function installAppMenu(win: BrowserWindow, adopt: AdoptFn): Promis
           click: async () => {
             await adopt(p)
             send('reload-state')
-          }
+          },
         }))
       : [{ label: 'No Recent Nexuses', enabled: false }]
 
@@ -47,8 +47,18 @@ export async function installAppMenu(win: BrowserWindow, adopt: AdoptFn): Promis
         { type: 'separator' },
         // Renderer-driven: the store resolves the target container from the current
         // selection. Enabled only with a nexus open (nothing to create into otherwise).
-        { label: 'New Tab', accelerator: 'CmdOrCtrl+N', enabled: hasSession, click: () => send('new-tab') },
-        { label: 'New Page', accelerator: 'CmdOrCtrl+Shift+N', enabled: hasSession, click: () => send('new-page') },
+        {
+          label: 'New Tab',
+          accelerator: 'CmdOrCtrl+N',
+          enabled: hasSession,
+          click: () => send('new-tab'),
+        },
+        {
+          label: 'New Page',
+          accelerator: 'CmdOrCtrl+Shift+N',
+          enabled: hasSession,
+          click: () => send('new-page'),
+        },
         { type: 'separator' },
         {
           label: 'Reveal in Finder',
@@ -56,7 +66,7 @@ export async function installAppMenu(win: BrowserWindow, adopt: AdoptFn): Promis
           click: () => {
             const root = sessionRoot()
             if (root) shell.showItemInFolder(root)
-          }
+          },
         },
         {
           label: 'Reload',
@@ -66,17 +76,21 @@ export async function installAppMenu(win: BrowserWindow, adopt: AdoptFn): Promis
           click: () => {
             const w = BrowserWindow.getFocusedWindow() ?? win
             if (!w.isDestroyed()) w.webContents.reload()
-          }
+          },
         },
         { type: 'separator' },
-        { role: 'close' }
-      ]
+        { role: 'close' },
+      ],
     },
     { role: 'editMenu' },
     {
       label: 'View',
       submenu: [
-        { label: 'Toggle Sidebar', accelerator: 'CmdOrCtrl+\\', click: () => send('toggle-sidebar') },
+        {
+          label: 'Toggle Sidebar',
+          accelerator: 'CmdOrCtrl+\\',
+          click: () => send('toggle-sidebar'),
+        },
         { type: 'separator' },
         // ⌘0 resets to the nexus's default view scale (personalization.defaultViewScale), not a
         // hardcoded 1.0 — read fresh so a settings.json edit takes effect without a relaunch.
@@ -88,17 +102,17 @@ export async function installAppMenu(win: BrowserWindow, adopt: AdoptFn): Promis
             const scale = root ? await readDefaultViewScale(root) : VIEW_SCALE_DEFAULT
             const w = BrowserWindow.getFocusedWindow() ?? win
             if (!w.isDestroyed()) w.webContents.setZoomFactor(scale)
-          }
+          },
         },
         { role: 'zoomIn' },
         { role: 'zoomOut' },
         { type: 'separator' },
         { role: 'togglefullscreen' },
-        { role: 'toggleDevTools' }
-      ]
+        { role: 'toggleDevTools' },
+      ],
     },
     { role: 'windowMenu' },
-    { role: 'help', submenu: [{ label: 'About Pommora', click: () => app.showAboutPanel() }] }
+    { role: 'help', submenu: [{ label: 'About Pommora', click: () => app.showAboutPanel() }] },
   ]
 
   Menu.setApplicationMenu(Menu.buildFromTemplate(template))

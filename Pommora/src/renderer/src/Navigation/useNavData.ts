@@ -2,7 +2,14 @@ import { useCallback, useEffect, useMemo } from 'react'
 import type { NavTarget } from '@shared/types'
 import { useSession, type SelectTarget } from '../store'
 import { reconcileSelection } from '../selection'
-import { buildResolveIndex, resolveFavorites, resolvePins, resolveRecents, resolveWith, type ResolvedNav } from './navResolve'
+import {
+  buildResolveIndex,
+  resolveFavorites,
+  resolvePins,
+  resolveRecents,
+  resolveWith,
+  type ResolvedNav,
+} from './navResolve'
 import { buildNavIndex, filterNav, type SearchEntry } from './navSearch'
 
 export interface SearchResult {
@@ -13,10 +20,15 @@ export interface SearchResult {
 
 /** Split search results into the NavList shape both surfaces render: resolved hits become selectable
  *  `items`; unresolvable ones (agenda) become inert `extras`. */
-export function splitSearch(results: SearchResult[]): { items: ResolvedNav[]; extras: { key: string; title: string; kind: string }[] } {
+export function splitSearch(results: SearchResult[]): {
+  items: ResolvedNav[]
+  extras: { key: string; title: string; kind: string }[]
+} {
   return {
     items: results.map((r) => r.resolved).filter((r): r is ResolvedNav => r !== null),
-    extras: results.filter((r) => r.resolved === null).map((r) => ({ key: r.entry.key, title: r.entry.title, kind: r.entry.target.kind }))
+    extras: results
+      .filter((r) => r.resolved === null)
+      .map((r) => ({ key: r.entry.key, title: r.entry.title, kind: r.entry.target.kind })),
   }
 }
 
@@ -47,22 +59,37 @@ export function useNavData(): {
   }, [agenda, ensureAgendaSnapshot])
 
   const resolveIndex = useMemo(() => (tree ? buildResolveIndex(tree) : null), [tree])
-  const searchIndex = useMemo(() => (tree ? buildNavIndex(tree, agenda ?? undefined) : []), [tree, agenda])
-  const resolvedPins = useMemo(() => (resolveIndex ? resolvePins(resolveIndex, pins) : []), [resolveIndex, pins])
+  const searchIndex = useMemo(
+    () => (tree ? buildNavIndex(tree, agenda ?? undefined) : []),
+    [tree, agenda],
+  )
+  const resolvedPins = useMemo(
+    () => (resolveIndex ? resolvePins(resolveIndex, pins) : []),
+    [resolveIndex, pins],
+  )
   const pinnedKeys = useMemo(() => new Set(resolvedPins.map((p) => p.key)), [resolvedPins])
   // Recents dedupe against pins — a pinned entity shows once, in the pins section, not twice.
   const resolvedRecents = useMemo(
-    () => (resolveIndex ? resolveRecents(resolveIndex, recents).filter((r) => !pinnedKeys.has(r.key)) : []),
-    [resolveIndex, recents, pinnedKeys]
+    () =>
+      resolveIndex
+        ? resolveRecents(resolveIndex, recents).filter((r) => !pinnedKeys.has(r.key))
+        : [],
+    [resolveIndex, recents, pinnedKeys],
   )
-  const resolvedFavorites = useMemo(() => (resolveIndex ? resolveFavorites(resolveIndex, favorites) : []), [resolveIndex, favorites])
+  const resolvedFavorites = useMemo(
+    () => (resolveIndex ? resolveFavorites(resolveIndex, favorites) : []),
+    [resolveIndex, favorites],
+  )
 
   const search = useCallback(
     (query: string): SearchResult[] => {
       if (!resolveIndex || !query.trim()) return []
-      return filterNav(searchIndex, query).map((entry) => ({ entry, resolved: resolveWith(resolveIndex, entry.target) }))
+      return filterNav(searchIndex, query).map((entry) => ({
+        entry,
+        resolved: resolveWith(resolveIndex, entry.target),
+      }))
     },
-    [searchIndex, resolveIndex]
+    [searchIndex, resolveIndex],
   )
 
   const go = useCallback(
@@ -73,10 +100,13 @@ export function useNavData(): {
       // (`none` — a genuinely-gone entity, or a reconcile miss), fall back to the original target so
       // the click still navigates rather than silently doing nothing.
       const reconciled = tree ? reconcileSelection(tree, target) : target
-      void select(reconciled.kind === 'none' ? target : reconciled, opts?.newTab ? { newTab: true } : undefined)
+      void select(
+        reconciled.kind === 'none' ? target : reconciled,
+        opts?.newTab ? { newTab: true } : undefined,
+      )
       onDone?.()
     },
-    [select, tree]
+    [select, tree],
   )
 
   return { resolvedRecents, resolvedFavorites, resolvedPins, search, go }

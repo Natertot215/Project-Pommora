@@ -1,5 +1,14 @@
 import { useState, type ReactNode } from 'react'
-import { vars, chipPill, chipLabel, chipContext, chipCapsule, chipBox, chipColor, chipLabelWrap } from '@renderer/design-system/tokens'
+import {
+  vars,
+  chipPill,
+  chipLabel,
+  chipContext,
+  chipCapsule,
+  chipBox,
+  chipColor,
+  chipLabelWrap,
+} from '@renderer/design-system/tokens'
 import { Switch } from '@renderer/design-system/components/Switches/Switch'
 import { Icon } from '@renderer/design-system/symbols'
 import { SortableZone, useDragItem, reorder } from '@renderer/design-system/interactions/drag'
@@ -10,7 +19,15 @@ type ChipColorName = keyof typeof chipColor
 const CHIP_COLORS = Object.keys(chipColor) as ChipColorName[]
 const pillClass = (color: ChipColorName): string => `${chipPill} ${chipColor[color]}`
 
-function ChipCell({ id, color, label }: { id: string; color: ChipColorName; label: string }): React.JSX.Element {
+function ChipCell({
+  id,
+  color,
+  label,
+}: {
+  id: string
+  color: ChipColorName
+  label: string
+}): React.JSX.Element {
   const { setNodeRef, style, handle } = useDragItem(id)
   return (
     <span ref={setNodeRef} style={style} className={pillClass(color)} {...handle} title={color}>
@@ -28,10 +45,12 @@ function PillRow(): React.JSX.Element {
     <div className="ds-chip-row-items">
       {items.map((it) =>
         compact ? (
-          <span key={it.id} className={pillClass(it.id)} title={it.id}><span className={chipLabelWrap}>{it.name}</span></span>
+          <span key={it.id} className={pillClass(it.id)} title={it.id}>
+            <span className={chipLabelWrap}>{it.name}</span>
+          </span>
         ) : (
           <ChipCell key={it.id} id={it.id} color={it.id} label={it.name} />
-        )
+        ),
       )}
     </div>
   )
@@ -50,13 +69,25 @@ function PillRow(): React.JSX.Element {
 
 const SHAPE_ROWS: Array<{ label: string; shape: string; content: () => ReactNode }> = [
   { label: 'Label', shape: chipLabel, content: () => <span className={chipLabelWrap}>Label</span> },
-  { label: 'Context', shape: chipContext, content: () => <span className={chipLabelWrap}>Context</span> },
+  {
+    label: 'Context',
+    shape: chipContext,
+    content: () => <span className={chipLabelWrap}>Context</span>,
+  },
   { label: 'Capsule', shape: chipCapsule, content: () => <Icon name="circle-dashed" size={13} /> },
-  { label: 'Box', shape: chipBox, content: () => <Icon name="check" size={12} strokeWidth={3} /> }
+  { label: 'Box', shape: chipBox, content: () => <Icon name="check" size={12} strokeWidth={3} /> },
 ]
 
 /** A reorderable row of one shape across the palette — the pill row's machinery for any shape. */
-function ShapeRow({ rowId, shape, content }: { rowId: string; shape: string; content: () => ReactNode }): React.JSX.Element {
+function ShapeRow({
+  rowId,
+  shape,
+  content,
+}: {
+  rowId: string
+  shape: string
+  content: () => ReactNode
+}): React.JSX.Element {
   const [order, setOrder] = useState<ChipColorName[]>(() => [...CHIP_COLORS])
   const compact = useIsCompact()
   const cells = (
@@ -70,7 +101,7 @@ function ShapeRow({ rowId, shape, content }: { rowId: string; shape: string; con
           <ShapeCell key={k} id={`${rowId}:${k}`} className={cx(shape, chipColor[k])} title={k}>
             {content()}
           </ShapeCell>
-        )
+        ),
       )}
     </div>
   )
@@ -81,7 +112,13 @@ function ShapeRow({ rowId, shape, content }: { rowId: string; shape: string; con
       layout="grid"
       getItemLabel={(id) => id.split(':')[1]}
       onReorder={(a, o) =>
-        setOrder((x) => reorder(x.map((k) => ({ id: `${rowId}:${k}` })), a, o).map(({ id }) => id.split(':')[1] as ChipColorName))
+        setOrder((x) =>
+          reorder(
+            x.map((k) => ({ id: `${rowId}:${k}` })),
+            a,
+            o,
+          ).map(({ id }) => id.split(':')[1] as ChipColorName),
+        )
       }
     >
       {cells}
@@ -89,7 +126,17 @@ function ShapeRow({ rowId, shape, content }: { rowId: string; shape: string; con
   )
 }
 
-function ShapeCell({ id, className, title, children }: { id: string; className: string; title: string; children: ReactNode }): React.JSX.Element {
+function ShapeCell({
+  id,
+  className,
+  title,
+  children,
+}: {
+  id: string
+  className: string
+  title: string
+  children: ReactNode
+}): React.JSX.Element {
   const { setNodeRef, style, handle } = useDragItem(id)
   return (
     <span ref={setNodeRef} style={style} className={className} {...handle} title={title}>
@@ -109,7 +156,11 @@ function SwitchDemo({ color }: { color: ChipColorName }): React.JSX.Element {
         ? 'var(--system-accent)'
         : vars.color.solid[color]
   return (
-    <span className="ds-switch-demo" title={color} style={{ '--accent': solid } as React.CSSProperties}>
+    <span
+      className="ds-switch-demo"
+      title={color}
+      style={{ '--accent': solid } as React.CSSProperties}
+    >
       <Switch checked={on} onChange={setOn} ariaLabel={color} />
     </span>
   )
@@ -119,7 +170,12 @@ function SwitchDemo({ color }: { color: ChipColorName }): React.JSX.Element {
 function CheckboxDemo({ color }: { color: ChipColorName }): React.JSX.Element {
   const [on, setOn] = useState(true)
   return (
-    <button type="button" className={cx(chipBox, chipColor[color], 'ds-checkbox-demo')} title={color} onClick={() => setOn((x) => !x)}>
+    <button
+      type="button"
+      className={cx(chipBox, chipColor[color], 'ds-checkbox-demo')}
+      title={color}
+      onClick={() => setOn((x) => !x)}
+    >
       {on ? <Icon name="check" size={12} strokeWidth={3} /> : null}
     </button>
   )

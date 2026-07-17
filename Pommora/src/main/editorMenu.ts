@@ -4,7 +4,12 @@
 // Sidebar right-clicks (non-editable) fall through to their own React→IPC menu untouched.
 
 import { Menu } from 'electron'
-import type { BrowserWindow, ContextMenuParams, MenuItemConstructorOptions, WebContents } from 'electron'
+import type {
+  BrowserWindow,
+  ContextMenuParams,
+  MenuItemConstructorOptions,
+  WebContents,
+} from 'electron'
 import { EDITOR_ACTION_PREFIX, type FormatState } from '@shared/editorMenu'
 
 let lastState: FormatState | null = null
@@ -20,18 +25,23 @@ export function setCalloutGrip(on: boolean): void {
   calloutGripHot = on
 }
 
-const dispatch = (wc: WebContents, action: string) => () => wc.send('menu:action', EDITOR_ACTION_PREFIX + action)
+const dispatch = (wc: WebContents, action: string) => () =>
+  wc.send('menu:action', EDITOR_ACTION_PREFIX + action)
 
 function systemItems(wc: WebContents, params: ContextMenuParams): MenuItemConstructorOptions[] {
   const f = params.editFlags
   const items: MenuItemConstructorOptions[] = []
 
   if (params.misspelledWord) {
-    for (const s of params.dictionarySuggestions) items.push({ label: s, click: () => wc.replaceMisspelling(s) })
+    for (const s of params.dictionarySuggestions)
+      items.push({ label: s, click: () => wc.replaceMisspelling(s) })
     items.push(
       { type: 'separator' },
-      { label: 'Add to Dictionary', click: () => wc.session.addWordToSpellCheckerDictionary(params.misspelledWord) },
-      { type: 'separator' }
+      {
+        label: 'Add to Dictionary',
+        click: () => wc.session.addWordToSpellCheckerDictionary(params.misspelledWord),
+      },
+      { type: 'separator' },
     )
   }
 
@@ -43,7 +53,7 @@ function systemItems(wc: WebContents, params: ContextMenuParams): MenuItemConstr
     { role: 'copy', enabled: f.canCopy },
     { role: 'paste', enabled: f.canPaste },
     { role: 'pasteAndMatchStyle', enabled: f.canPaste },
-    { role: 'selectAll' }
+    { role: 'selectAll' },
   )
   return items
 }
@@ -54,7 +64,7 @@ function speechShareItems(params: ContextMenuParams): MenuItemConstructorOptions
   return [
     { type: 'separator' },
     { label: 'Speech', submenu: [{ role: 'startSpeaking' }, { role: 'stopSpeaking' }] },
-    { role: 'shareMenu', sharingItem: { texts: [params.selectionText] } }
+    { role: 'shareMenu', sharingItem: { texts: [params.selectionText] } },
   ]
 }
 
@@ -64,7 +74,7 @@ function pommoraItems(wc: WebContents, s: FormatState): MenuItemConstructorOptio
     label,
     type: 'radio',
     checked: s.heading === level,
-    click: act(`heading:${level}`)
+    click: act(`heading:${level}`),
   })
   return [
     { type: 'separator' },
@@ -72,13 +82,53 @@ function pommoraItems(wc: WebContents, s: FormatState): MenuItemConstructorOptio
       label: 'Format',
       submenu: [
         // Accelerators are display-only (registerAccelerator: false); the keys are bound in formatKeymap.ts.
-        { label: 'Bold', type: 'checkbox', checked: s.bold, accelerator: 'CmdOrCtrl+B', registerAccelerator: false, click: act('format:bold') },
-        { label: 'Italic', type: 'checkbox', checked: s.italic, accelerator: 'CmdOrCtrl+I', registerAccelerator: false, click: act('format:italic') },
-        { label: 'Strikethrough', type: 'checkbox', checked: s.strikethrough, accelerator: 'CmdOrCtrl+Shift+X', registerAccelerator: false, click: act('format:strikethrough') },
-        { label: 'Inline Code', type: 'checkbox', checked: s.inlineCode, click: act('format:inlineCode') },
-        { label: 'Link', type: 'checkbox', checked: s.link, accelerator: 'CmdOrCtrl+K', registerAccelerator: false, click: act('format:link') },
-        { label: 'Connection', type: 'checkbox', checked: s.connection, accelerator: 'CmdOrCtrl+Shift+K', registerAccelerator: false, click: act('format:connection') }
-      ]
+        {
+          label: 'Bold',
+          type: 'checkbox',
+          checked: s.bold,
+          accelerator: 'CmdOrCtrl+B',
+          registerAccelerator: false,
+          click: act('format:bold'),
+        },
+        {
+          label: 'Italic',
+          type: 'checkbox',
+          checked: s.italic,
+          accelerator: 'CmdOrCtrl+I',
+          registerAccelerator: false,
+          click: act('format:italic'),
+        },
+        {
+          label: 'Strikethrough',
+          type: 'checkbox',
+          checked: s.strikethrough,
+          accelerator: 'CmdOrCtrl+Shift+X',
+          registerAccelerator: false,
+          click: act('format:strikethrough'),
+        },
+        {
+          label: 'Inline Code',
+          type: 'checkbox',
+          checked: s.inlineCode,
+          click: act('format:inlineCode'),
+        },
+        {
+          label: 'Link',
+          type: 'checkbox',
+          checked: s.link,
+          accelerator: 'CmdOrCtrl+K',
+          registerAccelerator: false,
+          click: act('format:link'),
+        },
+        {
+          label: 'Connection',
+          type: 'checkbox',
+          checked: s.connection,
+          accelerator: 'CmdOrCtrl+Shift+K',
+          registerAccelerator: false,
+          click: act('format:connection'),
+        },
+      ],
     },
     {
       label: 'Heading',
@@ -88,27 +138,47 @@ function pommoraItems(wc: WebContents, s: FormatState): MenuItemConstructorOptio
         heading('Heading 2', 2),
         heading('Heading 3', 3),
         heading('Heading 4', 4),
-        heading('Heading 5', 5)
-      ]
+        heading('Heading 5', 5),
+      ],
     },
     {
       label: 'Lists',
       submenu: [
-        { label: 'Bullet List', type: 'checkbox', checked: s.list === 'bullet', click: act('list:bullet') },
-        { label: 'Numbered List', type: 'checkbox', checked: s.list === 'ordered', click: act('list:ordered') },
-        { label: 'Task List', type: 'checkbox', checked: s.list === 'task', click: act('list:task') }
-      ]
+        {
+          label: 'Bullet List',
+          type: 'checkbox',
+          checked: s.list === 'bullet',
+          click: act('list:bullet'),
+        },
+        {
+          label: 'Numbered List',
+          type: 'checkbox',
+          checked: s.list === 'ordered',
+          click: act('list:ordered'),
+        },
+        {
+          label: 'Task List',
+          type: 'checkbox',
+          checked: s.list === 'task',
+          click: act('list:task'),
+        },
+      ],
     },
     {
       label: 'Insert',
       submenu: [
         { label: 'Table', click: act('block:table') },
-        { label: 'Blockquote', type: 'checkbox', checked: s.block === 'quote', click: act('block:quote') },
+        {
+          label: 'Blockquote',
+          type: 'checkbox',
+          checked: s.block === 'quote',
+          click: act('block:quote'),
+        },
         { label: 'Code Block', click: act('block:code') },
         { label: 'Horizontal Rule', click: act('block:hr') },
-        { label: 'Callout', click: act('block:callout') }
-      ]
-    }
+        { label: 'Callout', click: act('block:callout') },
+      ],
+    },
   ]
 }
 

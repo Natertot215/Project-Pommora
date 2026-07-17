@@ -22,12 +22,12 @@ export function propertyMenuModel(ctx: PropertyMenuContext): PropertyMenuItem[] 
     case 'editor':
       return [
         { label: 'Remove', action: 'property:remove' },
-        { label: 'Delete', action: 'property:destroy', destructive: true }
+        { label: 'Delete', action: 'property:destroy', destructive: true },
       ]
     case 'assigned-row':
       return [
         { label: 'Rename', action: 'property:rename' },
-        { label: 'Remove', action: 'property:remove' }
+        { label: 'Remove', action: 'property:remove' },
       ]
     case 'registry-row':
       return [{ label: 'Rename', action: 'property:rename' }]

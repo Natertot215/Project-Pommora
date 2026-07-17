@@ -1,7 +1,13 @@
 import { useRef, useState, type ReactNode } from 'react'
 import { Icon, type IconName } from '@renderer/design-system/symbols'
 import { useSession } from '../../store'
-import { isReservedPropertyId, type NumberConfig, type PropertyDefinition, type PropertyType, type StatusGroup } from '@shared/properties'
+import {
+  isReservedPropertyId,
+  type NumberConfig,
+  type PropertyDefinition,
+  type PropertyType,
+  type StatusGroup,
+} from '@shared/properties'
 import type { Option } from '@shared/optionModel'
 import type { ColumnStyle } from '@shared/columnStyles'
 import type { CollectionNode, SetNode } from '@shared/types'
@@ -11,7 +17,15 @@ import { styleFor } from '../../Detail/Views/Table/columnStyles'
 import { DateTimeEditor } from './DateTimeEditor'
 import { CheckboxEditor } from './CheckboxEditor'
 import { NumberEditor } from './NumberEditor'
-import { MenuItem, MenuCaption, MenuPaneTopRow, MenuScrollFrame, MenuBottomRow, MenuSeparator, AccessoryButton } from '../../design-system/components/menu'
+import {
+  MenuItem,
+  MenuCaption,
+  MenuPaneTopRow,
+  MenuScrollFrame,
+  MenuBottomRow,
+  MenuSeparator,
+  AccessoryButton,
+} from '../../design-system/components/menu'
 import { flushTrailing } from '../../design-system/components/menu/menu.css'
 import { Reveal } from '../../design-system/components/Reveal'
 import { duration } from '../../design-system/tokens/motion'
@@ -44,7 +58,7 @@ function ListGroups({
   onAssign,
   onRowMenu,
   onRenameCommit,
-  onRenameCancel
+  onRenameCancel,
 }: {
   assigned: PropertyDefinition[]
   unassigned: PropertyDefinition[]
@@ -104,7 +118,11 @@ function ListGroups({
       <div className={cx(s.allSpacer, allOpen && s.allSpacerCollapsed)} aria-hidden />
       <div data-group="all" ref={allRef} className={cx(allHighlighted && s.allHighlight)}>
         <button type="button" className={s.allHeadingRow} onClick={onToggleAll}>
-          <Icon name="chevron-right" size={s.ICON.twisty} className={cx(s.twisty, allOpen && s.twistyOpen)} />
+          <Icon
+            name="chevron-right"
+            size={s.ICON.twisty}
+            className={cx(s.twisty, allOpen && s.twistyOpen)}
+          />
           <span className={s.allPropertiesLabel}>All Properties</span>
         </button>
         <Reveal open={allOpen} duration={duration.base}>
@@ -155,7 +173,7 @@ export function PropertiesPane({
   collectionPath,
   schema,
   onBack,
-  source
+  source,
 }: {
   collectionPath: string
   schema: PropertyDefinition[]
@@ -196,7 +214,7 @@ export function PropertiesPane({
   const actionHeader = (
     label: string,
     onBackClick: () => void,
-    action: { icon: IconName; size: number; ariaLabel: string; onClick: () => void }
+    action: { icon: IconName; size: number; ariaLabel: string; onClick: () => void },
   ): React.JSX.Element => (
     <MenuPaneTopRow
       label={label}
@@ -228,7 +246,11 @@ export function PropertiesPane({
   }
 
   const create = async (type: PropertyType): Promise<void> => {
-    const res = await window.nexus.schema.add(collectionPath, { id: '', name: `New ${propertyTypeLabel(type)}`, type })
+    const res = await window.nexus.schema.add(collectionPath, {
+      id: '',
+      name: `New ${propertyTypeLabel(type)}`,
+      type,
+    })
     if (res.ok) {
       await load()
       openDetail({ kind: 'edit', id: res.id })
@@ -280,7 +302,11 @@ export function PropertiesPane({
   const clearOption = async (id: string, value: string): Promise<void> => {
     await commit(await window.nexus.property.clearOption(id, value))
   }
-  const renameStatusOption = async (id: string, oldValue: string, newTitle: string): Promise<void> => {
+  const renameStatusOption = async (
+    id: string,
+    oldValue: string,
+    newTitle: string,
+  ): Promise<void> => {
     await commit(await window.nexus.property.renameStatusOption(id, oldValue, newTitle))
   }
   const removeStatusOption = async (id: string, value: string): Promise<void> => {
@@ -303,8 +329,8 @@ export function PropertiesPane({
                 registry.map((d) => d.id),
                 unassigned.map((d) => d.id),
                 drop.propId,
-                drop.toIndex
-              )
+                drop.toIndex,
+              ),
             )
           : drop.kind === 'assign'
             ? await window.nexus.schema.assign(collectionPath, drop.propId, drop.toIndex)
@@ -314,7 +340,7 @@ export function PropertiesPane({
 
   const paneRows: PaneRow[] = [
     ...props.map((d) => ({ id: d.id, group: 'assigned' as const })),
-    ...unassigned.map((d) => ({ id: d.id, group: 'all' as const }))
+    ...unassigned.map((d) => ({ id: d.id, group: 'all' as const })),
   ]
   const nameFor = (id: string): string =>
     props.find((d) => d.id === id)?.name ?? unassigned.find((d) => d.id === id)?.name ?? ''
@@ -323,16 +349,21 @@ export function PropertiesPane({
   const editorMenu = async (def: PropertyDefinition): Promise<void> => {
     const action = await window.nexus.propertyMenu({ kind: 'editor', name: def.name })
     if (action === 'property:remove') await remove(def.id)
-    else if (action === 'property:destroy' && (await commit(await window.nexus.property.delete(def.id)))) backToList()
+    else if (
+      action === 'property:destroy' &&
+      (await commit(await window.nexus.property.delete(def.id)))
+    )
+      backToList()
   }
   // A row's right-click (A-10): Rename (both groups) · Remove (assigned only).
   const rowMenu = async (d: PropertyDefinition, group: 'assigned' | 'all'): Promise<void> => {
     const action = await window.nexus.propertyMenu({
       kind: group === 'assigned' ? 'assigned-row' : 'registry-row',
-      name: d.name
+      name: d.name,
     })
     if (action === 'property:rename') beginPropertyRename({ collectionPath, propertyId: d.id })
-    else if (action === 'property:remove') await commit(await window.nexus.schema.delete(collectionPath, d.id))
+    else if (action === 'property:remove')
+      await commit(await window.nexus.schema.delete(collectionPath, d.id))
   }
 
   const typePicker = (
@@ -368,7 +399,7 @@ export function PropertiesPane({
           icon: 'ellipsis-vertical',
           size: s.ICON.editorMenu,
           ariaLabel: 'Property Menu',
-          onClick: () => void editorMenu(def)
+          onClick: () => void editorMenu(def),
         })}
       >
         <InlineEditHeader
@@ -392,7 +423,9 @@ export function PropertiesPane({
           <StatusEditor
             groups={def.status_groups ?? []}
             onSetGroups={(next) => void saveStatusGroups(def.id, next)}
-            onRenameOption={(oldValue, newTitle) => void renameStatusOption(def.id, oldValue, newTitle)}
+            onRenameOption={(oldValue, newTitle) =>
+              void renameStatusOption(def.id, oldValue, newTitle)
+            }
             onRemoveOption={(value) => void removeStatusOption(def.id, value)}
             onClearOption={(value) => void clearStatusOption(def.id, value)}
           />
@@ -404,7 +437,10 @@ export function PropertiesPane({
             onSetConfig={(patch) => void saveLinkConfig(def.id, patch)}
           />
         ) : def.type === 'datetime' ? (
-          <DateTimeEditor style={styleFor(def.id, schema, activeView)} onChange={(patch) => saveColumnStyle(def.id, patch)} />
+          <DateTimeEditor
+            style={styleFor(def.id, schema, activeView)}
+            onChange={(patch) => saveColumnStyle(def.id, patch)}
+          />
         ) : def.type === 'checkbox' ? (
           <CheckboxEditor
             color={def.checkbox_color}
@@ -421,7 +457,7 @@ export function PropertiesPane({
               number_separators: def.number_separators,
               number_decimals: def.number_decimals,
               number_fraction: def.number_fraction,
-              number_denominator: def.number_denominator
+              number_denominator: def.number_denominator,
             }}
             look={styleFor(def.id, schema, activeView).look === 'bar' ? 'bar' : 'number'}
             onSetConfig={(patch) => void saveNumberFormat(def.id, patch)}
@@ -441,7 +477,13 @@ export function PropertiesPane({
       footer={
         <MenuBottomRow
           leading={
-            <AccessoryButton icon="plus" size={12} box={20} ariaLabel="New Property" onClick={() => openDetail({ kind: 'type' })} />
+            <AccessoryButton
+              icon="plus"
+              size={12}
+              box={20}
+              ariaLabel="New Property"
+              onClick={() => openDetail({ kind: 'type' })}
+            />
           }
         />
       }
@@ -451,7 +493,9 @@ export function PropertiesPane({
           assigned={props}
           unassigned={unassigned}
           allOpen={allOpen}
-          renamingId={renamingProperty?.collectionPath === collectionPath ? renamingProperty.propertyId : null}
+          renamingId={
+            renamingProperty?.collectionPath === collectionPath ? renamingProperty.propertyId : null
+          }
           onToggleAll={() => setAllOpen((o) => !o)}
           onOpenEditor={(id) => openDetail({ kind: 'edit', id })}
           onAssign={(id) => void assign(id)}

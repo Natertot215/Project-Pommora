@@ -14,7 +14,7 @@ import { writeJson } from './io/atomicWrite'
 export async function readSidecar<S extends z.ZodType>(
   absFolder: string,
   kind: SidecarKind,
-  schema: S
+  schema: S,
 ): Promise<z.infer<S> | null> {
   let raw: unknown
   try {
@@ -28,6 +28,10 @@ export async function readSidecar<S extends z.ZodType>(
 
 /** Write a folder's sidecar atomically (sorted, stable JSON, trailing newline). The
  *  value should already be schema-shaped; any foreign keys on it are written through. */
-export async function writeSidecar(absFolder: string, kind: SidecarKind, value: unknown): Promise<void> {
+export async function writeSidecar(
+  absFolder: string,
+  kind: SidecarKind,
+  value: unknown,
+): Promise<void> {
   await writeJson(join(absFolder, SIDECAR_FILENAME[kind]), value)
 }

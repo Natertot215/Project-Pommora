@@ -9,7 +9,7 @@ export function PageEmbedBlock({
   editing,
   onBeginEdit,
   connections,
-  locked = false
+  locked = false,
 }: {
   page: ConnPage
   entryId: string

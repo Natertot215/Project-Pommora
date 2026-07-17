@@ -36,7 +36,8 @@ export function NavView(): React.JSX.Element {
     e.preventDefault()
     const action = await window.nexus.bannerMenu({ noRemove: !ownBanner })
     if (action === 'change') await changeBanner()
-    else if (action === 'remove') await mutate({ op: 'setBanner', path: '', kind: 'navview', dataUrl: null })
+    else if (action === 'remove')
+      await mutate({ op: 'setBanner', path: '', kind: 'navview', dataUrl: null })
   }
 
   const searchInput = (

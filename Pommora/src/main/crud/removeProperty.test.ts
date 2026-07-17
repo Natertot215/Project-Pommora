@@ -23,9 +23,19 @@ const stageDef = {
   name: 'Stage',
   type: 'status',
   status_groups: [
-    { id: 'upcoming', label: 'To-do', color: 'gray', options: [{ value: 'active', label: 'Active', group_id: 'upcoming' }] },
-    { id: 'done', label: 'Done', color: 'green', options: [{ value: 'done', label: 'Done', group_id: 'done' }] }
-  ]
+    {
+      id: 'upcoming',
+      label: 'To-do',
+      color: 'gray',
+      options: [{ value: 'active', label: 'Active', group_id: 'upcoming' }],
+    },
+    {
+      id: 'done',
+      label: 'Done',
+      color: 'green',
+      options: [{ value: 'done', label: 'Done', group_id: 'done' }],
+    },
+  ],
 } as PropertyDefinition
 
 beforeEach(async () => {
@@ -49,11 +59,19 @@ afterEach(async () => {
 })
 
 const pageProps = async (path: string): Promise<Record<string, unknown>> =>
-  ((readFrontmatterFields(await readFile(path, 'utf8')).properties as Record<string, unknown> | undefined) ?? {})
+  (readFrontmatterFields(await readFile(path, 'utf8')).properties as
+    | Record<string, unknown>
+    | undefined) ?? {}
 const sidecar = async (): Promise<Record<string, unknown> | null> =>
   (await readSidecar(folder, 'collection', pageCollectionSidecar)) as Record<string, unknown> | null
-const cacheBlock = async (): Promise<{ removed_at: string; values: Record<string, unknown> } | undefined> =>
-  ((await sidecar())?.property_cache as Record<string, { removed_at: string; values: Record<string, unknown> }> | undefined)?.[propId]
+const cacheBlock = async (): Promise<
+  { removed_at: string; values: Record<string, unknown> } | undefined
+> =>
+  (
+    (await sidecar())?.property_cache as
+      | Record<string, { removed_at: string; values: Record<string, unknown> }>
+      | undefined
+  )?.[propId]
 
 describe('removeProperty — strip + cache (C-3/C-6)', () => {
   it('strips the value from every member page, caches {pageId: raw}, and unassigns — one transaction', async () => {
@@ -62,7 +80,7 @@ describe('removeProperty — strip + cache (C-3/C-6)', () => {
     expect(await pageProps(pageA)).toEqual({})
     expect(await pageProps(pageB)).toEqual({})
     const sc = await sidecar()
-    expect(((sc?.properties as string[] | undefined) ?? [])).not.toContain(propId)
+    expect((sc?.properties as string[] | undefined) ?? []).not.toContain(propId)
     const block = await cacheBlock()
     expect(typeof block?.removed_at).toBe('string')
     const vals = Object.values(block?.values ?? {})
@@ -94,8 +112,13 @@ describe('restore on re-assign — per-value schema-currency reconciliation (C-3
     await removeProperty(folder, propId)
     await editProperty(root, propId, {
       status_groups: [
-        { id: 'done', label: 'Done', color: 'green', options: [{ value: 'done', label: 'Done', group_id: 'done' }] }
-      ]
+        {
+          id: 'done',
+          label: 'Done',
+          color: 'green',
+          options: [{ value: 'done', label: 'Done', group_id: 'done' }],
+        },
+      ],
     } as Partial<PropertyDefinition>)
     await assignProperty(root, folder, propId)
     expect(await pageProps(pageA)).toEqual({}) // 'active' is no longer a live option
@@ -129,8 +152,8 @@ describe('restore on re-assign — per-value schema-currency reconciliation (C-3
       select_options: [
         { value: '2024-01-01', label: 'Kickoff' },
         { value: 'https://acme.io', label: 'Site' },
-        { value: 'note:draft', label: 'Draft' }
-      ]
+        { value: 'note:draft', label: 'Draft' },
+      ],
     } as PropertyDefinition)
     if (!sel.ok) throw new Error('setup failed')
     const id = sel.value.id

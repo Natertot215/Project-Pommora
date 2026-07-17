@@ -17,7 +17,7 @@ beforeEach(() => {
   useSession.setState({
     select: selectSpy as never,
     setPersonalization: setPersonalizationSpy as never,
-    personalization: { sidebarMode: 'collections' }
+    personalization: { sidebarMode: 'collections' },
   })
   host = document.createElement('div')
   document.body.appendChild(host)
@@ -68,7 +68,9 @@ describe('Ribbon', () => {
 
   it('honors a persisted ribbonOrder, appending any missing keys', () => {
     act(() => root.unmount())
-    useSession.setState({ personalization: { sidebarMode: 'collections', ribbonOrder: ['settings', 'agenda'] } })
+    useSession.setState({
+      personalization: { sidebarMode: 'collections', ribbonOrder: ['settings', 'agenda'] },
+    })
     root = createRoot(host)
     act(() => root.render(<Ribbon />))
     const labels = buttons()

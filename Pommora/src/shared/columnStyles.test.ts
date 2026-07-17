@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { COLUMN_LOOKS, columnStyle, DATE_FORMATS, defaultStyleFor, WEEKDAY_FORMATS } from './columnStyles'
+import {
+  COLUMN_LOOKS,
+  columnStyle,
+  DATE_FORMATS,
+  defaultStyleFor,
+  WEEKDAY_FORMATS,
+} from './columnStyles'
 
 describe('COLUMN_LOOKS', () => {
   it('includes the number looks', () => {
@@ -20,8 +26,16 @@ describe('defaultStyleFor', () => {
   })
 
   it('gives the date-shaped types the full-date, no-time, no-weekday format defaults', () => {
-    expect(defaultStyleFor('datetime')).toEqual({ date_format: 'full', time_format: 'none', weekday: 'none' })
-    expect(defaultStyleFor('last_edited_time')).toEqual({ date_format: 'full', time_format: 'none', weekday: 'none' })
+    expect(defaultStyleFor('datetime')).toEqual({
+      date_format: 'full',
+      time_format: 'none',
+      weekday: 'none',
+    })
+    expect(defaultStyleFor('last_edited_time')).toEqual({
+      date_format: 'full',
+      time_format: 'none',
+      weekday: 'none',
+    })
   })
 
   it('numbers default to the number look', () => {
@@ -37,16 +51,26 @@ describe('defaultStyleFor', () => {
 
 describe('columnStyle codec', () => {
   it('round-trips a full entry', () => {
-    const entry = { look: 'capsule', date_format: 'short', time_format: 'twelveHour', weekday: 'short' }
+    const entry = {
+      look: 'capsule',
+      date_format: 'short',
+      time_format: 'twelveHour',
+      weekday: 'short',
+    }
     expect(columnStyle.parse(entry)).toEqual(entry)
   })
 
   it('drops an unknown enum value instead of sinking the entry', () => {
-    expect(columnStyle.parse({ look: 'zebra', date_format: 'short' })).toEqual({ date_format: 'short' })
+    expect(columnStyle.parse({ look: 'zebra', date_format: 'short' })).toEqual({
+      date_format: 'short',
+    })
   })
 
   it('lets unknown keys ride through', () => {
-    expect(columnStyle.parse({ look: 'pill', swift_only: true })).toEqual({ look: 'pill', swift_only: true })
+    expect(columnStyle.parse({ look: 'pill', swift_only: true })).toEqual({
+      look: 'pill',
+      swift_only: true,
+    })
   })
 })
 

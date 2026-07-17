@@ -16,7 +16,12 @@ export function GlassSegment({
 }: { children?: ReactNode } & HTMLAttributes<HTMLDivElement>): React.JSX.Element {
   const r = style?.borderRadius
   return (
-    <Glass optics={SEGMENT_OPTICS} radius={typeof r === 'number' ? r : undefined} style={style} {...rest}>
+    <Glass
+      optics={SEGMENT_OPTICS}
+      radius={typeof r === 'number' ? r : undefined}
+      style={style}
+      {...rest}
+    >
       {children}
     </Glass>
   )

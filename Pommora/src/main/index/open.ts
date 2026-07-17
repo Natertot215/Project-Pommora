@@ -26,7 +26,8 @@ export function openIndex(nexusRoot: string): OpenedIndex | null {
   if (existsSync(dbPath)) {
     const existing = openDb(dbPath)
     if (existing) {
-      if (readSchemaVersion(existing) === SCHEMA_VERSION) return { db: existing, needsRebuild: false }
+      if (readSchemaVersion(existing) === SCHEMA_VERSION)
+        return { db: existing, needsRebuild: false }
       existing.close() // version mismatch / absent → reset below
     }
     // Mismatch or unreadable → delete the DB + its WAL/SHM siblings so no stale data survives.

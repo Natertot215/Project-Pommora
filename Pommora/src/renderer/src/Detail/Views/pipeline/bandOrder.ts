@@ -5,7 +5,10 @@
 
 import type { ResolvedGroup } from '@shared/types'
 
-export function orderGroups(groups: ResolvedGroup[], groupOrder: string[] | undefined): ResolvedGroup[] {
+export function orderGroups(
+  groups: ResolvedGroup[],
+  groupOrder: string[] | undefined,
+): ResolvedGroup[] {
   if (!groupOrder || groupOrder.length === 0) return groups
   const pos = new Map(groupOrder.map((id, i) => [id, i]))
   const walk = (level: ResolvedGroup[]): ResolvedGroup[] => {

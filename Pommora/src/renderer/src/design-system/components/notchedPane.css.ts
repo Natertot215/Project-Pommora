@@ -10,5 +10,5 @@ export const frame = style({
   overflow: 'visible',
   pointerEvents: 'none',
   zIndex: 1,
-  filter: 'drop-shadow(0 4px 14px #00000059)'
+  filter: 'drop-shadow(0 4px 14px #00000059)',
 })

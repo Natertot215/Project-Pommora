@@ -10,6 +10,11 @@ export interface ContextOption {
 
 /** A tier level's pickable contexts — id/title(/color) off the live tree. */
 export function contextOptionsFor(level: number, tree: NexusTree): ContextOption[] {
-  const list = level === 1 ? tree.contexts.areas : level === 2 ? tree.contexts.topics : tree.contexts.projects
-  return list.map((c) => ({ value: c.id, label: c.title, ...('color' in c && c.color ? { color: c.color } : {}) }))
+  const list =
+    level === 1 ? tree.contexts.areas : level === 2 ? tree.contexts.topics : tree.contexts.projects
+  return list.map((c) => ({
+    value: c.id,
+    label: c.title,
+    ...('color' in c && c.color ? { color: c.color } : {}),
+  }))
 }

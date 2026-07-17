@@ -14,6 +14,6 @@ export const frostMaterial: CSSProperties = {
     'inset 0 1px 0 #FFFFFF59', // top specular — the glassy edge highlight
     'inset 0 0 0 1px #FFFFFF14', // hairline inner ring
     'inset 0 -12px 18px -12px #FFFFFF14', // soft light pooling at the lower rim
-    shadowStandardVar // drop shadow — the shared --shadow-standard token
-  ].join(', ')
+    shadowStandardVar, // drop shadow — the shared --shadow-standard token
+  ].join(', '),
 }

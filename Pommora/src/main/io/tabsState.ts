@@ -55,7 +55,11 @@ function readTab(v: unknown): Tab | null {
   if (v.target.kind === 'newtab') return { id: v.id, target: v.target, navStack: [], navIndex: -1 }
   const stack = Array.isArray(v.navStack) ? v.navStack.filter(isSelectTarget) : []
   const index = typeof v.navIndex === 'number' && Number.isInteger(v.navIndex) ? v.navIndex : -1
-  const sane = stack.length > 0 && index >= 0 && index < stack.length && targetKey(stack[index]) === targetKey(v.target)
+  const sane =
+    stack.length > 0 &&
+    index >= 0 &&
+    index < stack.length &&
+    targetKey(stack[index]) === targetKey(v.target)
   if (sane) return { id: v.id, target: v.target, navStack: stack, navIndex: index }
   // Target/history desync: re-point the index at the target's entry when the stack holds one
   // (preserving the history), else degrade to a single-entry stack.
@@ -112,7 +116,10 @@ function writeSet(root: string, set: TabSet): Promise<void> {
 export function scheduleTabsWrite(root: string, set: TabSet): void {
   pending = { root, set }
   clearTimer()
-  timer = setTimeout(() => void flushTabsWrites().catch((e) => console.error('tabs debounced flush failed:', e)), TABS_DEBOUNCE_MS)
+  timer = setTimeout(
+    () => void flushTabsWrites().catch((e) => console.error('tabs debounced flush failed:', e)),
+    TABS_DEBOUNCE_MS,
+  )
 }
 
 /** Any tab write still owed to disk — a queued debounce OR a flushed write still settling. The quit

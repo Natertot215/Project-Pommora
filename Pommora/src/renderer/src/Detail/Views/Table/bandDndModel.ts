@@ -32,7 +32,12 @@ export function flattenBands(groups: ResolvedGroup[], collapsed: Set<string>): B
   const walk = (gs: ResolvedGroup[], depth: number, parentId: string | null): void => {
     for (const g of gs) {
       if (g.kind === 'ungrouped') continue
-      out.push({ id: g.key, kind: g.kind === 'structural-set' ? 'set' : 'property', depth, parentId })
+      out.push({
+        id: g.key,
+        kind: g.kind === 'structural-set' ? 'set' : 'property',
+        depth,
+        parentId,
+      })
       if (g.children && !collapsed.has(g.key)) walk(g.children, depth + 1, g.key)
     }
   }
@@ -100,7 +105,7 @@ export function bandSlot(
   index: BandIndex,
   y: number,
   draggedId: string,
-  endY: number
+  endY: number,
 ): BandSlot | null {
   const { byId, rows } = index
   if (rows.length === 0) return null
@@ -152,7 +157,7 @@ export function structuralOrderAfterDrop(
   priorOrder: string[],
   fullTreeIds: string[],
   draggedId: string,
-  beforeId: string | null
+  beforeId: string | null,
 ): string[] {
   const tree = new Set(fullTreeIds)
   const kept = priorOrder.filter((id) => tree.has(id))
@@ -165,7 +170,7 @@ export function structuralOrderAfterDrop(
 export function propertyOrderAfterDrop(
   presentKeys: string[],
   draggedKey: string,
-  beforeKey: string | null
+  beforeKey: string | null,
 ): string[] {
   return nextOrder(presentKeys, draggedKey, beforeKey)
 }

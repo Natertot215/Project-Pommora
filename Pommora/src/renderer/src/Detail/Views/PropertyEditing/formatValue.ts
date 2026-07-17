@@ -42,11 +42,24 @@ function formatRelative(date: Date, hasTime: boolean, timeFormat: TimeFormat, no
   const n = Math.abs(diffDays)
 
   if (n <= WEEK_DAYS) {
-    const dayWord = n === 0 ? 'Today' : n === 1 ? (ago ? 'Yesterday' : 'Tomorrow') : ago ? `${n} Days Ago` : `${n} Days from now`
+    const dayWord =
+      n === 0
+        ? 'Today'
+        : n === 1
+          ? ago
+            ? 'Yesterday'
+            : 'Tomorrow'
+          : ago
+            ? `${n} Days Ago`
+            : `${n} Days from now`
     return hasTime && timeFormat !== 'none' ? `${dayWord} at ${clockOf(date, timeFormat)}` : dayWord
   }
   const [unit, count] =
-    n < 30 ? ['Week', Math.round(n / 7)] : n < 365 ? ['Month', Math.round(n / 30)] : ['Year', Math.round(n / 365)]
+    n < 30
+      ? ['Week', Math.round(n / 7)]
+      : n < 365
+        ? ['Month', Math.round(n / 30)]
+        : ['Year', Math.round(n / 365)]
   const plural = count === 1 ? unit : `${unit}s`
   return ago ? `${count} ${plural} Ago` : `${count} ${plural} from now`
 }
@@ -60,7 +73,7 @@ export function formatDate(
   dateFormat: DateFormat,
   timeFormat: TimeFormat,
   weekday: WeekdayFormat = 'none',
-  now: Date = new Date()
+  now: Date = new Date(),
 ): string {
   const hasTime = iso.includes('T')
   const date = new Date(hasTime ? iso : `${iso}T00:00:00`)
@@ -102,7 +115,7 @@ export function formatBucketLabel(
   key: string,
   granularity: DateGranularity,
   dateFormat: DateFormat,
-  separator: DateSeparator
+  separator: DateSeparator,
 ): string {
   const numeric = NUMERIC_FORMATS.has(dateFormat)
   const sep = separator === 'slash' ? '/' : '-'
@@ -156,7 +169,8 @@ export function fileLabel(ref: { path: string }, look: 'filename' | 'path'): str
  *  absent shows the number's natural decimals (Intl default). */
 function fractionDigits(decimals: NumberConfig['number_decimals']): Intl.NumberFormatOptions {
   if (decimals === 'hidden') return { maximumFractionDigits: 0 }
-  if (typeof decimals === 'number') return { minimumFractionDigits: decimals, maximumFractionDigits: decimals }
+  if (typeof decimals === 'number')
+    return { minimumFractionDigits: decimals, maximumFractionDigits: decimals }
   return {}
 }
 
@@ -166,7 +180,12 @@ function formatScalar(n: number, cfg: NumberConfig | undefined): string {
   const useGrouping = cfg?.number_separators !== false
   const digits = fractionDigits(cfg?.number_decimals)
   if (cfg?.number_family === 'currency') {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: cfg.number_currency ?? 'USD', useGrouping, ...digits }).format(n)
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: cfg.number_currency ?? 'USD',
+      useGrouping,
+      ...digits,
+    }).format(n)
   }
   const num = new Intl.NumberFormat('en-US', { useGrouping, ...digits }).format(n)
   return cfg?.number_family === 'percent' ? `${num}%` : num
@@ -175,7 +194,11 @@ function formatScalar(n: number, cfg: NumberConfig | undefined): string {
 /** Render a number per its def-level config. Fraction (Number/Currency) wraps the scalar as
  *  "N out of Value"; every other case is the bare scalar. */
 export function formatNumber(n: number, cfg: NumberConfig | undefined): string {
-  if (cfg?.number_fraction && cfg.number_family !== 'percent' && cfg.number_denominator !== undefined) {
+  if (
+    cfg?.number_fraction &&
+    cfg.number_family !== 'percent' &&
+    cfg.number_denominator !== undefined
+  ) {
     return `${formatScalar(n, cfg)} out of ${formatScalar(cfg.number_denominator, cfg)}`
   }
   return formatScalar(n, cfg)

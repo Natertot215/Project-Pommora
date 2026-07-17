@@ -8,7 +8,11 @@
 // line — the hidden order is derived, never authored).
 
 import type { MeasuredRow } from '@renderer/Sidebar/sidebarDndModel'
-import { isReservedPropertyId, type PropertyDefinition, RESERVED_PROPERTY_ID } from '@shared/properties'
+import {
+  isReservedPropertyId,
+  type PropertyDefinition,
+  RESERVED_PROPERTY_ID,
+} from '@shared/properties'
 import type { SavedView } from '@shared/views'
 import { nexusReorderIndex, type PaneRow, type PaneSlot, type Region } from './paneDndModel'
 
@@ -19,7 +23,7 @@ type VisibilityPatch = Pick<SavedView, 'property_order' | 'hidden_properties'>
 const CONTEXT_TIERS = [
   RESERVED_PROPERTY_ID.tier1,
   RESERVED_PROPERTY_ID.tier2,
-  RESERVED_PROPERTY_ID.tier3
+  RESERVED_PROPERTY_ID.tier3,
 ]
 
 /** The hidden group's display order: hidden tiers (fixed tier order), then hidden schema props in
@@ -31,7 +35,7 @@ export function hiddenListIds(hidden: string[], schema: PropertyDefinition[]): s
   return [
     ...CONTEXT_TIERS.filter((id) => set.has(id)),
     ...schema.filter((d) => set.has(d.id) && !isReservedPropertyId(d.id)).map((d) => d.id),
-    ...(set.has(RESERVED_PROPERTY_ID.modifiedAt) ? [RESERVED_PROPERTY_ID.modifiedAt] : [])
+    ...(set.has(RESERVED_PROPERTY_ID.modifiedAt) ? [RESERVED_PROPERTY_ID.modifiedAt] : []),
   ]
 }
 
@@ -46,13 +50,13 @@ export function placeInShown(
   fullVisibleIds: string[],
   sectionIds: string[],
   id: string,
-  toIndex: number
+  toIndex: number,
 ): VisibilityPatch {
   const next = fullVisibleIds.filter((x) => x !== id)
   next.splice(nexusReorderIndex(fullVisibleIds, sectionIds, id, toIndex), 0, id)
   return {
     property_order: [...next, ...view.property_order.filter((x) => !next.includes(x))],
-    hidden_properties: view.hidden_properties.filter((x) => x !== id)
+    hidden_properties: view.hidden_properties.filter((x) => x !== id),
   }
 }
 
@@ -62,7 +66,7 @@ export function hideShown(view: SavedView, id: string): Pick<SavedView, 'hidden_
   return {
     hidden_properties: view.hidden_properties.includes(id)
       ? view.hidden_properties
-      : [...view.hidden_properties, id]
+      : [...view.hidden_properties, id],
   }
 }
 
@@ -83,7 +87,7 @@ export function hiddenPaneSlot(
   byId: Map<string, PaneRow>,
   regions: { assigned: Region; all: Region },
   pointerY: number,
-  draggedId: string
+  draggedId: string,
 ): PaneSlot | null {
   const dragged = byId.get(draggedId)
   if (!dragged) return null
@@ -99,8 +103,12 @@ export function hiddenPaneSlot(
   const last = groupRows[groupRows.length - 1]
   const lineY = i < groupRows.length ? groupRows[i].top : last ? last.bottom : regions.assigned.top
   return {
-    drop: { kind: dragged.group === 'assigned' ? 'reorder-assigned' : 'assign', propId: draggedId, toIndex: i },
+    drop: {
+      kind: dragged.group === 'assigned' ? 'reorder-assigned' : 'assign',
+      propId: draggedId,
+      toIndex: i,
+    },
     lineY,
-    highlightAll: false
+    highlightAll: false,
   }
 }

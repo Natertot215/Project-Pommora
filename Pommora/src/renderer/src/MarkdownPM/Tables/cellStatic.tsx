@@ -7,7 +7,10 @@ import type { ConnectionsApi } from '../connections'
 // connections coloured by status, matching the nested editor's look. Only the focused cell mounts a
 // real editor (see TableView), so a table scrolling into view no longer builds R×C editors in one frame.
 // Block-level markdown (headings, lists, fences) isn't reproduced here — it doesn't occur in a cell.
-export function renderCellContent(text: string, getConn?: () => ConnectionsApi | undefined): React.ReactNode {
+export function renderCellContent(
+  text: string,
+  getConn?: () => ConnectionsApi | undefined,
+): React.ReactNode {
   // Fast path: no markdown-significant char → no token possible, so skip the mdast parse. Most cells are
   // plain text, and this is the per-cell cost paid when a table scrolls into view.
   if (!/[*_~`[$]/.test(text)) return text
@@ -27,7 +30,11 @@ export function renderCellContent(text: string, getConn?: () => ConnectionsApi |
       // Phantom (or no index) → raw `[[…]]` inert, exactly as the editor leaves it.
       if (!status || status === 'phantom') out.push(text.slice(s, e))
       else {
-        out.push(<span key={key++} className={`md-connection-${status}`}>{content}</span>)
+        out.push(
+          <span key={key++} className={`md-connection-${status}`}>
+            {content}
+          </span>,
+        )
         // A piped `[[Title|alias]]` styles only the Title; the editor leaves `|alias` plain-visible, so match it.
         const aliasTail = text.slice(tk.contentRange[1], e - 2)
         if (aliasTail) out.push(aliasTail)
@@ -37,11 +44,19 @@ export function renderCellContent(text: string, getConn?: () => ConnectionsApi |
       out.push(
         <span key={key++} className={isValidLink(url) ? 'md-link' : 'md-link-invalid'}>
           {content}
-        </span>
+        </span>,
       )
     } else {
       const cls = CONTENT_CLASS[tk.kind]
-      out.push(cls ? <span key={key++} className={cls}>{content}</span> : content)
+      out.push(
+        cls ? (
+          <span key={key++} className={cls}>
+            {content}
+          </span>
+        ) : (
+          content
+        ),
+      )
     }
     pos = e
   }
@@ -52,7 +67,7 @@ export function renderCellContent(text: string, getConn?: () => ConnectionsApi |
 export function StaticCell({
   text,
   connections,
-  onActivate
+  onActivate,
 }: {
   text: string
   connections?: () => ConnectionsApi | undefined

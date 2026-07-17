@@ -5,6 +5,7 @@ import type { EditorView } from '@codemirror/view'
 // border (where the drop lands), unlike coordsAtPos (the inner text position, which sits inside the box).
 export function lineElementAt(view: EditorView, pos: number): HTMLElement | null {
   let node: Node | null = view.domAtPos(pos).node
-  while (node && !(node instanceof HTMLElement && node.classList.contains('cm-line'))) node = node.parentNode
+  while (node && !(node instanceof HTMLElement && node.classList.contains('cm-line')))
+    node = node.parentNode
   return node instanceof HTMLElement ? node : null
 }

@@ -18,7 +18,7 @@ beforeAll(() => {
   d(join(root, 'Vault A', 'Collection A'))
   w(
     join(root, 'Vault A', 'Collection A', 'Page A.md'),
-    '---\nid: page-a\nicon: star\ntags:\n  - x\n  - y\n---\n# Heading\n\nbody text\n'
+    '---\nid: page-a\nicon: star\ntags:\n  - x\n  - y\n---\n# Heading\n\nbody text\n',
   )
   w(join(root, 'Vault A', 'Collection A', 'Plain.md'), '# just markdown\n\nno frontmatter')
   w(join(root, 'Vault A', 'Collection A', 'Empty.md'), '')

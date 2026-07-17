@@ -5,7 +5,7 @@ export const duration = {
   disclosure: '180ms', // disclosure + chevron open/close (sidebar + editor) — tunable apart from `fast`
   dropdown: '225ms', // inline picker + autocomplete open/close — the Bloom keyframes, snappier + symmetric
   base: '280ms', // sidebar + inspector slide + the reflow that tracks them
-  slow: '350ms'
+  slow: '350ms',
 } as const
 
 export const easing = {
@@ -14,7 +14,7 @@ export const easing = {
   // and the reveal follow because they reference the same token.
   standard: 'ease',
   inOut: 'ease-in-out', // symmetric fade — in as fast as out (the NavWindow highlight)
-  out: 'cubic-bezier(0.22, 1, 0.36, 1)' // ease-out (quint), no bounce
+  out: 'cubic-bezier(0.22, 1, 0.36, 1)', // ease-out (quint), no bounce
 } as const
 
 export type Duration = keyof typeof duration

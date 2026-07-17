@@ -18,7 +18,7 @@ export interface GroupingDrop {
 export function useGroupingListDrag({
   bands,
   nestable,
-  onDrop
+  onDrop,
 }: {
   bands: Band[]
   nestable: boolean
@@ -36,8 +36,10 @@ export function useGroupingListDrag({
   const index = useRef<BandIndex | null>(null)
   const boxTop = useRef(0)
   const endY = useRef(0)
-  const gesture = useRef<{ kind: 'idle' } | { kind: 'pending' | 'active'; id: string; startY: number; startX: number }>({
-    kind: 'idle'
+  const gesture = useRef<
+    { kind: 'idle' } | { kind: 'pending' | 'active'; id: string; startY: number; startX: number }
+  >({
+    kind: 'idle',
   })
   const live = useRef<BandSlot | null>(null)
   const cfg = useRef({ bands, nestable, onDrop })
@@ -80,7 +82,12 @@ export function useGroupingListDrag({
     }
     const idx = index.current
     if (!idx) return
-    let slot = bandSlot(idx, e.clientY, gesture.current.kind === 'active' ? (gesture.current as { id: string }).id : '', endY.current)
+    let slot = bandSlot(
+      idx,
+      e.clientY,
+      gesture.current.kind === 'active' ? (gesture.current as { id: string }).id : '',
+      endY.current,
+    )
     // A non-nestable list (the flat Custom chips / flat sub-grouped sets) demotes a nest slot to
     // an after-slot at the same line; an illegal nest dies.
     if (slot?.nestInto) {
@@ -98,9 +105,13 @@ export function useGroupingListDrag({
     if (g.kind === 'active' && slot) {
       suppressNextClick() // the release must not also fire the row's disclosure toggle
       cfg.current.onDrop(g.id, {
-        kind: slot.nestInto ? 'reparent' : slot.impliedParentId === cfg.current.bands.find((b) => b.id === g.id)?.parentId ? 'reorder' : 'reparent',
+        kind: slot.nestInto
+          ? 'reparent'
+          : slot.impliedParentId === cfg.current.bands.find((b) => b.id === g.id)?.parentId
+            ? 'reorder'
+            : 'reparent',
         targetParentId: slot.nestInto ?? slot.impliedParentId,
-        beforeId: slot.beforeId
+        beforeId: slot.beforeId,
       })
     }
     reset()
@@ -126,11 +137,11 @@ export function useGroupingListDrag({
         window.addEventListener('pointermove', onMove)
         window.addEventListener('pointerup', onUp)
         window.addEventListener('keydown', onKey)
-      }
+      },
     }),
     draggingId,
     line,
-    nestTarget
+    nestTarget,
   }
 }
 

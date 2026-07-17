@@ -18,7 +18,7 @@ export function HomepageView({ tree }: { tree: NexusTree | null }): React.JSX.El
         kind: 'homepage',
         name: tree?.nexus.name ?? 'Home',
         banner: tree?.homepage.banner,
-        headingIconHidden: tree?.homepage.headingIconHidden
+        headingIconHidden: tree?.homepage.headingIconHidden,
       }}
     >
       <BlockSurface host={HOMEPAGE_HOST} />

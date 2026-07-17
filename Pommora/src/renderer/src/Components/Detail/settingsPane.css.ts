@@ -2,7 +2,13 @@ import { globalStyle, style } from '@vanilla-extract/css'
 import { vars as colorVars, inputFieldVar } from '../../design-system/tokens/color.css'
 import { text } from '../../design-system/tokens/typography.css'
 import { duration, easing } from '../../design-system/tokens/motion'
-import { flushAffordance, accessoryButton, accessoryGhostRest, footingLabel, titleText } from '../../design-system/components/menu/menu.css'
+import {
+  flushAffordance,
+  accessoryButton,
+  accessoryGhostRest,
+  footingLabel,
+  titleText,
+} from '../../design-system/components/menu/menu.css'
 import { surface } from '../../design-system/components/menu/menuSurface.css'
 
 const c = colorVars.color
@@ -19,7 +25,7 @@ const COLOR = {
   allRow: c.label.secondary, // unassigned registry rows — dimmer than assigned (primary), brighter than the heading (tertiary)
   iconHover: c.state.hover, // the shared fill behind any pane icon-button on hover (not a glyph shift)
   dragHighlight: c.state.hover, // the unassign area tint while dragging out
-  eyeHidden: c.label.tertiary // a hidden row's eye: tertiary, riding the row's ghost (single dim)
+  eyeHidden: c.label.tertiary, // a hidden row's eye: tertiary, riding the row's ghost (single dim)
 }
 
 /** — SIZING — (px boxes; the glyphs inside are ICON's) */
@@ -27,7 +33,7 @@ const SIZE = {
   topRowActionWidth: 20, // TopRow ⊕ / ⋮ horizontal hit target (height hugs the glyph)
   iconPickerButton: 28, // the title header's square icon button
   dashIcon: 16, // the placeholder dashed square
-  dragHighlightRadius: 6 // the unassign tint's corner radius
+  dragHighlightRadius: 6, // the unassign tint's corner radius
 }
 
 /** — OPTION EDITOR — (Select/Multi option list; px) */
@@ -36,7 +42,7 @@ const OPTION = {
   gapBetweenChips: 6, // chip → chip
   chipPadX: 6, // option chip horizontal padding — retunes the shared chip-label default, this pane only
   addBox: 20, // the "Options" + hit target (its glyph is ICON.optionsAdd)
-  groupGap: 12 // status only: gap between one group's block (heading + chips) and the next
+  groupGap: 12, // status only: gap between one group's block (heading + chips) and the next
 }
 
 /** — ICONS — glyph sizes, consumed by PropertiesPane/ViewPane TSX. The TopRow's own
@@ -51,7 +57,7 @@ export const ICON = {
   rowPlus: 12, // the registry row's + glyph
   eye: 14, // the Visibility pane's eye / eye-off glyph
   optionsAdd: 12, // the option editor's "Options" + glyph
-  palette: 14 // the option row's hover recolor glyph
+  palette: 14, // the option row's hover recolor glyph
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -65,7 +71,7 @@ export const anchor = style({
   top: 'calc(100% + 6px)',
   right: 0,
   zIndex: 10,
-  vars: { '--dropdown-origin': 'top right' }
+  vars: { '--dropdown-origin': 'top right' },
 })
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -74,7 +80,12 @@ export const anchor = style({
 
 /** The icon + title header row. 2px left inset lands the icon-button's centered dash on the row-icon
  *  column (rows inset their 16px dash by 8px; the 28px button centers its dash at 6px → 2px + 6px = 8px). */
-export const header = style({ display: 'flex', alignItems: 'center', gap: '8px', padding: '2px 0 6px 2px' })
+export const header = style({
+  display: 'flex',
+  alignItems: 'center',
+  gap: '8px',
+  padding: '2px 0 6px 2px',
+})
 
 /** Square icon button — opens the icon picker. */
 export const iconButton = style({
@@ -89,7 +100,7 @@ export const iconButton = style({
   background: inputFieldVar,
   cursor: 'default',
   color: COLOR.actionLabel,
-  selectors: { '&:hover': { background: c.fill.quaternary } }
+  selectors: { '&:hover': { background: c.fill.quaternary } },
 })
 
 /** The title interaction-field / input takes the remaining width. */
@@ -97,7 +108,13 @@ export const titleField = style({ flex: '1 1 auto', minWidth: 0 })
 
 /** A profile photo filling the square icon-button slot (homepage identity) — cover-fit, corners
  *  matched to the button so it reads as the icon's photo rather than a floating thumbnail. */
-export const headerPhotoImg = style({ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px', display: 'block' })
+export const headerPhotoImg = style({
+  width: '100%',
+  height: '100%',
+  objectFit: 'cover',
+  borderRadius: '8px',
+  display: 'block',
+})
 
 /** Placeholder dashed-square menu icon (until Nathan specifies the real symbols). */
 export const dashIcon = style({
@@ -106,7 +123,7 @@ export const dashIcon = style({
   borderRadius: '3px',
   border: '1px dashed currentColor',
   opacity: 0.5,
-  flex: '0 0 auto'
+  flex: '0 0 auto',
 })
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -123,8 +140,8 @@ export const topRowAction = style([
     width: `${SIZE.topRowActionWidth}px`,
     height: 'auto',
     justifyContent: 'flex-end',
-    selectors: { '&&': { color: c.label.secondary } }
-  }
+    selectors: { '&&': { color: c.label.secondary } },
+  },
 ])
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -137,7 +154,7 @@ export const topRowAction = style([
  *  to meet the assigned rows while its list unfolds beneath. */
 export const allSpacer = style({
   flex: '1 1 0px',
-  transition: `flex-grow ${duration.base} ${easing.standard}`
+  transition: `flex-grow ${duration.base} ${easing.standard}`,
 })
 export const allSpacerCollapsed = style({ flexGrow: 0 })
 
@@ -154,14 +171,14 @@ export const allHeadingRow = style({
   paddingLeft: 0,
   border: 'none',
   background: 'none',
-  cursor: 'default'
+  cursor: 'default',
 })
 
 /** The disclosure chevron — the sidebar's twisty, pinned to the pane's beat so the rotate,
  *  the Reveal unfold, and the height-resize land together (E-8). */
 export const twisty = style({
   transition: `transform ${duration.base} ${easing.standard}`,
-  flex: '0 0 auto'
+  flex: '0 0 auto',
 })
 export const twistyOpen = style({ transform: 'rotate(90deg)' })
 
@@ -195,7 +212,7 @@ export const rowDragging = style({ opacity: 'var(--state-ghost)' })
  *  L-3) — the inner row rides full so the net dim is the single intended ghost. */
 export const hiddenRow = style({
   opacity: 'var(--state-ghost)',
-  selectors: { [`${rowDragging} &`]: { opacity: 1 } }
+  selectors: { [`${rowDragging} &`]: { opacity: 1 } },
 })
 
 /** The hidden zone sits directly below the shown rows and grows into the pane's slack (rows
@@ -209,15 +226,15 @@ export const hiddenZone = style({ flex: '1 1 auto' })
 export const eyeButton = style([
   accessoryButton,
   accessoryGhostRest,
-  { selectors: { [`${hiddenRow} &`]: { color: COLOR.eyeHidden, opacity: 1 } } }
+  { selectors: { [`${hiddenRow} &`]: { color: COLOR.eyeHidden, opacity: 1 } } },
 ])
 export const eyeRestGlyph = style({
   display: 'flex',
-  selectors: { [`${eyeButton}:hover &`]: { display: 'none' } }
+  selectors: { [`${eyeButton}:hover &`]: { display: 'none' } },
 })
 export const eyeHoverGlyph = style({
   display: 'none',
-  selectors: { [`${eyeButton}:hover &`]: { display: 'flex' } }
+  selectors: { [`${eyeButton}:hover &`]: { display: 'flex' } },
 })
 
 /** Title's inert eye — the same glyph + box for visual parity with the other rows, but it never
@@ -228,8 +245,8 @@ export const eyeInert = style([
   {
     cursor: 'default',
     opacity: 'var(--state-ghost)',
-    selectors: { '&:hover': { background: 'transparent', opacity: 'var(--state-ghost)' } }
-  }
+    selectors: { '&:hover': { background: 'transparent', opacity: 'var(--state-ghost)' } },
+  },
 ])
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -242,13 +259,13 @@ export const paneDnd = style({
   position: 'relative',
   display: 'flex',
   flexDirection: 'column',
-  flex: '1 1 auto'
+  flex: '1 1 auto',
 })
 
 /** The unassign target's area highlight (C-4) — the whole all-group tints, no insertion line. */
 export const allHighlight = style({
   background: COLOR.dragHighlight,
-  borderRadius: `${SIZE.dragHighlightRadius}px`
+  borderRadius: `${SIZE.dragHighlightRadius}px`,
 })
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -260,11 +277,19 @@ export const optionEditor = style({ display: 'flex', flexDirection: 'column' })
 
 /** Status only — the grouped variant: one block per group (heading + its chips), stacked with a gap.
  *  Each block reuses `optionsRow` / `optionsLabel` / `optionList` / `optionRow` from the flat editor. */
-export const statusGroups = style({ display: 'flex', flexDirection: 'column', gap: `${OPTION.groupGap}px` })
+export const statusGroups = style({
+  display: 'flex',
+  flexDirection: 'column',
+  gap: `${OPTION.groupGap}px`,
+})
 export const statusGroup = style({ display: 'flex', flexDirection: 'column' })
 
 /** The "Options" row — label left, the always-shown + right. */
-export const optionsRow = style({ display: 'flex', alignItems: 'center', justifyContent: 'space-between' })
+export const optionsRow = style({
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+})
 
 /** The "Options" heading + the Status group labels — footnote-semibold (Nathan's call: a step heavier
  *  than the All Properties / back-row headings), the shared heading-label color. */
@@ -275,7 +300,10 @@ export const optionsLabel = style([text.footnote.semibold, { color: COLOR.headin
 export const allPropertiesLabel = style([optionsLabel, { color: c.label.secondary }])
 
 /** The always-shown + that appends an option — the shared action-symbol color, brightening on hover. */
-export const optionsAdd = style([accessoryButton, { width: `${OPTION.addBox}px`, height: `${OPTION.addBox}px` }])
+export const optionsAdd = style([
+  accessoryButton,
+  { width: `${OPTION.addBox}px`, height: `${OPTION.addBox}px` },
+])
 
 /** Status only — the per-group + . Reuses the "Options" + button, hidden until you hover the group
  *  (its heading or its chips), per Nathan's reveal. Tertiary at rest, brightening on direct hover; the
@@ -288,9 +316,9 @@ export const groupAdd = style([
     selectors: {
       [`${statusGroup}:hover &`]: { opacity: 1 },
       '&&': { color: c.label.tertiary },
-      '&:hover': { color: c.label.secondary }
-    }
-  }
+      '&:hover': { color: c.label.secondary },
+    },
+  },
 ])
 
 /** The chip list — full-width rows (chip left, hover recolor icon at the right edge), the inter-chip
@@ -301,11 +329,15 @@ export const optionList = style({
   position: 'relative', // the drag drop-line positions against this
   gap: `${OPTION.gapBetweenChips}px`,
   paddingTop: `${OPTION.gapAroundLabel}px`,
-  vars: { '--chip-pad-x': `${OPTION.chipPadX}px` }
+  vars: { '--chip-pad-x': `${OPTION.chipPadX}px` },
 })
 
 /** One option's row — chip left, the hover palette icon pushed to the right edge. */
-export const optionRow = style({ display: 'flex', alignItems: 'center', justifyContent: 'space-between' })
+export const optionRow = style({
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+})
 
 /** The inline add/rename caret — bare input inside the chip, which owns the font, padding, and fill. */
 export const optionInput = style({
@@ -315,7 +347,7 @@ export const optionInput = style({
   padding: 0,
   margin: 0,
   color: 'inherit',
-  font: 'inherit'
+  font: 'inherit',
 })
 
 /** The recolor icon's positioning context — the ColorPicker anchors (centered, below) to this. */
@@ -330,9 +362,9 @@ export const paletteButton = style([
     transition: `opacity ${duration.fast} ${easing.standard}, background ${duration.fast} ${easing.standard}`,
     selectors: {
       [`${optionRow}:hover &`]: { opacity: 'var(--state-ghost)' },
-      [`${optionRow}:hover &:hover`]: { opacity: 1, background: COLOR.iconHover }
-    }
-  }
+      [`${optionRow}:hover &:hover`]: { opacity: 1, background: COLOR.iconHover },
+    },
+  },
 ])
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -347,11 +379,16 @@ export const configEditor = style({
   display: 'flex',
   flexDirection: 'column',
   gap: '8px',
-  paddingTop: `${OPTION.gapAroundLabel}px`
+  paddingTop: `${OPTION.gapAroundLabel}px`,
 })
 
 /** One config row — label left, control right. */
-export const configRow = style({ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: '24px' })
+export const configRow = style({
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  minHeight: '24px',
+})
 
 /** The row label (Underline · Full URL · Color · Style) — emphasized (Nathan's call), the primary label tone. */
 export const configLabel = style([text.control.emphasized, { color: c.label.control }])
@@ -361,26 +398,37 @@ export const configLabel = style([text.control.emphasized, { color: c.label.cont
 export const switchScale = style({ zoom: 0.8 })
 
 /** The colour control cluster — the clickable chip; the ColorPicker anchors below. */
-export const colorCluster = style({ position: 'relative', display: 'flex', alignItems: 'center', gap: '4px' })
+export const colorCluster = style({
+  position: 'relative',
+  display: 'flex',
+  alignItems: 'center',
+  gap: '4px',
+})
 
 /** The bare button wrapping the colour chip — the recolor affordance (click the chip to open the picker). */
-export const colorChip = style({ border: 'none', background: 'none', padding: 0, cursor: 'default', display: 'flex' })
+export const colorChip = style({
+  border: 'none',
+  background: 'none',
+  padding: 0,
+  cursor: 'default',
+  display: 'flex',
+})
 
 /** The scoped-pane footer breadcrumb — the embed's source path, `(icon) Collection › (icon) Set`,
  *  wearing the house footing tone (menu.css footingLabel); the lock rides the trailing slot. */
 export const crumbRow = style([
   footingLabel,
-  { display: 'inline-flex', alignItems: 'center', gap: '4px', minWidth: 0 }
+  { display: 'inline-flex', alignItems: 'center', gap: '4px', minWidth: 0 },
 ])
 
 /** The scoped footer's lock reads the footing TRAILING tone — label-tertiary (Nathan), a
  *  step under the leading breadcrumb; quadrupled to outrank the BottomRow secondary bump. */
 export const footerLock = style({
-  selectors: { '&&&&': { color: c.label.tertiary } }
+  selectors: { '&&&&': { color: c.label.tertiary } },
 })
 
 /** Locked state — reads engaged via the active state fill alone (no color lift). `--state-active` isn't
  *  a token (state = hover / selected / muted); this is its `--state-selected` mapping. */
 export const footerLockActive = style({
-  background: 'var(--state-selected)'
+  background: 'var(--state-selected)',
 })

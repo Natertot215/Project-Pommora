@@ -11,7 +11,11 @@ function caretMarkers(view: EditorView): RectangleMarker[] {
   for (const r of view.state.selection.ranges) {
     const cursor = r.empty ? r : EditorSelection.cursor(r.head, r.assoc)
     for (const m of RectangleMarker.forRange(view, 'mdpm-caret', cursor)) {
-      out.push(m.height > cap ? new RectangleMarker('mdpm-caret', m.left, m.top, m.width, view.defaultLineHeight) : m)
+      out.push(
+        m.height > cap
+          ? new RectangleMarker('mdpm-caret', m.left, m.top, m.width, view.defaultLineHeight)
+          : m,
+      )
     }
   }
   return out
@@ -25,7 +29,8 @@ export const customCaret = layer({
     // Swap the keyframe name on any selection change so the fade restarts — the caret reads solid the
     // instant it moves, rather than mid-fade. Same trick CM's own cursor layer uses.
     if (update.transactions.some((tr) => tr.selection))
-      dom.style.animationName = dom.style.animationName === 'mdpm-blink2' ? 'mdpm-blink' : 'mdpm-blink2'
+      dom.style.animationName =
+        dom.style.animationName === 'mdpm-blink2' ? 'mdpm-blink' : 'mdpm-blink2'
     return update.docChanged || update.selectionSet
-  }
+  },
 })

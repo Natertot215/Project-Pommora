@@ -31,7 +31,7 @@ const mount = async (
     accent?: string
     onSetColor?: (c: string | undefined) => void
     onSetStyle?: (l: CheckboxLook) => void
-  } = {}
+  } = {},
 ): Promise<void> => {
   await act(async () => {
     root.render(
@@ -41,7 +41,7 @@ const mount = async (
         accent={props.accent}
         onSetColor={props.onSetColor ?? (() => {})}
         onSetStyle={props.onSetStyle ?? (() => {})}
-      />
+      />,
     )
   })
 }
@@ -50,7 +50,7 @@ const mount = async (
  *  (the PickerMenu portals to document.body). */
 const buttonFor = (name: string): HTMLButtonElement => {
   const el = [...document.querySelectorAll<HTMLButtonElement>('button')].find(
-    (b) => b.getAttribute('aria-label') === name || b.textContent === name
+    (b) => b.getAttribute('aria-label') === name || b.textContent === name,
   )
   if (!el) throw new Error(`no button "${name}"`)
   return el

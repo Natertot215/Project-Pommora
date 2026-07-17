@@ -95,9 +95,9 @@ export function DetailPane(): React.JSX.Element {
     viewRef.current?.animate(
       [
         { transform: `translateX(${x}px)`, opacity: 0 },
-        { transform: 'translateX(0)', opacity: 1 }
+        { transform: 'translateX(0)', opacity: 1 },
       ],
-      { duration: Number.parseInt(duration.fast, 10), easing: easing.standard }
+      { duration: Number.parseInt(duration.fast, 10), easing: easing.standard },
     )
   }, [selection, navSlide])
   // Cursor in the chevron's general area (a large bottom-right region) → reveal the toggle. Tracked

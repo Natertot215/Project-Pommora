@@ -30,14 +30,21 @@ beforeEach(async () => {
   root = await mkdtemp(join(tmpdir(), 'pom-index-build-'))
   // nexus.json ⇒ sidecar mode (stable ids from sidecars).
   await mkdir(nexusDir(root), { recursive: true })
-  await writeJson(nexusConfig(root, NEXUS_CONFIG_FILES.identity), { id: 'nx', created_at: '2026-01-01T00:00:00.000Z' })
+  await writeJson(nexusConfig(root, NEXUS_CONFIG_FILES.identity), {
+    id: 'nx',
+    created_at: '2026-01-01T00:00:00.000Z',
+  })
 
   // 2-tier Model A fixture: a Collection (schema-bearing) with two root pages + a depth-1 Set
   // holding one page (exercises page_sets.parent_collection_id + pages.page_set_id).
   const coll = await createFolderEntity(root, 'collection', 'Notes')
   if (!coll.ok) throw new Error('setup: collection')
   ids.collection = coll.value.id
-  const score = await createProperty(root, { id: '', name: 'Score', type: 'number' } as PropertyDefinition)
+  const score = await createProperty(root, {
+    id: '',
+    name: 'Score',
+    type: 'number',
+  } as PropertyDefinition)
   if (!score.ok) throw new Error('setup: prop')
   ids.score = score.value.id
   await assignProperty(root, coll.value.path, ids.score)
@@ -49,7 +56,9 @@ beforeEach(async () => {
   ids.b = b.value.id
   await updatePageProperty(a.value.path, ids.score, { kind: 'number', value: 5 })
 
-  const daily = await createFolderEntity(coll.value.path, 'set', 'Daily', { parent_id: ids.collection })
+  const daily = await createFolderEntity(coll.value.path, 'set', 'Daily', {
+    parent_id: ids.collection,
+  })
   if (!daily.ok) throw new Error('setup: set')
   ids.set = daily.value.id
   const sp = await createPage(daily.value.path, 'Entry')
@@ -63,11 +72,15 @@ beforeEach(async () => {
 
   // Agenda: a Tasks folder (config seeded with built-in _status) + one task.
   const tasksCfg = await createFolderEntity(root, 'taskConfig', 'Tasks', {
-    property_definitions: [{ id: '_status', name: 'Status', type: 'status', status_groups: defaultStatusSeed() }],
-    schema_version: 1
+    property_definitions: [
+      { id: '_status', name: 'Status', type: 'status', status_groups: defaultStatusSeed() },
+    ],
+    schema_version: 1,
   })
   if (!tasksCfg.ok) throw new Error('setup: taskconfig')
-  const task = await createAgendaItem(tasksCfg.value.path, 'task', 'Buy milk', { due_at: '2026-06-20T00:00:00.000Z' })
+  const task = await createAgendaItem(tasksCfg.value.path, 'task', 'Buy milk', {
+    due_at: '2026-06-20T00:00:00.000Z',
+  })
   if (!task.ok) throw new Error('setup: task')
   ids.task = task.value.id
   await updateAgendaProperty(task.value.path, '_status', { kind: 'status', value: 'not_started' })
@@ -77,7 +90,8 @@ afterEach(async () => {
   await rm(root, { recursive: true, force: true })
 })
 
-const get = (db: Db, sql: string, ...a: unknown[]) => db.prepare(sql).get(...a) as Record<string, unknown> | undefined
+const get = (db: Db, sql: string, ...a: unknown[]) =>
+  db.prepare(sql).get(...a) as Record<string, unknown> | undefined
 
 describe('rebuildIndex (cold build)', () => {
   it('populates every table from the canonical files', async () => {
@@ -86,20 +100,28 @@ describe('rebuildIndex (cold build)', () => {
     if (!db) return
 
     // Structure (Model A)
-    expect(get(db, 'SELECT title FROM page_collections WHERE id = ?', ids.collection)?.title).toBe('Notes')
+    expect(get(db, 'SELECT title FROM page_collections WHERE id = ?', ids.collection)?.title).toBe(
+      'Notes',
+    )
     expect((get(db, 'SELECT COUNT(*) c FROM pages') as { c: number }).c).toBe(3)
     // The depth-1 Set references its Collection; its page records both ids; a root page has no set.
-    expect(get(db, 'SELECT parent_collection_id, parent_set_id FROM page_sets WHERE id = ?', ids.set)).toMatchObject({
+    expect(
+      get(db, 'SELECT parent_collection_id, parent_set_id FROM page_sets WHERE id = ?', ids.set),
+    ).toMatchObject({
       parent_collection_id: ids.collection,
-      parent_set_id: null
+      parent_set_id: null,
     })
-    expect(get(db, 'SELECT page_collection_id, page_set_id FROM pages WHERE id = ?', ids.setPage)).toMatchObject({
+    expect(
+      get(db, 'SELECT page_collection_id, page_set_id FROM pages WHERE id = ?', ids.setPage),
+    ).toMatchObject({
       page_collection_id: ids.collection,
-      page_set_id: ids.set
+      page_set_id: ids.set,
     })
-    expect(get(db, 'SELECT page_collection_id, page_set_id FROM pages WHERE id = ?', ids.a)).toMatchObject({
+    expect(
+      get(db, 'SELECT page_collection_id, page_set_id FROM pages WHERE id = ?', ids.a),
+    ).toMatchObject({
       page_collection_id: ids.collection,
-      page_set_id: null
+      page_set_id: null,
     })
 
     // Page properties (number encoded bare)
@@ -111,10 +133,16 @@ describe('rebuildIndex (cold build)', () => {
     expect(def).toMatchObject({ name: 'Score', type: 'number' })
 
     // Context (tier 1)
-    expect(get(db, 'SELECT tier, title FROM contexts WHERE id = ?', ids.work)).toMatchObject({ tier: 1, title: 'Work' })
+    expect(get(db, 'SELECT tier, title FROM contexts WHERE id = ?', ids.work)).toMatchObject({
+      tier: 1,
+      title: 'Work',
+    })
 
     // Resolved connection PageA → PageB; the self-link [[PageA]] is skipped (Swift parity)
-    const conns = db.prepare('SELECT * FROM connections WHERE source_id = ?').all(ids.a) as Record<string, unknown>[]
+    const conns = db.prepare('SELECT * FROM connections WHERE source_id = ?').all(ids.a) as Record<
+      string,
+      unknown
+    >[]
     expect(conns).toHaveLength(1)
     expect(conns[0]).toMatchObject({ target_title: 'pageb', target_id: ids.b, resolved: 1 })
 
@@ -140,12 +168,16 @@ describe('rebuildIndex (cold build)', () => {
     const blockId = '01BLOCKTILE0000000000000A'
     await mkdir(blockHostDir(root, host), { recursive: true })
     await writeFile(blockFilePath(root, host, blockId), 'see [[PageB]]', 'utf8')
-    await writeJson(nexusConfig(root, NEXUS_CONFIG_FILES.homepage), { blocks: [{ id: blockId, type: 'markdown' }] })
+    await writeJson(nexusConfig(root, NEXUS_CONFIG_FILES.homepage), {
+      blocks: [{ id: blockId, type: 'markdown' }],
+    })
 
     const db = await rebuildIndex(root)
     expect(db).not.toBeNull()
     if (!db) return
-    const conns = db.prepare('SELECT * FROM connections WHERE source_id = ?').all(blockId) as Record<string, unknown>[]
+    const conns = db
+      .prepare('SELECT * FROM connections WHERE source_id = ?')
+      .all(blockId) as Record<string, unknown>[]
     expect(conns).toHaveLength(1)
     expect(conns[0]).toMatchObject({
       source_kind: 'block',
@@ -153,7 +185,7 @@ describe('rebuildIndex (cold build)', () => {
       target_kind: 'page',
       target_title: 'pageb',
       target_id: ids.b,
-      resolved: 1
+      resolved: 1,
     })
     db.close()
   })

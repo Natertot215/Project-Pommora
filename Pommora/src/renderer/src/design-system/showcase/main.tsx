@@ -8,5 +8,5 @@ import { Showcase } from './Showcase'
 createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
     <Showcase />
-  </React.StrictMode>
+  </React.StrictMode>,
 )

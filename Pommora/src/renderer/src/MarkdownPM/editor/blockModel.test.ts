@@ -146,7 +146,7 @@ describe('blockAt', () => {
       { from: 0, kind: 'heading' },
       { from: 4, kind: 'paragraph' },
       { from: 23, kind: 'list' },
-      { from: 32, kind: 'paragraph' }
+      { from: 32, kind: 'paragraph' },
     ])
   })
 })

@@ -13,10 +13,13 @@ export const trigger = style({
   background: 'none',
   padding: 0,
   cursor: 'default',
-  selectors: { '&&': { color: c.label.secondary } }
+  selectors: { '&&': { color: c.label.secondary } },
 })
 
-export const value = style([text.control.standard, { selectors: { '&&': { color: c.label.secondary } } }])
+export const value = style([
+  text.control.standard,
+  { selectors: { '&&': { color: c.label.secondary } } },
+])
 
 /** An icon-bearing option row — leading glyph + label, LEFT-aligned (the option's own centering
  *  yields to the row layout when a glyph leads). */
@@ -25,5 +28,5 @@ export const iconOption = style({
   alignItems: 'center',
   gap: '6px',
   width: '100%',
-  justifyContent: 'flex-start'
+  justifyContent: 'flex-start',
 })

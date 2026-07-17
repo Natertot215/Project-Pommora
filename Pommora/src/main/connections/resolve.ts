@@ -23,7 +23,7 @@ export function buildLinkIndex(pages: { id: string; title: string }[]): LinkInde
 /** Classify a normalized title against the index. */
 export function resolveTitle(
   normalizedTitle: string,
-  index: LinkIndex
+  index: LinkIndex,
 ): { status: LinkStatus; targetId?: string } {
   const ids = index.get(normalizedTitle)
   if (!ids || ids.length === 0) return { status: 'phantom' }

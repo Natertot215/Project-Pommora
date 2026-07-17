@@ -27,9 +27,14 @@ afterEach(() => {
 })
 
 const mount = (config: NumberConfig): void => {
-  act(() => root.render(<NumberEditor config={config} look="number" onSetConfig={vi.fn()} onSetStyle={vi.fn()} />))
+  act(() =>
+    root.render(
+      <NumberEditor config={config} look="number" onSetConfig={vi.fn()} onSetStyle={vi.fn()} />,
+    ),
+  )
 }
-const labels = (): string[] => Array.from(host.querySelectorAll('span')).map((s) => s.textContent ?? '')
+const labels = (): string[] =>
+  Array.from(host.querySelectorAll('span')).map((s) => s.textContent ?? '')
 
 describe('NumberEditor', () => {
   it('shows the Currency row only when the family is currency', () => {

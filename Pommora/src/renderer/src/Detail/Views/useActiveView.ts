@@ -10,7 +10,7 @@ import { pickView } from './Table/TableView'
 
 export function useActiveView(
   source: CollectionNode | SetNode,
-  schema: PropertyDefinition[]
+  schema: PropertyDefinition[],
 ): { activeViewId: string | undefined; view: SavedView } {
   // Inside a view embed the tile payload IS the view (C-1: per-instance, never the
   // global slot) — the slot read stays unconditional to keep hook order stable.

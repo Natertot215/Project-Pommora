@@ -11,14 +11,14 @@ type RibbonKey = 'navigation' | 'agenda' | 'contexts' | 'collections' | 'setting
 const MODE_FOR: Partial<Record<RibbonKey, SidebarMode>> = {
   collections: 'collections',
   contexts: 'contexts',
-  agenda: 'agenda'
+  agenda: 'agenda',
 }
 // The mode icons reuse the entity defaults (a Collection's icon is a Collection's icon), so they
 // track any personalization override; agenda/nav/settings have no entity kind and stay literal.
 const STATIC_ICON: Record<'agenda' | 'navigation' | 'settings', string> = {
   agenda: 'calendar',
   navigation: 'map',
-  settings: 'sliders-horizontal'
+  settings: 'sliders-horizontal',
 }
 const DEFAULT_ORDER: RibbonKey[] = ['navigation', 'agenda', 'contexts', 'collections', 'settings']
 
@@ -57,7 +57,11 @@ export function Ribbon(): React.JSX.Element {
   // Drag-to-order the launcher icons (Homepage stays pinned, outside the zone). The reordered keys
   // persist to ribbonOrder; the id-wrap mirrors the shared reorder helper's object contract.
   const reorderIcons = (activeId: string, overId: string): void => {
-    const next = reorder(keys.map((id) => ({ id })), activeId, overId).map((x) => x.id)
+    const next = reorder(
+      keys.map((id) => ({ id })),
+      activeId,
+      overId,
+    ).map((x) => x.id)
     setPersonalization('ribbonOrder', next)
   }
 
@@ -73,7 +77,13 @@ export function Ribbon(): React.JSX.Element {
       </button>
       <SortableZone items={keys} layout="list" axis="y" onReorder={reorderIcons}>
         {keys.map((k) => (
-          <RibbonTab key={k} tabKey={k} icon={iconFor(k)} active={MODE_FOR[k] != null && MODE_FOR[k] === mode} onClick={() => onIcon(k)} />
+          <RibbonTab
+            key={k}
+            tabKey={k}
+            icon={iconFor(k)}
+            active={MODE_FOR[k] != null && MODE_FOR[k] === mode}
+            onClick={() => onIcon(k)}
+          />
         ))}
       </SortableZone>
     </div>
@@ -84,7 +94,7 @@ function RibbonTab({
   tabKey,
   icon,
   active,
-  onClick
+  onClick,
 }: {
   tabKey: RibbonKey
   icon: string

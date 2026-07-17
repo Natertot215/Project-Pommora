@@ -5,10 +5,10 @@ describe('stabilize', () => {
   const prev = {
     collections: [
       { id: 'c1', title: 'A', pages: [{ id: 'p1', title: 'One' }], sets: [] },
-      { id: 'c2', title: 'B', pages: [], sets: [{ id: 's1', title: 'S' }] }
+      { id: 'c2', title: 'B', pages: [], sets: [{ id: 's1', title: 'S' }] },
     ],
     contexts: { areas: [{ id: 'a1', title: 'Work' }], topics: [], projects: [] },
-    accent: 'blue'
+    accent: 'blue',
   }
   const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v))
 
@@ -16,7 +16,7 @@ describe('stabilize', () => {
     expect(stabilize(clone(prev), prev)).toBe(prev)
   })
 
-  it('an unrelated change keeps the untouched container\'s identity', () => {
+  it("an unrelated change keeps the untouched container's identity", () => {
     const next = clone(prev)
     next.collections[1].title = 'B renamed'
     const out = stabilize(next, prev)

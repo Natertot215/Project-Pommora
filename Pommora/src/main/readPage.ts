@@ -24,6 +24,6 @@ export async function readPage(rootPath: string, relPath: string): Promise<PageD
     title: basenameNoMd(basename(relPath)),
     path: relPath,
     frontmatter,
-    body: splitEnvelope(content).body
+    body: splitEnvelope(content).body,
   }
 }

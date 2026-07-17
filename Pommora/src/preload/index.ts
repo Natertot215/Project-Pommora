@@ -1,6 +1,27 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type { IpcRendererEvent } from 'electron'
-import type { AgendaListResult, NavChanged, NavFavorite, NavStateResult, NavTarget, NexusState, NexusTree, OpenIn, PageResult, Personalization, PinEntry, PinsResult, RecentEntry, SubfieldConfig, TabSet, TabsResult, ThumbRect, ThumbResult, ViewButton, ViewStyle } from '@shared/types'
+import type {
+  AgendaListResult,
+  NavChanged,
+  NavFavorite,
+  NavStateResult,
+  NavTarget,
+  NexusState,
+  NexusTree,
+  OpenIn,
+  PageResult,
+  Personalization,
+  PinEntry,
+  PinsResult,
+  RecentEntry,
+  SubfieldConfig,
+  TabSet,
+  TabsResult,
+  ThumbRect,
+  ThumbResult,
+  ViewButton,
+  ViewStyle,
+} from '@shared/types'
 import type { MutateRequest, MutateResult, ContextTarget } from '@shared/mutate'
 import type { FormatState } from '@shared/editorMenu'
 import type { TableMenuAction, TableMenuContext } from '@shared/tableMenu'
@@ -11,7 +32,14 @@ import type { PropertyMenuAction, PropertyMenuContext } from '@shared/propertyMe
 import type { OptionMenuAction, OptionMenuContext } from '@shared/optionMenu'
 import type { ColumnMenuAction, ColumnMenuContext } from '@shared/columnMenu'
 import type { SavedView } from '@shared/views'
-import type { BlockDocPatch, BlockHostRef, BlockStyle, BlocksGetResult, BlocksSaveResult, EmbeddedView } from '@shared/blocks'
+import type {
+  BlockDocPatch,
+  BlockHostRef,
+  BlockStyle,
+  BlocksGetResult,
+  BlocksSaveResult,
+  EmbeddedView,
+} from '@shared/blocks'
 import type { StatusGroup } from '@shared/properties'
 import type { PageFrontmatter } from '@shared/schemas'
 import type { PropertyDefinition, PropertyType } from '@shared/properties'
@@ -26,55 +54,61 @@ const api = {
     ipcRenderer.invoke('nexus:openPath', webUtils.getPathForFile(file)),
   openPage: (relPath: string): Promise<PageResult> => ipcRenderer.invoke('page:open', relPath),
   // Debounced editor body write (relative path); main resolves under the session root + preserves frontmatter.
-  updatePageBody: (relPath: string, body: string): Promise<{ ok: true } | { ok: false; error: string }> =>
+  updatePageBody: (
+    relPath: string,
+    body: string,
+  ): Promise<{ ok: true } | { ok: false; error: string }> =>
     ipcRenderer.invoke('page:updateBody', relPath, body),
   // Heading-fold UI state — local `.nexus/folds.json`, keyed by page id (per-machine, not frontmatter).
   folds: {
     get: (): Promise<Record<string, string[]>> => ipcRenderer.invoke('folds:get'),
     set: (pageId: string, keys: string[]): Promise<{ ok: true } | { ok: false; error: string }> =>
-      ipcRenderer.invoke('folds:set', pageId, keys)
+      ipcRenderer.invoke('folds:set', pageId, keys),
   },
   // Active-view pointer — local `.nexus/activeViews.json`, container id → active view id (per-machine).
   activeViews: {
     get: (): Promise<Record<string, string>> => ipcRenderer.invoke('activeViews:get'),
-    set: (containerId: string, viewId: string): Promise<{ ok: true } | { ok: false; error: string }> =>
-      ipcRenderer.invoke('activeViews:set', containerId, viewId)
+    set: (
+      containerId: string,
+      viewId: string,
+    ): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('activeViews:set', containerId, viewId),
   },
   // Sorted-view manual order — local `.nexus/viewOrders.json`, view id → page-id tiebreaker (per-machine).
   viewOrders: {
     get: (): Promise<Record<string, string[]>> => ipcRenderer.invoke('viewOrders:get'),
     set: (viewId: string, order: string[]): Promise<{ ok: true } | { ok: false; error: string }> =>
-      ipcRenderer.invoke('viewOrders:set', viewId, order)
+      ipcRenderer.invoke('viewOrders:set', viewId, order),
   },
   // View persistence — save / reorder / delete a SavedView in a Collection/Set sidecar's views[].
   views: {
     save: (
       containerPath: string,
       kind: 'collection' | 'set',
-      view: SavedView
+      view: SavedView,
     ): Promise<{ ok: true; id: string } | { ok: false; error: string }> =>
       ipcRenderer.invoke('views:save', containerPath, kind, view),
     reorder: (
       containerPath: string,
       kind: 'collection' | 'set',
-      orderedIds: string[]
+      orderedIds: string[],
     ): Promise<{ ok: true } | { ok: false; error: string }> =>
       ipcRenderer.invoke('views:reorder', containerPath, kind, orderedIds),
     delete: (
       containerPath: string,
       kind: 'collection' | 'set',
-      viewId: string
+      viewId: string,
     ): Promise<{ ok: true } | { ok: false; error: string }> =>
-      ipcRenderer.invoke('views:delete', containerPath, kind, viewId)
+      ipcRenderer.invoke('views:delete', containerPath, kind, viewId),
   },
   // Per-container non-view settings (open_in is collection-only; view_button / view_style either tier).
   container: {
     configure: (
       containerPath: string,
       kind: 'collection' | 'set',
-      patch: { open_in?: OpenIn; view_button?: ViewButton; view_style?: ViewStyle }
+      patch: { open_in?: OpenIn; view_button?: ViewButton; view_style?: ViewStyle },
     ): Promise<{ ok: true } | { ok: false; error: string }> =>
-      ipcRenderer.invoke('container:configure', containerPath, kind, patch)
+      ipcRenderer.invoke('container:configure', containerPath, kind, patch),
   },
   // The ViewDropdown right-click menu — resolves the picked action (or null on dismiss).
   viewButtonMenu: (current: {
@@ -83,66 +117,74 @@ const api = {
   }): Promise<'toggle-title' | 'style-dropdown' | 'style-toolbar' | null> =>
     ipcRenderer.invoke('view-button-menu', current),
   // The view embed's title-row right-click menu (Hide/Show Icon · Title Size · Hide Title).
-  viewEmbedTitleMenu: (arg: { iconShown: boolean; level: number }): Promise<'toggle-icon' | 'hide-title' | `size-${number}` | null> =>
+  viewEmbedTitleMenu: (arg: {
+    iconShown: boolean
+    level: number
+  }): Promise<'toggle-icon' | 'hide-title' | `size-${number}` | null> =>
     ipcRenderer.invoke('view-embed-title-menu', arg),
   // The view embed switcher area's right-click menu (Hide/Show Titles · New View · Style).
   viewEmbedAreaMenu: (current: {
     viewButton: ViewButton
     viewStyle: ViewStyle
     titleShown: boolean
-  }): Promise<'toggle-pill-titles' | 'show-title' | 'new-view' | 'style-dropdown' | 'style-toolbar' | null> =>
-    ipcRenderer.invoke('view-embed-area-menu', current),
+  }): Promise<
+    'toggle-pill-titles' | 'show-title' | 'new-view' | 'style-dropdown' | 'style-toolbar' | null
+  > => ipcRenderer.invoke('view-embed-area-menu', current),
   // The ViewSettings ⋮ menu (Duplicate / Delete); Delete disabled when the view can't be removed.
   viewItemMenu: (canDelete: boolean): Promise<'view:duplicate' | 'view:delete' | null> =>
     ipcRenderer.invoke('view-item-menu', canDelete),
   // A ViewPane view row's right-click menu (Rename / Edit Icon / Delete); Delete disabled on the last view.
-  viewRowMenu: (canDelete: boolean): Promise<'view:rename' | 'view:edit-icon' | 'view:delete' | null> =>
+  viewRowMenu: (
+    canDelete: boolean,
+  ): Promise<'view:rename' | 'view:edit-icon' | 'view:delete' | null> =>
     ipcRenderer.invoke('view-row-menu', canDelete),
   // The ViewSettings Format native menu (Standard / Compact).
   viewFormatMenu: (current: 'standard' | 'compact'): Promise<'standard' | 'compact' | null> =>
     ipcRenderer.invoke('view-format-menu', current),
   // The Configuration Open In native menu (Full Page / Preview).
-  openInMenu: (current: OpenIn): Promise<OpenIn | null> => ipcRenderer.invoke('open-in-menu', current),
+  openInMenu: (current: OpenIn): Promise<OpenIn | null> =>
+    ipcRenderer.invoke('open-in-menu', current),
   // The icon picker's right-click Favorite/Remove menu — resolves 'toggle' on click, null on dismiss.
-  iconFavoriteMenu: (favorited: boolean): Promise<'toggle' | null> => ipcRenderer.invoke('icon-favorite-menu', favorited),
+  iconFavoriteMenu: (favorited: boolean): Promise<'toggle' | null> =>
+    ipcRenderer.invoke('icon-favorite-menu', favorited),
   // Property schema CRUD on a Collection's page schema. containerPath is the schema-owning
   // Collection's folder (a Set inherits, so the renderer passes its ancestor Collection's path).
   schema: {
     add: (
       containerPath: string,
-      def: PropertyDefinition
+      def: PropertyDefinition,
     ): Promise<{ ok: true; id: string } | { ok: false; error: string }> =>
       ipcRenderer.invoke('schema:add', containerPath, def),
     rename: (
       containerPath: string,
       propertyId: string,
-      newName: string
+      newName: string,
     ): Promise<{ ok: true } | { ok: false; error: string }> =>
       ipcRenderer.invoke('schema:rename', containerPath, propertyId, newName),
     reorder: (
       containerPath: string,
       propertyId: string,
-      toIndex: number
+      toIndex: number,
     ): Promise<{ ok: true } | { ok: false; error: string }> =>
       ipcRenderer.invoke('schema:reorder', containerPath, propertyId, toIndex),
     delete: (
       containerPath: string,
-      propertyId: string
+      propertyId: string,
     ): Promise<{ ok: true } | { ok: false; error: string }> =>
       ipcRenderer.invoke('schema:delete', containerPath, propertyId),
     assign: (
       containerPath: string,
       propertyId: string,
-      toIndex?: number
+      toIndex?: number,
     ): Promise<{ ok: true } | { ok: false; error: string }> =>
       ipcRenderer.invoke('schema:assign', containerPath, propertyId, toIndex),
     changeType: (
       containerPath: string,
       propertyId: string,
       newType: PropertyType,
-      opts?: { dropConflictingValues?: boolean }
+      opts?: { dropConflictingValues?: boolean },
     ): Promise<{ ok: true } | { ok: false; error: string }> =>
-      ipcRenderer.invoke('schema:changeType', containerPath, propertyId, newType, opts)
+      ipcRenderer.invoke('schema:changeType', containerPath, propertyId, newType, opts),
   },
   // Nexus-wide property ops (registry-level, no container scope). `property.delete` is the
   // global destructive op — snapshot, scrub every collection, purge caches, drop the def;
@@ -154,28 +196,35 @@ const api = {
       ipcRenderer.invoke('property:delete', propertyId),
     setOptions: (
       propertyId: string,
-      options: { value: string; label: string; color?: string }[]
+      options: { value: string; label: string; color?: string }[],
     ): Promise<{ ok: true } | { ok: false; error: string }> =>
       ipcRenderer.invoke('property:setOptions', propertyId, options),
     setStatusGroups: (
       propertyId: string,
-      groups: StatusGroup[]
+      groups: StatusGroup[],
     ): Promise<{ ok: true } | { ok: false; error: string }> =>
       ipcRenderer.invoke('property:setStatusGroups', propertyId, groups),
     // Registry-only display config for a URL / Link property (underline, full-url ⇄ title, color).
     setLinkConfig: (
       propertyId: string,
-      patch: { link_underline?: boolean; link_display?: 'link-url' | 'link-title'; link_color?: string }
+      patch: {
+        link_underline?: boolean
+        link_display?: 'link-url' | 'link-title'
+        link_color?: string
+      },
     ): Promise<{ ok: true } | { ok: false; error: string }> =>
       ipcRenderer.invoke('property:setLinkConfig', propertyId, patch),
     // Registry-only display config for a Checkbox property: its property-wide color (undefined = Default).
     setCheckboxColor: (
       propertyId: string,
-      color: string | undefined
+      color: string | undefined,
     ): Promise<{ ok: true } | { ok: false; error: string }> =>
       ipcRenderer.invoke('property:setCheckboxColor', propertyId, color),
     // Registry-only: a property's icon (a symbol id; undefined = the type's default glyph).
-    setIcon: (propertyId: string, icon: string | undefined): Promise<{ ok: true } | { ok: false; error: string }> =>
+    setIcon: (
+      propertyId: string,
+      icon: string | undefined,
+    ): Promise<{ ok: true } | { ok: false; error: string }> =>
       ipcRenderer.invoke('property:setIcon', propertyId, icon),
     // Registry-only display config for a Number property: its property-wide format fields.
     setNumberFormat: (
@@ -187,23 +236,23 @@ const api = {
         number_decimals?: 'hidden' | number
         number_fraction?: boolean
         number_denominator?: number
-      }
+      },
     ): Promise<{ ok: true } | { ok: false; error: string }> =>
       ipcRenderer.invoke('property:setNumberFormat', propertyId, patch),
     renameOption: (
       propertyId: string,
       oldValue: string,
-      newTitle: string
+      newTitle: string,
     ): Promise<{ ok: true } | { ok: false; error: string }> =>
       ipcRenderer.invoke('property:renameOption', propertyId, oldValue, newTitle),
     removeOption: (
       propertyId: string,
-      value: string
+      value: string,
     ): Promise<{ ok: true } | { ok: false; error: string }> =>
       ipcRenderer.invoke('property:removeOption', propertyId, value),
     clearOption: (
       propertyId: string,
-      value: string
+      value: string,
     ): Promise<{ ok: true } | { ok: false; error: string }> =>
       ipcRenderer.invoke('property:clearOption', propertyId, value),
     // Status variants of the page-touching ops — same cascade, keyed on the Status property's
@@ -211,24 +260,27 @@ const api = {
     renameStatusOption: (
       propertyId: string,
       oldValue: string,
-      newTitle: string
+      newTitle: string,
     ): Promise<{ ok: true } | { ok: false; error: string }> =>
       ipcRenderer.invoke('property:renameStatusOption', propertyId, oldValue, newTitle),
     removeStatusOption: (
       propertyId: string,
-      value: string
+      value: string,
     ): Promise<{ ok: true } | { ok: false; error: string }> =>
       ipcRenderer.invoke('property:removeStatusOption', propertyId, value),
     clearStatusOption: (
       propertyId: string,
-      value: string
+      value: string,
     ): Promise<{ ok: true } | { ok: false; error: string }> =>
-      ipcRenderer.invoke('property:clearStatusOption', propertyId, value)
+      ipcRenderer.invoke('property:clearStatusOption', propertyId, value),
   },
   // The nexus-wide cosmetic property order (B-1) — how every collection's All Properties lists.
   registry: {
-    reorder: (propertyId: string, toIndex: number): Promise<{ ok: true } | { ok: false; error: string }> =>
-      ipcRenderer.invoke('registry:reorder', propertyId, toIndex)
+    reorder: (
+      propertyId: string,
+      toIndex: number,
+    ): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('registry:reorder', propertyId, toIndex),
   },
   // Batch frontmatter read for a container's view pipeline (pageId → frontmatter), lazy on open.
   loadValues: (containerPath: string): Promise<Record<string, PageFrontmatter>> =>
@@ -237,8 +289,11 @@ const api = {
   // indices of the tables whose first column renders as a heading (a Pommora-only visual, not in the .md).
   tableHeadingColumns: {
     get: (): Promise<Record<string, number[]>> => ipcRenderer.invoke('tableHeadingCols:get'),
-    set: (pageId: string, indices: number[]): Promise<{ ok: true } | { ok: false; error: string }> =>
-      ipcRenderer.invoke('tableHeadingCols:set', pageId, indices)
+    set: (
+      pageId: string,
+      indices: number[],
+    ): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('tableHeadingCols:set', pageId, indices),
   },
   // The block document behind the BlockHost seam — targeted per-host load + locked
   // partial writes (layout / blocks / locked) on the host's config.
@@ -249,75 +304,105 @@ const api = {
     // Markdown-block lifecycle: create mints the ULID + file + entry (the renderer splices
     // the layout after); remove drops the entry + trashes a markdown tile's file; the
     // read/write pair is the tile editor's pure-body persistence.
-    createMarkdown: (host: BlockHostRef): Promise<{ ok: true; id: string } | { ok: false; error: string }> =>
+    createMarkdown: (
+      host: BlockHostRef,
+    ): Promise<{ ok: true; id: string } | { ok: false; error: string }> =>
       ipcRenderer.invoke('blocks:createMarkdown', host),
     removeTile: (host: BlockHostRef, tileId: string): Promise<BlocksSaveResult> =>
       ipcRenderer.invoke('blocks:removeTile', host, tileId),
-    readMarkdown: (host: BlockHostRef, tileId: string): Promise<{ ok: true; body: string } | { ok: false; error: string }> =>
+    readMarkdown: (
+      host: BlockHostRef,
+      tileId: string,
+    ): Promise<{ ok: true; body: string } | { ok: false; error: string }> =>
       ipcRenderer.invoke('blocks:readMarkdown', host, tileId),
     writeMarkdown: (host: BlockHostRef, tileId: string, body: string): Promise<BlocksSaveResult> =>
       ipcRenderer.invoke('blocks:writeMarkdown', host, tileId, body),
     // Link Page: the entry becomes a page embed; a markdown tile's .md trashes.
-    convertToPage: (host: BlockHostRef, tileId: string, pageId: string): Promise<BlocksSaveResult> =>
+    convertToPage: (
+      host: BlockHostRef,
+      tileId: string,
+      pageId: string,
+    ): Promise<BlocksSaveResult> =>
       ipcRenderer.invoke('blocks:convertToPage', host, tileId, pageId),
     // Link View: the entry becomes a view embed carrying the COPIED config (D-12);
     // main re-mints each config id payload-local.
-    convertToView: (host: BlockHostRef, tileId: string, views: EmbeddedView[]): Promise<BlocksSaveResult> =>
-      ipcRenderer.invoke('blocks:convertToView', host, tileId, views),
+    convertToView: (
+      host: BlockHostRef,
+      tileId: string,
+      views: EmbeddedView[],
+    ): Promise<BlocksSaveResult> => ipcRenderer.invoke('blocks:convertToView', host, tileId, views),
     // Duplicate a tile — raw-entry copy under a fresh id; markdown copies its file,
     // a view tile re-mints its config ids.
-    duplicateTile: (host: BlockHostRef, tileId: string): Promise<{ ok: true; id: string } | { ok: false; error: string }> =>
+    duplicateTile: (
+      host: BlockHostRef,
+      tileId: string,
+    ): Promise<{ ok: true; id: string } | { ok: false; error: string }> =>
       ipcRenderer.invoke('blocks:duplicateTile', host, tileId),
     // Delete keeps the native confirm (Nathan's call).
-    confirmRemove: (): Promise<boolean> => ipcRenderer.invoke('blocks:confirmRemove')
+    confirmRemove: (): Promise<boolean> => ipcRenderer.invoke('blocks:confirmRemove'),
   },
   // Subfield (footer) config — React-owned `subfield` key in `.nexus/settings.json`.
   subfield: {
     get: (): Promise<SubfieldConfig | null> => ipcRenderer.invoke('subfield:get'),
     set: (config: SubfieldConfig): Promise<{ ok: true } | { ok: false; error: string }> =>
-      ipcRenderer.invoke('subfield:set', config)
+      ipcRenderer.invoke('subfield:set', config),
   },
   // Agenda read for the sidebar's Agenda mode — lazy, called only when that mode is active.
   agenda: {
-    list: (): Promise<AgendaListResult> => ipcRenderer.invoke('agenda:list')
+    list: (): Promise<AgendaListResult> => ipcRenderer.invoke('agenda:list'),
   },
   // Navigation layer — recents/favorites persistence. The renderer owns the arrays; main persists.
   // saveRecents debounces main-side (immediate=true for the pin toggle); saveFavorites is immediate.
   nav: {
     load: (): Promise<NavStateResult> => ipcRenderer.invoke('nav:load'),
-    saveRecents: (entries: RecentEntry[], immediate?: boolean): Promise<{ ok: true } | { ok: false; error: string }> =>
+    saveRecents: (
+      entries: RecentEntry[],
+      immediate?: boolean,
+    ): Promise<{ ok: true } | { ok: false; error: string }> =>
       ipcRenderer.invoke('nav:saveRecents', entries, immediate),
-    saveFavorites: (entries: NavFavorite[]): Promise<{ ok: true } | { ok: false; error: string }> => ipcRenderer.invoke('nav:saveFavorites', entries),
+    saveFavorites: (entries: NavFavorite[]): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('nav:saveFavorites', entries),
     loadPins: (): Promise<PinsResult> => ipcRenderer.invoke('nav:loadPins'),
-    addPin: (pin: PinEntry): Promise<{ ok: true } | { ok: false; error: string }> => ipcRenderer.invoke('nav:addPin', pin),
-    reorderPin: (pin: PinEntry): Promise<{ ok: true } | { ok: false; error: string }> => ipcRenderer.invoke('nav:reorderPin', pin),
-    removePin: (target: NavTarget, order: number): Promise<{ ok: true } | { ok: false; error: string }> => ipcRenderer.invoke('nav:removePin', target, order)
+    addPin: (pin: PinEntry): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('nav:addPin', pin),
+    reorderPin: (pin: PinEntry): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('nav:reorderPin', pin),
+    removePin: (
+      target: NavTarget,
+      order: number,
+    ): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('nav:removePin', target, order),
   },
   // The tab set — synced tabs.json (unpinned tabs + active + per-tab history targets); saves debounce main-side.
   tabs: {
     load: (): Promise<TabsResult> => ipcRenderer.invoke('tabs:load'),
-    save: (set: TabSet): Promise<{ ok: true } | { ok: false; error: string }> => ipcRenderer.invoke('tabs:save', set)
+    save: (set: TabSet): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('tabs:save', set),
   },
   // Gallery thumbnails — capture the detail-pane rect (main writes under .nexus/assets and returns the
   // nexus-asset:// URL); evict prunes thumbnails outside the live recents∪pins set.
   capture: {
-    thumbnail: (navKey: string, rect: ThumbRect, scaleFactor: number): Promise<ThumbResult> => ipcRenderer.invoke('capture:thumbnail', navKey, rect, scaleFactor),
-    evict: (liveKeys: string[]): Promise<{ ok: true } | { ok: false; error: string }> => ipcRenderer.invoke('nav:evictThumbs', liveKeys)
+    thumbnail: (navKey: string, rect: ThumbRect, scaleFactor: number): Promise<ThumbResult> =>
+      ipcRenderer.invoke('capture:thumbnail', navKey, rect, scaleFactor),
+    evict: (liveKeys: string[]): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('nav:evictThumbs', liveKeys),
   },
   // Personalization (accent, connection color, interface toggles) — persist one key; the tree
   // surfaces current values (state → tree.personalization), so there's no get.
   personalization: {
     set: <K extends keyof Personalization>(
       key: K,
-      value: Personalization[K]
-    ): Promise<{ ok: true } | { ok: false; error: string }> => ipcRenderer.invoke('personalization:set', key, value)
+      value: Personalization[K],
+    ): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('personalization:set', key, value),
   },
   // Renderer-initiated write (relative paths only); main resolves under the session root.
   mutate: (req: MutateRequest): Promise<MutateResult> => ipcRenderer.invoke('mutate', req),
   // Right-click an entity → main pops a native context menu + acts on it.
   contextMenu: (target: ContextTarget): Promise<void> => ipcRenderer.invoke('context-menu', target),
   // Push the editor's active formatting state so the native right-click menu renders accurate state.
-  setEditorFormatState: (state: FormatState): void => ipcRenderer.send('editor:format-state', state),
+  setEditorFormatState: (state: FormatState): void =>
+    ipcRenderer.send('editor:format-state', state),
   // JS window mover for hover-bearing chrome (the tab bar): a native app-region never delivers hover,
   // so the bar drives the move itself — per-pointermove screen deltas, fire-and-forget. Double-click
   // zooms, the macOS titlebar convention.
@@ -334,8 +419,10 @@ const api = {
   // cached map (hydrated into the store on open); `fetch` resolves one URL (cache hit or live fetch).
   linkTitles: {
     get: (): Promise<Record<string, string>> => ipcRenderer.invoke('linkTitles:get'),
-    fetch: (url: string): Promise<{ ok: true; title: string | null } | { ok: false; error: string }> =>
-      ipcRenderer.invoke('linkTitles:fetch', url)
+    fetch: (
+      url: string,
+    ): Promise<{ ok: true; title: string | null } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('linkTitles:fetch', url),
   },
   // Open a page-attached file (nexus-relative path) in its OS default app.
   openFile: (path: string): Promise<{ ok: true } | { ok: false; error: string }> =>
@@ -345,27 +432,34 @@ const api = {
   iconMenu: (opts: {
     hasPhoto: boolean
     hasGlyph: boolean
-  }): Promise<'changeIcon' | 'addPhoto' | 'removePhoto' | 'removeIcon' | null> => ipcRenderer.invoke('nexus:iconMenu', opts),
+  }): Promise<'changeIcon' | 'addPhoto' | 'removePhoto' | 'removeIcon' | null> =>
+    ipcRenderer.invoke('nexus:iconMenu', opts),
   // Open the native image picker directly → data URL (null if canceled). Banner Add / Change.
   pickImage: (): Promise<string | null> => ipcRenderer.invoke('nexus:pickImage'),
   // Pop the native Change / Remove banner menu → the chosen action (null if dismissed).
   // `noRemove` drops the Remove item (an inherited banner has nothing of its own to remove).
-  bannerMenu: (opts?: { noRemove?: boolean }): Promise<'change' | 'remove' | null> => ipcRenderer.invoke('nexus:bannerMenu', opts),
+  bannerMenu: (opts?: { noRemove?: boolean }): Promise<'change' | 'remove' | null> =>
+    ipcRenderer.invoke('nexus:bannerMenu', opts),
   // Pop the native Rename / Edit Icon menu for a detail title → the chosen action (null if dismissed).
   titleMenu: (opts?: {
     toggleIcon?: boolean
     iconHidden?: boolean
     noEditIcon?: boolean
-  }): Promise<'rename' | 'editIcon' | 'toggleIcon' | null> => ipcRenderer.invoke('nexus:titleMenu', opts),
+  }): Promise<'rename' | 'editIcon' | 'toggleIcon' | null> =>
+    ipcRenderer.invoke('nexus:titleMenu', opts),
   // Pop the table grip's native right-click menu → the chosen action (null if dismissed).
-  tableMenu: (ctx: TableMenuContext): Promise<TableMenuAction | null> => ipcRenderer.invoke('table-menu', ctx),
+  tableMenu: (ctx: TableMenuContext): Promise<TableMenuAction | null> =>
+    ipcRenderer.invoke('table-menu', ctx),
   // Pop the callout grip's native right-click menu → the chosen action (null if dismissed).
   calloutMenu: (): Promise<CalloutMenuAction | null> => ipcRenderer.invoke('callout-menu'),
   // Pop the table-view column header's native right-click menu → the chosen action (null if dismissed).
-  columnMenu: (ctx: ColumnMenuContext): Promise<ColumnMenuAction | null> => ipcRenderer.invoke('column-menu', ctx),
+  columnMenu: (ctx: ColumnMenuContext): Promise<ColumnMenuAction | null> =>
+    ipcRenderer.invoke('column-menu', ctx),
   // Pop a table cell's native right-click menu (title meta / per-type Style / Edit) — same contract.
-  cellMenu: (ctx: CellMenuContext): Promise<CellMenuAction | null> => ipcRenderer.invoke('cell-menu', ctx),
-  tabMenu: (ctx: TabMenuContext): Promise<TabMenuAction | null> => ipcRenderer.invoke('tab-menu', ctx),
+  cellMenu: (ctx: CellMenuContext): Promise<CellMenuAction | null> =>
+    ipcRenderer.invoke('cell-menu', ctx),
+  tabMenu: (ctx: TabMenuContext): Promise<TabMenuAction | null> =>
+    ipcRenderer.invoke('tab-menu', ctx),
   // Pop a property's native menu (editor ⋮ / row right-click); Delete confirms in main first.
   propertyMenu: (ctx: PropertyMenuContext): Promise<PropertyMenuAction | null> =>
     ipcRenderer.invoke('property-menu', ctx),
@@ -418,7 +512,7 @@ const api = {
     return () => {
       ipcRenderer.removeListener('nexus:changed', listener)
     }
-  }
+  },
 }
 
 contextBridge.exposeInMainWorld('nexus', api)

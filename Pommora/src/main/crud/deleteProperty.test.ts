@@ -34,7 +34,7 @@ describe('deleteProperty', () => {
       id: '',
       name: 'Priority',
       type: 'select',
-      select_options: [{ value: 'hi', label: 'High', color: 'red' }]
+      select_options: [{ value: 'hi', label: 'High', color: 'red' }],
     } as PropertyDefinition)
     expect(c.ok).toBe(true)
     if (!c.ok) return
@@ -75,7 +75,7 @@ describe('deleteProperty', () => {
       id: '',
       name: 'Priority',
       type: 'select',
-      select_options: [{ value: 'hi', label: 'High', color: 'red' }]
+      select_options: [{ value: 'hi', label: 'High', color: 'red' }],
     } as PropertyDefinition)
     if (!c.ok) return
     const id = c.value.id

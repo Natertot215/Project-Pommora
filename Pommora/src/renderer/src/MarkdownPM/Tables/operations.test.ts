@@ -9,7 +9,7 @@ import {
   moveRow,
   moveColumn,
   clearColumn,
-  clearRow
+  clearRow,
 } from './operations'
 import type { TableModel } from './model'
 
@@ -17,10 +17,10 @@ const base: TableModel = {
   columns: [
     { align: null, dashes: 10 },
     { align: null, dashes: 10 },
-    { align: null, dashes: 10 }
+    { align: null, dashes: 10 },
   ],
   header: ['a', 'b', 'c'],
-  rows: [['1', '2', '3']]
+  rows: [['1', '2', '3']],
 }
 
 describe('operations', () => {
@@ -51,11 +51,11 @@ describe('operations', () => {
   it('insertRow inserts an empty body row above/below', () => {
     expect(insertRow(base, 0, 'below').rows).toEqual([
       ['1', '2', '3'],
-      ['', '', '']
+      ['', '', ''],
     ])
     expect(insertRow(base, 0, 'above').rows).toEqual([
       ['', '', ''],
-      ['1', '2', '3']
+      ['1', '2', '3'],
     ])
   })
 
@@ -64,8 +64,8 @@ describe('operations', () => {
       ...base,
       rows: [
         ['1', '2', '3'],
-        ['4', '5', '6']
-      ]
+        ['4', '5', '6'],
+      ],
     }
     expect(deleteRow(two, 0).rows).toEqual([['4', '5', '6']])
   })
@@ -87,12 +87,12 @@ describe('operations', () => {
       ...base,
       rows: [
         ['1', '2', '3'],
-        ['4', '5', '6']
-      ]
+        ['4', '5', '6'],
+      ],
     }
     expect(clearRow(two, 0).rows).toEqual([
       ['', '', ''],
-      ['4', '5', '6']
+      ['4', '5', '6'],
     ])
   })
 
@@ -107,12 +107,12 @@ describe('operations', () => {
       ...base,
       rows: [
         ['1', '2', '3'],
-        ['4', '5', '6']
-      ]
+        ['4', '5', '6'],
+      ],
     }
     expect(moveRow(two, 1, 0).rows).toEqual([
       ['4', '5', '6'],
-      ['1', '2', '3']
+      ['1', '2', '3'],
     ])
   })
 })

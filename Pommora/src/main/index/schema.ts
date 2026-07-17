@@ -101,7 +101,7 @@ const TABLE_DDL: string[] = [
     config TEXT NOT NULL DEFAULT '{}',
     position INTEGER NOT NULL DEFAULT 0,
     modified_at TEXT NOT NULL
-  );`
+  );`,
 ]
 
 const INDEX_DDL = `
@@ -140,5 +140,7 @@ export function readSchemaVersion(db: Db): number | null {
 /** Stamp the DB as fully populated at SCHEMA_VERSION. Call ONLY after a successful build —
  *  until then open() sees an absent version and rebuilds (no half-built index sticks). */
 export function stampSchemaVersion(db: Db): void {
-  db.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES ('schema_version', ?)").run(String(SCHEMA_VERSION))
+  db.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES ('schema_version', ?)").run(
+    String(SCHEMA_VERSION),
+  )
 }

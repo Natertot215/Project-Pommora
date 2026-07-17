@@ -24,23 +24,30 @@ const PROPERTY_TYPES: Record<PropertyType, TypeMeta> = {
   url: { label: 'Link', icon: 'link', creatable: true },
   file: { label: 'File', icon: 'import', creatable: true },
   context: { label: 'Context', icon: 'layout-grid' },
-  last_edited_time: { label: 'Last edited', icon: 'history' }
+  last_edited_time: { label: 'Last edited', icon: 'history' },
 }
 
 export const propertyTypeLabel = (type: PropertyType): string => PROPERTY_TYPES[type].label
 
 /** The type's standard glyph name — for pickers that list properties by their real icon. */
-export const propertyTypeIconName = (type: PropertyType): IconName | undefined => PROPERTY_TYPES[type].icon
+export const propertyTypeIconName = (type: PropertyType): IconName | undefined =>
+  PROPERTY_TYPES[type].icon
 
 export const CREATABLE_TYPES = (Object.keys(PROPERTY_TYPES) as PropertyType[]).filter(
-  (t) => PROPERTY_TYPES[t].creatable
+  (t) => PROPERTY_TYPES[t].creatable,
 )
 
 // Title isn't a user PropertyType (it's the reserved heading column), but it needs the same glyph
 // vocabulary — its icon lives here so every surface renders it from one source.
 export const TITLE_META: TypeMeta = { label: 'Title', icon: 'text-align-justify' }
 
-export function PropertyTypeIcon({ type, size = 16 }: { type: PropertyType | 'title'; size?: number }): React.JSX.Element {
+export function PropertyTypeIcon({
+  type,
+  size = 16,
+}: {
+  type: PropertyType | 'title'
+  size?: number
+}): React.JSX.Element {
   const name = (type === 'title' ? TITLE_META : PROPERTY_TYPES[type]).icon
   return name ? <Icon name={name} size={size} /> : <DashIcon />
 }

@@ -20,6 +20,6 @@ export function optionMenuModel(): OptionMenuItem[] {
   return [
     { label: 'Rename', action: 'option:rename' },
     { label: 'Remove', action: 'option:remove', confirm: true },
-    { label: 'Clear', action: 'option:clear', confirm: true }
+    { label: 'Clear', action: 'option:clear', confirm: true },
   ]
 }

@@ -48,18 +48,25 @@ export function TabBar(): React.JSX.Element | null {
     () =>
       tabs.map((tab) => ({
         tab,
-        res: tab.target.kind === 'newtab' || !index ? null : resolveWith(index, tab.target)
+        res: tab.target.kind === 'newtab' || !index ? null : resolveWith(index, tab.target),
       })),
-    [index, tabs]
+    [index, tabs],
   )
 
   // Blank ONLY for the pure empty state (a lone NavView, no pins); otherwise the bar shows so the +
   // stays reachable — even at a single real tab (Nathan's revision of D-6's blank-at-single).
-  if (pinnedEntries.length === 0 && unpinnedEntries.every((e) => e.tab.target.kind === 'newtab')) return null
+  if (pinnedEntries.length === 0 && unpinnedEntries.every((e) => e.tab.target.kind === 'newtab'))
+    return null
   return <TabBarBody pinnedEntries={pinnedEntries} unpinnedEntries={unpinnedEntries} />
 }
 
-function TabBarBody({ pinnedEntries, unpinnedEntries }: { pinnedEntries: TabEntry[]; unpinnedEntries: TabEntry[] }): React.JSX.Element {
+function TabBarBody({
+  pinnedEntries,
+  unpinnedEntries,
+}: {
+  pinnedEntries: TabEntry[]
+  unpinnedEntries: TabEntry[]
+}): React.JSX.Element {
   const activeTabId = useSession((s) => s.activeTabId)
   const revealOnHover = useSession((s) => s.personalization.revealTabBarOnHover ?? false)
   const activateTab = useSession((s) => s.activateTab)
@@ -73,7 +80,9 @@ function TabBarBody({ pinnedEntries, unpinnedEntries }: { pinnedEntries: TabEntr
   // Closing is store-first: the tab leaves the store IMMEDIATELY (content switches, dedup/cycle/MRU
   // all read truth — a re-click of the entity spawns fresh instead of resurrecting a zombie), while a
   // GHOST of it stays rendered for the width-collapse exit on the slow token (J-6).
-  const [ghosts, setGhosts] = useState<ReadonlyMap<string, { entry: TabEntry; index: number }>>(new Map())
+  const [ghosts, setGhosts] = useState<ReadonlyMap<string, { entry: TabEntry; index: number }>>(
+    new Map(),
+  )
   const requestClose = (id: string): void => {
     const index = unpinnedEntries.findIndex((e) => e.tab.id === id)
     const entry = unpinnedEntries[index]
@@ -89,7 +98,10 @@ function TabBarBody({ pinnedEntries, unpinnedEntries }: { pinnedEntries: TabEntr
     }, EXIT_MS)
   }
   // The live (non-ghost) entries — the zone's reorderable set AND the render base (computed once).
-  const liveEntries = useMemo(() => unpinnedEntries.filter((e) => !ghosts.has(e.tab.id)), [unpinnedEntries, ghosts])
+  const liveEntries = useMemo(
+    () => unpinnedEntries.filter((e) => !ghosts.has(e.tab.id)),
+    [unpinnedEntries, ghosts],
+  )
   // The render list: live entries with each ghost spliced back at its remembered slot mid-exit.
   const renderEntries = useMemo<{ entry: TabEntry; ghost: boolean }[]>(() => {
     const live = liveEntries.map((entry) => ({ entry, ghost: false }))
@@ -105,7 +117,7 @@ function TabBarBody({ pinnedEntries, unpinnedEntries }: { pinnedEntries: TabEntr
   // binding). Lives in the body, so the combo is intercepted exactly while the bar shows.
   const orderedIds = useMemo(
     () => [...pinnedEntries.map((e) => e.tab.id), ...unpinnedEntries.map((e) => e.tab.id)],
-    [pinnedEntries, unpinnedEntries]
+    [pinnedEntries, unpinnedEntries],
   )
   const cycleRef = useRef({ orderedIds, activeTabId })
   cycleRef.current = { orderedIds, activeTabId }
@@ -130,14 +142,16 @@ function TabBarBody({ pinnedEntries, unpinnedEntries }: { pinnedEntries: TabEntr
 
   // A tab's native (Electron) right-click menu (I-12): context out, action back, dispatched against the
   // tab id. Close animates through the ghost path.
-  const runTabMenu = (tabId: string, pinned: boolean, isNewTab: boolean) => async (e: React.MouseEvent): Promise<void> => {
-    e.preventDefault()
-    e.stopPropagation()
-    const action = await window.nexus.tabMenu({ pinned, isNewTab })
-    if (action === 'pin') pinTab(tabId)
-    else if (action === 'unpin') unpinTab(tabId)
-    else if (action === 'close') requestClose(tabId)
-  }
+  const runTabMenu =
+    (tabId: string, pinned: boolean, isNewTab: boolean) =>
+    async (e: React.MouseEvent): Promise<void> => {
+      e.preventDefault()
+      e.stopPropagation()
+      const action = await window.nexus.tabMenu({ pinned, isNewTab })
+      if (action === 'pin') pinTab(tabId)
+      else if (action === 'unpin') unpinTab(tabId)
+      else if (action === 'close') requestClose(tabId)
+    }
 
   // JS window mover: a press on the bar's BARE space (not a tab / the + / any button) drags the app
   // window. A native app-region can't do this — it never delivers hover, killing the + reveal on the
@@ -173,9 +187,18 @@ function TabBarBody({ pinnedEntries, unpinnedEntries }: { pinnedEntries: TabEntr
   }
 
   return (
-    <div className={cx('tab-bar', revealOnHover && 'reveal-on-hover')} onPointerDown={onBarDown} onDoubleClick={onBarDoubleClick}>
+    <div
+      className={cx('tab-bar', revealOnHover && 'reveal-on-hover')}
+      onPointerDown={onBarDown}
+      onDoubleClick={onBarDoubleClick}
+    >
       {pinnedEntries.length > 0 && (
-        <SortableZone items={pinnedEntries.map((e) => e.res?.key ?? '')} layout="list" axis="x" onReorder={reorderPin}>
+        <SortableZone
+          items={pinnedEntries.map((e) => e.res?.key ?? '')}
+          layout="list"
+          axis="x"
+          onReorder={reorderPin}
+        >
           <div className="tab-pinned-zone">
             {pinnedEntries.map((e) => (
               <PinnedTab
@@ -191,13 +214,23 @@ function TabBarBody({ pinnedEntries, unpinnedEntries }: { pinnedEntries: TabEntr
       )}
       {pinnedEntries.length > 0 && unpinnedEntries.length > 0 && <span className="tab-divider" />}
       <div className="tab-scroll edge-fade-x" ref={stripRef}>
-        <SortableZone items={liveEntries.map((e) => e.tab.id)} layout="list" axis="x" onReorder={reorderTabs}>
+        <SortableZone
+          items={liveEntries.map((e) => e.tab.id)}
+          layout="list"
+          axis="x"
+          onReorder={reorderTabs}
+        >
           <div className="tab-strip">
             {renderEntries.map(({ entry, ghost }, i) => (
               <Fragment key={entry.tab.id}>
                 {/* The segment before this tab closes with it — OR, when the leftmost tab is the ghost (it
                     has no left segment), the segment before the first LIVE tab closes in its place. */}
-                {i > 0 && <span className={cx('tab-seg', (ghost || i === firstLive) && 'is-closing')} aria-hidden />}
+                {i > 0 && (
+                  <span
+                    className={cx('tab-seg', (ghost || i === firstLive) && 'is-closing')}
+                    aria-hidden
+                  />
+                )}
                 {/* The ghost stays the SAME component type as the live tab — a type swap would remount
                     the DOM node, and a fresh node mounts already-collapsed (no exit slide). is-closing
                     is pointer-inert, so the live handlers are unreachable on it. */}
@@ -215,7 +248,13 @@ function TabBarBody({ pinnedEntries, unpinnedEntries }: { pinnedEntries: TabEntr
         </SortableZone>
       </div>
       {/* Outside the masked scroller — inside it, the edge fade would dim the parked + itself. */}
-      <button type="button" className="tab-plus" aria-label="New Tab" title="New Tab" onClick={openNewTab}>
+      <button
+        type="button"
+        className="tab-plus"
+        aria-label="New Tab"
+        title="New Tab"
+        onClick={openNewTab}
+      >
         <Icon name="plus" size={13} />
       </button>
     </div>
@@ -229,7 +268,7 @@ function PinnedTab({
   entry,
   active,
   onActivate,
-  onMenu
+  onMenu,
 }: {
   entry: TabEntry
   active: boolean
@@ -278,7 +317,7 @@ function UnpinnedTab({
   drag,
   onActivate,
   onClose,
-  onMenu
+  onMenu,
 }: {
   entry: TabEntry
   active: boolean
@@ -293,7 +332,11 @@ function UnpinnedTab({
   // A navigation that swaps this tab's CONTENT (Back/Forward, a genuine select replacing in place)
   // slides the icon + label in from its direction, replayed per step via the seq-keyed remount. A tab
   // SWITCH changes nothing here, so 'tab' stamps stay motionless on the label.
-  const slide = useSession((s) => (s.navSlide && s.navSlide.source !== 'tab' && s.navSlide.tabId === entry.tab.id ? s.navSlide : null))
+  const slide = useSession((s) =>
+    s.navSlide && s.navSlide.source !== 'tab' && s.navSlide.tabId === entry.tab.id
+      ? s.navSlide
+      : null,
+  )
   const slideClass = slide ? (slide.dir === 'back' ? 'nav-slide-back' : 'nav-slide-fwd') : undefined
   return (
     <div
@@ -301,7 +344,13 @@ function UnpinnedTab({
       style={drag?.style}
       {...drag?.handle}
       data-tab-id={entry.tab.id}
-      className={cx('tab', text.control.standard, active && 'is-active', closing && 'is-closing', drag?.isDragging && 'is-dragging')}
+      className={cx(
+        'tab',
+        text.control.standard,
+        active && 'is-active',
+        closing && 'is-closing',
+        drag?.isDragging && 'is-dragging',
+      )}
       title={title}
       onClick={() => {
         if (!drag?.isDragging) onActivate()
@@ -310,7 +359,11 @@ function UnpinnedTab({
     >
       <Fragment key={slide?.seq ?? 0}>
         {isNewTab || !entry.res ? (
-          <Icon name={isNewTab ? 'copy' : 'file'} size={14} className={cx('tab-icon', slideClass)} />
+          <Icon
+            name={isNewTab ? 'copy' : 'file'}
+            size={14}
+            className={cx('tab-icon', slideClass)}
+          />
         ) : (
           <EntityGlyph item={entry.res} size={14} className={cx('tab-icon', slideClass)} />
         )}

@@ -2,10 +2,19 @@ import { useState, type ReactNode } from 'react'
 import { Icon } from '@renderer/design-system/symbols'
 import { SortableZone, useDragItem, reorder, arraySwap, type Row } from './drag'
 
-const mk = (labels: string[], p = ''): Row[] => labels.map((l, i) => ({ id: `${p}${i}-${l}`, label: l }))
+const mk = (labels: string[], p = ''): Row[] =>
+  labels.map((l, i) => ({ id: `${p}${i}-${l}`, label: l }))
 
 /** A draggable <li> — the one item element every list/grid surface reuses. */
-function Cell({ id, className, children }: { id: string; className: string; children: ReactNode }): React.JSX.Element {
+function Cell({
+  id,
+  className,
+  children,
+}: {
+  id: string
+  className: string
+  children: ReactNode
+}): React.JSX.Element {
   const { setNodeRef, style, handle } = useDragItem(id)
   return (
     <li ref={setNodeRef} style={style} className={className} {...handle}>
@@ -39,7 +48,11 @@ export function GridSurface(): React.JSX.Element {
   const [items, setItems] = useState(mk(Array.from({ length: 12 }, (_, i) => `Item ${i + 1}`)))
   return (
     <div className="ix-grid-surface">
-      <SortableZone items={items.map((i) => i.id)} layout="grid" onReorder={(a, o) => setItems((x) => reorder(x, a, o))}>
+      <SortableZone
+        items={items.map((i) => i.id)}
+        layout="grid"
+        onReorder={(a, o) => setItems((x) => reorder(x, a, o))}
+      >
         <ul className="sx-list sx-grid">
           {items.map((it) => (
             <Cell key={it.id} id={it.id} className="sx-item">
@@ -60,7 +73,7 @@ const TABLE_SEED: TableRowT[] = [
   { id: 'r4', label: 'Hiring', kind: 'Task', tier: 'Work' },
   { id: 'r5', label: 'Budget', kind: 'Sheet', tier: 'Finance' },
   { id: 'r6', label: 'Reading list', kind: 'Note', tier: 'Personal' },
-  { id: 'r7', label: 'Trip plan', kind: 'Doc', tier: 'Personal' }
+  { id: 'r7', label: 'Trip plan', kind: 'Doc', tier: 'Personal' },
 ]
 
 export function TableSurface(): React.JSX.Element {
@@ -112,20 +125,41 @@ const TREE_SEED: Node[] = [
     id: 'projects',
     label: 'Projects',
     children: [
-      { id: 'pommora', label: 'Pommora', children: [{ id: 'swift', label: 'Swift' }, { id: 'react', label: 'React' }] },
+      {
+        id: 'pommora',
+        label: 'Pommora',
+        children: [
+          { id: 'swift', label: 'Swift' },
+          { id: 'react', label: 'React' },
+        ],
+      },
       { id: 'nexus', label: 'Nexus' },
-      { id: 'atlas', label: 'Atlas' }
-    ]
+      { id: 'atlas', label: 'Atlas' },
+    ],
   },
   {
     id: 'areas',
     label: 'Areas',
     children: [
-      { id: 'health', label: 'Health', children: [{ id: 'sleep', label: 'Sleep' }, { id: 'fitness', label: 'Fitness' }] },
-      { id: 'finance', label: 'Finance' }
-    ]
+      {
+        id: 'health',
+        label: 'Health',
+        children: [
+          { id: 'sleep', label: 'Sleep' },
+          { id: 'fitness', label: 'Fitness' },
+        ],
+      },
+      { id: 'finance', label: 'Finance' },
+    ],
   },
-  { id: 'notes', label: 'Notes', children: [{ id: 'daily', label: 'Daily' }, { id: 'ideas', label: 'Ideas' }] }
+  {
+    id: 'notes',
+    label: 'Notes',
+    children: [
+      { id: 'daily', label: 'Daily' },
+      { id: 'ideas', label: 'Ideas' },
+    ],
+  },
 ]
 
 export function TreeSurface(): React.JSX.Element {
@@ -133,16 +167,30 @@ export function TreeSurface(): React.JSX.Element {
   return <Tree nodes={nodes} onChange={setNodes} depth={0} />
 }
 
-function Tree({ nodes, onChange, depth }: { nodes: Node[]; onChange: (next: Node[]) => void; depth: number }): React.JSX.Element {
+function Tree({
+  nodes,
+  onChange,
+  depth,
+}: {
+  nodes: Node[]
+  onChange: (next: Node[]) => void
+  depth: number
+}): React.JSX.Element {
   return (
-    <SortableZone items={nodes.map((n) => n.id)} layout="list" onReorder={(a, o) => onChange(reorder(nodes, a, o))}>
+    <SortableZone
+      items={nodes.map((n) => n.id)}
+      layout="list"
+      onReorder={(a, o) => onChange(reorder(nodes, a, o))}
+    >
       <ul className={'ix-tree' + (depth > 0 ? ' ix-tree-nested' : '')}>
         {nodes.map((n) => (
           <TreeNode
             key={n.id}
             node={n}
             depth={depth}
-            onChildren={(next) => onChange(nodes.map((x) => (x.id === n.id ? { ...x, children: next } : x)))}
+            onChildren={(next) =>
+              onChange(nodes.map((x) => (x.id === n.id ? { ...x, children: next } : x)))
+            }
           />
         ))}
       </ul>
@@ -163,21 +211,27 @@ export function ConstraintsSurface(): React.JSX.Element {
   // Async-reject: after a 300ms "server check", reject any drop into the first slot — the item
   // holds lifted while pending, then springs home. Exercises the async decide-then-animate path.
   const canReorder = asyncReject
-    ? (_a: string, o: string): Promise<boolean> => new Promise((res) => window.setTimeout(() => res(ids.indexOf(o) !== 0), 300))
+    ? (_a: string, o: string): Promise<boolean> =>
+        new Promise((res) => window.setTimeout(() => res(ids.indexOf(o) !== 0), 300))
     : undefined
 
   const toggles: [string, boolean, (v: boolean) => void][] = [
     ['Swap', swap, setSwap],
     ['Axis Y', axisY, setAxisY],
     ['Bounds', bounded, setBounded],
-    ['Async-reject slot 0', asyncReject, setAsyncReject]
+    ['Async-reject slot 0', asyncReject, setAsyncReject],
   ]
 
   return (
     <div>
       <div className="ix-toggles">
         {toggles.map(([label, on, set]) => (
-          <button key={label} type="button" className={'ix-toggle' + (on ? ' is-on' : '')} onClick={() => set(!on)}>
+          <button
+            key={label}
+            type="button"
+            className={'ix-toggle' + (on ? ' is-on' : '')}
+            onClick={() => set(!on)}
+          >
             {label}
           </button>
         ))}
@@ -207,7 +261,11 @@ export function ConstraintsSurface(): React.JSX.Element {
 export function ScrollSurface(): React.JSX.Element {
   const [items, setItems] = useState(mk(Array.from({ length: 20 }, (_, i) => `Row ${i + 1}`)))
   return (
-    <SortableZone items={items.map((i) => i.id)} layout="list" onReorder={(a, o) => setItems((x) => reorder(x, a, o))}>
+    <SortableZone
+      items={items.map((i) => i.id)}
+      layout="list"
+      onReorder={(a, o) => setItems((x) => reorder(x, a, o))}
+    >
       <ul className="ix-vlist ix-scroll">
         {items.map((it) => (
           <Cell key={it.id} id={it.id} className="ix-row">
@@ -220,13 +278,25 @@ export function ScrollSurface(): React.JSX.Element {
   )
 }
 
-function TreeNode({ node, depth, onChildren }: { node: Node; depth: number; onChildren: (next: Node[]) => void }): React.JSX.Element {
+function TreeNode({
+  node,
+  depth,
+  onChildren,
+}: {
+  node: Node
+  depth: number
+  onChildren: (next: Node[]) => void
+}): React.JSX.Element {
   const { setNodeRef, style, handle, isDragging } = useDragItem(node.id)
   const [open, setOpen] = useState(depth < 1)
   const kids = node.children
   return (
     <li ref={setNodeRef} style={style} className="ix-tree-node">
-      <div className="ix-tree-row" {...handle} onClick={() => !isDragging && kids && setOpen((o) => !o)}>
+      <div
+        className="ix-tree-row"
+        {...handle}
+        onClick={() => !isDragging && kids && setOpen((o) => !o)}
+      >
         {kids ? (
           <span className={'ix-caret' + (open ? ' open' : '')}>
             <Icon name="chevron-right" size={14} />

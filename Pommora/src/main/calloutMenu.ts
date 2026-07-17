@@ -11,12 +11,14 @@ export function popCalloutMenu(win: BrowserWindow): Promise<CalloutMenuAction | 
       acted = true
       resolve(a)
     }
-    const menu = Menu.buildFromTemplate([{ label: 'Delete Callout', click: pick('callout:delete') }])
+    const menu = Menu.buildFromTemplate([
+      { label: 'Delete Callout', click: pick('callout:delete') },
+    ])
     menu.popup({
       window: win,
       callback: () => {
         if (!acted) resolve(null)
-      }
+      },
     })
   })
 }

@@ -15,7 +15,7 @@ export function MenuSurface({
   children,
   className,
   closing = false,
-  notchInsetRight
+  notchInsetRight,
 }: {
   children: ReactNode
   className?: string

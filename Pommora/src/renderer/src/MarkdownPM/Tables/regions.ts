@@ -58,7 +58,7 @@ export function tableRegions(doc: string): TableRegion[] {
       from: header.from,
       to: lineTo(lines[last]),
       rows: [rowGeom(header), ...body.map(rowGeom)],
-      delimiter: { columns }
+      delimiter: { columns },
     })
     i = last + 1
   }
@@ -72,6 +72,6 @@ export function modelFromRegion(region: TableRegion): TableModel {
   return normalize({
     columns: region.delimiter.columns,
     header: region.rows[0].cells.map((c) => c.text),
-    rows: region.rows.slice(1).map((r) => r.cells.map((c) => c.text))
+    rows: region.rows.slice(1).map((r) => r.cells.map((c) => c.text)),
   })
 }

@@ -71,18 +71,35 @@ beforeAll(() => {
   // --- sidecar-driven nexus (2-tier: _pagecollection.json top, recursive _pageset.json) ---
   sidecar = mkdtempSync(join(tmpdir(), 'pom-sc-'))
   d(join(sidecar, '.nexus', 'areas', 'Work'))
-  w(join(sidecar, '.nexus', 'nexus.json'), JSON.stringify({ schemaVersion: 1, id: 'nx1', createdAt: '2026' }))
+  w(
+    join(sidecar, '.nexus', 'nexus.json'),
+    JSON.stringify({ schemaVersion: 1, id: 'nx1', createdAt: '2026' }),
+  )
   w(join(sidecar, '.nexus', 'settings.json'), JSON.stringify({ excluded_folders: ['Archive'] }))
-  w(join(sidecar, '.nexus', 'areas', 'Work', '_area.json'), JSON.stringify({ id: 'area-work', color: 'blue' }))
+  w(
+    join(sidecar, '.nexus', 'areas', 'Work', '_area.json'),
+    JSON.stringify({ id: 'area-work', color: 'blue' }),
+  )
   w(
     join(sidecar, '.nexus', 'properties.json'),
     JSON.stringify({
-      prop_p1: { id: 'prop_p1', name: 'Status', type: 'select', select_options: [{ value: 'a', label: 'A', color: 'blue' }] }
-    })
+      prop_p1: {
+        id: 'prop_p1',
+        name: 'Status',
+        type: 'select',
+        select_options: [{ value: 'a', label: 'A', color: 'blue' }],
+      },
+    }),
   )
   d(join(sidecar, 'Notes', 'Daily'))
-  w(join(sidecar, 'Notes', '_pagecollection.json'), JSON.stringify({ id: 'col-notes', properties: ['prop_p1'] }))
-  w(join(sidecar, 'Notes', 'Daily', '_pageset.json'), JSON.stringify({ id: 'set-daily', parent_id: 'col-notes' }))
+  w(
+    join(sidecar, 'Notes', '_pagecollection.json'),
+    JSON.stringify({ id: 'col-notes', properties: ['prop_p1'] }),
+  )
+  w(
+    join(sidecar, 'Notes', 'Daily', '_pageset.json'),
+    JSON.stringify({ id: 'set-daily', parent_id: 'col-notes' }),
+  )
   w(join(sidecar, 'Notes', 'Daily', 'Entry.md'), '---\nid: e1\n---\n')
   w(join(sidecar, 'Notes', 'Loose.md'), 'collection-root page')
   d(join(sidecar, 'Archive'))
@@ -166,7 +183,10 @@ describe('readNexus — agenda is config-driven, never name-reserved', () => {
     const root = mkdtempSync(join(tmpdir(), 'pom-agenda-'))
     roots.push(root)
     d(join(root, '.nexus'))
-    w(join(root, '.nexus', 'nexus.json'), JSON.stringify({ schemaVersion: 1, id: 'nxg', createdAt: '2026' }))
+    w(
+      join(root, '.nexus', 'nexus.json'),
+      JSON.stringify({ schemaVersion: 1, id: 'nxg', createdAt: '2026' }),
+    )
     build(root)
     return root
   }
@@ -190,7 +210,10 @@ describe('readNexus — agenda is config-driven, never name-reserved', () => {
       w(join(r, 'Tasks', '_pagecollection.json'), JSON.stringify({ id: 't' }))
     })
     // The names aren't reserved — only the agenda config sidecar hides a folder.
-    expect((await readNexus(root)).collections!.map((c) => c.title).sort()).toEqual(['Agenda', 'Tasks'])
+    expect((await readNexus(root)).collections!.map((c) => c.title).sort()).toEqual([
+      'Agenda',
+      'Tasks',
+    ])
   })
 })
 
@@ -208,7 +231,10 @@ describe('readNexus — accent setting', () => {
     const root = mkdtempSync(join(tmpdir(), 'pom-accent-'))
     roots.push(root)
     d(join(root, '.nexus'))
-    w(join(root, '.nexus', 'nexus.json'), JSON.stringify({ schemaVersion: 1, id: 'nxa', createdAt: '2026' }))
+    w(
+      join(root, '.nexus', 'nexus.json'),
+      JSON.stringify({ schemaVersion: 1, id: 'nxa', createdAt: '2026' }),
+    )
     w(join(root, '.nexus', 'settings.json'), JSON.stringify(settings))
     return root
   }
@@ -239,7 +265,10 @@ describe('readNexus — personalization', () => {
     const root = mkdtempSync(join(tmpdir(), 'pom-pers-'))
     roots.push(root)
     d(join(root, '.nexus'))
-    w(join(root, '.nexus', 'nexus.json'), JSON.stringify({ schemaVersion: 1, id: 'nxp', createdAt: '2026' }))
+    w(
+      join(root, '.nexus', 'nexus.json'),
+      JSON.stringify({ schemaVersion: 1, id: 'nxp', createdAt: '2026' }),
+    )
     w(join(root, '.nexus', 'settings.json'), JSON.stringify(settings))
     return root
   }
@@ -249,7 +278,9 @@ describe('readNexus — personalization', () => {
     expect((await readNexus(mk({ personalization: { accent: 'blue' } }))).accent).toBe('blue')
   })
   it('personalization.accent wins over the legacy top-level accent_color', async () => {
-    expect((await readNexus(mk({ accent_color: 'red', personalization: { accent: 'blue' } }))).accent).toBe('blue')
+    expect(
+      (await readNexus(mk({ accent_color: 'red', personalization: { accent: 'blue' } }))).accent,
+    ).toBe('blue')
   })
   it('reads the block, dropping invalid fields + unknown icon kinds', async () => {
     const t = await readNexus(
@@ -258,9 +289,9 @@ describe('readNexus — personalization', () => {
           connectionColor: 'cyan',
           hideChevrons: true,
           outlinerLines: 'nope', // not a boolean → dropped
-          defaultIcons: { collection: 'gallery-vertical-end', bogus: 'x' }
-        }
-      })
+          defaultIcons: { collection: 'gallery-vertical-end', bogus: 'x' },
+        },
+      }),
     )
     expect(t.personalization.connectionColor).toBe('cyan')
     expect(t.personalization.hideChevrons).toBe(true)
@@ -280,7 +311,10 @@ describe('readNexus — structured labels (Swift SettingsLabels shape)', () => {
     const root = mkdtempSync(join(tmpdir(), 'pom-labels-'))
     roots.push(root)
     d(join(root, '.nexus'))
-    w(join(root, '.nexus', 'nexus.json'), JSON.stringify({ schemaVersion: 1, id: 'nxl', createdAt: '2026' }))
+    w(
+      join(root, '.nexus', 'nexus.json'),
+      JSON.stringify({ schemaVersion: 1, id: 'nxl', createdAt: '2026' }),
+    )
     w(join(root, '.nexus', 'settings.json'), JSON.stringify(settings))
     return root
   }
@@ -295,9 +329,9 @@ describe('readNexus — structured labels (Swift SettingsLabels shape)', () => {
           page_set: { singular: 'Shelf', plural: 'Shelves' },
           project: { singular: 'Initiative', plural: 'Initiatives' },
           agenda_task: { singular: 'Todo', plural: 'Todos' },
-          agenda_event: { singular: 'Happening', plural: 'Happenings' }
-        }
-      })
+          agenda_event: { singular: 'Happening', plural: 'Happenings' },
+        },
+      }),
     )
     expect(t.labels.area).toEqual({ singular: 'Area', plural: 'Spaces' })
     expect(t.labels.topic).toEqual({ singular: 'Topic', plural: 'Themes' })
@@ -314,9 +348,9 @@ describe('readNexus — structured labels (Swift SettingsLabels shape)', () => {
         labels: {
           area: { singular: 'Zone', plural: 'Zones' },
           topic: { singular: 'Theme', plural: 'Themes' },
-          sidebar_sections: { areas: 'IGNORED', topics: 'IGNORED' }
-        }
-      })
+          sidebar_sections: { areas: 'IGNORED', topics: 'IGNORED' },
+        },
+      }),
     )
     expect(t.labels.area).toEqual({ singular: 'Zone', plural: 'Zones' })
     expect(t.labels.topic).toEqual({ singular: 'Theme', plural: 'Themes' })
@@ -338,7 +372,10 @@ describe('readNexus — saved-config items[] (Swift shape)', () => {
     const root = mkdtempSync(join(tmpdir(), 'pom-saved-'))
     roots.push(root)
     d(join(root, '.nexus'))
-    w(join(root, '.nexus', 'nexus.json'), JSON.stringify({ schemaVersion: 1, id: 'nxs', createdAt: '2026' }))
+    w(
+      join(root, '.nexus', 'nexus.json'),
+      JSON.stringify({ schemaVersion: 1, id: 'nxs', createdAt: '2026' }),
+    )
     w(join(root, '.nexus', 'saved-config.json'), JSON.stringify(savedConfig))
     return root
   }
@@ -357,7 +394,10 @@ describe('readNexus — homepage lock (blocks_locked → homepage.locked)', () =
     const root = mkdtempSync(join(tmpdir(), 'pom-hp-'))
     roots.push(root)
     d(join(root, '.nexus'))
-    w(join(root, '.nexus', 'nexus.json'), JSON.stringify({ schemaVersion: 1, id: 'nxh', createdAt: '2026' }))
+    w(
+      join(root, '.nexus', 'nexus.json'),
+      JSON.stringify({ schemaVersion: 1, id: 'nxh', createdAt: '2026' }),
+    )
     w(join(root, '.nexus', 'homepage.json'), JSON.stringify(homepage))
     return root
   }
@@ -378,14 +418,19 @@ describe('readNexus — profile (from settings, Swift parity)', () => {
     const root = mkdtempSync(join(tmpdir(), 'pom-profile-'))
     roots.push(root)
     d(join(root, '.nexus'))
-    w(join(root, '.nexus', 'nexus.json'), JSON.stringify({ schemaVersion: 1, id: 'nxp', createdAt: '2026' }))
+    w(
+      join(root, '.nexus', 'nexus.json'),
+      JSON.stringify({ schemaVersion: 1, id: 'nxp', createdAt: '2026' }),
+    )
     w(join(root, '.nexus', 'settings.json'), JSON.stringify(settings))
     return root
   }
   afterAll(() => roots.forEach((r) => rmSync(r, { recursive: true, force: true })))
 
   it('reads profile_image (rel path) + profile_subtitle from settings', async () => {
-    const t = await readNexus(mk({ profile_image: '.nexus/assets/nxp/profile-abc.png', profile_subtitle: 'Mine' }))
+    const t = await readNexus(
+      mk({ profile_image: '.nexus/assets/nxp/profile-abc.png', profile_subtitle: 'Mine' }),
+    )
     expect(t.nexus.profileImage).toBe('.nexus/assets/nxp/profile-abc.png')
     expect(t.nexus.profileSubtitle).toBe('Mine')
   })
@@ -407,14 +452,23 @@ describe('readNexus — container paths (nexus-relative, for mutation addressing
     d(join(root, '.nexus', 'projects', 'Launch'))
     // Collection -> Set -> Sub-Set -> Page (recursive 2-tier).
     d(join(root, 'Notes', 'Daily', 'Morning'))
-    w(join(root, '.nexus', 'nexus.json'), JSON.stringify({ schemaVersion: 1, id: 'nxp', createdAt: '2026' }))
+    w(
+      join(root, '.nexus', 'nexus.json'),
+      JSON.stringify({ schemaVersion: 1, id: 'nxp', createdAt: '2026' }),
+    )
     w(join(root, '.nexus', 'settings.json'), '{}')
     w(join(root, '.nexus', 'areas', 'Work', '_area.json'), JSON.stringify({ id: 'a1' }))
     w(join(root, '.nexus', 'topics', 'Health', '_topic.json'), JSON.stringify({ id: 't1' }))
     w(join(root, '.nexus', 'projects', 'Launch', '_project.json'), JSON.stringify({ id: 'p1' }))
     w(join(root, 'Notes', '_pagecollection.json'), JSON.stringify({ id: 'c-notes' }))
-    w(join(root, 'Notes', 'Daily', '_pageset.json'), JSON.stringify({ id: 's-daily', parent_id: 'c-notes' }))
-    w(join(root, 'Notes', 'Daily', 'Morning', '_pageset.json'), JSON.stringify({ id: 's-morning', parent_id: 's-daily' }))
+    w(
+      join(root, 'Notes', 'Daily', '_pageset.json'),
+      JSON.stringify({ id: 's-daily', parent_id: 'c-notes' }),
+    )
+    w(
+      join(root, 'Notes', 'Daily', 'Morning', '_pageset.json'),
+      JSON.stringify({ id: 's-morning', parent_id: 's-daily' }),
+    )
     w(join(root, 'Notes', 'Daily', 'Morning', 'Entry.md'), '---\nid: e1\n---\n')
   })
   afterAll(() => rmSync(root, { recursive: true, force: true }))
@@ -440,12 +494,20 @@ describe('PropertiesV2 — registry-resolved collection schema', () => {
     w(
       join(root, '.nexus', 'properties.json'),
       JSON.stringify({
-        prop_a: { id: 'prop_a', name: 'Priority', type: 'select', select_options: [{ value: 'hi', label: 'High', color: 'red' }] },
-        prop_b: { id: 'prop_b', name: 'Done', type: 'checkbox' }
-      })
+        prop_a: {
+          id: 'prop_a',
+          name: 'Priority',
+          type: 'select',
+          select_options: [{ value: 'hi', label: 'High', color: 'red' }],
+        },
+        prop_b: { id: 'prop_b', name: 'Done', type: 'checkbox' },
+      }),
     )
     d(join(root, 'Notes'))
-    w(join(root, 'Notes', '_pagecollection.json'), JSON.stringify({ id: 'col_notes', properties: ['prop_a', 'prop_gone', 'prop_b'] }))
+    w(
+      join(root, 'Notes', '_pagecollection.json'),
+      JSON.stringify({ id: 'col_notes', properties: ['prop_a', 'prop_gone', 'prop_b'] }),
+    )
 
     const tree = await readNexus(root)
     const notes = tree.collections!.find((c) => c.id === 'col_notes')!

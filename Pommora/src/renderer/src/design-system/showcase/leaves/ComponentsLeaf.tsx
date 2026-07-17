@@ -9,11 +9,21 @@ import { condensedDate, formatDate } from '@renderer/Detail/Views/PropertyEditin
 
 /** A button that pops the REAL component beneath it — the popup components demo as they
  *  actually behave, never as stubs (Nathan's call). */
-function PopupButton({ label, children }: { label: string; children: ReactNode }): React.JSX.Element {
+function PopupButton({
+  label,
+  children,
+}: {
+  label: string
+  children: ReactNode
+}): React.JSX.Element {
   const [open, setOpen] = useState(false)
   return (
     <div className="ds-popup">
-      <button type="button" className={'ds-switcher-btn' + (open ? ' is-active' : '')} onClick={() => setOpen((o) => !o)}>
+      <button
+        type="button"
+        className={'ds-switcher-btn' + (open ? ' is-active' : '')}
+        onClick={() => setOpen((o) => !o)}
+      >
         {label}
       </button>
       {open ? <div className="ds-popup-panel">{children}</div> : null}
@@ -24,7 +34,7 @@ function PopupButton({ label, children }: { label: string; children: ReactNode }
 const PICKER_LABELS = [
   { label: 'Active', color: 'blue' },
   { label: 'On Hold', color: 'orange' },
-  { label: 'Complete', color: 'green' }
+  { label: 'Complete', color: 'green' },
 ] as const
 
 /** ONE components page holds it all: the popup triggers, the chip system (with switches +
@@ -40,7 +50,9 @@ export function ComponentsLeaf(): React.JSX.Element {
               range
               timeFormat="twelveHour"
               formatDateValue={(iso, condensed) =>
-                condensed ? condensedDate(iso, 'short', condensed.withYear) : formatDate(iso, 'full', 'none')
+                condensed
+                  ? condensedDate(iso, 'short', condensed.withYear)
+                  : formatDate(iso, 'full', 'none')
               }
             />
           </PopupButton>

@@ -6,7 +6,10 @@ import { styleSubmenu } from './styleMenu'
 // The table-cell right-click menu — popColumnMenu's shape over the shared cellMenuModel:
 // a Style ▸ submenu (per-type radios) ahead of the plain items (title meta / Edit).
 // resolve(null) covers a dismissed menu so the renderer no-ops.
-export function popCellMenu(win: BrowserWindow, ctx: CellMenuContext): Promise<CellMenuAction | null> {
+export function popCellMenu(
+  win: BrowserWindow,
+  ctx: CellMenuContext,
+): Promise<CellMenuAction | null> {
   return new Promise<CellMenuAction | null>((resolve) => {
     let acted = false
     const pick = (a: CellMenuAction) => (): void => {
@@ -32,7 +35,7 @@ export function popCellMenu(win: BrowserWindow, ctx: CellMenuContext): Promise<C
       window: win,
       callback: () => {
         if (!acted) resolve(null)
-      }
+      },
     })
   })
 }

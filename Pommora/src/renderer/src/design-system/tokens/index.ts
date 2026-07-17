@@ -1,6 +1,20 @@
 import { vars as colorVars } from './color.css'
 import { font, text } from './typography.css'
-import { chipPill, chipLabel, chipContext, chipCapsule, chipBox, chipBoxGeometry, chipColor, chipLabelWrap, chipLabelText, chipLabelBlur, chipLabelMelt, chipRemovable, chipRemove } from './chip.css'
+import {
+  chipPill,
+  chipLabel,
+  chipContext,
+  chipCapsule,
+  chipBox,
+  chipBoxGeometry,
+  chipColor,
+  chipLabelWrap,
+  chipLabelText,
+  chipLabelBlur,
+  chipLabelMelt,
+  chipRemovable,
+  chipRemove,
+} from './chip.css'
 import { size, type IconSize, type ButtonSize } from './size.css'
 import { tint, tintAt, TINT_STEPS, type TintStep } from './tint'
 import './theme-vars.css' // bridges tokens → stable CSS vars for plain-CSS consumers
@@ -14,7 +28,7 @@ import './theme-vars.css' // bridges tokens → stable CSS vars for plain-CSS co
 export const vars = {
   ...colorVars,
   font,
-  size
+  size,
 }
 
 /** Size aliases — `IconSize` for `<Icon size>`, `ButtonSize` for a control's `size`. */
@@ -31,6 +45,23 @@ export { text }
  * stroke = base 40% · text = label-primary + base 15%. `tint(base)` is the
  * raw recipe (e.g. an accent chip via `tint('var(--accent)')`). See chip.css.ts.
  */
-export { chipPill, chipLabel, chipContext, chipCapsule, chipBox, chipBoxGeometry, chipColor, chipLabelWrap, chipLabelText, chipLabelBlur, chipLabelMelt, chipRemovable, chipRemove, tint, tintAt, TINT_STEPS }
+export {
+  chipPill,
+  chipLabel,
+  chipContext,
+  chipCapsule,
+  chipBox,
+  chipBoxGeometry,
+  chipColor,
+  chipLabelWrap,
+  chipLabelText,
+  chipLabelBlur,
+  chipLabelMelt,
+  chipRemovable,
+  chipRemove,
+  tint,
+  tintAt,
+  TINT_STEPS,
+}
 export type { TintStep }
 export { duration, easing } from './motion'

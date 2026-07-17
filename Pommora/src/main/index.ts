@@ -1,17 +1,58 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, protocol, shell, systemPreferences } from 'electron'
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  ipcMain,
+  Menu,
+  nativeTheme,
+  protocol,
+  shell,
+  systemPreferences,
+} from 'electron'
 import type { OpenDialogOptions } from 'electron'
 import { basename, dirname, extname, join, sep } from 'node:path'
 import { readFile, rename } from 'node:fs/promises'
-import type { AgendaListResult, NavFavorite, NavStateResult, NavTarget, NexusState, PageResult, PinEntry, PinsResult, RecentEntry, SubfieldConfig, TabSet, TabsResult, ThumbRect, ThumbResult } from '@shared/types'
+import type {
+  AgendaListResult,
+  NavFavorite,
+  NavStateResult,
+  NavTarget,
+  NexusState,
+  PageResult,
+  PinEntry,
+  PinsResult,
+  RecentEntry,
+  SubfieldConfig,
+  TabSet,
+  TabsResult,
+  ThumbRect,
+  ThumbResult,
+} from '@shared/types'
 import { isPlainObject } from '@shared/propertyValue'
 import { collectAgendaEntries } from './agenda/collectAgenda'
 import type { MutateRequest, MutateResult, ContextTarget } from '@shared/mutate'
 import { WINDOW_BG } from '@shared/theme'
 import { readNexus } from './readNexus'
 import { readPage } from './readPage'
-import { convertTileToPage, convertTileToView, createMarkdownBlock, duplicateBlockTile, readBlockDoc, readMarkdownBlock, removeBlockTile, writeBlockDoc, writeMarkdownBlock } from './blocks'
+import {
+  convertTileToPage,
+  convertTileToView,
+  createMarkdownBlock,
+  duplicateBlockTile,
+  readBlockDoc,
+  readMarkdownBlock,
+  removeBlockTile,
+  writeBlockDoc,
+  writeMarkdownBlock,
+} from './blocks'
 import { isUlid } from './ids'
-import { blockPatchProblem, coerceBlockHost, type BlockDocPatch, type BlocksGetResult, type BlocksSaveResult } from '@shared/blocks'
+import {
+  blockPatchProblem,
+  coerceBlockHost,
+  type BlockDocPatch,
+  type BlocksGetResult,
+  type BlocksSaveResult,
+} from '@shared/blocks'
 import { pathExists } from './io/atomicWrite'
 import { readAppConfig, writeAppConfig, addRecent, DEFAULT_TRASH_MODE } from './appConfig'
 import { sessionRoot, openSession, resolveRestorePath, isExistingDir } from './session'
@@ -19,21 +60,44 @@ import { serializeOnFile } from './io/fileLock'
 import { openSessionIndex, closeSessionIndex } from './sessionIndex'
 import { stampAdopted } from './adopt'
 import { ensureIdentity } from './identity'
-import { ensureSettings, readDefaultViewScale, readSubfield, writePersonalization, writeSubfield } from './settings'
+import {
+  ensureSettings,
+  readDefaultViewScale,
+  readSubfield,
+  writePersonalization,
+  writeSubfield,
+} from './settings'
 import { startWatcher, stopWatcher } from './watcher'
 import { resolveUnderRoot } from './pathSafety'
 import { updatePageBody } from './crud/page'
 import { readFolds, writeFolds, type FoldState } from './io/folds'
 import { readActiveViews, writeActiveViews, type ActiveViews } from './io/activeViews'
-import { flushNavWrites, hasPendingNavWrites, readNavState, scheduleRecentsWrite, writeFavorites, writeRecentsNow } from './io/navState'
-import { flushTabsWrites, hasPendingTabsWrites, readTabsState, scheduleTabsWrite } from './io/tabsState'
+import {
+  flushNavWrites,
+  hasPendingNavWrites,
+  readNavState,
+  scheduleRecentsWrite,
+  writeFavorites,
+  writeRecentsNow,
+} from './io/navState'
+import {
+  flushTabsWrites,
+  hasPendingTabsWrites,
+  readTabsState,
+  scheduleTabsWrite,
+} from './io/tabsState'
 import { loadOrMigratePins, removePin, writePin } from './io/pinsState'
 import { captureThumbnail, evictThumbnails } from './io/thumbnails'
 import { readViewOrders, writeViewOrders, type ViewOrders } from './io/viewOrders'
 import { saveView, reorderViews, deleteView } from './crud/views'
 import { setContainerConfig, type ContainerConfigPatch } from './crud/containerConfig'
 import { loadValues } from './crud/loadValues'
-import { createProperty, editProperty, removeFromRegistry, reorderRegistry } from './crud/registryProperty'
+import {
+  createProperty,
+  editProperty,
+  removeFromRegistry,
+  reorderRegistry,
+} from './crud/registryProperty'
 import { assignProperty, assignPropertyAt, reorderAssignment } from './crud/assignment'
 import { removeProperty } from './crud/removeProperty'
 import { deleteProperty as deletePropertyGlobal } from './crud/deleteProperty'
@@ -45,7 +109,7 @@ import {
   clearOption,
   renameStatusOption,
   removeStatusOption,
-  clearStatusOption
+  clearStatusOption,
 } from './crud/optionOps'
 import type { StatusGroup } from '@shared/properties'
 import type { Option } from '@shared/optionModel'
@@ -55,7 +119,7 @@ import type { PageFrontmatter } from '@shared/schemas'
 import {
   readTableHeadingColumns,
   writeTableHeadingColumns,
-  type TableHeadingColState
+  type TableHeadingColState,
 } from './io/tableHeadingColumns'
 import { handleMutate, type MutateDeps } from './mutate'
 import { showContextMenu } from './contextMenu'
@@ -75,7 +139,12 @@ import { popPropertyMenu } from './propertyMenu'
 import { popOptionMenu } from './optionMenu'
 import { popIconFavoriteMenu } from './iconFavoriteMenu'
 import { popViewButtonMenu, type ViewButtonMenuAction } from './viewButtonMenu'
-import { popEmbedTitleMenu, popEmbedAreaMenu, type EmbedTitleMenuAction, type EmbedAreaMenuAction } from './viewEmbedMenu'
+import {
+  popEmbedTitleMenu,
+  popEmbedAreaMenu,
+  type EmbedTitleMenuAction,
+  type EmbedAreaMenuAction,
+} from './viewEmbedMenu'
 import { popViewItemMenu, type ViewItemMenuAction } from './viewItemMenu'
 import { popViewRowMenu, type ViewRowMenuAction } from './viewRowMenu'
 import { popViewFormatMenu } from './viewFormatMenu'
@@ -107,7 +176,10 @@ const RENDERER_SCHEME = 'app'
 const ASSET_SCHEME = 'nexus-asset'
 protocol.registerSchemesAsPrivileged([
   { scheme: RENDERER_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true } },
-  { scheme: ASSET_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }
+  {
+    scheme: ASSET_SCHEME,
+    privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true },
+  },
 ])
 
 const RENDERER_MIME: Record<string, string> = {
@@ -119,7 +191,7 @@ const RENDERER_MIME: Record<string, string> = {
   '.json': 'application/json',
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
-  '.ico': 'image/x-icon'
+  '.ico': 'image/x-icon',
 }
 
 // Serve the built renderer over app://: resolve each request under out/renderer and
@@ -152,7 +224,7 @@ const ASSET_MIME: Record<string, string> = {
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
   '.gif': 'image/gif',
-  '.webp': 'image/webp'
+  '.webp': 'image/webp',
 }
 function registerAssetProtocol(): void {
   protocol.handle(ASSET_SCHEME, async (request) => {
@@ -166,7 +238,9 @@ function registerAssetProtocol(): void {
       const data = await readFile(resolved.value)
       const type = ASSET_MIME[extname(resolved.value).toLowerCase()] ?? 'application/octet-stream'
       // no-store: banners change in place; never let the renderer serve a stale cached image.
-      return new Response(new Uint8Array(data), { headers: { 'Content-Type': type, 'Cache-Control': 'no-store' } })
+      return new Response(new Uint8Array(data), {
+        headers: { 'Content-Type': type, 'Cache-Control': 'no-store' },
+      })
     } catch {
       return new Response('Not found', { status: 404 })
     }
@@ -210,8 +284,8 @@ function createWindow(): void {
       // the narrow nexus read API.
       sandbox: true,
       contextIsolation: true,
-      nodeIntegration: false
-    }
+      nodeIntegration: false,
+    },
   })
 
   // Apply the default zoom BEFORE the first paint is shown, so the window opens at scale instead of
@@ -282,32 +356,43 @@ ipcMain.handle('nav:load', async (): Promise<NavStateResult> => {
   }
 })
 
-ipcMain.handle('nav:saveRecents', async (_e, entries: unknown, immediate?: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
-  try {
-    if (adopting) return { ok: false, error: 'Nexus switching.' }
-    const root = sessionRoot()
-    if (root === null) return { ok: false, error: 'No nexus is open.' }
-    if (!Array.isArray(entries)) return { ok: false, error: 'Recents entries must be an array.' }
-    if (immediate) await writeRecentsNow(root, entries as RecentEntry[])
-    else scheduleRecentsWrite(root, entries as RecentEntry[])
-    return { ok: true }
-  } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : String(e) }
-  }
-})
+ipcMain.handle(
+  'nav:saveRecents',
+  async (
+    _e,
+    entries: unknown,
+    immediate?: unknown,
+  ): Promise<{ ok: true } | { ok: false; error: string }> => {
+    try {
+      if (adopting) return { ok: false, error: 'Nexus switching.' }
+      const root = sessionRoot()
+      if (root === null) return { ok: false, error: 'No nexus is open.' }
+      if (!Array.isArray(entries)) return { ok: false, error: 'Recents entries must be an array.' }
+      if (immediate) await writeRecentsNow(root, entries as RecentEntry[])
+      else scheduleRecentsWrite(root, entries as RecentEntry[])
+      return { ok: true }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  },
+)
 
-ipcMain.handle('nav:saveFavorites', async (_e, entries: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
-  try {
-    if (adopting) return { ok: false, error: 'Nexus switching.' }
-    const root = sessionRoot()
-    if (root === null) return { ok: false, error: 'No nexus is open.' }
-    if (!Array.isArray(entries)) return { ok: false, error: 'Favorites entries must be an array.' }
-    await writeFavorites(root, entries as NavFavorite[])
-    return { ok: true }
-  } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : String(e) }
-  }
-})
+ipcMain.handle(
+  'nav:saveFavorites',
+  async (_e, entries: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+    try {
+      if (adopting) return { ok: false, error: 'Nexus switching.' }
+      const root = sessionRoot()
+      if (root === null) return { ok: false, error: 'No nexus is open.' }
+      if (!Array.isArray(entries))
+        return { ok: false, error: 'Favorites entries must be an array.' }
+      await writeFavorites(root, entries as NavFavorite[])
+      return { ok: true }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  },
+)
 
 // Durable pins — per-pin files under `.nexus/pins/`. add + reorder are one-file writes; remove is a
 // tombstone-write (pinsState). Each writes immediately (a deliberate act) and lands in the quit gate.
@@ -338,18 +423,26 @@ const savePin = async (pin: unknown): Promise<{ ok: true } | { ok: false; error:
 ipcMain.handle('nav:addPin', (_e, pin: unknown) => savePin(pin))
 ipcMain.handle('nav:reorderPin', (_e, pin: unknown) => savePin(pin))
 
-ipcMain.handle('nav:removePin', async (_e, target: unknown, order: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
-  try {
-    if (adopting) return { ok: false, error: 'Nexus switching.' }
-    const root = sessionRoot()
-    if (root === null) return { ok: false, error: 'No nexus is open.' }
-    if (!isPlainObject(target) || typeof order !== 'number') return { ok: false, error: 'Bad remove-pin args.' }
-    await removePin(root, target as NavTarget, order)
-    return { ok: true }
-  } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : String(e) }
-  }
-})
+ipcMain.handle(
+  'nav:removePin',
+  async (
+    _e,
+    target: unknown,
+    order: unknown,
+  ): Promise<{ ok: true } | { ok: false; error: string }> => {
+    try {
+      if (adopting) return { ok: false, error: 'Nexus switching.' }
+      const root = sessionRoot()
+      if (root === null) return { ok: false, error: 'No nexus is open.' }
+      if (!isPlainObject(target) || typeof order !== 'number')
+        return { ok: false, error: 'Bad remove-pin args.' }
+      await removePin(root, target as NavTarget, order)
+      return { ok: true }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  },
+)
 
 // The tab set — a synced sidecar (`tabs.json`): the ordered unpinned tabs + the active pointer +
 // per-tab history targets. Saves debounce main-side (every navigation mutates the set); drained at
@@ -374,30 +467,41 @@ ipcMain.handle('tabs:save', (_e, set: unknown): { ok: true } | { ok: false; erro
 })
 
 // Gallery thumbnails — capture the detail-pane rect on entity-open, evict on membership roll-off.
-const isRect = (v: unknown): v is ThumbRect => isPlainObject(v) && ['x', 'y', 'width', 'height'].every((k) => typeof v[k] === 'number')
-ipcMain.handle('capture:thumbnail', async (e, navKey: unknown, rect: unknown, scaleFactor: unknown): Promise<ThumbResult> => {
-  try {
-    const root = sessionRoot()
-    if (root === null) return { ok: false, error: 'No nexus is open.' }
-    const win = BrowserWindow.fromWebContents(e.sender)
-    if (!win || typeof navKey !== 'string' || !isRect(rect) || typeof scaleFactor !== 'number') return { ok: false, error: 'Bad capture args.' }
-    const url = await captureThumbnail(win, root, navKey, rect, scaleFactor)
-    return url ? { ok: true, url } : { ok: false, error: 'Capture produced no image.' }
-  } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : String(err) }
-  }
-})
-ipcMain.handle('nav:evictThumbs', async (_e, liveKeys: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
-  try {
-    const root = sessionRoot()
-    if (root === null) return { ok: false, error: 'No nexus is open.' }
-    if (!Array.isArray(liveKeys)) return { ok: false, error: 'Live keys must be an array.' }
-    await evictThumbnails(root, liveKeys.filter((k): k is string => typeof k === 'string'))
-    return { ok: true }
-  } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : String(e) }
-  }
-})
+const isRect = (v: unknown): v is ThumbRect =>
+  isPlainObject(v) && ['x', 'y', 'width', 'height'].every((k) => typeof v[k] === 'number')
+ipcMain.handle(
+  'capture:thumbnail',
+  async (e, navKey: unknown, rect: unknown, scaleFactor: unknown): Promise<ThumbResult> => {
+    try {
+      const root = sessionRoot()
+      if (root === null) return { ok: false, error: 'No nexus is open.' }
+      const win = BrowserWindow.fromWebContents(e.sender)
+      if (!win || typeof navKey !== 'string' || !isRect(rect) || typeof scaleFactor !== 'number')
+        return { ok: false, error: 'Bad capture args.' }
+      const url = await captureThumbnail(win, root, navKey, rect, scaleFactor)
+      return url ? { ok: true, url } : { ok: false, error: 'Capture produced no image.' }
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) }
+    }
+  },
+)
+ipcMain.handle(
+  'nav:evictThumbs',
+  async (_e, liveKeys: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+    try {
+      const root = sessionRoot()
+      if (root === null) return { ok: false, error: 'No nexus is open.' }
+      if (!Array.isArray(liveKeys)) return { ok: false, error: 'Live keys must be an array.' }
+      await evictThumbnails(
+        root,
+        liveKeys.filter((k): k is string => typeof k === 'string'),
+      )
+      return { ok: true }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  },
+)
 
 // Open-time prep shared by EVERY path that opens a nexus (explicit open + launch-restore),
 // run after openSession and before the index reads anything:
@@ -473,7 +577,7 @@ async function adoptNexusInner(path: string): Promise<void> {
     await writeAppConfig(userData, {
       ...config,
       lastNexusPath: path,
-      recents: addRecent(config.recents ?? [], path)
+      recents: addRecent(config.recents ?? [], path),
     })
     app.addRecentDocument(path)
   } catch (e) {
@@ -488,7 +592,7 @@ ipcMain.handle('nexus:choose', async (e): Promise<boolean> => {
   const win = BrowserWindow.fromWebContents(e.sender)
   const opts = {
     properties: ['openDirectory', 'createDirectory'],
-    message: 'Choose a nexus folder'
+    message: 'Choose a nexus folder',
   } satisfies OpenDialogOptions
   const result = win ? await dialog.showOpenDialog(win, opts) : await dialog.showOpenDialog(opts)
   if (result.canceled) return false
@@ -541,7 +645,11 @@ ipcMain.handle('page:open', async (_e, relPath: unknown): Promise<PageResult> =>
 // ops, so it gets its own channel.
 ipcMain.handle(
   'page:updateBody',
-  async (_e, relPath: unknown, body: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+  async (
+    _e,
+    relPath: unknown,
+    body: unknown,
+  ): Promise<{ ok: true } | { ok: false; error: string }> => {
     try {
       const root = sessionRoot()
       if (root === null) return { ok: false, error: 'No nexus is open.' }
@@ -556,7 +664,7 @@ ipcMain.handle(
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }
     }
-  }
+  },
 )
 
 // Heading-fold UI state — local `.nexus/folds.json` (out of frontmatter + index).
@@ -566,7 +674,11 @@ ipcMain.handle('folds:get', async (): Promise<FoldState> => {
 })
 ipcMain.handle(
   'folds:set',
-  async (_e, pageId: unknown, keys: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+  async (
+    _e,
+    pageId: unknown,
+    keys: unknown,
+  ): Promise<{ ok: true } | { ok: false; error: string }> => {
     try {
       const root = sessionRoot()
       if (root === null) return { ok: false, error: 'No nexus is open.' }
@@ -579,7 +691,7 @@ ipcMain.handle(
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }
     }
-  }
+  },
 )
 
 // Active-view pointer — local `.nexus/activeViews.json`, container id → active view id (per-machine).
@@ -589,18 +701,23 @@ ipcMain.handle('activeViews:get', async (): Promise<ActiveViews> => {
 })
 ipcMain.handle(
   'activeViews:set',
-  async (_e, containerId: unknown, viewId: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+  async (
+    _e,
+    containerId: unknown,
+    viewId: unknown,
+  ): Promise<{ ok: true } | { ok: false; error: string }> => {
     try {
       const root = sessionRoot()
       if (root === null) return { ok: false, error: 'No nexus is open.' }
-      if (typeof containerId !== 'string') return { ok: false, error: 'A container id is required.' }
+      if (typeof containerId !== 'string')
+        return { ok: false, error: 'A container id is required.' }
       if (typeof viewId !== 'string') return { ok: false, error: 'A view id is required.' }
       await writeActiveViews(root, containerId, viewId)
       return { ok: true }
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }
     }
-  }
+  },
 )
 
 // Sorted/grouped manual-order cache — local `.nexus/viewOrders.json`, view id → page-id tiebreaker (per-machine).
@@ -610,7 +727,11 @@ ipcMain.handle('viewOrders:get', async (): Promise<ViewOrders> => {
 })
 ipcMain.handle(
   'viewOrders:set',
-  async (_e, viewId: unknown, order: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+  async (
+    _e,
+    viewId: unknown,
+    order: unknown,
+  ): Promise<{ ok: true } | { ok: false; error: string }> => {
     try {
       const root = sessionRoot()
       if (root === null) return { ok: false, error: 'No nexus is open.' }
@@ -622,7 +743,7 @@ ipcMain.handle(
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }
     }
-  }
+  },
 )
 
 // View persistence — save / reorder / delete a SavedView in a container's synced `views[]` sidecar.
@@ -630,18 +751,28 @@ ipcMain.handle(
 type ResolvedViewContainer =
   | { ok: true; folder: string; kind: 'collection' | 'set' }
   | { ok: false; error: string }
-async function resolveViewContainer(containerPath: unknown, kind: unknown): Promise<ResolvedViewContainer> {
+async function resolveViewContainer(
+  containerPath: unknown,
+  kind: unknown,
+): Promise<ResolvedViewContainer> {
   const root = sessionRoot()
   if (root === null) return { ok: false, error: 'No nexus is open.' }
-  if (typeof containerPath !== 'string') return { ok: false, error: 'A container path is required.' }
-  if (kind !== 'collection' && kind !== 'set') return { ok: false, error: 'kind must be "collection" or "set".' }
+  if (typeof containerPath !== 'string')
+    return { ok: false, error: 'A container path is required.' }
+  if (kind !== 'collection' && kind !== 'set')
+    return { ok: false, error: 'kind must be "collection" or "set".' }
   const resolved = await resolveUnderRoot(root, containerPath)
   if (!resolved.ok) return { ok: false, error: resolved.error.message }
   return { ok: true, folder: resolved.value, kind }
 }
 ipcMain.handle(
   'views:save',
-  async (_e, containerPath: unknown, kind: unknown, view: unknown): Promise<{ ok: true; id: string } | { ok: false; error: string }> => {
+  async (
+    _e,
+    containerPath: unknown,
+    kind: unknown,
+    view: unknown,
+  ): Promise<{ ok: true; id: string } | { ok: false; error: string }> => {
     try {
       const c = await resolveViewContainer(containerPath, kind)
       if (!c.ok) return c
@@ -652,11 +783,16 @@ ipcMain.handle(
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }
     }
-  }
+  },
 )
 ipcMain.handle(
   'views:reorder',
-  async (_e, containerPath: unknown, kind: unknown, orderedIds: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+  async (
+    _e,
+    containerPath: unknown,
+    kind: unknown,
+    orderedIds: unknown,
+  ): Promise<{ ok: true } | { ok: false; error: string }> => {
     try {
       const c = await resolveViewContainer(containerPath, kind)
       if (!c.ok) return c
@@ -668,11 +804,16 @@ ipcMain.handle(
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }
     }
-  }
+  },
 )
 ipcMain.handle(
   'views:delete',
-  async (_e, containerPath: unknown, kind: unknown, viewId: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+  async (
+    _e,
+    containerPath: unknown,
+    kind: unknown,
+    viewId: unknown,
+  ): Promise<{ ok: true } | { ok: false; error: string }> => {
     try {
       const c = await resolveViewContainer(containerPath, kind)
       if (!c.ok) return c
@@ -682,34 +823,45 @@ ipcMain.handle(
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }
     }
-  }
+  },
 )
 
 // Per-container non-view settings (open_in / view_button / view_style) — the synced sidecar write
 // behind the ViewDropdown context menu + the Configuration/Open In row. Serialized like the view writes.
 ipcMain.handle(
   'container:configure',
-  async (_e, containerPath: unknown, kind: unknown, patch: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+  async (
+    _e,
+    containerPath: unknown,
+    kind: unknown,
+    patch: unknown,
+  ): Promise<{ ok: true } | { ok: false; error: string }> => {
     try {
       const c = await resolveViewContainer(containerPath, kind)
       if (!c.ok) return c
-      if (patch === null || typeof patch !== 'object') return { ok: false, error: 'A config patch is required.' }
-      const r = await serializeOnFile(c.folder, () => setContainerConfig(c.folder, c.kind, patch as ContainerConfigPatch))
+      if (patch === null || typeof patch !== 'object')
+        return { ok: false, error: 'A config patch is required.' }
+      const r = await serializeOnFile(c.folder, () =>
+        setContainerConfig(c.folder, c.kind, patch as ContainerConfigPatch),
+      )
       return r.ok ? { ok: true } : { ok: false, error: r.error.message }
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }
     }
-  }
+  },
 )
 
 // Batch frontmatter read for a container's view pipeline (pageId → frontmatter), lazy on open.
-ipcMain.handle('view:loadValues', async (_e, containerPath: unknown): Promise<Record<string, PageFrontmatter>> => {
-  const root = sessionRoot()
-  if (root === null || typeof containerPath !== 'string') return {}
-  const resolved = await resolveUnderRoot(root, containerPath)
-  if (!resolved.ok) return {}
-  return loadValues(root, containerPath)
-})
+ipcMain.handle(
+  'view:loadValues',
+  async (_e, containerPath: unknown): Promise<Record<string, PageFrontmatter>> => {
+    const root = sessionRoot()
+    if (root === null || typeof containerPath !== 'string') return {}
+    const resolved = await resolveUnderRoot(root, containerPath)
+    if (!resolved.ok) return {}
+    return loadValues(root, containerPath)
+  },
+)
 
 // Property schema CRUD, registry+assignment-backed (PropertiesV2): defs live nexus-wide in
 // `.nexus/properties.json`; a Collection's sidecar holds the assigned prop-ids. The surface keeps
@@ -720,18 +872,25 @@ ipcMain.handle('view:loadValues', async (_e, containerPath: unknown): Promise<Re
 // schema-owning Collection's folder — a Set inherits the schema, so the renderer passes the
 // ancestor Collection's path. Mirrors the views:* envelope contract.
 async function resolveSchemaFolder(
-  containerPath: unknown
+  containerPath: unknown,
 ): Promise<{ ok: true; root: string; folder: string } | { ok: false; error: string }> {
   const root = sessionRoot()
   if (root === null) return { ok: false, error: 'No nexus is open.' }
-  if (typeof containerPath !== 'string') return { ok: false, error: 'A container path is required.' }
+  if (typeof containerPath !== 'string')
+    return { ok: false, error: 'A container path is required.' }
   const resolved = await resolveUnderRoot(root, containerPath)
-  return resolved.ok ? { ok: true, root, folder: resolved.value } : { ok: false, error: resolved.error.message }
+  return resolved.ok
+    ? { ok: true, root, folder: resolved.value }
+    : { ok: false, error: resolved.error.message }
 }
 
 ipcMain.handle(
   'schema:add',
-  async (_e, containerPath: unknown, def: unknown): Promise<{ ok: true; id: string } | { ok: false; error: string }> => {
+  async (
+    _e,
+    containerPath: unknown,
+    def: unknown,
+  ): Promise<{ ok: true; id: string } | { ok: false; error: string }> => {
     try {
       const c = await resolveSchemaFolder(containerPath)
       if (!c.ok) return c
@@ -749,7 +908,7 @@ ipcMain.handle(
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }
     }
-  }
+  },
 )
 
 ipcMain.handle(
@@ -758,7 +917,7 @@ ipcMain.handle(
     _e,
     containerPath: unknown,
     propertyId: unknown,
-    newName: unknown
+    newName: unknown,
   ): Promise<{ ok: true } | { ok: false; error: string }> => {
     try {
       const c = await resolveSchemaFolder(containerPath)
@@ -771,7 +930,7 @@ ipcMain.handle(
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }
     }
-  }
+  },
 )
 
 ipcMain.handle(
@@ -780,7 +939,7 @@ ipcMain.handle(
     _e,
     containerPath: unknown,
     propertyId: unknown,
-    toIndex: unknown
+    toIndex: unknown,
   ): Promise<{ ok: true } | { ok: false; error: string }> => {
     try {
       const c = await resolveSchemaFolder(containerPath)
@@ -793,12 +952,16 @@ ipcMain.handle(
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }
     }
-  }
+  },
 )
 
 ipcMain.handle(
   'schema:delete',
-  async (_e, containerPath: unknown, propertyId: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+  async (
+    _e,
+    containerPath: unknown,
+    propertyId: unknown,
+  ): Promise<{ ok: true } | { ok: false; error: string }> => {
     try {
       const c = await resolveSchemaFolder(containerPath)
       if (!c.ok) return c
@@ -808,7 +971,7 @@ ipcMain.handle(
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }
     }
-  }
+  },
 )
 
 ipcMain.handle(
@@ -817,24 +980,33 @@ ipcMain.handle(
     _e,
     containerPath: unknown,
     propertyId: unknown,
-    toIndex: unknown
+    toIndex: unknown,
   ): Promise<{ ok: true } | { ok: false; error: string }> => {
     try {
       const c = await resolveSchemaFolder(containerPath)
       if (!c.ok) return c
       if (typeof propertyId !== 'string') return { ok: false, error: 'A property id is required.' }
       // One chain slot covers a drag-assign: append + restore + slot placement land atomically (E-2).
-      const r = await assignPropertyAt(c.root, c.folder, propertyId, typeof toIndex === 'number' ? toIndex : undefined)
+      const r = await assignPropertyAt(
+        c.root,
+        c.folder,
+        propertyId,
+        typeof toIndex === 'number' ? toIndex : undefined,
+      )
       return r.ok ? { ok: true } : { ok: false, error: r.error.message }
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }
     }
-  }
+  },
 )
 
 ipcMain.handle(
   'registry:reorder',
-  async (_e, propertyId: unknown, toIndex: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+  async (
+    _e,
+    propertyId: unknown,
+    toIndex: unknown,
+  ): Promise<{ ok: true } | { ok: false; error: string }> => {
     try {
       const root = sessionRoot()
       if (root === null) return { ok: false, error: 'No nexus is open.' }
@@ -846,7 +1018,7 @@ ipcMain.handle(
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }
     }
-  }
+  },
 )
 
 ipcMain.handle(
@@ -856,7 +1028,7 @@ ipcMain.handle(
     containerPath: unknown,
     propertyId: unknown,
     newType: unknown,
-    opts: unknown
+    opts: unknown,
   ): Promise<{ ok: true } | { ok: false; error: string }> => {
     try {
       const c = await resolveSchemaFolder(containerPath)
@@ -872,7 +1044,7 @@ ipcMain.handle(
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }
     }
-  }
+  },
 )
 
 // Nexus-wide global delete — snapshot to .trash, strip the value across every assigner,
@@ -889,7 +1061,7 @@ ipcMain.handle(
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }
     }
-  }
+  },
 )
 
 // Global option edits for a Select / Multi-Select property — registry-level, cascading to pages.
@@ -903,30 +1075,39 @@ function isOptionArray(v: unknown): v is Option[] {
         o !== null &&
         typeof o === 'object' &&
         typeof (o as Record<string, unknown>).value === 'string' &&
-        typeof (o as Record<string, unknown>).label === 'string'
+        typeof (o as Record<string, unknown>).label === 'string',
     )
   )
 }
 
 ipcMain.handle(
   'property:setOptions',
-  async (_e, propertyId: unknown, options: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+  async (
+    _e,
+    propertyId: unknown,
+    options: unknown,
+  ): Promise<{ ok: true } | { ok: false; error: string }> => {
     try {
       const root = sessionRoot()
       if (root === null) return { ok: false, error: 'No nexus is open.' }
       if (typeof propertyId !== 'string') return { ok: false, error: 'A property id is required.' }
-      if (!isOptionArray(options)) return { ok: false, error: 'Options must be an array of { value, label }.' }
+      if (!isOptionArray(options))
+        return { ok: false, error: 'Options must be an array of { value, label }.' }
       const r = await setOptions(root, propertyId, options)
       return r.ok ? { ok: true } : { ok: false, error: r.error.message }
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }
     }
-  }
+  },
 )
 
 ipcMain.handle(
   'property:setStatusGroups',
-  async (_e, propertyId: unknown, groups: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+  async (
+    _e,
+    propertyId: unknown,
+    groups: unknown,
+  ): Promise<{ ok: true } | { ok: false; error: string }> => {
     try {
       const root = sessionRoot()
       if (root === null) return { ok: false, error: 'No nexus is open.' }
@@ -937,100 +1118,149 @@ ipcMain.handle(
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }
     }
-  }
+  },
 )
 
 ipcMain.handle(
   'property:setLinkConfig',
-  async (_e, propertyId: unknown, patch: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+  async (
+    _e,
+    propertyId: unknown,
+    patch: unknown,
+  ): Promise<{ ok: true } | { ok: false; error: string }> => {
     try {
       const root = sessionRoot()
       if (root === null) return { ok: false, error: 'No nexus is open.' }
       if (typeof propertyId !== 'string') return { ok: false, error: 'A property id is required.' }
-      if (patch === null || typeof patch !== 'object') return { ok: false, error: 'A config patch is required.' }
+      if (patch === null || typeof patch !== 'object')
+        return { ok: false, error: 'A config patch is required.' }
       // Whitelist only the link display fields — a config write must not patch arbitrary def fields
       // (type, options, id) through here. Registry-only: display config doesn't touch page values.
       const p = patch as Record<string, unknown>
-      const changes: { link_underline?: boolean; link_display?: 'link-url' | 'link-title'; link_color?: string } = {}
+      const changes: {
+        link_underline?: boolean
+        link_display?: 'link-url' | 'link-title'
+        link_color?: string
+      } = {}
       if (typeof p.link_underline === 'boolean') changes.link_underline = p.link_underline
-      if (p.link_display === 'link-url' || p.link_display === 'link-title') changes.link_display = p.link_display
-      if ('link_color' in p) changes.link_color = typeof p.link_color === 'string' ? p.link_color : undefined
+      if (p.link_display === 'link-url' || p.link_display === 'link-title')
+        changes.link_display = p.link_display
+      if ('link_color' in p)
+        changes.link_color = typeof p.link_color === 'string' ? p.link_color : undefined
       const r = await editProperty(root, propertyId, changes)
       return r.ok ? { ok: true } : { ok: false, error: r.error.message }
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }
     }
-  }
+  },
 )
 
 ipcMain.handle(
   'property:setCheckboxColor',
-  async (_e, propertyId: unknown, color: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+  async (
+    _e,
+    propertyId: unknown,
+    color: unknown,
+  ): Promise<{ ok: true } | { ok: false; error: string }> => {
     try {
       const root = sessionRoot()
       if (root === null) return { ok: false, error: 'No nexus is open.' }
       if (typeof propertyId !== 'string') return { ok: false, error: 'A property id is required.' }
       // The def-level color is the ONLY field this writes — a non-string clears it to Default (the
       // system accent). Registry-only: display config never touches page values.
-      const r = await editProperty(root, propertyId, { checkbox_color: typeof color === 'string' ? color : undefined })
+      const r = await editProperty(root, propertyId, {
+        checkbox_color: typeof color === 'string' ? color : undefined,
+      })
       return r.ok ? { ok: true } : { ok: false, error: r.error.message }
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }
     }
-  }
+  },
 )
 
 ipcMain.handle(
   'property:setIcon',
-  async (_e, propertyId: unknown, icon: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+  async (
+    _e,
+    propertyId: unknown,
+    icon: unknown,
+  ): Promise<{ ok: true } | { ok: false; error: string }> => {
     try {
       const root = sessionRoot()
       if (root === null) return { ok: false, error: 'No nexus is open.' }
       if (typeof propertyId !== 'string') return { ok: false, error: 'A property id is required.' }
       // Registry-only: the def's symbol id (a non-string clears it to the type's default glyph).
-      const r = await editProperty(root, propertyId, { icon: typeof icon === 'string' ? icon : undefined })
+      const r = await editProperty(root, propertyId, {
+        icon: typeof icon === 'string' ? icon : undefined,
+      })
       return r.ok ? { ok: true } : { ok: false, error: r.error.message }
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }
     }
-  }
+  },
 )
 
 ipcMain.handle(
   'property:setNumberFormat',
-  async (_e, propertyId: unknown, patch: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+  async (
+    _e,
+    propertyId: unknown,
+    patch: unknown,
+  ): Promise<{ ok: true } | { ok: false; error: string }> => {
     try {
       const root = sessionRoot()
       if (root === null) return { ok: false, error: 'No nexus is open.' }
       if (typeof propertyId !== 'string') return { ok: false, error: 'A property id is required.' }
-      if (patch === null || typeof patch !== 'object') return { ok: false, error: 'A config patch is required.' }
+      if (patch === null || typeof patch !== 'object')
+        return { ok: false, error: 'A config patch is required.' }
       // Whitelist ONLY the number format fields — a config write must not patch arbitrary def fields
       // (type, options, id). Registry-only: display config never touches page values. An `in p` check
       // lets a caller clear a field by passing undefined.
       const p = patch as Record<string, unknown>
       const changes: Record<string, unknown> = {}
-      if ('number_family' in p) changes.number_family = typeof p.number_family === 'string' ? p.number_family : undefined
-      if ('number_currency' in p) changes.number_currency = typeof p.number_currency === 'string' ? p.number_currency : undefined
-      if ('number_separators' in p) changes.number_separators = typeof p.number_separators === 'boolean' ? p.number_separators : undefined
+      if ('number_family' in p)
+        changes.number_family = typeof p.number_family === 'string' ? p.number_family : undefined
+      if ('number_currency' in p)
+        changes.number_currency =
+          typeof p.number_currency === 'string' ? p.number_currency : undefined
+      if ('number_separators' in p)
+        changes.number_separators =
+          typeof p.number_separators === 'boolean' ? p.number_separators : undefined
       if ('number_decimals' in p)
-        changes.number_decimals = p.number_decimals === 'hidden' || typeof p.number_decimals === 'number' ? p.number_decimals : undefined
-      if ('number_fraction' in p) changes.number_fraction = typeof p.number_fraction === 'boolean' ? p.number_fraction : undefined
-      if ('number_denominator' in p) changes.number_denominator = typeof p.number_denominator === 'number' ? p.number_denominator : undefined
+        changes.number_decimals =
+          p.number_decimals === 'hidden' || typeof p.number_decimals === 'number'
+            ? p.number_decimals
+            : undefined
+      if ('number_fraction' in p)
+        changes.number_fraction =
+          typeof p.number_fraction === 'boolean' ? p.number_fraction : undefined
+      if ('number_denominator' in p)
+        changes.number_denominator =
+          typeof p.number_denominator === 'number' ? p.number_denominator : undefined
       const r = await editProperty(root, propertyId, changes)
       return r.ok ? { ok: true } : { ok: false, error: r.error.message }
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }
     }
-  }
+  },
 )
 
 ipcMain.handle(
   'property:renameOption',
-  async (_e, propertyId: unknown, oldValue: unknown, newTitle: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+  async (
+    _e,
+    propertyId: unknown,
+    oldValue: unknown,
+    newTitle: unknown,
+  ): Promise<{ ok: true } | { ok: false; error: string }> => {
     try {
       const root = sessionRoot()
       if (root === null) return { ok: false, error: 'No nexus is open.' }
-      if (typeof propertyId !== 'string' || typeof oldValue !== 'string' || typeof newTitle !== 'string') {
+      if (
+        typeof propertyId !== 'string' ||
+        typeof oldValue !== 'string' ||
+        typeof newTitle !== 'string'
+      ) {
         return { ok: false, error: 'propertyId, oldValue, and newTitle are required.' }
       }
       const r = await renameOption(root, propertyId, oldValue, newTitle)
@@ -1038,12 +1268,16 @@ ipcMain.handle(
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }
     }
-  }
+  },
 )
 
 ipcMain.handle(
   'property:removeOption',
-  async (_e, propertyId: unknown, value: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+  async (
+    _e,
+    propertyId: unknown,
+    value: unknown,
+  ): Promise<{ ok: true } | { ok: false; error: string }> => {
     try {
       const root = sessionRoot()
       if (root === null) return { ok: false, error: 'No nexus is open.' }
@@ -1055,12 +1289,16 @@ ipcMain.handle(
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }
     }
-  }
+  },
 )
 
 ipcMain.handle(
   'property:clearOption',
-  async (_e, propertyId: unknown, value: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+  async (
+    _e,
+    propertyId: unknown,
+    value: unknown,
+  ): Promise<{ ok: true } | { ok: false; error: string }> => {
     try {
       const root = sessionRoot()
       if (root === null) return { ok: false, error: 'No nexus is open.' }
@@ -1072,16 +1310,25 @@ ipcMain.handle(
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }
     }
-  }
+  },
 )
 
 ipcMain.handle(
   'property:renameStatusOption',
-  async (_e, propertyId: unknown, oldValue: unknown, newTitle: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+  async (
+    _e,
+    propertyId: unknown,
+    oldValue: unknown,
+    newTitle: unknown,
+  ): Promise<{ ok: true } | { ok: false; error: string }> => {
     try {
       const root = sessionRoot()
       if (root === null) return { ok: false, error: 'No nexus is open.' }
-      if (typeof propertyId !== 'string' || typeof oldValue !== 'string' || typeof newTitle !== 'string') {
+      if (
+        typeof propertyId !== 'string' ||
+        typeof oldValue !== 'string' ||
+        typeof newTitle !== 'string'
+      ) {
         return { ok: false, error: 'propertyId, oldValue, and newTitle are required.' }
       }
       const r = await renameStatusOption(root, propertyId, oldValue, newTitle)
@@ -1089,12 +1336,16 @@ ipcMain.handle(
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }
     }
-  }
+  },
 )
 
 ipcMain.handle(
   'property:removeStatusOption',
-  async (_e, propertyId: unknown, value: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+  async (
+    _e,
+    propertyId: unknown,
+    value: unknown,
+  ): Promise<{ ok: true } | { ok: false; error: string }> => {
     try {
       const root = sessionRoot()
       if (root === null) return { ok: false, error: 'No nexus is open.' }
@@ -1106,12 +1357,16 @@ ipcMain.handle(
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }
     }
-  }
+  },
 )
 
 ipcMain.handle(
   'property:clearStatusOption',
-  async (_e, propertyId: unknown, value: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+  async (
+    _e,
+    propertyId: unknown,
+    value: unknown,
+  ): Promise<{ ok: true } | { ok: false; error: string }> => {
     try {
       const root = sessionRoot()
       if (root === null) return { ok: false, error: 'No nexus is open.' }
@@ -1123,7 +1378,7 @@ ipcMain.handle(
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }
     }
-  }
+  },
 )
 
 // Table heading-column UI state — local `.nexus/tableHeadingColumns.json` (out of frontmatter + index).
@@ -1133,7 +1388,11 @@ ipcMain.handle('tableHeadingCols:get', async (): Promise<TableHeadingColState> =
 })
 ipcMain.handle(
   'tableHeadingCols:set',
-  async (_e, pageId: unknown, indices: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+  async (
+    _e,
+    pageId: unknown,
+    indices: unknown,
+  ): Promise<{ ok: true } | { ok: false; error: string }> => {
     try {
       const root = sessionRoot()
       if (root === null) return { ok: false, error: 'No nexus is open.' }
@@ -1146,7 +1405,7 @@ ipcMain.handle(
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }
     }
-  }
+  },
 )
 
 // Subfield (footer) config — a React-owned `subfield` foreign key in `.nexus/settings.json`.
@@ -1160,13 +1419,14 @@ ipcMain.handle(
     try {
       const root = sessionRoot()
       if (root === null) return { ok: false, error: 'No nexus is open.' }
-      if (!config || typeof config !== 'object') return { ok: false, error: 'Invalid subfield config.' }
+      if (!config || typeof config !== 'object')
+        return { ok: false, error: 'Invalid subfield config.' }
       await writeSubfield(root, config as SubfieldConfig)
       return { ok: true }
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }
     }
-  }
+  },
 )
 
 // The block document (D-3) — a targeted per-host load + locked partial writes on the host's
@@ -1182,106 +1442,146 @@ ipcMain.handle('blocks:get', async (_e, host: unknown): Promise<BlocksGetResult>
     return { ok: false, error: e instanceof Error ? e.message : String(e) }
   }
 })
-ipcMain.handle('blocks:save', async (_e, host: unknown, patch: unknown): Promise<BlocksSaveResult> => {
-  try {
-    const root = sessionRoot()
-    if (root === null) return { ok: false, error: 'No nexus is open.' }
-    const h = coerceBlockHost(host)
-    if (!h) return { ok: false, error: 'Unknown block host.' }
-    if (!patch || typeof patch !== 'object') return { ok: false, error: 'Invalid block-doc patch.' }
-    const problem = blockPatchProblem(patch as BlockDocPatch)
-    if (problem) return { ok: false, error: problem }
-    await writeBlockDoc(root, h, patch as BlockDocPatch)
-    return { ok: true }
-  } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : String(e) }
-  }
-})
+ipcMain.handle(
+  'blocks:save',
+  async (_e, host: unknown, patch: unknown): Promise<BlocksSaveResult> => {
+    try {
+      const root = sessionRoot()
+      if (root === null) return { ok: false, error: 'No nexus is open.' }
+      const h = coerceBlockHost(host)
+      if (!h) return { ok: false, error: 'Unknown block host.' }
+      if (!patch || typeof patch !== 'object')
+        return { ok: false, error: 'Invalid block-doc patch.' }
+      const problem = blockPatchProblem(patch as BlockDocPatch)
+      if (problem) return { ok: false, error: problem }
+      await writeBlockDoc(root, h, patch as BlockDocPatch)
+      return { ok: true }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  },
+)
 
 // Markdown-block file ops. Tile ids gate on isUlid — the id becomes a filename, so a
 // renderer-supplied value must never carry path segments.
-const blockHostAnd = (host: unknown, tileId?: unknown): { root: string; h: { kind: 'homepage' } } | string => {
+const blockHostAnd = (
+  host: unknown,
+  tileId?: unknown,
+): { root: string; h: { kind: 'homepage' } } | string => {
   const root = sessionRoot()
   if (root === null) return 'No nexus is open.'
   const h = coerceBlockHost(host)
   if (!h) return 'Unknown block host.'
-  if (tileId !== undefined && (typeof tileId !== 'string' || !isUlid(tileId))) return 'Invalid tile id.'
+  if (tileId !== undefined && (typeof tileId !== 'string' || !isUlid(tileId)))
+    return 'Invalid tile id.'
   return { root, h }
 }
-ipcMain.handle('blocks:createMarkdown', async (_e, host: unknown): Promise<{ ok: true; id: string } | { ok: false; error: string }> => {
-  try {
-    const ctx = blockHostAnd(host)
-    if (typeof ctx === 'string') return { ok: false, error: ctx }
-    return { ok: true, id: await createMarkdownBlock(ctx.root, ctx.h) }
-  } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : String(e) }
-  }
-})
-ipcMain.handle('blocks:removeTile', async (_e, host: unknown, tileId: unknown): Promise<BlocksSaveResult> => {
-  try {
-    const ctx = blockHostAnd(host, tileId)
-    if (typeof ctx === 'string') return { ok: false, error: ctx }
-    await removeBlockTile(ctx.root, ctx.h, tileId as string)
-    return { ok: true }
-  } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : String(e) }
-  }
-})
-ipcMain.handle('blocks:readMarkdown', async (_e, host: unknown, tileId: unknown): Promise<{ ok: true; body: string } | { ok: false; error: string }> => {
-  try {
-    const ctx = blockHostAnd(host, tileId)
-    if (typeof ctx === 'string') return { ok: false, error: ctx }
-    const body = await readMarkdownBlock(ctx.root, ctx.h, tileId as string)
-    return body === null ? { ok: false, error: 'Block file not found.' } : { ok: true, body }
-  } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : String(e) }
-  }
-})
-ipcMain.handle('blocks:writeMarkdown', async (_e, host: unknown, tileId: unknown, body: unknown): Promise<BlocksSaveResult> => {
-  try {
-    const ctx = blockHostAnd(host, tileId)
-    if (typeof ctx === 'string') return { ok: false, error: ctx }
-    if (typeof body !== 'string') return { ok: false, error: 'Body must be a string.' }
-    await writeMarkdownBlock(ctx.root, ctx.h, tileId as string, body)
-    return { ok: true }
-  } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : String(e) }
-  }
-})
-ipcMain.handle('blocks:convertToPage', async (_e, host: unknown, tileId: unknown, pageId: unknown): Promise<BlocksSaveResult> => {
-  try {
-    const ctx = blockHostAnd(host, tileId)
-    if (typeof ctx === 'string') return { ok: false, error: ctx }
-    if (typeof pageId !== 'string' || pageId.length === 0) return { ok: false, error: 'Invalid page id.' }
-    await convertTileToPage(ctx.root, ctx.h, tileId as string, pageId)
-    return { ok: true }
-  } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : String(e) }
-  }
-})
-ipcMain.handle('blocks:convertToView', async (_e, host: unknown, tileId: unknown, views: unknown): Promise<BlocksSaveResult> => {
-  try {
-    const ctx = blockHostAnd(host, tileId)
-    if (typeof ctx === 'string') return { ok: false, error: ctx }
-    const list = Array.isArray(views) ? views : null
-    const valid = list?.length && list.every((v) => typeof (v as { source_id?: unknown })?.source_id === 'string')
-    if (!valid) return { ok: false, error: 'Invalid view list.' }
-    await convertTileToView(ctx.root, ctx.h, tileId as string, list as unknown[])
-    return { ok: true }
-  } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : String(e) }
-  }
-})
-ipcMain.handle('blocks:duplicateTile', async (_e, host: unknown, tileId: unknown): Promise<{ ok: true; id: string } | { ok: false; error: string }> => {
-  try {
-    const ctx = blockHostAnd(host, tileId)
-    if (typeof ctx === 'string') return { ok: false, error: ctx }
-    const id = await duplicateBlockTile(ctx.root, ctx.h, tileId as string)
-    return id ? { ok: true, id } : { ok: false, error: 'No such tile.' }
-  } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : String(e) }
-  }
-})
+ipcMain.handle(
+  'blocks:createMarkdown',
+  async (_e, host: unknown): Promise<{ ok: true; id: string } | { ok: false; error: string }> => {
+    try {
+      const ctx = blockHostAnd(host)
+      if (typeof ctx === 'string') return { ok: false, error: ctx }
+      return { ok: true, id: await createMarkdownBlock(ctx.root, ctx.h) }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  },
+)
+ipcMain.handle(
+  'blocks:removeTile',
+  async (_e, host: unknown, tileId: unknown): Promise<BlocksSaveResult> => {
+    try {
+      const ctx = blockHostAnd(host, tileId)
+      if (typeof ctx === 'string') return { ok: false, error: ctx }
+      await removeBlockTile(ctx.root, ctx.h, tileId as string)
+      return { ok: true }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  },
+)
+ipcMain.handle(
+  'blocks:readMarkdown',
+  async (
+    _e,
+    host: unknown,
+    tileId: unknown,
+  ): Promise<{ ok: true; body: string } | { ok: false; error: string }> => {
+    try {
+      const ctx = blockHostAnd(host, tileId)
+      if (typeof ctx === 'string') return { ok: false, error: ctx }
+      const body = await readMarkdownBlock(ctx.root, ctx.h, tileId as string)
+      return body === null ? { ok: false, error: 'Block file not found.' } : { ok: true, body }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  },
+)
+ipcMain.handle(
+  'blocks:writeMarkdown',
+  async (_e, host: unknown, tileId: unknown, body: unknown): Promise<BlocksSaveResult> => {
+    try {
+      const ctx = blockHostAnd(host, tileId)
+      if (typeof ctx === 'string') return { ok: false, error: ctx }
+      if (typeof body !== 'string') return { ok: false, error: 'Body must be a string.' }
+      await writeMarkdownBlock(ctx.root, ctx.h, tileId as string, body)
+      return { ok: true }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  },
+)
+ipcMain.handle(
+  'blocks:convertToPage',
+  async (_e, host: unknown, tileId: unknown, pageId: unknown): Promise<BlocksSaveResult> => {
+    try {
+      const ctx = blockHostAnd(host, tileId)
+      if (typeof ctx === 'string') return { ok: false, error: ctx }
+      if (typeof pageId !== 'string' || pageId.length === 0)
+        return { ok: false, error: 'Invalid page id.' }
+      await convertTileToPage(ctx.root, ctx.h, tileId as string, pageId)
+      return { ok: true }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  },
+)
+ipcMain.handle(
+  'blocks:convertToView',
+  async (_e, host: unknown, tileId: unknown, views: unknown): Promise<BlocksSaveResult> => {
+    try {
+      const ctx = blockHostAnd(host, tileId)
+      if (typeof ctx === 'string') return { ok: false, error: ctx }
+      const list = Array.isArray(views) ? views : null
+      const valid =
+        list?.length &&
+        list.every((v) => typeof (v as { source_id?: unknown })?.source_id === 'string')
+      if (!valid) return { ok: false, error: 'Invalid view list.' }
+      await convertTileToView(ctx.root, ctx.h, tileId as string, list as unknown[])
+      return { ok: true }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  },
+)
+ipcMain.handle(
+  'blocks:duplicateTile',
+  async (
+    _e,
+    host: unknown,
+    tileId: unknown,
+  ): Promise<{ ok: true; id: string } | { ok: false; error: string }> => {
+    try {
+      const ctx = blockHostAnd(host, tileId)
+      if (typeof ctx === 'string') return { ok: false, error: ctx }
+      const id = await duplicateBlockTile(ctx.root, ctx.h, tileId as string)
+      return id ? { ok: true, id } : { ok: false, error: 'No such tile.' }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  },
+)
 // Delete keeps the native confirm (Nathan's call) — the in-app menu asks main first.
 ipcMain.handle('blocks:confirmRemove', async (e): Promise<boolean> => {
   const win = BrowserWindow.fromWebContents(e.sender)
@@ -1292,7 +1592,8 @@ ipcMain.handle('blocks:confirmRemove', async (e): Promise<boolean> => {
     defaultId: 0,
     cancelId: 1,
     message: 'Remove this block?',
-    detail: 'A markdown block\u2019s file moves to the nexus\u2019s .trash (recoverable); embeds only remove the tile.'
+    detail:
+      'A markdown block\u2019s file moves to the nexus\u2019s .trash (recoverable); embeds only remove the tile.',
   })
   return response === 0
 })
@@ -1301,17 +1602,22 @@ ipcMain.handle('blocks:confirmRemove', async (e): Promise<boolean> => {
 // React-owned `personalization` object in `.nexus/settings.json`; the value is validated on read.
 ipcMain.handle(
   'personalization:set',
-  async (_e, key: unknown, value: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+  async (
+    _e,
+    key: unknown,
+    value: unknown,
+  ): Promise<{ ok: true } | { ok: false; error: string }> => {
     try {
       const root = sessionRoot()
       if (root === null) return { ok: false, error: 'No nexus is open.' }
-      if (typeof key !== 'string' || !key) return { ok: false, error: 'Invalid personalization key.' }
+      if (typeof key !== 'string' || !key)
+        return { ok: false, error: 'Invalid personalization key.' }
       await writePersonalization(root, key, value)
       return { ok: true }
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }
     }
-  }
+  },
 )
 
 // The renderer pushes the editor's active formatting state here so the native context menu
@@ -1340,12 +1646,18 @@ ipcMain.on('editor:callout-grip', (_e, on: boolean) => setCalloutGrip(on))
 // system-trash injected. Shared by the mutate IPC + the native context menu.
 async function mutateDeps(): Promise<MutateDeps> {
   const config = await readAppConfig(app.getPath('userData'))
-  return { trashMode: config.trashMode ?? DEFAULT_TRASH_MODE, trashToSystem: (p) => shell.trashItem(p) }
+  return {
+    trashMode: config.trashMode ?? DEFAULT_TRASH_MODE,
+    trashToSystem: (p) => shell.trashItem(p),
+  }
 }
 
 // The single write path. The renderer sends a relative-path request; main resolves it
 // under the session root, runs the orchestration, and best-effort refreshes the index.
-ipcMain.handle('mutate', async (_e, req: MutateRequest): Promise<MutateResult> => handleMutate(req, await mutateDeps()))
+ipcMain.handle(
+  'mutate',
+  async (_e, req: MutateRequest): Promise<MutateResult> => handleMutate(req, await mutateDeps()),
+)
 
 // Pop a native per-kind context menu for a right-clicked sidebar entity; its items act
 // main-side (handleMutate / confirm / Finder) and signal the renderer to refetch on change.
@@ -1360,34 +1672,45 @@ ipcMain.handle('context-menu', async (e, target: ContextTarget): Promise<void> =
 // Pop a native "New …" menu (the section-header "+" for contexts: New Area/Topic/Project).
 // Runs the chosen create main-side, then signals the renderer to refetch + inline-rename the
 // new entity — same pattern as the context menu (act in main, signal the renderer).
-ipcMain.handle('create-menu', async (e, items: { label: string; req: MutateRequest }[]): Promise<void> => {
-  const win = BrowserWindow.fromWebContents(e.sender)
-  if (!win) return
-  const deps = await mutateDeps()
-  const menu = Menu.buildFromTemplate(
-    items.map((it) => ({
-      label: it.label,
-      click: async () => {
-        const res = await handleMutate(it.req, deps)
-        if (win.isDestroyed()) return
-        if (res.ok) {
-          win.webContents.send('menu:action', 'reload-state')
-          if (res.created) win.webContents.send('begin-rename', res.created.path)
-        } else {
-          await dialog.showMessageBox(win, { type: 'error', message: 'Couldn’t create that.', detail: res.error.message })
-        }
-      }
-    }))
-  )
-  menu.popup({ window: win })
-})
+ipcMain.handle(
+  'create-menu',
+  async (e, items: { label: string; req: MutateRequest }[]): Promise<void> => {
+    const win = BrowserWindow.fromWebContents(e.sender)
+    if (!win) return
+    const deps = await mutateDeps()
+    const menu = Menu.buildFromTemplate(
+      items.map((it) => ({
+        label: it.label,
+        click: async () => {
+          const res = await handleMutate(it.req, deps)
+          if (win.isDestroyed()) return
+          if (res.ok) {
+            win.webContents.send('menu:action', 'reload-state')
+            if (res.created) win.webContents.send('begin-rename', res.created.path)
+          } else {
+            await dialog.showMessageBox(win, {
+              type: 'error',
+              message: 'Couldn’t create that.',
+              detail: res.error.message,
+            })
+          }
+        },
+      })),
+    )
+    menu.popup({ window: win })
+  },
+)
 
 // Surface a renderer-side failure as a native dialog (renderer-initiated mutations — e.g.
 // New Page ⌘N — have no native dialog of their own, unlike the context menu).
 ipcMain.handle('error:show', async (e, message: unknown): Promise<void> => {
   const win = BrowserWindow.fromWebContents(e.sender)
   if (win && typeof message === 'string') {
-    await dialog.showMessageBox(win, { type: 'error', message: 'Couldn’t complete that action.', detail: message })
+    await dialog.showMessageBox(win, {
+      type: 'error',
+      message: 'Couldn’t complete that action.',
+      detail: message,
+    })
   }
 })
 
@@ -1407,7 +1730,10 @@ ipcMain.handle('linkTitles:get', async (): Promise<LinkTitleCache> => {
 })
 ipcMain.handle(
   'linkTitles:fetch',
-  async (_e, url: unknown): Promise<{ ok: true; title: string | null } | { ok: false; error: string }> => {
+  async (
+    _e,
+    url: unknown,
+  ): Promise<{ ok: true; title: string | null } | { ok: false; error: string }> => {
     if (typeof url !== 'string') return { ok: false, error: 'invalid url' }
     const root = sessionRoot()
     if (!root) return { ok: false, error: 'no nexus open' }
@@ -1416,7 +1742,7 @@ ipcMain.handle(
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }
     }
-  }
+  },
 )
 
 // The OS accent (macOS 10.14+), for accent === 'system'. Electron returns
@@ -1436,7 +1762,7 @@ const IMAGE_EXTS = Object.keys(ASSET_MIME).map((e) => e.slice(1))
 async function pickImageDataUrl(win: BrowserWindow): Promise<string | null> {
   const result = await dialog.showOpenDialog(win, {
     properties: ['openFile'],
-    filters: [{ name: 'Images', extensions: IMAGE_EXTS }]
+    filters: [{ name: 'Images', extensions: IMAGE_EXTS }],
   })
   if (result.canceled || !result.filePaths[0]) return null
   try {
@@ -1451,49 +1777,64 @@ async function pickImageDataUrl(win: BrowserWindow): Promise<string | null> {
 
 // The ViewDropdown right-click menu — resolves the picked action to the renderer, which performs the
 // container-config write. macOS-native; the renderer supplies the current values for the checkmarks.
-ipcMain.handle('view-button-menu', async (e, current: unknown): Promise<ViewButtonMenuAction | null> => {
-  const win = BrowserWindow.fromWebContents(e.sender)
-  if (!win) return null
-  const c = current as { viewButton?: unknown; viewStyle?: unknown } | null
-  const viewButton: ViewButton = c?.viewButton === 'labeled' ? 'labeled' : 'icon'
-  const viewStyle: ViewStyle = c?.viewStyle === 'toolbar' ? 'toolbar' : 'dropdown'
-  return popViewButtonMenu(win, { viewButton, viewStyle })
-})
+ipcMain.handle(
+  'view-button-menu',
+  async (e, current: unknown): Promise<ViewButtonMenuAction | null> => {
+    const win = BrowserWindow.fromWebContents(e.sender)
+    if (!win) return null
+    const c = current as { viewButton?: unknown; viewStyle?: unknown } | null
+    const viewButton: ViewButton = c?.viewButton === 'labeled' ? 'labeled' : 'icon'
+    const viewStyle: ViewStyle = c?.viewStyle === 'toolbar' ? 'toolbar' : 'dropdown'
+    return popViewButtonMenu(win, { viewButton, viewStyle })
+  },
+)
 
 // The view embed's title-row right-click menu (Hide/Show Icon · Title Size · Hide Title).
-ipcMain.handle('view-embed-title-menu', async (e, arg: unknown): Promise<EmbedTitleMenuAction | null> => {
-  const win = BrowserWindow.fromWebContents(e.sender)
-  if (!win) return null
-  const a = arg as { iconShown?: unknown; level?: unknown } | null
-  const level = typeof a?.level === 'number' && a.level >= 1 && a.level <= 6 ? a.level : 4
-  return popEmbedTitleMenu(win, a?.iconShown === true, level)
-})
+ipcMain.handle(
+  'view-embed-title-menu',
+  async (e, arg: unknown): Promise<EmbedTitleMenuAction | null> => {
+    const win = BrowserWindow.fromWebContents(e.sender)
+    if (!win) return null
+    const a = arg as { iconShown?: unknown; level?: unknown } | null
+    const level = typeof a?.level === 'number' && a.level >= 1 && a.level <= 6 ? a.level : 4
+    return popEmbedTitleMenu(win, a?.iconShown === true, level)
+  },
+)
 
 // The view embed switcher area's right-click menu (Hide/Show Titles · New View · Style).
-ipcMain.handle('view-embed-area-menu', async (e, current: unknown): Promise<EmbedAreaMenuAction | null> => {
-  const win = BrowserWindow.fromWebContents(e.sender)
-  if (!win) return null
-  const c = current as { viewButton?: unknown; viewStyle?: unknown; titleShown?: unknown } | null
-  return popEmbedAreaMenu(win, {
-    viewButton: c?.viewButton === 'icon' ? 'icon' : 'labeled',
-    viewStyle: c?.viewStyle === 'dropdown' ? 'dropdown' : 'toolbar',
-    titleShown: c?.titleShown !== false
-  })
-})
+ipcMain.handle(
+  'view-embed-area-menu',
+  async (e, current: unknown): Promise<EmbedAreaMenuAction | null> => {
+    const win = BrowserWindow.fromWebContents(e.sender)
+    if (!win) return null
+    const c = current as { viewButton?: unknown; viewStyle?: unknown; titleShown?: unknown } | null
+    return popEmbedAreaMenu(win, {
+      viewButton: c?.viewButton === 'icon' ? 'icon' : 'labeled',
+      viewStyle: c?.viewStyle === 'dropdown' ? 'dropdown' : 'toolbar',
+      titleShown: c?.titleShown !== false,
+    })
+  },
+)
 
 // The ViewSettings ⋮ menu (Duplicate / Delete) — resolves the action to the renderer.
-ipcMain.handle('view-item-menu', async (e, canDelete: unknown): Promise<ViewItemMenuAction | null> => {
-  const win = BrowserWindow.fromWebContents(e.sender)
-  if (!win) return null
-  return popViewItemMenu(win, { canDelete: canDelete === true })
-})
+ipcMain.handle(
+  'view-item-menu',
+  async (e, canDelete: unknown): Promise<ViewItemMenuAction | null> => {
+    const win = BrowserWindow.fromWebContents(e.sender)
+    if (!win) return null
+    return popViewItemMenu(win, { canDelete: canDelete === true })
+  },
+)
 
 // A ViewPane view row's right-click menu (Rename / Edit Icon / Delete).
-ipcMain.handle('view-row-menu', async (e, canDelete: unknown): Promise<ViewRowMenuAction | null> => {
-  const win = BrowserWindow.fromWebContents(e.sender)
-  if (!win) return null
-  return popViewRowMenu(win, { canDelete: canDelete === true })
-})
+ipcMain.handle(
+  'view-row-menu',
+  async (e, canDelete: unknown): Promise<ViewRowMenuAction | null> => {
+    const win = BrowserWindow.fromWebContents(e.sender)
+    if (!win) return null
+    return popViewRowMenu(win, { canDelete: canDelete === true })
+  },
+)
 
 // The ViewSettings Format control's native menu (Standard / Compact).
 ipcMain.handle('view-format-menu', async (e, current: unknown): Promise<ViewFormat | null> => {
@@ -1528,15 +1869,23 @@ ipcMain.handle('nexus:iconMenu', async (e, arg: unknown): Promise<NexusIconActio
   const opts = (arg ?? {}) as { hasPhoto?: boolean; hasGlyph?: boolean }
   return await new Promise<NexusIconAction | null>((resolve) => {
     let acted = false
-    const pick = (v: NexusIconAction) => () => { acted = true; resolve(v) }
+    const pick = (v: NexusIconAction) => () => {
+      acted = true
+      resolve(v)
+    }
     const menu = Menu.buildFromTemplate([
       { label: 'Change Icon', click: pick('changeIcon') },
       { label: opts.hasPhoto ? 'Change Photo' : 'Add Photo', click: pick('addPhoto') },
       ...(opts.hasPhoto || opts.hasGlyph ? [{ type: 'separator' as const }] : []),
       ...(opts.hasPhoto ? [{ label: 'Remove Photo', click: pick('removePhoto') }] : []),
-      ...(opts.hasGlyph ? [{ label: 'Remove Icon', click: pick('removeIcon') }] : [])
+      ...(opts.hasGlyph ? [{ label: 'Remove Icon', click: pick('removeIcon') }] : []),
     ])
-    menu.popup({ window: win, callback: () => { if (!acted) resolve(null) } })
+    menu.popup({
+      window: win,
+      callback: () => {
+        if (!acted) resolve(null)
+      },
+    })
   })
 })
 
@@ -1549,22 +1898,30 @@ ipcMain.handle('nexus:pickImage', async (e): Promise<string | null> => {
 
 // Pop a native macOS Change / Remove menu for an existing banner (mirrors Swift's .contextMenu).
 // Resolves the chosen action, or null if the menu is dismissed.
-ipcMain.handle('nexus:bannerMenu', async (e, opts?: { noRemove?: boolean }): Promise<'change' | 'remove' | null> => {
-  const win = BrowserWindow.fromWebContents(e.sender)
-  if (!win) return null
-  return await new Promise<'change' | 'remove' | null>((resolve) => {
-    let acted = false
-    const choose = (action: 'change' | 'remove'): void => {
-      acted = true
-      resolve(action)
-    }
-    const menu = Menu.buildFromTemplate([
-      { label: 'Change Banner', click: () => choose('change') },
-      ...(opts?.noRemove ? [] : [{ label: 'Remove Banner', click: () => choose('remove') }])
-    ])
-    menu.popup({ window: win, callback: () => { if (!acted) resolve(null) } })
-  })
-})
+ipcMain.handle(
+  'nexus:bannerMenu',
+  async (e, opts?: { noRemove?: boolean }): Promise<'change' | 'remove' | null> => {
+    const win = BrowserWindow.fromWebContents(e.sender)
+    if (!win) return null
+    return await new Promise<'change' | 'remove' | null>((resolve) => {
+      let acted = false
+      const choose = (action: 'change' | 'remove'): void => {
+        acted = true
+        resolve(action)
+      }
+      const menu = Menu.buildFromTemplate([
+        { label: 'Change Banner', click: () => choose('change') },
+        ...(opts?.noRemove ? [] : [{ label: 'Remove Banner', click: () => choose('remove') }]),
+      ])
+      menu.popup({
+        window: win,
+        callback: () => {
+          if (!acted) resolve(null)
+        },
+      })
+    })
+  },
+)
 
 // Pop a native detail-title menu. Rename is always offered; Change Icon unless `noEditIcon` (the homepage
 // sets its icon from the settings pane, not here); `toggleIcon` adds the Hide/Show Icon item (G-4).
@@ -1575,13 +1932,23 @@ ipcMain.handle('nexus:titleMenu', async (e, arg: unknown): Promise<TitleMenuActi
   const opts = (arg ?? {}) as { toggleIcon?: boolean; iconHidden?: boolean; noEditIcon?: boolean }
   return await new Promise<TitleMenuAction | null>((resolve) => {
     let acted = false
-    const choose = (action: TitleMenuAction) => () => { acted = true; resolve(action) }
+    const choose = (action: TitleMenuAction) => () => {
+      acted = true
+      resolve(action)
+    }
     const menu = Menu.buildFromTemplate([
       { label: 'Rename', click: choose('rename') },
       ...(opts.noEditIcon ? [] : [{ label: 'Change Icon', click: choose('editIcon') }]),
-      ...(opts.toggleIcon ? [{ label: opts.iconHidden ? 'Show Icon' : 'Hide Icon', click: choose('toggleIcon') }] : [])
+      ...(opts.toggleIcon
+        ? [{ label: opts.iconHidden ? 'Show Icon' : 'Hide Icon', click: choose('toggleIcon') }]
+        : []),
     ])
-    menu.popup({ window: win, callback: () => { if (!acted) resolve(null) } })
+    menu.popup({
+      window: win,
+      callback: () => {
+        if (!acted) resolve(null)
+      },
+    })
   })
 })
 
@@ -1627,41 +1994,48 @@ ipcMain.handle('option-menu', async (e, ctx: OptionMenuContext) => {
 
 // Open a page-attached file in its OS default app. The renderer-supplied path validates under the
 // session root (resolveUnderRoot) — a `..` climb or symlink smuggle never reaches shell.openPath.
-ipcMain.handle('file:open', async (_e, relPath: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
-  const root = sessionRoot()
-  if (!root) return { ok: false, error: 'No open nexus.' }
-  const r = await resolveUnderRoot(root, relPath)
-  if (!r.ok) return { ok: false, error: r.error.message }
-  const err = await shell.openPath(r.value)
-  return err ? { ok: false, error: err } : { ok: true }
-})
-
+ipcMain.handle(
+  'file:open',
+  async (_e, relPath: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+    const root = sessionRoot()
+    if (!root) return { ok: false, error: 'No open nexus.' }
+    const r = await resolveUnderRoot(root, relPath)
+    if (!r.ok) return { ok: false, error: r.error.message }
+    const err = await shell.openPath(r.value)
+    return err ? { ok: false, error: err } : { ok: true }
+  },
+)
 
 // Rename the OPEN nexus's ROOT folder within its parent dir, then RE-POINT the live session
 // to the new path. A dedicated IPC (not a mutate op) because it re-targets the whole session:
 // after the fs.rename, adoptNexus re-opens the session, index, watcher, and recents at the new
 // path. Never throws across the boundary.
-ipcMain.handle('nexus:rename', async (_e, newName: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
-  const root = sessionRoot()
-  if (root === null) return { ok: false, error: 'No nexus is open.' }
-  try {
-    if (typeof newName !== 'string') return { ok: false, error: 'A name is required.' }
-    const trimmed = newName.trim()
-    if (trimmed.length === 0) return { ok: false, error: 'The name can’t be empty.' }
-    if (trimmed.includes('/') || trimmed.includes('\\')) return { ok: false, error: 'The name can’t contain a slash.' }
-    if (trimmed === basename(root)) return { ok: false, error: 'That’s already the nexus name.' }
-    const newRoot = join(dirname(root), trimmed)
-    if (await pathExists(newRoot)) return { ok: false, error: 'A folder with that name already exists.' }
-    await rename(root, newRoot)
-    // RE-POINT: adoptNexus does exactly the re-target work (openSession + openSessionIndex +
-    // startWatcher + lastNexusPath/recents + addRecentDocument + refreshMenu) with no
-    // adoption-only side effects to skip, so reuse it rather than replicate the calls.
-    await adoptNexus(newRoot)
-    return { ok: true }
-  } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : String(err) }
-  }
-})
+ipcMain.handle(
+  'nexus:rename',
+  async (_e, newName: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+    const root = sessionRoot()
+    if (root === null) return { ok: false, error: 'No nexus is open.' }
+    try {
+      if (typeof newName !== 'string') return { ok: false, error: 'A name is required.' }
+      const trimmed = newName.trim()
+      if (trimmed.length === 0) return { ok: false, error: 'The name can’t be empty.' }
+      if (trimmed.includes('/') || trimmed.includes('\\'))
+        return { ok: false, error: 'The name can’t contain a slash.' }
+      if (trimmed === basename(root)) return { ok: false, error: 'That’s already the nexus name.' }
+      const newRoot = join(dirname(root), trimmed)
+      if (await pathExists(newRoot))
+        return { ok: false, error: 'A folder with that name already exists.' }
+      await rename(root, newRoot)
+      // RE-POINT: adoptNexus does exactly the re-target work (openSession + openSessionIndex +
+      // startWatcher + lastNexusPath/recents + addRecentDocument + refreshMenu) with no
+      // adoption-only side effects to skip, so reuse it rather than replicate the calls.
+      await adoptNexus(newRoot)
+      return { ok: true }
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) }
+    }
+  },
+)
 
 app
   .whenReady()
@@ -1726,5 +2100,8 @@ app.on('before-quit', (e) => {
   if (!hasPendingNavWrites() && !hasPendingTabsWrites()) return
   e.preventDefault()
   flushingBeforeQuit = true
-  void Promise.all([flushNavWrites(), flushTabsWrites()]).then(() => app.quit(), () => app.quit())
+  void Promise.all([flushNavWrites(), flushTabsWrites()]).then(
+    () => app.quit(),
+    () => app.quit(),
+  )
 })

@@ -9,7 +9,7 @@ import { ChipLabel, ChipRemoveButton } from './Chip'
 export function ContextChip({
   color,
   title,
-  onRemove
+  onRemove,
 }: {
   color: ChipColorName
   title: string

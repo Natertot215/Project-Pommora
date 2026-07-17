@@ -5,7 +5,18 @@ import { cx } from '@renderer/design-system/cx'
 import * as s from './colorPicker.css'
 
 /** The ten solid-palette keys, laid out 2 columns × 5 rows. */
-const SWATCHES = ['red', 'orange', 'yellow', 'green', 'lightBlue', 'cyan', 'blue', 'purple', 'lavender', 'grey'] as const
+const SWATCHES = [
+  'red',
+  'orange',
+  'yellow',
+  'green',
+  'lightBlue',
+  'cyan',
+  'blue',
+  'purple',
+  'lavender',
+  'grey',
+] as const
 
 /**
  * The 2×5 solid-colour picker (Planning 7-3, Phase 2) — a PickerMenu shell over the shared colour
@@ -18,7 +29,7 @@ export function ColorPicker({
   selected,
   onPick,
   onDismiss,
-  triggerRef
+  triggerRef,
 }: {
   open: boolean
   selected: ChipColorName
@@ -27,7 +38,14 @@ export function ColorPicker({
   triggerRef: RefObject<HTMLElement | null>
 }): React.JSX.Element | null {
   return (
-    <PickerMenu open={open} onDismiss={onDismiss} triggerRef={triggerRef} direction="down" radius={8} notchWidth={14}>
+    <PickerMenu
+      open={open}
+      onDismiss={onDismiss}
+      triggerRef={triggerRef}
+      direction="down"
+      radius={8}
+      notchWidth={14}
+    >
       <div className={s.grid}>
         {SWATCHES.map((color) => (
           <button

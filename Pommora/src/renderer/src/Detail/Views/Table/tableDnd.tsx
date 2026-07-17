@@ -1,5 +1,18 @@
-import { createContext, useContext, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
-import { ACTIVATION, DROP_LINE_INSET, suppressNextClick } from '@renderer/design-system/interactions/shared'
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from 'react'
+import {
+  ACTIVATION,
+  DROP_LINE_INSET,
+  suppressNextClick,
+} from '@renderer/design-system/interactions/shared'
 import { findScroller, startAutoScroll } from '@renderer/design-system/interactions/autoscroll'
 
 // Table row drag — the sidebar drop-line gesture (B): an accent insertion LINE marks the exact slot,
@@ -8,18 +21,42 @@ import { findScroller, startAutoScroll } from '@renderer/design-system/interacti
 // reassigns the grouped property (setProperty). The commits live in TableView and are passed in — this
 // file owns only the gesture + hit-testing + the line. The cursor ghost is omitted (B-2).
 
-
 type Slot = { lineY: number; left: number; width: number; commit: () => void; noop: boolean }
-type MeasuredRow = { id: string; top: number; bottom: number; mid: number; left: number; contentRight: number; group: string }
+type MeasuredRow = {
+  id: string
+  top: number
+  bottom: number
+  mid: number
+  left: number
+  contentRight: number
+  group: string
+}
 type DragState = { id: string | null; slot: Slot | null }
 const IDLE: DragState = { id: null, slot: null }
 
-type Handlers = { move: (e: PointerEvent) => void; up: () => void; cancel: () => void; key: (e: KeyboardEvent) => void }
+type Handlers = {
+  move: (e: PointerEvent) => void
+  up: () => void
+  cancel: () => void
+  key: (e: KeyboardEvent) => void
+}
 type Gesture =
   | { kind: 'idle' }
-  | { kind: 'pending' | 'active'; id: string; el: HTMLElement; pid: number; startX: number; startY: number; handlers: Handlers }
+  | {
+      kind: 'pending' | 'active'
+      id: string
+      el: HTMLElement
+      pid: number
+      startX: number
+      startY: number
+      handlers: Handlers
+    }
 
-type Value = { draggingId: string | null; registerRow: (id: string, el: HTMLElement | null) => void; begin: (id: string, e: ReactPointerEvent) => void }
+type Value = {
+  draggingId: string | null
+  registerRow: (id: string, el: HTMLElement | null) => void
+  begin: (id: string, e: ReactPointerEvent) => void
+}
 const Ctx = createContext<Value | null>(null)
 
 export function TableRowDnd({
@@ -29,7 +66,7 @@ export function TableRowDnd({
   canReassign,
   reorderTo,
   reassign,
-  children
+  children,
 }: {
   /** The flat visible data-row order + each row's group key. */
   rows: { id: string; groupKey: string }[]
@@ -86,7 +123,15 @@ export function TableRowDnd({
       // trailing 1fr filler too, so rect.right would run the line into the empty gutter past the last column.
       const filler = el.querySelector('.cell-filler')
       const contentRight = filler ? filler.getBoundingClientRect().left : rect.right
-      rows.push({ id: r.id, top: rect.top, bottom: rect.bottom, mid: rect.top + rect.height / 2, left: rect.left, contentRight, group: r.groupKey })
+      rows.push({
+        id: r.id,
+        top: rect.top,
+        bottom: rect.bottom,
+        mid: rect.top + rect.height / 2,
+        left: rect.left,
+        contentRight,
+        group: r.groupKey,
+      })
     }
     rows.sort((a, b) => a.top - b.top)
     snapshot.current = { rows, boxTop: boxRect.top, boxLeft: boxRect.left }
@@ -125,10 +170,22 @@ export function TableRowDnd({
       const idx = beforeId ? without.indexOf(beforeId) : without.length
       const next = [...without.slice(0, idx), g.id, ...without.slice(idx)]
       const noop = next.length === order.length && next.every((id, i) => id === order[i])
-      return { lineY, left, width, noop, commit: () => cfg.current.reorderTo(next, activeGroup, g.id) }
+      return {
+        lineY,
+        left,
+        width,
+        noop,
+        commit: () => cfg.current.reorderTo(next, activeGroup, g.id),
+      }
     }
     if (!cfg.current.canReassign) return null
-    return { lineY, left, width, noop: false, commit: () => cfg.current.reassign(g.id, targetGroup) }
+    return {
+      lineY,
+      left,
+      width,
+      noop: false,
+      commit: () => cfg.current.reassign(g.id, targetGroup),
+    }
   }
 
   const detach = (): void => {
@@ -158,11 +215,20 @@ export function TableRowDnd({
   }
 
   const begin = (id: string, e: ReactPointerEvent): void => {
-    if (cfg.current.disabled || e.button !== 0 || !e.isPrimary || gesture.current.kind !== 'idle') return
+    if (cfg.current.disabled || e.button !== 0 || !e.isPrimary || gesture.current.kind !== 'idle')
+      return
     const el = els.current.get(id)
     if (!el) return
     const handlers: Handlers = { move: onMove, up: onUp, cancel: onCancel, key: onKey }
-    gesture.current = { kind: 'pending', id, el, pid: e.pointerId, startX: e.clientX, startY: e.clientY, handlers }
+    gesture.current = {
+      kind: 'pending',
+      id,
+      el,
+      pid: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      handlers,
+    }
     // Listen on window, not the row: the grip sits out in the gutter (absolutely placed left of the row),
     // so a first move that drifts off the row would never fire a row-bound pointermove — the drag would
     // fail to activate. Capture is still deferred to activation (capturing on pointerdown eats the click,
@@ -193,7 +259,8 @@ export function TableRowDnd({
       // the row content, e.g. an inner cell) so the O(rows) re-measure runs at most once per frame and
       // never on an unrelated scroll — resolveSlot re-measures lazily off the flag.
       const onScroll = (e: Event): void => {
-        if (e.target instanceof Element && content.current && !e.target.contains(content.current)) return
+        if (e.target instanceof Element && content.current && !e.target.contains(content.current))
+          return
         snapshotDirty.current = true
         resolveSlot(lastPoint.current.y)
       }
@@ -204,7 +271,12 @@ export function TableRowDnd({
       // native onScroll above already re-resolves off the module's scrollBy.
       const sc = findScroller(g.el, 'y')
       if (sc) {
-        stopScroll.current = startAutoScroll({ getPoint: () => lastPoint.current, scroller: sc, dragEl: g.el, axis: 'y' })
+        stopScroll.current = startAutoScroll({
+          getPoint: () => lastPoint.current,
+          scroller: sc,
+          dragEl: g.el,
+          axis: 'y',
+        })
       }
     }
     lastPoint.current = { x: e.clientX, y: e.clientY }
@@ -259,7 +331,11 @@ export function TableRowDnd({
       <div ref={content} className="table-dnd">
         {children}
         {drag.slot && (
-          <div className="table-drop-line" aria-hidden style={{ top: drag.slot.lineY, left: drag.slot.left, width: drag.slot.width }}>
+          <div
+            className="table-drop-line"
+            aria-hidden
+            style={{ top: drag.slot.lineY, left: drag.slot.left, width: drag.slot.width }}
+          >
             <span className="table-drop-dot" />
           </div>
         )}
@@ -280,6 +356,6 @@ export function useTableRowDrag(id: string): {
   return {
     ref: (el) => ctx.registerRow(id, el),
     handle: { onPointerDown: (e) => ctx.begin(id, e) },
-    isDragging: ctx.draggingId === id
+    isDragging: ctx.draggingId === id,
   }
 }

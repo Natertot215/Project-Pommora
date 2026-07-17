@@ -39,21 +39,24 @@ function Segmented({
   withLabel,
   labelCollapsed,
   className,
-  glass = true
+  glass = true,
 }: SegmentedProps & { withLabel: boolean }): React.JSX.Element {
   const g = vars.size.control[size]
   // A lone segment is a standalone control, not a divided group — it takes the pill's full radius
   // (no inner segment radius, no dividers) so a single toolbar button needs no "segmented" wrapper.
   const segmented = segments.length > 1
   const containerClass = className ? `${s.container} ${className}` : s.container
-  const containerStyle = { height: g.height, borderRadius: g.radius, display: 'flex', alignItems: 'center' }
+  const containerStyle = {
+    height: g.height,
+    borderRadius: g.radius,
+    display: 'flex',
+    alignItems: 'center',
+  }
   const buttons = (
     <>
       {segments.map((seg, i) => (
         <Fragment key={`${i}-${seg.icon}`}>
-          {i > 0 && (
-            <span className={s.divider} style={{ height: g.dividerHeight }} />
-          )}
+          {i > 0 && <span className={s.divider} style={{ height: g.dividerHeight }} />}
           <button
             type="button"
             className={s.segment}
@@ -61,7 +64,7 @@ function Segmented({
               height: g.segmentHeight,
               borderRadius: segmented ? g.segmentRadius : g.radius,
               paddingInline: paddingX ?? g.paddingX,
-              fontSize: iconSize ? vars.size.icon[iconSize] : g.icon
+              fontSize: iconSize ? vars.size.icon[iconSize] : g.icon,
             }}
             onClick={seg.onClick}
             disabled={seg.disabled}
@@ -71,7 +74,9 @@ function Segmented({
           >
             <Icon name={seg.icon} />
             {withLabel && seg.label && (
-              <span className={labelCollapsed ? `${s.labelSlot} ${s.labelSlotHidden}` : s.labelSlot}>
+              <span
+                className={labelCollapsed ? `${s.labelSlot} ${s.labelSlotHidden}` : s.labelSlot}
+              >
                 <span className={s.labelText}>{seg.label}</span>
               </span>
             )}

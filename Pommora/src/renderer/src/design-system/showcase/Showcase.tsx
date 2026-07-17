@@ -17,7 +17,13 @@ export function Showcase(): React.JSX.Element {
   return (
     <div className={'sc-shell' + (collapsed ? ' sidebar-hidden' : '')}>
       <ShowcaseSidebar activeId={leaf.id} onSelect={select} onCollapse={() => setCollapsed(true)} />
-      <button type="button" className="sc-expand" title="Show sidebar" aria-label="Show sidebar" onClick={() => setCollapsed(false)}>
+      <button
+        type="button"
+        className="sc-expand"
+        title="Show sidebar"
+        aria-label="Show sidebar"
+        onClick={() => setCollapsed(false)}
+      >
         <Icon name="log-out" size={16} />
       </button>
       <ShowcaseMobileNav activeId={leaf.id} onSelect={select} />

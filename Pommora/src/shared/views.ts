@@ -146,21 +146,21 @@ export interface SavedView {
 const sortCriterion = z.object({
   property_id: z.string(),
   direction: z.enum(SORT_DIRECTIONS),
-  order: z.array(z.string()).optional()
+  order: z.array(z.string()).optional(),
 })
 
 const filterRule = z.object({
   property_id: z.string(),
   op: z.string(),
   value: z.string().optional(),
-  values: z.array(z.string()).optional()
+  values: z.array(z.string()).optional(),
 })
 
 const filterGroup: z.ZodType<FilterGroup> = z.lazy(() =>
   z.object({
     match: z.enum(MATCH_MODES),
-    rules: z.array(z.union([filterRule, filterGroup]))
-  })
+    rules: z.array(z.union([filterRule, filterGroup])),
+  }),
 )
 
 const GROUP_ORDER_MODE_SET = new Set<string>(GROUP_ORDER_MODES)
@@ -186,7 +186,7 @@ export function decodeSubGroup(raw: unknown): SubGroupConfig | undefined {
     property_id: s.property_id,
     order_mode: asEnum<GroupOrderMode>(s.order_mode, GROUP_ORDER_MODE_SET) ?? 'configured',
     ...(order !== undefined ? { order } : {}),
-    ...(granularity !== undefined ? { date_granularity: granularity } : {})
+    ...(granularity !== undefined ? { date_granularity: granularity } : {}),
   }
 }
 
@@ -210,7 +210,7 @@ export function decodeGroupConfig(raw: unknown): GroupConfig {
       ...(order !== undefined ? { order } : {}),
       ...(granularity !== undefined ? { date_granularity: granularity } : {}),
       empty_placement: asEnum<EmptyPlacement>(obj.empty_placement, EMPTY_PLACEMENT_SET) ?? 'bottom',
-      hide_empty_groups: typeof obj.hide_empty_groups === 'boolean' ? obj.hide_empty_groups : false
+      hide_empty_groups: typeof obj.hide_empty_groups === 'boolean' ? obj.hide_empty_groups : false,
     }
   }
 
@@ -260,7 +260,7 @@ export const savedView = z.looseObject({
   structural_order_mode: z.enum(STRUCTURAL_ORDER_MODES).optional().catch(undefined),
   sub_group: z.unknown().transform(decodeSubGroup).optional(),
   ungrouped_placement: z.enum(EMPTY_PLACEMENTS).optional().catch(undefined),
-  date_separator: z.enum(DATE_SEPARATORS).optional().catch(undefined)
+  date_separator: z.enum(DATE_SEPARATORS).optional().catch(undefined),
 })
 
 /** Shared on-disk prefix for view ids (`view_<ulid>`); single-sourced so the sentinel and the
@@ -278,13 +278,16 @@ const mintBase = (name: string) => ({
   name,
   icon: 'table',
   type: 'table' as const,
-  group: { kind: 'structural' as const }
+  group: { kind: 'structural' as const },
 })
 
 /** Title-only visibility for a `+`-minted view of a given type — the per-ViewType seam (only Table
  *  ships; a future type adds its own case). Table hides every schema id and all three tiers, so the
  *  guaranteed Title is the sole column (verified through resolveColumns). */
-function mintVisibility(type: ViewType, schema: PropertyDefinition[]): Pick<SavedView, 'property_order' | 'hidden_properties'> {
+function mintVisibility(
+  type: ViewType,
+  schema: PropertyDefinition[],
+): Pick<SavedView, 'property_order' | 'hidden_properties'> {
   switch (type) {
     default:
       return {
@@ -293,8 +296,8 @@ function mintVisibility(type: ViewType, schema: PropertyDefinition[]): Pick<Save
           ...schema.map((d) => d.id),
           RESERVED_PROPERTY_ID.tier1,
           RESERVED_PROPERTY_ID.tier2,
-          RESERVED_PROPERTY_ID.tier3
-        ]
+          RESERVED_PROPERTY_ID.tier3,
+        ],
       }
   }
 }
@@ -302,7 +305,11 @@ function mintVisibility(type: ViewType, schema: PropertyDefinition[]): Pick<Save
 /** Mint the seeded/entry-minted default Table view (all user props visible, no sort, no
  *  `_modified_at` column). Carries the sentinel id until first save. */
 export function mintDefaultView(schema: PropertyDefinition[]): SavedView {
-  return { ...mintBase('Table'), property_order: [RESERVED_PROPERTY_ID.title, ...schema.map((d) => d.id)], hidden_properties: [] }
+  return {
+    ...mintBase('Table'),
+    property_order: [RESERVED_PROPERTY_ID.title, ...schema.map((d) => d.id)],
+    hidden_properties: [],
+  }
 }
 
 /** Mint a `+`-created view: title-only (every assigned property + the default-on tiers hidden), routed

@@ -17,8 +17,8 @@ export function serializeOnFile<T>(path: string, fn: () => Promise<T>): Promise<
     path,
     run.then(
       () => undefined,
-      () => undefined
-    )
+      () => undefined,
+    ),
   )
   return run
 }
@@ -29,7 +29,7 @@ export function serializeOnFile<T>(path: string, fn: () => Promise<T>): Promise<
  *  whether the page was written. */
 export async function rewritePageSerialized(
   file: string,
-  rewrite: (content: string) => string | null
+  rewrite: (content: string) => string | null,
 ): Promise<boolean> {
   return serializeOnFile(file, async () => {
     let content: string

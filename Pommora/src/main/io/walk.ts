@@ -10,7 +10,7 @@ import { join } from 'node:path'
  *  walk). A missing/unreadable dir yields []. */
 export async function listMarkdownFiles(
   dir: string,
-  opts: { skipTopLevel?: string[] } = {}
+  opts: { skipTopLevel?: string[] } = {},
 ): Promise<string[]> {
   let rels: string[]
   try {

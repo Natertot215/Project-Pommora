@@ -22,7 +22,7 @@ export function Reveal({
   open,
   fill = false,
   duration = motionDuration.disclosure,
-  children
+  children,
 }: {
   open: boolean
   fill?: boolean
@@ -50,15 +50,18 @@ export function Reveal({
         display: 'grid',
         transition: `grid-template-rows ${duration} ${easing.standard}`,
         gridTemplateRows: expanded ? '1fr' : '0fr',
-        gridTemplateColumns: fill ? 'minmax(0, 1fr)' : undefined
+        gridTemplateColumns: fill ? 'minmax(0, 1fr)' : undefined,
       }}
       onTransitionEnd={(e) => {
         if (e.propertyName !== 'grid-template-rows') return
-        if (open) setSettled(true) // open animation done → stop clipping
+        if (open)
+          setSettled(true) // open animation done → stop clipping
         else setMounted(false) // collapse done → unmount
       }}
     >
-      <div style={{ overflow: settled ? 'visible' : 'hidden', minHeight: 0 }}>{mounted ? children : null}</div>
+      <div style={{ overflow: settled ? 'visible' : 'hidden', minHeight: 0 }}>
+        {mounted ? children : null}
+      </div>
     </div>
   )
 }

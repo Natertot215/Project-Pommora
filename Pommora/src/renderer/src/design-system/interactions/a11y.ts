@@ -15,7 +15,7 @@ const HIDDEN: Partial<CSSStyleDeclaration> = {
   overflow: 'hidden',
   clipPath: 'inset(100%)',
   whiteSpace: 'nowrap',
-  border: '0'
+  border: '0',
 }
 
 let region: HTMLElement | null = null

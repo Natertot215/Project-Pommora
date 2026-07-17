@@ -18,8 +18,8 @@ export function emptyTable(cols: number, rows: number): TableModel {
     columns: Array.from({ length: cols }, () => ({ align: null, dashes: DEFAULT_DASHES })),
     header: Array.from({ length: cols }, () => ''),
     rows: Array.from({ length: Math.max(0, rows - 1) }, () =>
-      Array.from({ length: cols }, () => '')
-    )
+      Array.from({ length: cols }, () => ''),
+    ),
   }
 }
 

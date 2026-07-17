@@ -37,15 +37,20 @@ beforeEach(() => {
       reorder: vi.fn(async () => ({ ok: true })),
       delete: vi.fn(async () => ({ ok: true })),
       assign: vi.fn(async () => ({ ok: true })),
-      changeType: vi.fn(async () => ({ ok: true }))
+      changeType: vi.fn(async () => ({ ok: true })),
     },
     property: { delete: vi.fn(async () => ({ ok: true })) },
     views: { save: saveSpy },
     activeViews: { set: vi.fn(async () => {}) },
     propertyMenu: vi.fn(async () => null),
-    showError: vi.fn(async () => {})
+    showError: vi.fn(async () => {}),
   }
-  useSession.setState({ load: vi.fn(async () => {}) as never, tree: { registry: [] } as never, renamingProperty: null, activeViews: {} })
+  useSession.setState({
+    load: vi.fn(async () => {}) as never,
+    tree: { registry: [] } as never,
+    renamingProperty: null,
+    activeViews: {},
+  })
 })
 afterEach(() => {
   act(() => root.unmount())
@@ -54,7 +59,7 @@ afterEach(() => {
 
 const buttonFor = (name: string): HTMLButtonElement => {
   const el = [...document.querySelectorAll<HTMLButtonElement>('button')].find(
-    (b) => b.getAttribute('aria-label') === name || b.textContent === name
+    (b) => b.getAttribute('aria-label') === name || b.textContent === name,
   )
   if (!el) throw new Error(`no button "${name}"`)
   return el
@@ -63,10 +68,19 @@ const buttonFor = (name: string): HTMLButtonElement => {
 describe('the datetime Format editor writes the ACTIVE view (A-3)', () => {
   it('picking Short Date saves column_styles on the source node, not the schema', async () => {
     await act(async () => {
-      root.render(<PropertiesPane collectionPath="Col" schema={[dateDef]} onBack={() => {}} source={source} />)
+      root.render(
+        <PropertiesPane
+          collectionPath="Col"
+          schema={[dateDef]}
+          onBack={() => {}}
+          source={source}
+        />,
+      )
     })
     // Open the Due property's editor.
-    const dueRow = [...host.querySelectorAll<HTMLElement>('span')].find((el) => el.textContent === 'Due' && el.children.length === 0)
+    const dueRow = [...host.querySelectorAll<HTMLElement>('span')].find(
+      (el) => el.textContent === 'Due' && el.children.length === 0,
+    )
     await act(async () => {
       dueRow!.click()
     })
@@ -83,7 +97,7 @@ describe('the datetime Format editor writes the ACTIVE view (A-3)', () => {
     expect(saveSpy).toHaveBeenCalledWith(
       'Col',
       'collection',
-      expect.objectContaining({ column_styles: { prop_due: { date_format: 'short' } } })
+      expect.objectContaining({ column_styles: { prop_due: { date_format: 'short' } } }),
     )
   })
 })

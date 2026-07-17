@@ -26,7 +26,11 @@ export function serializeLink(v: LinkValue): string {
  *  `link-title` shows the fetched page `title` (the caller resolves it out-of-band + hands it in),
  *  falling back to the bare domain while it's loading or if the fetch failed; `link-url` (the default)
  *  shows the full URL. Titles are display-only — sort/filter pass no title, so ordering stays stable. */
-export function linkDisplayText(raw: string, display?: 'link-url' | 'link-title', title?: string): string {
+export function linkDisplayText(
+  raw: string,
+  display?: 'link-url' | 'link-title',
+  title?: string,
+): string {
   const { url, alias } = parseLink(raw)
   if (alias) return alias
   if (display === 'link-title') return title ?? linkDomain(url)

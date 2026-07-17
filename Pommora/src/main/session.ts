@@ -61,6 +61,8 @@ export function isTrashedPath(p: string): boolean {
 /** Filter recents to entries that still resolve to a live, non-trashed directory, order preserved —
  *  a deleted (trashed) nexus is dropped so Open Recent never lists it. */
 export async function pruneRecents(recents: string[]): Promise<string[]> {
-  const keep = await Promise.all(recents.map((p) => (isTrashedPath(p) ? Promise.resolve(false) : isExistingDir(p))))
+  const keep = await Promise.all(
+    recents.map((p) => (isTrashedPath(p) ? Promise.resolve(false) : isExistingDir(p))),
+  )
   return recents.filter((_, i) => keep[i])
 }

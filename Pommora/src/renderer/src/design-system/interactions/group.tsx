@@ -7,11 +7,19 @@ import {
   useState,
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
-  type ReactNode
+  type ReactNode,
 } from 'react'
 import { createPortal } from 'react-dom'
 import { useFeel } from './feel'
-import { ACTIVATION, SETTLE_FALLBACK, px, toBox, type Box, type DragItem, type DropState } from './shared'
+import {
+  ACTIVATION,
+  SETTLE_FALLBACK,
+  px,
+  toBox,
+  type Box,
+  type DragItem,
+  type DropState,
+} from './shared'
 
 // Cross-list drag (the board). A DragGroup owns the one active drag across its zones. No
 // array churn: the lifted card is hidden in its source column and rendered as a portal overlay
@@ -31,7 +39,10 @@ type GroupValue = {
   registerContainer: (zoneId: string, el: HTMLElement | null) => void
   registerItem: (zoneId: string, id: string, el: HTMLElement | null) => void
   begin: (zoneId: string, id: string, e: ReactPointerEvent) => void
-  itemState: (zoneId: string, id: string) => { transform: string; hidden: boolean; animate: boolean }
+  itemState: (
+    zoneId: string,
+    id: string,
+  ) => { transform: string; hidden: boolean; animate: boolean }
 }
 const GroupCtx = createContext<GroupValue | null>(null)
 const ZoneIdCtx = createContext<string | null>(null)
@@ -44,7 +55,11 @@ export type DragGroupProps = {
   children: ReactNode
 }
 
-export function DragGroup({ onCommit, renderOverlay, children }: DragGroupProps): React.JSX.Element {
+export function DragGroup({
+  onCommit,
+  renderOverlay,
+  children,
+}: DragGroupProps): React.JSX.Element {
   const feel = useFeel()
   const feelRef = useRef(feel)
   feelRef.current = feel
@@ -74,7 +89,11 @@ export function DragGroup({ onCommit, renderOverlay, children }: DragGroupProps)
     pitch: 0,
     overZone: '',
     overIndex: -1,
-    handlers: null as null | { move: (e: PointerEvent) => void; up: () => void; cancel: () => void }
+    handlers: null as null | {
+      move: (e: PointerEvent) => void
+      up: () => void
+      cancel: () => void
+    },
   })
 
   const commitRef = useRef<(() => void) | null>(null) // armed on drop; fired by overlay transitionend or fallback
@@ -273,7 +292,7 @@ export function DragGroup({ onCommit, renderOverlay, children }: DragGroupProps)
       pitch: 0,
       overZone: '',
       overIndex: -1,
-      handlers
+      handlers,
     }
     try {
       el.setPointerCapture(e.pointerId)
@@ -285,14 +304,19 @@ export function DragGroup({ onCommit, renderOverlay, children }: DragGroupProps)
     el.addEventListener('pointercancel', handlers.cancel)
   }
 
-  const itemState = (zoneId: string, id: string): { transform: string; hidden: boolean; animate: boolean } => {
+  const itemState = (
+    zoneId: string,
+    id: string,
+  ): { transform: string; hidden: boolean; animate: boolean } => {
     if (!active) return { transform: 'translate3d(0,0,0)', hidden: false, animate: false }
     if (id === active.id) return { transform: 'translate3d(0,0,0)', hidden: true, animate: false }
     const z = zones.current.get(zoneId)
     const rects = frozen.current.get(zoneId)
-    if (!z || !rects) return { transform: 'translate3d(0,0,0)', hidden: false, animate: dropState !== 'idle' }
+    if (!z || !rects)
+      return { transform: 'translate3d(0,0,0)', hidden: false, animate: dropState !== 'idle' }
     const oi = z.ids.indexOf(id)
-    if (oi === -1) return { transform: 'translate3d(0,0,0)', hidden: false, animate: dropState !== 'idle' }
+    if (oi === -1)
+      return { transform: 'translate3d(0,0,0)', hidden: false, animate: dropState !== 'idle' }
     let dy = 0
     let na = oi
     if (zoneId === active.zone && oi > active.srcIdx) {
@@ -300,7 +324,11 @@ export function DragGroup({ onCommit, renderOverlay, children }: DragGroupProps)
       na = oi - 1
     }
     if (zoneId === overZone && na >= overIndex) dy += active.pitch
-    return { transform: `translate3d(0, ${px(dy)}, 0)`, hidden: false, animate: dropState !== 'idle' }
+    return {
+      transform: `translate3d(0, ${px(dy)}, 0)`,
+      hidden: false,
+      animate: dropState !== 'idle',
+    }
   }
 
   // Unmount mid-drag (navigate away while dragging): pull the captured-pointer listeners and
@@ -310,14 +338,24 @@ export function DragGroup({ onCommit, renderOverlay, children }: DragGroupProps)
       detach()
       if (timerRef.current != null) clearTimeout(timerRef.current)
     },
-    []
+    [],
   )
 
   const value = useMemo<GroupValue>(
-    () => ({ active, overZone, overIndex, dropState, setZoneIds, registerContainer, registerItem, begin, itemState }),
+    () => ({
+      active,
+      overZone,
+      overIndex,
+      dropState,
+      setZoneIds,
+      registerContainer,
+      registerItem,
+      begin,
+      itemState,
+    }),
     // registration/begin/itemState read refs + current state via closure; identity churn is fine.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [active, overZone, overIndex, dropState]
+    [active, overZone, overIndex, dropState],
   )
 
   const overlayStyle: CSSProperties | null =
@@ -332,9 +370,10 @@ export function DragGroup({ onCommit, renderOverlay, children }: DragGroupProps)
             dropState === 'dropping' && dropTarget
               ? `translate3d(${px(dropTarget.x)}, ${px(dropTarget.y)}, 0)`
               : `translate3d(${px(delta.x)}, ${px(delta.y)}, 0)`,
-          transition: dropState === 'dropping' ? `transform ${feel.duration}ms ${feel.easing}` : 'none',
+          transition:
+            dropState === 'dropping' ? `transform ${feel.duration}ms ${feel.easing}` : 'none',
           pointerEvents: 'none',
-          zIndex: 1000
+          zIndex: 1000,
         }
       : null
 
@@ -352,7 +391,7 @@ export function DragGroup({ onCommit, renderOverlay, children }: DragGroupProps)
           >
             {renderOverlay?.(active.id)}
           </div>,
-          document.body
+          document.body,
         )}
     </GroupCtx.Provider>
   )
@@ -362,7 +401,7 @@ export function GroupZone({
   id,
   items,
   className,
-  children
+  children,
 }: {
   id: string
   items: string[]
@@ -384,7 +423,8 @@ export function GroupZone({
 export function useGroupedDragItem(id: string): DragItem {
   const group = useContext(GroupCtx)
   const zoneId = useContext(ZoneIdCtx)
-  if (!group || zoneId == null) throw new Error('useGroupedDragItem must be used inside a grouped <SortableZone>')
+  if (!group || zoneId == null)
+    throw new Error('useGroupedDragItem must be used inside a grouped <SortableZone>')
   const { transform, hidden, animate } = group.itemState(zoneId, id)
   const feel = useFeel()
   const isDragging = group.active?.id === id
@@ -395,13 +435,13 @@ export function useGroupedDragItem(id: string): DragItem {
       transition: animate ? `transform ${feel.duration}ms ${feel.easing}` : 'none',
       visibility: hidden ? 'hidden' : undefined,
       position: 'relative',
-      touchAction: 'none'
+      touchAction: 'none',
     },
     handle: {
       onPointerDown: (e: ReactPointerEvent) => group.begin(zoneId, id, e),
       'aria-roledescription': 'sortable',
-      'aria-pressed': isDragging || undefined
+      'aria-pressed': isDragging || undefined,
     },
-    isDragging
+    isDragging,
   }
 }

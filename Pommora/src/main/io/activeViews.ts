@@ -26,7 +26,11 @@ export async function readActiveViews(root: string): Promise<ActiveViews> {
 
 /** Set (or, with an empty viewId, clear) the active view for a container.
  *  Serialized on the file so rapid switches can't lose each other's read-merge-write. */
-export async function writeActiveViews(root: string, containerId: string, viewId: string): Promise<void> {
+export async function writeActiveViews(
+  root: string,
+  containerId: string,
+  viewId: string,
+): Promise<void> {
   await serializeOnFile(activeViewsPath(root), async () => {
     const current = await readActiveViews(root)
     if (viewId === '') delete current[containerId]

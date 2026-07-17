@@ -18,13 +18,21 @@ function readMap(storage: Pick<Storage, 'getItem'>): OpenMap {
 }
 
 /** A disclosure's saved open state, or `fallback` when unset. */
-export function loadOpen(storage: Pick<Storage, 'getItem'>, key: string, fallback: boolean): boolean {
+export function loadOpen(
+  storage: Pick<Storage, 'getItem'>,
+  key: string,
+  fallback: boolean,
+): boolean {
   const value = readMap(storage)[key]
   return typeof value === 'boolean' ? value : fallback
 }
 
 /** Persist a disclosure's open state, merged into the existing map. */
-export function saveOpen(storage: Pick<Storage, 'getItem' | 'setItem'>, key: string, open: boolean): void {
+export function saveOpen(
+  storage: Pick<Storage, 'getItem' | 'setItem'>,
+  key: string,
+  open: boolean,
+): void {
   try {
     storage.setItem(DISCLOSURE_KEY, JSON.stringify({ ...readMap(storage), [key]: open }))
   } catch {

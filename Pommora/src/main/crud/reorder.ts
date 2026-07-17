@@ -7,7 +7,13 @@ import { mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { z } from 'zod'
 import { mutateJson, pathExists } from '../io/atomicWrite'
-import { nexusDir, nexusConfig, NEXUS_CONFIG_FILES, SIDECAR_FILENAME, type SidecarKind } from '../paths'
+import {
+  nexusDir,
+  nexusConfig,
+  NEXUS_CONFIG_FILES,
+  SIDECAR_FILENAME,
+  type SidecarKind,
+} from '../paths'
 import { updateFolderSidecar } from './folderEntity'
 import { pageCollectionSidecar, pageSetSidecar } from '@shared/schemas'
 import { ok, type Result } from '@shared/result'
@@ -27,14 +33,14 @@ const persistable = (ids: string[]): string[] => ids.filter((id) => !id.startsWi
 export async function setStateOrder(
   nexusRoot: string,
   key: StateOrderKey,
-  ids: string[]
+  ids: string[],
 ): Promise<Result<string[]>> {
   const clean = persistable(ids)
   await mkdir(nexusDir(nexusRoot), { recursive: true })
   await mutateJson<Record<string, unknown>>(
     nexusConfig(nexusRoot, NEXUS_CONFIG_FILES.state),
     () => ({}),
-    (state) => ({ ...state, [key]: clean })
+    (state) => ({ ...state, [key]: clean }),
   )
   return ok(clean)
 }
@@ -46,9 +52,11 @@ export async function setContainerOrder<S extends z.ZodType>(
   kind: SidecarKind,
   schema: S,
   key: ContainerOrderKey,
-  ids: string[]
+  ids: string[],
 ): Promise<Result<z.infer<S>>> {
-  return updateFolderSidecar(absFolder, kind, schema, { [key]: persistable(ids) } as Partial<z.infer<S>>)
+  return updateFolderSidecar(absFolder, kind, schema, { [key]: persistable(ids) } as Partial<
+    z.infer<S>
+  >)
 }
 
 // The container folder kinds, detected by which sidecar exists on disk — so an order
@@ -56,13 +64,17 @@ export async function setContainerOrder<S extends z.ZodType>(
 // regardless of the parent's kind.
 const CONTAINER_SIDECARS = [
   { kind: 'collection' as const, schema: pageCollectionSidecar },
-  { kind: 'set' as const, schema: pageSetSidecar }
+  { kind: 'set' as const, schema: pageSetSidecar },
 ]
 
 /** Persist a within-folder order (`page_order` / `collection_order` / `set_order`), resolving
  *  the folder's kind from its sidecar on disk. A raw/adopted folder with no recognized sidecar
  *  is a no-op (order falls back to title). */
-export async function setChildOrder(absFolder: string, key: ContainerOrderKey, ids: string[]): Promise<Result<null>> {
+export async function setChildOrder(
+  absFolder: string,
+  key: ContainerOrderKey,
+  ids: string[],
+): Promise<Result<null>> {
   for (const { kind, schema } of CONTAINER_SIDECARS) {
     if (await pathExists(join(absFolder, SIDECAR_FILENAME[kind]))) {
       const r = await setContainerOrder(absFolder, kind, schema, key, ids)

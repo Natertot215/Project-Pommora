@@ -10,13 +10,16 @@ export type CheckboxLook = 'checkbox' | 'switch'
 
 const STYLE_OPTIONS: { value: CheckboxLook; label: string }[] = [
   { value: 'checkbox', label: 'Checkbox' },
-  { value: 'switch', label: 'Switch' }
+  { value: 'switch', label: 'Switch' },
 ]
 
 /** Resolve the pane's colour chip: its key + display label. Absent = the configured accent, shown
  *  "Accent" — as is a chosen colour that equals the accent (the accent is a live user config, so it's
  *  named, never frozen to a palette label). */
-function resolveColor(color: string | undefined, accentName: ChipColorName): { name: ChipColorName; label: string } {
+function resolveColor(
+  color: string | undefined,
+  accentName: ChipColorName,
+): { name: ChipColorName; label: string } {
   if (!color) return { name: accentName, label: 'Accent' }
   const name = chipColorFor(color)
   return { name, label: name === accentName ? 'Accent' : colorLabel(name) }
@@ -33,7 +36,7 @@ export function CheckboxEditor({
   look,
   accent,
   onSetColor,
-  onSetStyle
+  onSetStyle,
 }: {
   color: string | undefined
   look: CheckboxLook
@@ -51,7 +54,12 @@ export function CheckboxEditor({
       <div className={s.configRow}>
         <span className={s.configLabel}>Color</span>
         <span className={s.colorCluster}>
-          <button ref={chipRef} type="button" className={s.colorChip} onClick={() => setColoring((v) => !v)}>
+          <button
+            ref={chipRef}
+            type="button"
+            className={s.colorChip}
+            onClick={() => setColoring((v) => !v)}
+          >
             <Chip shape="label" color={chosen.name} label={chosen.label} />
           </button>
           <ColorPicker
@@ -68,7 +76,12 @@ export function CheckboxEditor({
       </div>
       <div className={s.configRow}>
         <span className={s.configLabel}>Style</span>
-        <PickerControl ariaLabel="Checkbox style" value={look} options={STYLE_OPTIONS} onPick={onSetStyle} />
+        <PickerControl
+          ariaLabel="Checkbox style"
+          value={look}
+          options={STYLE_OPTIONS}
+          onPick={onSetStyle}
+        />
       </div>
     </div>
   )

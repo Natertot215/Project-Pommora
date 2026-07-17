@@ -6,7 +6,11 @@
 
 import type { ColumnKind, ResolvedColumn } from '@shared/types'
 import type { SavedView } from '@shared/views'
-import { type PropertyDefinition, RESERVED_PROPERTY_ID, isReservedPropertyId } from '@shared/properties'
+import {
+  type PropertyDefinition,
+  RESERVED_PROPERTY_ID,
+  isReservedPropertyId,
+} from '@shared/properties'
 
 function columnKind(id: string): ColumnKind {
   switch (id) {
@@ -31,7 +35,7 @@ const DEFLESS_RESERVED = new Set<string>([
   RESERVED_PROPERTY_ID.modifiedAt,
   RESERVED_PROPERTY_ID.tier1,
   RESERVED_PROPERTY_ID.tier2,
-  RESERVED_PROPERTY_ID.tier3
+  RESERVED_PROPERTY_ID.tier3,
 ])
 
 /** Visible property ids: propertyOrder verbatim (hidden honored), then unaccounted non-reserved
@@ -73,7 +77,11 @@ export function resolveColumns(view: SavedView, schema: PropertyDefinition[]): R
   for (const id of visibleOrder(view, schema)) append(id)
 
   // Default-on tiers (Projects, Topics, Areas = tier3→1). NOT _modified_at — React divergence.
-  for (const id of [RESERVED_PROPERTY_ID.tier3, RESERVED_PROPERTY_ID.tier2, RESERVED_PROPERTY_ID.tier1]) {
+  for (const id of [
+    RESERVED_PROPERTY_ID.tier3,
+    RESERVED_PROPERTY_ID.tier2,
+    RESERVED_PROPERTY_ID.tier1,
+  ]) {
     if (!emitted.has(id) && !hidden.has(id)) append(id)
   }
 

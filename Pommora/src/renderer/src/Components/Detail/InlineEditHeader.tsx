@@ -17,7 +17,7 @@ export function InlineEditHeader({
   icon,
   iconRef,
   onCommit,
-  onIconClick
+  onIconClick,
 }: {
   value: string
   icon?: string
@@ -28,7 +28,13 @@ export function InlineEditHeader({
   const [editing, setEditing] = useState(false)
   return (
     <div className={s.header}>
-      <button ref={iconRef} type="button" className={s.iconButton} aria-label="Edit icon" onClick={onIconClick}>
+      <button
+        ref={iconRef}
+        type="button"
+        className={s.iconButton}
+        aria-label="Edit icon"
+        onClick={onIconClick}
+      >
         {icon ? <Icon name={icon} /> : <DashIcon />}
       </button>
       {editing ? (

@@ -13,7 +13,7 @@ export function cellCommitChange(
   tableIndex: number,
   row: number,
   col: number,
-  newText: string
+  newText: string,
 ): { from: number; to: number; insert: string } | null {
   const seg = tableRegions(docText)[tableIndex]?.rows[row]?.segments[col]
   if (!seg) return null
@@ -24,7 +24,7 @@ export function cellCommitChange(
 export function structuralEditChange(
   docText: string,
   tableIndex: number,
-  transform: (m: TableModel) => TableModel
+  transform: (m: TableModel) => TableModel,
 ): { from: number; to: number; insert: string } | null {
   const region = tableRegions(docText)[tableIndex]
   if (!region) return null

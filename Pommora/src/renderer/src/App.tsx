@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+} from 'react'
 import { useSession } from './store'
 import { Surface } from './Components/Surface'
 import { Sidebar } from './Sidebar/Sidebar'
@@ -13,8 +19,30 @@ import { Icon } from '@renderer/design-system/symbols'
 import { matchesCommand } from './Commands'
 
 export function App(): React.JSX.Element {
-  const { status, tree, error, sidebarVisible, sidebarWidth, setSidebarWidth, inspectorWidth, setInspectorWidth, load, applyTree, applyNavChanged, choose, openDropped, toggleSidebar, ribbonVisible, toggleRibbon, toggleNav, commands, newPage, openNewTab, beginRename, select } =
-    useSession()
+  const {
+    status,
+    tree,
+    error,
+    sidebarVisible,
+    sidebarWidth,
+    setSidebarWidth,
+    inspectorWidth,
+    setInspectorWidth,
+    load,
+    applyTree,
+    applyNavChanged,
+    choose,
+    openDropped,
+    toggleSidebar,
+    ribbonVisible,
+    toggleRibbon,
+    toggleNav,
+    commands,
+    newPage,
+    openNewTab,
+    beginRename,
+    select,
+  } = useSession()
   useNavThumbnails() // capture-on-open detail-pane thumbnails for the gallery
 
   // Inspector toggle — window chrome state. Full-height pane that pushes content when open.
@@ -68,7 +96,9 @@ export function App(): React.JSX.Element {
   useEffect(() => {
     return window.nexus.onOpenInNewTab((target) => {
       if (!target.id) return
-      void select(contextTargetToSelect({ kind: target.kind, id: target.id, path: target.path }), { newTab: true })
+      void select(contextTargetToSelect({ kind: target.kind, id: target.id, path: target.path }), {
+        newTab: true,
+      })
     })
   }, [select])
 
@@ -132,8 +162,19 @@ export function App(): React.JSX.Element {
 
   return (
     <div
-      className={'shell' + (sidebarHidden ? ' sidebar-hidden' : '') + (ribbonVisible ? '' : ' ribbon-hidden') + (inspectorOpen ? ' inspector-open' : '') + (resizing ? ' is-resizing' : '')}
-      style={{ '--sidebar-width': `${sidebarWidth}px`, '--inspector-width': `${inspectorWidth}px` } as CSSProperties}
+      className={
+        'shell' +
+        (sidebarHidden ? ' sidebar-hidden' : '') +
+        (ribbonVisible ? '' : ' ribbon-hidden') +
+        (inspectorOpen ? ' inspector-open' : '') +
+        (resizing ? ' is-resizing' : '')
+      }
+      style={
+        {
+          '--sidebar-width': `${sidebarWidth}px`,
+          '--inspector-width': `${inspectorWidth}px`,
+        } as CSSProperties
+      }
       onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => {
         e.preventDefault()
@@ -145,7 +186,10 @@ export function App(): React.JSX.Element {
       <div className="titlebar" />
       {/* Persistent toolbar clusters float over the strip (Back/Forward + Navigation·Settings·Inspector). */}
       {status === 'ready' && (
-        <Toolbar inspectorOpen={inspectorOpen} onToggleInspector={() => setInspectorOpen((v) => !v)} />
+        <Toolbar
+          inspectorOpen={inspectorOpen}
+          onToggleInspector={() => setInspectorOpen((v) => !v)}
+        />
       )}
       <main className="content-pane">
         <DetailPane />
@@ -153,34 +197,34 @@ export function App(): React.JSX.Element {
       {/* Sidebar always mounted so collapse/expand animates (slides) instead of snapping;
           .shell.sidebar-hidden translates it off + reclaims the detail gutter. */}
       <Surface>
-          {/* Ribbon: a pinned icon strip left of the scrolling sidebar; switches sidebar modes. */}
-          {status === 'ready' && tree && <Ribbon />}
-          {/* Collapse — in-line with the traffic lights (sidebar top-right); reveals on hover. */}
-          <button
-            type="button"
-            className="sidebar-toggle sidebar-collapse"
-            onClick={toggleSidebar}
-            aria-label="Collapse sidebar"
-            title="Collapse sidebar"
-          >
-            <Icon name="log-out" size={18} className="flip-x" />
-          </button>
-          {status === 'loading' && <div className="state">Loading Nexus…</div>}
-          {status === 'empty' && (
-            <div className="state">
-              No Nexus Open
-              <button className="open-btn" onClick={() => void choose()}>
-                Open Folder…
-              </button>
-            </div>
-          )}
-          {status === 'error' && (
-            <div className="state state-error">
-              Couldn’t Open Nexus
-              <span className="state-detail">{error}</span>
-            </div>
-          )}
-          {status === 'ready' && tree && <Sidebar tree={tree} />}
+        {/* Ribbon: a pinned icon strip left of the scrolling sidebar; switches sidebar modes. */}
+        {status === 'ready' && tree && <Ribbon />}
+        {/* Collapse — in-line with the traffic lights (sidebar top-right); reveals on hover. */}
+        <button
+          type="button"
+          className="sidebar-toggle sidebar-collapse"
+          onClick={toggleSidebar}
+          aria-label="Collapse sidebar"
+          title="Collapse sidebar"
+        >
+          <Icon name="log-out" size={18} className="flip-x" />
+        </button>
+        {status === 'loading' && <div className="state">Loading Nexus…</div>}
+        {status === 'empty' && (
+          <div className="state">
+            No Nexus Open
+            <button className="open-btn" onClick={() => void choose()}>
+              Open Folder…
+            </button>
+          </div>
+        )}
+        {status === 'error' && (
+          <div className="state state-error">
+            Couldn’t Open Nexus
+            <span className="state-detail">{error}</span>
+          </div>
+        )}
+        {status === 'ready' && tree && <Sidebar tree={tree} />}
       </Surface>
       {/* Drag strip over the sidebar's top band — a child of the frosted Surface can't carry a drag
           region (its backdrop-filter layer swallows it), and draggable regions resolve in PAINT order

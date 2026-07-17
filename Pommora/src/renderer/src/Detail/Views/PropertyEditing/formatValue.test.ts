@@ -20,9 +20,11 @@ describe('formatDate', () => {
     [21, '21st'],
     [22, '22nd'],
     [23, '23rd'],
-    [31, '31st']
+    [31, '31st'],
   ])('ordinal day %i renders %s', (day, expected) => {
-    expect(formatDate(`2026-03-${String(day).padStart(2, '0')}`, 'short', 'none')).toBe(`March ${expected}`)
+    expect(formatDate(`2026-03-${String(day).padStart(2, '0')}`, 'short', 'none')).toBe(
+      `March ${expected}`,
+    )
   })
 
   it('appends the time per the time format when the value carries one', () => {
@@ -64,7 +66,8 @@ describe('formatDate weekday + reshaped full', () => {
 
 describe('formatDate relative', () => {
   const now = new Date('2026-07-06T12:00:00')
-  const rel = (iso: string, time: 'none' | 'twelveHour' = 'none') => formatDate(iso, 'relative', time, 'none', now)
+  const rel = (iso: string, time: 'none' | 'twelveHour' = 'none') =>
+    formatDate(iso, 'relative', time, 'none', now)
   it('today / yesterday / tomorrow', () => {
     expect(rel('2026-07-06')).toBe('Today')
     expect(rel('2026-07-05')).toBe('Yesterday')
@@ -91,8 +94,12 @@ describe('formatDate relative', () => {
 
 describe('formatNumber', () => {
   it('groups by default and honours separators off', () => {
-    expect(formatNumber(1234.5, { number_family: 'number', number_separators: true })).toBe('1,234.5')
-    expect(formatNumber(1234.5, { number_family: 'number', number_separators: false })).toBe('1234.5')
+    expect(formatNumber(1234.5, { number_family: 'number', number_separators: true })).toBe(
+      '1,234.5',
+    )
+    expect(formatNumber(1234.5, { number_family: 'number', number_separators: false })).toBe(
+      '1234.5',
+    )
   })
   it('hidden decimals show as an integer; a fixed count pads', () => {
     expect(formatNumber(3.14, { number_decimals: 'hidden' })).toBe('3')
@@ -102,21 +109,29 @@ describe('formatNumber', () => {
     expect(formatNumber(30, { number_family: 'percent' })).toBe('30%')
   })
   it('currency uses the chosen ISO code', () => {
-    expect(formatNumber(1234, { number_family: 'currency', number_currency: 'GBP', number_decimals: 2 })).toBe('£1,234.00')
+    expect(
+      formatNumber(1234, { number_family: 'currency', number_currency: 'GBP', number_decimals: 2 }),
+    ).toBe('£1,234.00')
   })
   it('fraction renders "N out of Value"', () => {
-    expect(formatNumber(3, { number_family: 'number', number_fraction: true, number_denominator: 10 })).toBe('3 out of 10')
+    expect(
+      formatNumber(3, { number_family: 'number', number_fraction: true, number_denominator: 10 }),
+    ).toBe('3 out of 10')
   })
 })
 
 describe('numberDivisor', () => {
   it('is 100 for percent, the denominator for fraction, undefined otherwise', () => {
     expect(numberDivisor({ number_family: 'percent' })).toBe(100)
-    expect(numberDivisor({ number_family: 'number', number_fraction: true, number_denominator: 10 })).toBe(10)
+    expect(
+      numberDivisor({ number_family: 'number', number_fraction: true, number_denominator: 10 }),
+    ).toBe(10)
     expect(numberDivisor({ number_family: 'number', number_fraction: false })).toBeUndefined()
   })
   it('guards a zero / missing denominator', () => {
-    expect(numberDivisor({ number_family: 'number', number_fraction: true, number_denominator: 0 })).toBeUndefined()
+    expect(
+      numberDivisor({ number_family: 'number', number_fraction: true, number_denominator: 0 }),
+    ).toBeUndefined()
     expect(numberDivisor({ number_family: 'number', number_fraction: true })).toBeUndefined()
   })
 })

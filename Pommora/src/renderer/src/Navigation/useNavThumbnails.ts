@@ -26,7 +26,9 @@ function contentRect(pane: Element): ThumbRect {
  *  pre-render. Already-complete images resolve instantly; a failed load is ignored, not awaited forever. */
 async function imagesReady(pane: Element): Promise<void> {
   await Promise.all(
-    [...pane.querySelectorAll('img')].map((img) => (img.complete ? Promise.resolve() : img.decode().catch(() => undefined)))
+    [...pane.querySelectorAll('img')].map((img) =>
+      img.complete ? Promise.resolve() : img.decode().catch(() => undefined),
+    ),
   )
 }
 
@@ -66,7 +68,9 @@ export function useNavThumbnails(): void {
         if (!pane || cancelled) return
         await document.fonts?.ready
         await imagesReady(pane)
-        await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())))
+        await new Promise<void>((r) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => r())),
+        )
         if (cancelled || useSession.getState().navOpen) return
         const key = navKey(selection)
         // The gate — read at capture time so the marker reflects what the shot will show.
@@ -77,10 +81,16 @@ export function useNavThumbnails(): void {
         }
         const marker =
           selection.kind === 'page'
-            ? (s.liveBody?.path === selection.path ? s.liveBody.body : s.pageDetail?.body)
+            ? s.liveBody?.path === selection.path
+              ? s.liveBody.body
+              : s.pageDetail?.body
             : s.tree
         if (captured.get(key) === marker) return
-        const res = await window.nexus.capture.thumbnail(key, contentRect(pane), window.devicePixelRatio)
+        const res = await window.nexus.capture.thumbnail(
+          key,
+          contentRect(pane),
+          window.devicePixelRatio,
+        )
         if (!cancelled && res.ok) {
           captured.set(key, marker)
           bumpThumb(key)
