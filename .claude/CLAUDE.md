@@ -1,12 +1,12 @@
 ## Project Pommora
 
-Pommora is a personal management app based on Nathan’s frustration with modern productivity apps that excel in one aspect but are absolutely terrible in others — Pommora is Nathan’s “Fine, I’ll do it myself — Thanos.” Pommora’s main leverage is taking the extremely flexible, properties-based categorization of Notion and the inherently agentic-legible, local-first approach used by Obsidian, aiming to create a true local-first, all-in-one productivity and organizational platform. Pommora’s structure is based on relating **Content** <-> **Content** through *Connections*, with their attributes given through their **Collection’s** schema-based **Properties,** and linking them all together through relationships to **Contexts.** 
+Pommora is a personal management app based on Nathan’s frustration with modern productivity apps that excel in one aspect but are absolutely terrible in others — Pommora is Nathan’s “Fine, I’ll do it myself — Thanos.” Pommora’s main leverage is taking the extremely flexible, properties-based categorization of Notion and the inherently agentic-legible, local-first approach used by Obsidian, aiming to create a true local-first, all-in-one productivity and organizational platform. Pommora’s structure is based on relating **Content** ↔ **Content** through *Connections*, with their attributes given through their **Collection’s** schema-based **Properties,** and linking them all together through relationships to **Contexts.** 
 
 **Contexts:** The organization layer — three free-standing tiers that Content relates *to*. None contains or parents another; an entity tags whichever tiers fit.
 
 - **Areas:** broad life domains — Personal, Academics, Work.
 - **Topics:** the subject areas within them — Productivity, Side Projects, Reading List. 
-- **Projects:** specific efforts — CS 161, Pommora, "Atomic Habits."
+- **Projects:** specific efforts — CS 161, Pommora, "Atomic Habits." 
 
 **Content:** The operational layer — what you actually make, linked to each other through **Connections** for content ↔ content relations, and with **Front-matter** for content ←> tier relations. 
 
