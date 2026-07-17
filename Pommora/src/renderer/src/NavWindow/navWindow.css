@@ -167,7 +167,7 @@
     padding-left var(--duration-base) var(--ease-standard);
 }
 .navwindow.is-page-tab .navwindow-tabs {
-  padding-left: calc(var(--glass-inset) + 30px); /* KNOB — clearance past the scan glyph */
+  padding-left: calc(var(--glass-inset) + 22px); /* KNOB — clearance past the scan glyph */
 }
 /* The right column beside the rail: strip row on top, then the map body or the page embed. */
 .navwindow-content {
