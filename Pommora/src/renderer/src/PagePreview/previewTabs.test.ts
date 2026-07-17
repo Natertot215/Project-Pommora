@@ -185,6 +185,17 @@ describe('previewTabs — warmth (H-8)', () => {
   })
 })
 
+describe('previewTabs — the engulf exit flag (A-4)', () => {
+  it("a promote's engulf flag never leaks onto the next window's close", () => {
+    useSession.getState().openPreview(page('x'))
+    useSession.getState().closePreview('engulf')
+    expect(useSession.getState().previewExit).toBe('engulf')
+    // Re-opening re-seeds — the six close paths that never write the flag can't replay the FLIP.
+    useSession.getState().openPreview(page('y'))
+    expect(useSession.getState().previewExit).toBe('dismiss')
+  })
+})
+
 describe('previewTabs — the slide stamp (Task 1.3)', () => {
   it('stamps fwd on spawn, direction by strip order on activate, monotonic seq', () => {
     useSession.getState().openPreview(page('x'))

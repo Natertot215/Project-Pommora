@@ -16,6 +16,11 @@
   animation: pgpreview-out var(--disclosure) var(--ease-standard) forwards;
   pointer-events: none;
 }
+/* The promote exit (A-4): WAAPI drives the FLIP into the detail pane — no css animation here,
+   the class only makes the exiting window inert. */
+.pgpreview.engulfing {
+  pointer-events: none;
+}
 @keyframes pgpreview-in {
   from {
     opacity: 0;

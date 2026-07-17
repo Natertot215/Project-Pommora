@@ -69,6 +69,11 @@ function DetailView(): React.JSX.Element {
 // KNOB — how far the incoming view slides in on a directional navigation (tab switch / Back / Forward).
 const VIEW_SLIDE_PX = 14
 
+// The preview's engulf target (A-4): the detail pane's live rect, read once at promote time —
+// module-held so the floating window needs no prop threading across trees.
+let paneEl: HTMLElement | null = null
+export const getDetailPaneRect = (): DOMRect | null => paneEl?.getBoundingClientRect() ?? null
+
 export function DetailPane(): React.JSX.Element {
   const selection = useSession((s) => s.selection)
   const selectionKind = selection.kind
@@ -118,6 +123,9 @@ export function DetailPane(): React.JSX.Element {
   return (
     <div
       className={paneClass}
+      ref={(el) => {
+        paneEl = el
+      }}
       onMouseMove={(e) => {
         if (!showSubfield) return
         const r = e.currentTarget.getBoundingClientRect()

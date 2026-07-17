@@ -13,6 +13,7 @@ import { buildPageIndex, flattenPages, type ConnectionsApi } from '../MarkdownPM
 import { showConnectionMenu } from '../Embeds/connectionMenu'
 import { useConnectionHover } from '../Embeds/ConnectionHoverCard'
 import { registerPreviewFlush } from '../Detail/pageFlush'
+import { getDetailPaneRect } from '../Detail/DetailPane'
 import { NavCrumbs } from '../Navigation/NavList'
 import { buildResolveIndex, resolveWith } from '../Navigation/navResolve'
 import { useSession, type PreviewTarget } from '../store'
@@ -189,15 +190,41 @@ function PreviewWindowBody({
     // biome-ignore lint/correctness/useExhaustiveDependencies: see above
   }, [target.path])
 
-  // B-5 promotion: open for real through the normal select, closing the preview.
+  // B-5 promotion: open for real through the normal select; the window ENGULFS into the pane (A-4).
   const promote = (): void => {
-    closePreview()
+    closePreview('engulf')
     void select({ kind: 'page', id: target.id, path: target.path })
   }
 
+  // The engulf exit (A-4): a FLIP from the window's live rect onto the detail pane's — translate to
+  // its center, scale to its box, fade — on the base/standard tokens. WAAPI owns it (the rects are
+  // runtime values); the css .engulfing class only suppresses the default scale-out.
+  const exitReason = useSession((s) => s.previewExit)
+  useEffect(() => {
+    if (!closing || useSession.getState().previewExit !== 'engulf') return
+    const el = bodyRef.current?.parentElement
+    const to = getDetailPaneRect()
+    if (!el || !to) return
+    const from = el.getBoundingClientRect()
+    const dx = to.left + to.width / 2 - (from.left + from.width / 2)
+    const dy = to.top + to.height / 2 - (from.top + from.height / 2)
+    el.animate(
+      [
+        { transform: 'translate(0px, 0px) scale(1)', opacity: 1 },
+        {
+          transform: `translate(${dx}px, ${dy}px) scale(${to.width / from.width}, ${to.height / from.height})`,
+          opacity: 0,
+        },
+      ],
+      { duration: Number.parseInt(duration.base, 10), easing: easing.standard, fill: 'forwards' },
+    )
+  }, [closing])
+
+  const closingClass = !closing ? '' : exitReason === 'engulf' ? ' engulfing' : ' closing'
+
   return (
     <GlassPane
-      className={`pgpreview${closing ? ' closing' : ''}${inspectorOpen ? ' is-inspector-open' : ''}${inspResizing ? ' is-inspector-resizing' : ''}`}
+      className={`pgpreview${closingClass}${inspectorOpen ? ' is-inspector-open' : ''}${inspResizing ? ' is-inspector-resizing' : ''}`}
       // The glass tint knobs (previewWindow.css) compose here — inline because GlassPane's frost
       // sets its own background.
       style={
@@ -243,7 +270,12 @@ function PreviewWindowBody({
               <Icon name="panel-right" size={13} />
             </button>
           </div>
-          <button type="button" className="pgpreview-action" title="Close" onClick={closePreview}>
+          <button
+            type="button"
+            className="pgpreview-action"
+            title="Close"
+            onClick={() => closePreview()}
+          >
             <Icon name="x" size={14} />
           </button>
         </div>

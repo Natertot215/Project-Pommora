@@ -295,8 +295,11 @@ interface SessionState {
   openNavPreview: () => void
   openPreviewTab: (target: PreviewTarget) => void
   activatePreviewTab: (id: string) => void
-  closePreviewTab: (id: string) => void
-  closePreview: () => void
+  closePreviewTab: (id: string, exit?: 'dismiss' | 'engulf') => void
+  closePreview: (reason?: 'dismiss' | 'engulf') => void
+  /** How the CURRENT close should read (A-4): promote paths pass 'engulf' (the window flies into
+   *  the detail pane), X/Escape 'dismiss' (the scale-out). Consumed by the exit animation. */
+  previewExit: 'dismiss' | 'engulf'
 
   /** Re-fetch the open page's detail (after a frontmatter write like a page banner/cover). No-op if no page. */
   reloadPage: () => Promise<void>
@@ -1259,7 +1262,9 @@ export const useSession = create<SessionState>((set, get) => {
         activeTabId: (activeTab ?? tabs[0]).id,
       }
       clearPreviewWarm() // a summon/overtake re-mints every tab id — prior warmth is unreachable
-      set({ preview, previewTarget: deriveTarget(preview), navOpen: false })
+      // previewExit re-seeds on every open: only the close that WROTE 'engulf' may play the FLIP —
+      // the six other window-closing paths (D-8/D-9/reconcile) never write the flag.
+      set({ preview, previewTarget: deriveTarget(preview), navOpen: false, previewExit: 'dismiss' })
       mirrorPreviews()
     },
     openNavPreview: () => {
@@ -1274,7 +1279,7 @@ export const useSession = create<SessionState>((set, get) => {
         activeTabId: (activeTab ?? sentinel).id,
       }
       clearPreviewWarm()
-      set({ preview, previewTarget: deriveTarget(preview), navOpen: false })
+      set({ preview, previewTarget: deriveTarget(preview), navOpen: false, previewExit: 'dismiss' })
       mirrorPreviews()
     },
     openPreviewTab: (target) => {
@@ -1300,20 +1305,23 @@ export const useSession = create<SessionState>((set, get) => {
       const next = { ...cur, activeTabId: id }
       commitPreview(next, { previewSlide: stampByOrder(cur, id) })
     },
-    closePreviewTab: (id) => {
+    previewExit: 'dismiss',
+    closePreviewTab: (id, exit) => {
       const cur = get().preview
       if (!cur) return
       const next = closeTabIn(cur, id)
       if (next === cur) return
-      if (next === null) clearPreviewWarm()
-      else dropPreviewWarm(id)
+      if (next === null) {
+        clearPreviewWarm()
+        set({ previewExit: exit ?? 'dismiss' })
+      } else dropPreviewWarm(id)
       commitPreview(next)
     },
-    closePreview: () => {
+    closePreview: (reason) => {
       // X/Escape: the window closes but its set stays remembered (H-3) — only `open` clears.
       // Warmth dies with the window: a restore re-mints tab ids, so old entries are unreachable.
       clearPreviewWarm()
-      set({ preview: null, previewTarget: null })
+      set({ preview: null, previewTarget: null, previewExit: reason ?? 'dismiss' })
       mirrorPreviews()
     },
     select: async (target, opts) => {

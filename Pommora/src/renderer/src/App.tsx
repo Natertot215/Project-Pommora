@@ -144,7 +144,7 @@ export function App(): React.JSX.Element {
               { kind: 'page', id: active.target.id, path: active.target.path },
               { newTab: true },
             )
-            s.closePreviewTab(active.id)
+            s.closePreviewTab(active.id, 'engulf')
           } else openNewTab()
           break
         }
