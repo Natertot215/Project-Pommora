@@ -32,6 +32,7 @@
    scrolls beneath this strip; no seam, no bleed. ---- */
 .pgpreview {
   --pgpreview-toolbar-h: 34px; /* KNOB — toolbar strip height (body top padding mirrors it) */
+  --pgpreview-tint: 78%; /* KNOB — window-bg share of the glass tint (100% = opaque) */
 }
 .pgpreview-toolbar {
   position: absolute;
@@ -86,14 +87,15 @@
   background: none;
 }
 
-/* ---- body: the embedded page — carries the solid window fill for the whole window; the top
-   padding clears the floating toolbar at rest, then content scrolls under it. ---- */
+/* ---- body: the embedded page — bare on the window glass (the pane itself carries the tint); the
+   top padding clears the floating toolbar at rest, then content scrolls under it. ---- */
 .pgpreview-body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   scrollbar-width: none;
-  background: var(--bg-window);
-  border-radius: var(--glass-radius);
   padding-top: var(--pgpreview-toolbar-h);
+  /* Scrolled content dissolves under the floating toolbar (the shared scroll-edge fade); the fade
+     width matches the toolbar strip so nothing hard-clips behind it. */
+  --edge-fade: var(--pgpreview-toolbar-h);
 }

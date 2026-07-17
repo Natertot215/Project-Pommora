@@ -90,7 +90,12 @@ function PreviewWindowBody({
   return (
     <GlassPane
       className={`pgpreview${closing ? ' closing' : ''}`}
-      style={style}
+      style={{
+        ...style,
+        // The window IS window-bg-colored glass (one material, no inner panel): a translucent
+        // window-bg tint over the frost. Inline because GlassPane's frost sets its own background.
+        background: 'color-mix(in srgb, var(--bg-window) var(--pgpreview-tint), transparent)',
+      }}
       role="dialog"
       aria-label="Page Preview"
       onPointerDown={onWindowDown}
@@ -119,7 +124,7 @@ function PreviewWindowBody({
           </button>
         </div>
       </div>
-      <div className="pgpreview-body">
+      <div className="pgpreview-body edge-fade">
         <PageEmbed
           key={target.path}
           path={target.path}
