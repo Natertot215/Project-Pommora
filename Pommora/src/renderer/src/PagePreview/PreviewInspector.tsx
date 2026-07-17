@@ -45,6 +45,10 @@ export function PreviewInspector({ target }: { target: PreviewTarget }): React.J
   const [title, setTitle] = useState('')
   const [editing, setEditing] = useState<Editing>(null)
   const triggerRef = useRef<HTMLElement | null>(null)
+  // Empty properties hide from the field; + Add Property reveals one and opens its editor.
+  const [revealed, setRevealed] = useState<ReadonlySet<string>>(new Set())
+  const [addOpen, setAddOpen] = useState(false)
+  const addRef = useRef<HTMLButtonElement | null>(null)
 
   useEffect(() => {
     let live = true
@@ -79,6 +83,21 @@ export function PreviewInspector({ target }: { target: PreviewTarget }): React.J
     () => (fm ? { id: target.id, title, icon: fm.icon, path: target.path, frontmatter: fm } : null),
     [fm, title, target],
   )
+
+  const isEmptyValue = (v: PropertyValue): boolean =>
+    v.kind === 'null' ||
+    ((v.kind === 'context' || v.kind === 'multiSelect' || v.kind === 'file') &&
+      v.value.length === 0) ||
+    ((v.kind === 'select' || v.kind === 'status' || v.kind === 'url') && v.value === '')
+  const isEmptyProp = (id: string): boolean =>
+    row ? isEmptyValue(resolveFieldValue(row, id, schema)) : true
+
+  // A dismissed editor over a STILL-empty property un-reveals it (the row only stays for values).
+  const closeEditing = (): void => {
+    const id = editing?.id
+    setEditing(null)
+    if (id && isEmptyProp(id)) setRevealed((prev) => new Set([...prev].filter((r) => r !== id)))
+  }
 
   const commitValue = (propertyId: string, value: PropertyValue | null): void => {
     setFm((prev) =>
@@ -130,10 +149,13 @@ export function PreviewInspector({ target }: { target: PreviewTarget }): React.J
   return (
     <div className="pgpreview-insp">
       <div className="pgpreview-insp-rows edge-fade">
-        {/* The Swift layout: two rounded fill-tertiary fields — contexts, then properties. */}
+        {/* The Swift layout: two rounded fill fields — contexts, then properties. Empty
+            properties hide; + Add Property reveals one through its own picker. */}
         {[
           tierRows.map((t) => ({ def: null, ...t })),
-          schema.map((d) => ({ def: d, id: d.id, label: d.name })),
+          schema
+            .filter((d) => revealed.has(d.id) || !isEmptyProp(d.id))
+            .map((d) => ({ def: d, id: d.id, label: d.name })),
         ].map((group, gi) => (
           <div key={gi === 0 ? 'contexts' : 'properties'} className="pgpreview-insp-group">
             {group.map(({ def, id, label }) => {
@@ -195,9 +217,55 @@ export function PreviewInspector({ target }: { target: PreviewTarget }): React.J
               </div>
             )
             })}
+            {gi === 1 && schema.some((d) => !revealed.has(d.id) && isEmptyProp(d.id)) && (
+              <button
+                type="button"
+                ref={addRef}
+                className={cx('pgpreview-insp-add', text.caption.standard)}
+                onClick={() => setAddOpen(true)}
+              >
+                <Icon name="plus" size={11} />
+                <span>Add Property</span>
+              </button>
+            )}
           </div>
         ))}
       </div>
+      {addOpen && (
+        <PickerMenu solid open onDismiss={() => setAddOpen(false)} triggerRef={addRef}>
+          <div className="pgpreview-insp-addmenu">
+            {schema
+              .filter((d) => !revealed.has(d.id) && isEmptyProp(d.id))
+              .map((d) => (
+                <button
+                  key={d.id}
+                  type="button"
+                  className={cx('pgpreview-insp-addrow', text.caption.standard)}
+                  onClick={() => {
+                    setAddOpen(false)
+                    setRevealed((prev) => new Set([...prev, d.id]))
+                    if (d.type === 'checkbox') {
+                      commitValue(d.id, { kind: 'checkbox', value: true })
+                      return
+                    }
+                    triggerRef.current = addRef.current
+                    if (d.type === 'datetime') setEditing({ id: d.id, mode: 'date' })
+                    else if (d.type === 'number' || d.type === 'url')
+                      setEditing({ id: d.id, mode: 'editor' })
+                    else if (d.type !== 'file' && d.type !== 'last_edited_time')
+                      setEditing({ id: d.id, mode: 'picker' })
+                  }}
+                >
+                  <Icon
+                    name={asRenderableIcon(d.icon) ?? propertyTypeIconName(d.type) ?? 'tag'}
+                    size={12}
+                  />
+                  <span>{d.name}</span>
+                </button>
+              ))}
+          </div>
+        </PickerMenu>
+      )}
       <div className="pgpreview-insp-subfield">
         <NavCrumbs path={location} className="pgpreview-insp-loc" iconSize={11} />
       </div>
@@ -221,11 +289,11 @@ export function PreviewInspector({ target }: { target: PreviewTarget }): React.J
               commitTier(editing.id, v?.kind === 'context' ? v.value : [])
             else commitValue(editing.id, v)
           }}
-          onDismiss={() => setEditing(null)}
+          onDismiss={closeEditing}
         />
       )}
       {editing?.mode === 'date' && (
-        <PickerMenu solid open onDismiss={() => setEditing(null)} triggerRef={triggerRef}>
+        <PickerMenu solid open onDismiss={closeEditing} triggerRef={triggerRef}>
           <CalendarPicker
             range={false}
             value={(() => {

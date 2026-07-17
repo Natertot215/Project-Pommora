@@ -279,6 +279,44 @@
   color: var(--label-tertiary);
   font-size: var(--text-caption-size);
 }
+/* + Add Property — bottom-left of the properties field; its picker lists the hidden empties. */
+.pgpreview-insp-add {
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  padding: 2px 4px;
+  border: none;
+  border-radius: 5px;
+  background: none;
+  color: var(--label-tertiary);
+  cursor: pointer;
+}
+.pgpreview-insp-add:hover {
+  background: var(--state-hover);
+}
+.pgpreview-insp-addmenu {
+  display: flex;
+  flex-direction: column;
+  min-width: 160px;
+  padding: 2px;
+}
+.pgpreview-insp-addrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border: none;
+  border-radius: 5px;
+  background: none;
+  color: var(--label-primary);
+  cursor: pointer;
+  text-align: left;
+}
+.pgpreview-insp-addrow:hover {
+  background: var(--state-hover);
+}
 /* The rail-resize twin: an edge-drag strip at the pane's left seam (col-resize, above the pane). */
 .pgpreview-inspector-resize {
   position: absolute;
