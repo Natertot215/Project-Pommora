@@ -8,7 +8,7 @@
 
 ### Status — Continuation
 
-Phase C (interrogation) is live, round two. Round one settled the frame: **A-1** floating movable window on the window-background material, **C-2** fully editable, **D-2** singleton for now. Nathan also opened five new surfaces — the preview inspector (G), the preview toolbar + in-line titles (F), in-preview wiki-link navigation (H), the promote-to-full engulf animation (A-4), and the embedded zoom level (F-3). Open questions with Nathan: **B-2/B-6** (exact trigger-config shape), **G-1** (inspector: functional in core vs slot reserved), **H-3** (what the NavWindow back-chevron means), **C-3** (accept the existing last-write-wins contract). Fold his answers, then phases E→J.
+Phase C is nearly closed. Settled: floating window on window-background (A-1/A-3), fully editable (C-2), singleton (D-2), per-source routing — sidebar follows the Collection, NavWindow overrides with its own toggle (B-2), promotion via fullscreen + engulf (B-5/A-4), toolbar inventory + in-line titles (F-1/F-2), in-preview wiki-nav with NavWindow-return chevron (H-1/H-3), double-writer accepted as non-issue (C-3). Two light confirmations outstanding with Nathan: **B-6** (connections-in-preview logged as first Prospect — unobjected recommendation) and **G-1's phase** (inspector functional in core vs immediate follow-up; the toggle treatment itself is confirmed as the ToolbarTrio glass-swap). Then phases E→J.
 
 ### Sources
 
@@ -21,6 +21,7 @@ Phase C (interrogation) is live, round two. Round one settled the frame: **A-1**
 - `Pommora/src/main/index.ts:619` — `page:open` is a pure read; `store.ts:1199 reloadPage` proves navigation-free reads are established.
 - `Pommora/src/renderer/src/Detail/PageView.tsx:44` + `PageEmbed.tsx:53` — the only two page-body writers; both debounced `updatePageBody`, last-write-wins, no live cross-sync — the existing contract C-3 inherits.
 - `Pommora/src/renderer/src/Embeds/embedScale.ts` — the G-10 zoom knob (`EMBED_SCALE`/`EMBED_ZOOM`), the F-3 seam.
+- `Pommora/src/renderer/src/Toolbar/ToolbarTrio.tsx` — the inspector-toggle glass-swap G-1 reuses: the glass pill voids as the inspector swallows the trio, icons ride onto the inspector's glass, driven by `--io` (toolbar.css).
 - `Pommora/src/renderer/src/NavWindow/NavWindow.tsx:139` — the floating-chrome reference: pointer-captured move/rail/corner-resize engine (`startDrag`), module-scoped geometry persistence, `useExitPresence`, bare-surface drag allow-list (`DRAG_SURFACES`), Escape-close skipping `defaultPrevented`. Inlined in NavWindow, not extracted.
 - `Pommora/src/renderer/src/design-system/components/PickerMenu/PickerMenu.tsx:24` — the body-portal top-layer primitive (z 1100, escapes clipping/transformed ancestors, re-measures on scroll/resize) — the anchored-card alternative's chassis.
 - `Pommora/src/renderer/src/Tabs/warmCache.ts:28` — warm cache keyed by tabId; a tab-less preview has no natural key (it bypasses the cache; `openPage` is cheap).
@@ -47,9 +48,9 @@ Phase C (interrogation) is live, round two. Round one settled the frame: **A-1**
 
 - **B-1:** [confirmed] The routing branch lives at the title-click navigate (TableView A-7, the app's only navigate): `open_in === 'page-preview'` → open preview instead of `select`. Collection-owned; Sets proxy the parent's value.
 
-- **B-2:** [open] ← with Nathan (narrowed). His direction: **multiple trigger sources, governed by config** — per-collection `open_in` for container views, plus a user config like "open connections in preview." Still to pin down: whether sidebar/NavWindow rows honor the per-collection routing (hypothesis: yes — one rule per source class), and where each config lives (per-collection sidecar vs nexus-level setting).
+- **B-2:** [confirmed] Per-source routing: **sidebar rows follow the Collection's `open_in` config**; **NavWindow has its own override** — its own preview toggle (the Navigation.md:59 deferred "preview mode toggle" becomes real) that wins over the Collection's setting for NavWindow-originated opens.
 
-- **B-6:** [open] Connections-in-preview: a user config making inline `[[Connection]]` clicks open the target as a preview instead of navigating (`connections.ts:16` — the `api.open` slot is the branch point). Nathan raised it as real scope; whether it's core or the first Prospect is a scope call to settle.
+- **B-6:** [assumed] Connections-in-preview — a user config making inline `[[Connection]]` clicks open the target as a preview instead of navigating (`connections.ts:16` — the `api.open` slot is the branch point). Logged as the **first Prospect**, not core: the window plus its internal nav is the plate; the branch point makes this a cheap follow-up. (Recommended and unobjected — flag if it was meant core.)
 
 - **B-3:** [confirmed] "Open in New Tab" (the context-menu action) always bypasses the preview — it's an explicit full-page ask; the preview never has a tab.
 
@@ -63,7 +64,7 @@ Phase C (interrogation) is live, round two. Round one settled the frame: **A-1**
 
 - **C-2:** [confirmed] **Fully editable** — the preview is a working surface, not a glance. Rides the seam's existing edit flip + debounced autosave.
 
-- **C-3:** [assumed] Same-file double-writer: this class **already exists in the app** — `PageView.tsx:44` (main pane) and `PageEmbed.tsx:53` (block-surface embeds) are both debounced writers to the same file with last-write-wins and no live cross-sync. The preview inherits that established contract; no new guard. Needs Nathan's nod that inheriting (not hardening) is right for the core.
+- **C-3:** [confirmed] Same-file double-writer: **non-issue by reachability** (Nathan's call) — the sidebar can't re-open the already-open page, and NavWindow interactions on the current page open nothing new, so the main-pane + preview same-page state doesn't arise through normal triggers. The one residual path (in-preview wiki-nav landing on the main-pane's page) inherits the contract block-surface embeds already live under — `PageView.tsx:44` + `PageEmbed.tsx:53` are both debounced last-write-wins writers, no live cross-sync. No guard built.
 
 #### D — Lifecycle, Focus & Layering
 
@@ -91,7 +92,7 @@ Phase C (interrogation) is live, round two. Round one settled the frame: **A-1**
 
 #### G — Preview Inspector
 
-- **G-1:** [open] The preview carries its **own inspector** — separate from the DetailView inspector — as the front-matter/metadata editing surface, the mechanism the Swift build's front-matter inspector used. Scope question with Nathan: functional in the core, or the chrome slot reserved with the inspector following?
+- **G-1:** [confirmed, phase open] The preview carries its **own inspector** — separate from the DetailView inspector — as the front-matter/metadata editing surface, the mechanism the Swift build's front-matter inspector used. **Fully toggle-able**, reusing the existing inspector toggle's treatment verbatim: the ToolbarTrio glass-swap (`ToolbarTrio.tsx` — the glass pill voids as the inspector swallows the trio, icons ride onto the inspector's glass, driven by `--io` in toolbar.css) and the same swap animation. Whether it lands functional in the core ship or as the immediate follow-up phase is the one open sub-call.
 
 - **G-2:** [confirmed] The inspector's layout gets a **Figma design pass**; the Swift build's inspector (archived at `The Studio/Archive/Pommora`) is the reference — it already mostly looks the way Nathan wants.
 
@@ -101,7 +102,9 @@ Phase C (interrogation) is live, round two. Round one settled the frame: **A-1**
 
 - **H-2:** [assumed] That implies a **preview-local back stack**: the back-chevron walks it; back-only (no forward) for the core; the stack dies with the preview. Completely separate from tab history — the tab-neutral law (D-1) holds.
 
-- **H-3:** [open] ← with Nathan. "Back-chevrons for opening a preview in NavWindow" — the intended meaning needs pinning: a chevron that returns a NavWindow-summoned preview *to* the NavWindow, or something else.
+- **H-3:** [confirmed] A NavWindow-summoned preview's back-chevron **returns to the NavWindow** (reopens it).
+
+- **H-4:** [assumed] Chevron precedence when both meanings apply: the chevron walks the in-preview stack first (H-2); the NavWindow return (H-3) fires only at the bottom of the stack — one button, stack-then-origin.
 
 #### E — Sweep Results (matrix applied; anything without evidence is logged above)
 
@@ -113,7 +116,8 @@ Phase C (interrogation) is live, round two. Round one settled the frame: **A-1**
 
 #### Prospects (allowed later, not now)
 
-- **Connections hover-preview** — a `mouseover` handler + `ConnectionsApi` method (the exact slot exists in `connections.ts`); don't-foreclose: the preview surface stays summonable from an arbitrary anchor, not only a table row. (Connections *click*-in-preview is B-6 — possibly core, pending the scope call.)
+- **Connections-in-preview (B-6, the first Prospect)** — a user config routing inline `[[Connection]]` clicks to a preview instead of a navigate; the `api.open` slot in `connections.ts:16` is the branch point. Don't-foreclose: the preview stays summonable from an arbitrary anchor, not only a table row.
+- **Connections hover-preview** — a `mouseover` handler + `ConnectionsApi` method (the exact slot exists in `connections.ts`); follows B-6.
 - **Agenda entry preview** — Navigation.md routes Agenda search hits to "a placeholder preview window that belongs to Agenda's feature"; this surface is its natural host later.
 - **Multiple simultaneous previews** (if D-2 resolves singleton) — the "list of one" core leaves the door open.
 - **Drag a preview out into its own OS window** — the multi-window seams exist by design; far future.
