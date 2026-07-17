@@ -36,8 +36,17 @@
   --pgpreview-toolbar-h: 34px; /* KNOB — toolbar strip height (body top padding mirrors it) */
   /* KNOBS — the glass tint: color + strength. 0% = pure frost (off); 100% = opaque fill. */
   --pgpreview-bg: var(--bg-window);
-  --pgpreview-bg-a: 0%;
+  --pgpreview-bg-a: 90%;
   --pgpreview-inspector-w: 260px; /* KNOB — inspector pane width */
+  --pgpreview-inspector-inset: 6px; /* KNOB — the pane's ring from the window edges */
+  /* The inspector open/close driver — the shell's --io, shielded to this subtree (registered
+     inheriting, so without this the MAIN inspector's --io would leak in). One var carries the pane
+     slide, the icon ride, and the body squeeze. */
+  --io: 0;
+  transition: --io var(--duration-base) var(--ease-standard);
+}
+.pgpreview.is-inspector-open {
+  --io: 1;
 }
 .pgpreview-toolbar {
   position: absolute;
@@ -108,23 +117,22 @@
   color: var(--label-control);
 }
 
-/* ---- inspector (G-1 shell): the preview-scoped twin of the shell's InspectorPanel — slides off
-   the right edge when closed; the body squeezes to make room (both on the standard motion). ---- */
+/* ---- inspector (G-1 shell): the shell InspectorPanel's construction verbatim, preview-scoped —
+   a full-height GlassWindow on the NavWindow rail's material (state-muted veil), inset ring,
+   slide driven by --io with NO own transition (--io carries it, exactly like inspector-panel.css). ---- */
 .pgpreview-inspector {
   position: absolute;
-  top: var(--pgpreview-toolbar-h);
-  right: 0;
-  bottom: 0;
+  top: var(--pgpreview-inspector-inset);
+  right: var(--pgpreview-inspector-inset);
+  bottom: var(--pgpreview-inspector-inset);
   width: var(--pgpreview-inspector-w);
-  z-index: 1;
+  z-index: 2;
   border-radius: var(--glass-radius);
   overflow: hidden;
-  transform: translateX(calc(100% + 14px));
-  transition: transform var(--duration-base) var(--ease-standard);
+  transform: translateX(calc((1 - var(--io)) * (100% + var(--pgpreview-inspector-inset) + 14px)));
   pointer-events: none;
 }
 .pgpreview.is-inspector-open .pgpreview-inspector {
-  transform: translateX(0);
   pointer-events: auto;
 }
 .pgpreview-inspector-body {
@@ -134,7 +142,32 @@
   transition: padding-right var(--duration-base) var(--ease-standard);
 }
 .pgpreview.is-inspector-open .pgpreview-body {
-  padding-right: var(--pgpreview-inspector-w);
+  padding-right: calc(var(--pgpreview-inspector-w) + var(--pgpreview-inspector-inset));
+}
+
+/* The settings + inspector pair rides the pane's edge (the main toolbar's swallow, toolbar.css):
+   holds at home until the pane's leading edge makes contact (the max() gate), then lands flush
+   inside its left corner. Scan and the X hold home; X paints above the pane (z below). */
+.pgpreview-actions-flow {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  --pgpreview-flow-w: 46px; /* KNOB — the pair's width (two 19px buttons + gap) */
+  --pgpreview-flow-home: 26px; /* KNOB — the pair's home gap from the window's right edge */
+  --pgpreview-flow-inset: 4px; /* KNOB — breathing room off the pane's seam after the swallow */
+  transform: translateX(
+    calc(
+      -1 *
+      max(
+        0px,
+        var(--io) *
+        (var(--pgpreview-inspector-w) + var(--pgpreview-inspector-inset)) -
+        var(--pgpreview-flow-home) -
+        var(--pgpreview-flow-w) -
+        var(--pgpreview-flow-inset)
+      )
+    )
+  );
 }
 
 /* The preview inverts the embed's tile scroll model: the editor chain GROWS to its content

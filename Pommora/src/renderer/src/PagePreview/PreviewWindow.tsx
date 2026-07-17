@@ -112,23 +112,27 @@ function PreviewWindowBody({
           <button
             type="button"
             className="pgpreview-action"
-            title="Inspector"
-            aria-pressed={inspectorOpen}
-            onClick={() => setInspectorOpen((v) => !v)}
-          >
-            <Icon name="panel-right" size={13} />
-          </button>
-          <button type="button" className="pgpreview-action" title="Settings" disabled>
-            <Icon name="sliders-horizontal" size={13} />
-          </button>
-          <button
-            type="button"
-            className="pgpreview-action"
             title="Open Full Page"
             onClick={promote}
           >
             <Icon name="scan" size={13} />
           </button>
+          {/* The flow pair rides the inspector's edge (the main toolbar's --io swallow); scan and
+              the X hold home. */}
+          <div className="pgpreview-actions-flow">
+            <button type="button" className="pgpreview-action" title="Settings" disabled>
+              <Icon name="sliders-horizontal" size={13} />
+            </button>
+            <button
+              type="button"
+              className="pgpreview-action"
+              title="Inspector"
+              aria-pressed={inspectorOpen}
+              onClick={() => setInspectorOpen((v) => !v)}
+            >
+              <Icon name="panel-right" size={13} />
+            </button>
+          </div>
           <button type="button" className="pgpreview-action" title="Close" onClick={closePreview}>
             <Icon name="x" size={14} />
           </button>
