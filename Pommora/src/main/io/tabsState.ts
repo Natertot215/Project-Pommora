@@ -8,12 +8,11 @@
 // the set), coalescing to one disk write; the quit/switch drain flushes immediately. The pending payload
 // carries its own root, so a late flush always lands in the nexus it was recorded for.
 
-import { mkdir } from 'node:fs/promises'
 import { isPlainObject } from '@shared/propertyValue'
 import type { SelectTarget, Tab, TabSet, TabTarget } from '@shared/types'
-import { nexusConfig, nexusDir, NEXUS_CONFIG_FILES } from '../paths'
-import { readJsonObject, writeJson } from './atomicWrite'
-import { serializeOnFile } from './fileLock'
+import { nexusConfig, NEXUS_CONFIG_FILES } from '../paths'
+import { readJsonObject } from './atomicWrite'
+import { debouncedSidecar } from './debouncedSidecar'
 
 const tabsPath = (root: string): string => nexusConfig(root, NEXUS_CONFIG_FILES.tabs)
 
@@ -86,56 +85,21 @@ export async function readTabsState(root: string): Promise<TabSet | null> {
 
 // --- debounced write --------------------------------------------------------
 
-// In-flight disk writes, so the quit gate can wait for a flushed write still settling.
-const inFlight = new Set<Promise<unknown>>()
-
-let pending: { root: string; set: TabSet } | null = null
-let timer: ReturnType<typeof setTimeout> | null = null
-
-function clearTimer(): void {
-  if (timer) {
-    clearTimeout(timer)
-    timer = null
-  }
-}
-
-function writeSet(root: string, set: TabSet): Promise<void> {
-  const path = tabsPath(root)
-  const p = serializeOnFile(path, async () => {
-    await mkdir(nexusDir(root), { recursive: true })
-    await writeJson(path, set)
-  })
-  inFlight.add(p)
-  const clear = (): void => void inFlight.delete(p)
-  p.then(clear, clear)
-  return p
-}
+const sidecar = debouncedSidecar<TabSet>({
+  path: tabsPath,
+  debounceMs: TABS_DEBOUNCE_MS,
+  label: 'tabs',
+})
 
 /** Debounced tab-set write — the per-navigation path. The newest payload supersedes any pending one,
  *  so only the last state in a burst reaches disk. */
 export function scheduleTabsWrite(root: string, set: TabSet): void {
-  pending = { root, set }
-  clearTimer()
-  timer = setTimeout(
-    () => void flushTabsWrites().catch((e) => console.error('tabs debounced flush failed:', e)),
-    TABS_DEBOUNCE_MS,
-  )
+  sidecar.schedule(root, set)
 }
 
 /** Any tab write still owed to disk — a queued debounce OR a flushed write still settling. The quit
  *  gate + nexus-switch drain check this. */
-export function hasPendingTabsWrites(): boolean {
-  return pending !== null || inFlight.size > 0
-}
+export const hasPendingTabsWrites = (): boolean => sidecar.hasPending()
 
-/** Drain every owed tab write (before-quit + nexus switch): flush the debounce, then wait out the
- *  in-flight writes, looping so a write landing mid-drain is caught too. */
-export async function flushTabsWrites(): Promise<void> {
-  while (hasPendingTabsWrites()) {
-    clearTimer()
-    const p = pending
-    pending = null
-    if (p) await writeSet(p.root, p.set)
-    await Promise.allSettled([...inFlight])
-  }
-}
+/** Drain every owed tab write (before-quit + nexus switch). */
+export const flushTabsWrites = (): Promise<void> => sidecar.flush()

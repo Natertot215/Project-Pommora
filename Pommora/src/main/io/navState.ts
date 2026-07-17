@@ -15,6 +15,7 @@ import { isPlainObject } from '@shared/propertyValue'
 import type { NavFavorite, NavState, NavTarget, RecentEntry } from '@shared/types'
 import { nexusConfig, nexusDir, NEXUS_CONFIG_FILES } from '../paths'
 import { readJsonArray, writeJson } from './atomicWrite'
+import { debouncedSidecar } from './debouncedSidecar'
 import { serializeOnFile } from './fileLock'
 
 const recentsPath = (root: string): string => nexusConfig(root, NEXUS_CONFIG_FILES.navRecents)
@@ -63,84 +64,48 @@ export async function readNavState(root: string): Promise<NavState> {
 
 // --- writes ---------------------------------------------------------------
 
-// In-flight disk writes (immediate + flushed-debounce), so the quit gate can wait for EVERY nav
-// write — not just the debounced one. Favorites and pins write immediately, so without this they'd
-// be the layer's least-durable writes despite being its most deliberate.
-const inFlight = new Set<Promise<unknown>>()
-
-function writeList(path: string, root: string, entries: unknown[]): Promise<void> {
-  const p = serializeOnFile(path, async () => {
-    await mkdir(nexusDir(root), { recursive: true })
-    await writeJson(path, entries)
-  })
-  inFlight.add(p)
-  const clear = (): void => void inFlight.delete(p)
-  p.then(clear, clear)
-  return p
-}
+// Recents ride the shared debounce machine; favorites' immediate writes fold into the SAME drain
+// accounting via track() — without that they'd be the layer's least-durable writes despite being
+// its most deliberate.
+const sidecar = debouncedSidecar<RecentEntry[]>({
+  path: recentsPath,
+  debounceMs: RECENTS_DEBOUNCE_MS,
+  label: 'nav recents',
+})
 
 /** Favorites — immediate (a deliberate user act; loss is worse than a passive record's). */
 export async function writeFavorites(root: string, entries: NavFavorite[]): Promise<void> {
-  await writeList(favoritesPath(root), root, entries)
-}
-
-// --- recents debounce -----------------------------------------------------
-
-let pending: { root: string; entries: RecentEntry[] } | null = null
-let timer: ReturnType<typeof setTimeout> | null = null
-
-function clearTimer(): void {
-  if (timer) {
-    clearTimeout(timer)
-    timer = null
-  }
+  const path = favoritesPath(root)
+  await sidecar.track(
+    serializeOnFile(path, async () => {
+      await mkdir(nexusDir(root), { recursive: true })
+      await writeJson(path, entries)
+    }),
+  )
 }
 
 /** Debounced recents write — the passive nav-record path. The newest payload supersedes any
  *  in-flight one, so only the last state in a burst reaches disk. */
 export function scheduleRecentsWrite(root: string, entries: RecentEntry[]): void {
-  pending = { root, entries }
-  clearTimer()
-  timer = setTimeout(
-    () => void flushRecents().catch((e) => console.error('nav recents debounced flush failed:', e)),
-    RECENTS_DEBOUNCE_MS,
-  )
+  sidecar.schedule(root, entries)
 }
 
 /** Immediate recents write (pin toggle). Supersedes and cancels any pending debounced write so a
  *  stale payload can't land after it. */
-export async function writeRecentsNow(root: string, entries: RecentEntry[]): Promise<void> {
-  clearTimer()
-  pending = null
-  await writeList(recentsPath(root), root, entries)
-}
+export const writeRecentsNow = (root: string, entries: RecentEntry[]): Promise<void> =>
+  sidecar.writeNow(root, entries)
 
 /** Whether a debounced recents write is still queued — the quit hook checks this before deciding
  *  to defer the quit. */
-export function hasPendingRecents(): boolean {
-  return pending !== null
-}
+export const hasPendingRecents = (): boolean => sidecar.hasQueued()
 
 /** Flush any queued recents write immediately (drives the debounce → disk). Idempotent: a no-op
  *  when nothing is pending. */
-export async function flushRecents(): Promise<void> {
-  clearTimer()
-  const p = pending
-  pending = null
-  if (p) await writeList(recentsPath(p.root), p.root, p.entries)
-}
+export const flushRecents = (): Promise<void> => sidecar.flushQueued()
 
 /** Any nav write still owed to disk — a queued debounce OR an immediate write (favorite/pin) still
  *  settling. The quit gate + nexus-switch check this before deciding to wait. */
-export function hasPendingNavWrites(): boolean {
-  return pending !== null || inFlight.size > 0
-}
+export const hasPendingNavWrites = (): boolean => sidecar.hasPending()
 
-/** Drain EVERY owed nav write (before-quit + nexus switch): flush the debounce, then wait out all
- *  in-flight writes, looping so a record that lands mid-drain is caught too. */
-export async function flushNavWrites(): Promise<void> {
-  while (hasPendingNavWrites()) {
-    await flushRecents()
-    await Promise.allSettled([...inFlight])
-  }
-}
+/** Drain EVERY owed nav write (before-quit + nexus switch). */
+export const flushNavWrites = (): Promise<void> => sidecar.flush()
