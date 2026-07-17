@@ -25,6 +25,7 @@ import {
   MenuSeparator,
   MenuPaneTopRow,
   MenuScrollFrame,
+  MenuBottomRow,
 } from '../../design-system/components/menu'
 import {
   flushTrailing,
@@ -168,12 +169,10 @@ export function GroupingPane({
   const hasMiddle =
     group.kind !== 'property' || declaredType(group.property_id, schema) !== 'datetime'
 
-  // The footings pin to the pane's bottom edge (the ViewSettings Format-footer pattern) through
-  // MenuScrollFrame's footer slot — never inline in the scroll body, where a short pane lets the
-  // divider ride up mid-pane. Present only while the Group By list is collapsed.
+  // The footings sit in the pane's bottom bar (MenuBottomRow owns the divider + bottom placement);
+  // present only while the Group By list is collapsed.
   const footings = groupByOpen ? undefined : (
-    <>
-      <MenuSeparator flush />
+    <MenuBottomRow>
       <FootingPick
         icon="folder-minus"
         label="Ungrouped"
@@ -218,7 +217,7 @@ export function GroupingPane({
           <span className={footingLabel}>Hide Empty Groups</span>
         </MenuItem>
       )}
-    </>
+    </MenuBottomRow>
   )
 
   return (

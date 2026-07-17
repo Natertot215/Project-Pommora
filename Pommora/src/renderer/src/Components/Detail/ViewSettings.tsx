@@ -8,6 +8,7 @@ import {
   MenuSeparator,
   MenuPaneTopRow,
   MenuScrollFrame,
+  MenuBottomRow,
   AccessoryButton,
 } from '../../design-system/components/menu'
 import {
@@ -193,49 +194,49 @@ export function ViewSettings({
   // visually this cycle. Table-only.
   const formatRow =
     view.type === 'table' ? (
-      <div ref={formatRef}>
-        {/* The divider above the footing — separates the pinned Format control from the scrolling body. */}
-        <MenuSeparator flush />
-        <MenuItem
-          className={flushTrailing}
-          leading={
-            <span className={footingSymbol}>
-              <Icon name="layers-2" size={12} />
-            </span>
-          }
-          trailing={
-            <span className={side}>
-              <span className={detail}>{format === 'compact' ? 'Compact' : 'Standard'}</span>
+      <MenuBottomRow>
+        <div ref={formatRef}>
+          <MenuItem
+            className={flushTrailing}
+            leading={
               <span className={footingSymbol}>
-                <Icon name="chevrons-up-down" size={12} />
+                <Icon name="layers-2" size={12} />
               </span>
-            </span>
-          }
-          onClick={() => void openFormat()}
-        >
-          <span className={footingLabel}>Format</span>
-        </MenuItem>
-        {formatOpen && (
-          <PickerMenu
-            open={formatOpen}
-            onDismiss={() => setFormatOpen(false)}
-            triggerRef={formatRef}
+            }
+            trailing={
+              <span className={side}>
+                <span className={detail}>{format === 'compact' ? 'Compact' : 'Standard'}</span>
+                <span className={footingSymbol}>
+                  <Icon name="chevrons-up-down" size={12} />
+                </span>
+              </span>
+            }
+            onClick={() => void openFormat()}
           >
-            {(['standard', 'compact'] as ViewFormat[]).map((f) => (
-              <button
-                key={f}
-                type="button"
-                onClick={() => {
-                  setFormat(f)
-                  setFormatOpen(false)
-                }}
-              >
-                {f === 'compact' ? 'Compact' : 'Standard'}
-              </button>
-            ))}
-          </PickerMenu>
-        )}
-      </div>
+            <span className={footingLabel}>Format</span>
+          </MenuItem>
+          {formatOpen && (
+            <PickerMenu
+              open={formatOpen}
+              onDismiss={() => setFormatOpen(false)}
+              triggerRef={formatRef}
+            >
+              {(['standard', 'compact'] as ViewFormat[]).map((f) => (
+                <button
+                  key={f}
+                  type="button"
+                  onClick={() => {
+                    setFormat(f)
+                    setFormatOpen(false)
+                  }}
+                >
+                  {f === 'compact' ? 'Compact' : 'Standard'}
+                </button>
+              ))}
+            </PickerMenu>
+          )}
+        </div>
+      </MenuBottomRow>
     ) : null
 
   const header =

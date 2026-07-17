@@ -214,24 +214,31 @@ export function MenuPaneTopRow({
   )
 }
 
-/** A pane footer bar — a flush separator over a row with `leading` pinned left, `trailing` pinned
- *  right. Either side may be absent (a footer needs neither). */
+/** The pane's bottom bar — the mirror of MenuPaneTopRow. Carries its OWN flush divider and its OWN
+ *  bottom placement (it sinks to the pane's bottom edge in a flex-column pane; inert when a frame
+ *  already pins it in a footer slot), so a footing can never lose its divider or ride up mid-pane.
+ *  Placement only — it imposes no typography, so each menu keeps its own action sizing. Pass
+ *  `children` for a stack of footing rows, or `leading`/`trailing` for the icon-action shape. */
 export function MenuBottomRow({
   leading,
   trailing,
+  children,
 }: {
   leading?: ReactNode
   trailing?: ReactNode
+  children?: ReactNode
 }): React.JSX.Element {
   return (
-    <>
+    <div className={s.bottomBar}>
       <MenuSeparator flush />
-      <div className={s.bottomRow}>
-        {leading}
-        <span style={{ flex: '1 1 auto' }} />
-        {trailing}
-      </div>
-    </>
+      {children ?? (
+        <div className={s.bottomRow}>
+          {leading}
+          <span style={{ flex: '1 1 auto' }} />
+          {trailing}
+        </div>
+      )}
+    </div>
   )
 }
 

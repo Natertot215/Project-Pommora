@@ -213,6 +213,11 @@ export const bottomRow = style([
   },
 ])
 
+/** The bottom bar's explicit placement: it sinks to the pane's bottom edge in a flex-column pane,
+ *  so a footing never relies on a caller routing it to a footer slot. Inert in a block/footer-slot
+ *  context (margin-top:auto is a no-op there), so panes already pinning it via a frame are unchanged. */
+export const bottomBar = style({ marginTop: 'auto' })
+
 // ── Footing tone knobs — the pinned footer's parts (the Format control, the +/⋮ BottomRow). A footing
 // reads a step quieter than a body row: callout size + label-secondary, an ancillary action; its symbol
 // sits at 12 to match (the TopBar chevron is 14). One source; the Format row + MenuBottomRow route here.
