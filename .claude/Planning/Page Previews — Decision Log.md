@@ -8,7 +8,7 @@
 
 ### Status — Continuation
 
-Phase C is closed; every blocking question is answered. The core is: singleton floating window (window-background material), fully editable via PageEmbed, with the in-core inspector (ToolbarTrio glass-swap), connections-in-preview config (settings.json), conditional back-only chevron, promote-via-engulf, and per-source routing (sidebar follows the Collection; NavWindow overrides). Remaining [assumed]/[open] items are design-stage or planner-stage, not user-blocking: A-2 Bloom, D-4 Escape order + click-outside, D-5 z-order, D-6 tree-push reconcile shape, D-7 geometry, F-3 zoom value, H-3 chevron precedence, sweep assumptions in E. Next: convergence report → self-review (phase H) → adversarial review (phase I, standard agent) → pass to planning + /handoff (phase J).
+The frame is settled (singleton floating window on window-background, fully editable via PageEmbed keyed-by-path, in-core inspector via the ToolbarTrio glass-swap, connections-in-preview config in settings.json, conditional back-only chevron, promote-via-engulf, per-source routing: sidebar follows the Collection, NavWindow overrides). The **Interaction Matrix (section I)** is the live front: seven [open] items with Nathan — I-1 (re-click pulse vs no-op), I-4 (NavWindow closes on summon), I-13 (title editability in preview), I-14 (banner interactions), I-15 (Settings menu inventory), I-19 (⌘-click modifier matrix), I-20 (⌘W scope). Fold his answers, then: self-review → adversarial review (standard agent) → pass to planning + /handoff.
 
 ### Sources
 
@@ -67,6 +67,10 @@ Phase C is closed; every blocking question is answered. The core is: singleton f
 
 - **C-3:** [confirmed] Same-file double-writer: **non-issue by reachability** (Nathan's call) — the sidebar can't re-open the already-open page, and NavWindow interactions on the current page open nothing new, so the main-pane + preview same-page state doesn't arise through normal triggers. The one residual path (in-preview wiki-nav landing on the main-pane's page) inherits the contract block-surface embeds already live under — `PageView.tsx:44` + `PageEmbed.tsx:53` are both debounced last-write-wins writers, no live cross-sync. No guard built.
 
+- **C-4:** [confirmed] **The preview keys PageEmbed by path** (`key={path}` → remount per page). Grounded hazard: PageEmbed's pending autosave flushes to the *current* `path` prop (`PageEmbed.tsx:53`), and block surfaces never swap the path on a mounted embed — but the preview does (overtake, wiki-nav). An in-place swap would aim the outgoing page's unsaved body at the incoming page's file; keying by path makes the unmount flush fire with the outgoing closure, writing to the correct file.
+
+- **C-5:** [assumed] PageEmbed has no watcher subscription — the preview's view of *external* edits (main pane, parallel process) is stale until the page reloads in it. Accepted for the core alongside C-3's last-write-wins; a live-refresh subscription is a Prospect-grade hardening.
+
 #### D — Lifecycle, Focus & Layering
 
 - **D-1:** [confirmed] Tab-neutral by construction: the preview never touches `selection`, `tabs`, history, or the warm cache — it reads via `openPage` directly (the PageEmbed pattern). No store slice beyond an open/target flag.
@@ -104,6 +108,47 @@ Phase C is closed; every blocking question is answered. The core is: singleton f
 - **H-2:** [confirmed] The chevron is **back-only** (no forward) and exists **only when a back target exists** — two cases, nothing else: walking back up a wiki-link opening hierarchy (the preview-local stack), or returning a NavWindow-summoned preview to the NavWindow. A preview opened from a table title-click with no internal navigation shows no chevron. The stack dies with the preview; completely separate from tab history — the tab-neutral law (D-1) holds.
 
 - **H-3:** [assumed] When both targets apply (NavWindow-summoned, then wiki-navigated): the chevron walks the wiki hierarchy first, and the NavWindow return fires at the bottom of the stack.
+
+#### I — Interaction Matrix (the meticulous pass — every gesture × every preview state)
+
+**Opens & summons**
+
+- **I-1:** [open] ← with Nathan. Clicking the title of the page *already previewed*: silent no-op, or the preview gives an attention pulse (a design-stage "I'm already here" affordance)?
+- **I-2:** [confirmed] Overtake is a keyed remount (C-4): the outgoing page's pending autosave flushes to its own file before the incoming page mounts.
+- **I-3:** [assumed] Embedded views route too: a view tile on a SurfacePM page shares A-7's navigate, so its title-clicks honor the same `open_in` routing — the branch lives at the navigate, not per-surface.
+- **I-4:** [open] ← with Nathan. Implied by the chevron "returning" to it: the NavWindow **closes** when it summons a preview. Confirm; and if a NavWindow was manually reopened meanwhile, the chevron focuses it rather than duplicating.
+- **I-5:** [assumed] Rapid double title-click is idempotent — the second click hits the already-open-on-this-page guard (whatever I-1 resolves to).
+- **I-6:** [assumed] First-open placement is a design-stage call (centered default is the hypothesis); thereafter D-7's session geometry holds through overtakes — contents swap, the window doesn't jump.
+
+**The world changes while it's open**
+
+- **I-7:** [assumed] The preview outlives the main pane's life: tab switches, Back/Forward, selection changes, view changes — none close or disturb it (the tab-neutral law's inverse).
+- **I-8:** [assumed] Flipping the Collection's `open_in` while a preview is open doesn't retroactively close it — routing is evaluated at open time.
+- **I-9:** [confirmed] "Open in New Tab" on the previewed page stays allowed and creates the accepted double-editor state (C-3's contract); the preview's stale view of the other editor's writes is C-5's accepted staleness.
+- **I-10:** [assumed] Preview edits are visible when that page's tab activates — tab activation re-fetches (the pause-on-change fetch-then-swap), so the warm cache never paints a pre-edit body for long. Planner-stage verify.
+- **I-11:** [assumed] App-window resize reclamps the preview into bounds (NavWindow parity — verify NavWindow actually reclamps at planning; if it doesn't, both get it or neither).
+- **I-12:** [assumed] Tree push mid-edit composes with D-6: rename/move re-aims the pending autosave at the new path (rename-follow by id); delete closes the preview and *discards* the pending write — a dead path is never written.
+
+**Gestures inside the preview**
+
+- **I-13:** [open] ← with Nathan. Title editability: the main pane's title heading renames the file — does the preview's title (banner state, F-2) stay editable (self-rename → self-follows via D-6), or is it read-only in the preview?
+- **I-14:** [open] ← with Nathan. Banner interactions inside the preview — repositionable/changeable as usual, or locked to display-only?
+- **I-15:** [open] ← with Nathan. The Settings toolbar button's menu contents (per-page actions? lock? delete?) — inventory needed before the toolbar can be designed.
+- **I-16:** [assumed] Window-drag surfaces: bare toolbar areas + the title breadcrumb drag the window (the NavWindow `DRAG_SURFACES` allow-list pattern); buttons and the editor never do.
+- **I-17:** [assumed] Block DND works inside the preview; drag math reads the *computed* zoom, not the token — the embed is scaled (F-3), the exact trap TableView already documents for `--zoom`-scaled tiles.
+- **I-18:** [assumed] Scroll/caret follow the SurfacePM laws: the preview owns its wheel when hovered, caret-priority scrolling inside the editor, text-selection autoscroll near edges stays inside the preview.
+- **I-19:** [open] ← with Nathan. Modifier matrix: does ⌘-click act as the explicit full-page bypass (per B-3's spirit) on connection clicks (B-6 on) and preview-collection title clicks — and is it full-page-in-place or new-tab?
+
+**Keyboard & focus**
+
+- **I-20:** [open] ← with Nathan. ⌘W with the preview focused: close the preview, or the active tab? (Hypothesis: the preview — topmost-surface-first, matching Escape.)
+- **I-21:** [assumed] Escape order within the preview: open inspector closes first, then the preview — topmost-first (D-4), one press never kills two layers.
+- **I-22:** [assumed] Editing shortcuts (⌘B, etc.) go to whichever editor holds focus; app-global shortcuts pass through — the preview never traps focus (D-3).
+
+**Close & promote**
+
+- **I-23:** [assumed] Close and promote both flush pending edits first (the seam's existing exit-edit flush); promote's engulf animates the preview rect into the detail pane rect — treatment design-stage.
+- **I-24:** [assumed] App quit/reload rides the existing unmount flush; nothing new needed.
 
 #### E — Sweep Results (matrix applied; anything without evidence is logged above)
 
