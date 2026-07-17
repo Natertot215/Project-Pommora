@@ -61,16 +61,14 @@
   align-items: center;
   justify-content: space-between;
   height: var(--pgpreview-toolbar-h);
-  padding: 0 2px;
+  /* The glyphs align to the inspector's box (the real-inspector practice): the X sits over the
+     pane's inner corner, scan mirrors the same inset on the left. */
+  padding: 0 calc(var(--pgpreview-inspector-inset) + 6px);
 }
 .pgpreview-title {
   position: absolute;
   left: 50%;
-  /* The title/tabs re-center over the CONTENT as the inspector opens — riding --io, no own
-     transition, so it tracks the pane slide and live resize 1:1. */
-  transform: translateX(
-    calc(-50% - var(--io) * (var(--pgpreview-inspector-w) + var(--pgpreview-inspector-inset)) / 2)
-  );
+  transform: translateX(-50%);
   display: flex;
   max-width: 55%;
   min-width: 0;
@@ -177,7 +175,9 @@
   align-items: center;
   gap: 2px;
   --pgpreview-flow-w: 46px; /* KNOB — the pair's width (two 19px buttons + gap) */
-  --pgpreview-flow-home: 26px; /* KNOB — the pair's home gap from the window's right edge */
+  /* KNOB — the pair's home gap from the window's right edge (X + gap + the toolbar's pane-aligned
+     padding; tracks the inset so the landing math stays true at any ring). */
+  --pgpreview-flow-home: calc(var(--pgpreview-inspector-inset) + 28px);
   --pgpreview-flow-inset: 4px; /* KNOB — breathing room off the pane's seam after the swallow */
   transform: translateX(
     calc(
