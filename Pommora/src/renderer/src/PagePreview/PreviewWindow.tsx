@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { GlassPane, GlassWindow } from '@renderer/design-system/materials'
+import { GlassPane } from '@renderer/design-system/materials'
 import { Icon } from '@renderer/design-system/symbols'
 import { duration, easing } from '@renderer/design-system/tokens'
+import { SidePane } from '@renderer/design-system/components/SidePane/SidePane'
 import {
   FloatingResizeCorners,
   useFloatingWindow,
@@ -14,6 +15,7 @@ import { registerPreviewFlush } from '../Detail/pageFlush'
 import { NavCrumbs } from '../Navigation/NavList'
 import { buildResolveIndex, resolveWith } from '../Navigation/navResolve'
 import { useSession, type PreviewTarget } from '../store'
+import { PreviewInspector } from './PreviewInspector'
 import { PreviewTabStrip } from './PreviewTabStrip'
 import { capturePreviewWarm, readPreviewWarm, type PreviewWarmEntry } from './previewWarm'
 import './previewWindow.css'
@@ -21,12 +23,8 @@ import './previewWindow.css'
 // KNOB — D-7: the unified floating-chrome opening size (shared with NavWindow's WIN block).
 const WIN = { minW: 360, minH: 280, defW: 850, defH: 600 }
 
-// KNOB — inspector pane resize bounds (the NavWindow RAIL pattern); width persists per session
-// (module-scoped, like the window geo).
+// KNOB — inspector pane resize bounds (width persists per-window inside SidePane).
 const INSPECTOR = { min: 180, def: 260, max: 420 }
-let inspectorW = INSPECTOR.def
-
-const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v))
 
 // The bare surfaces a window-move may start from. The breadcrumb title is pointer-inert (I-16), so a
 // press on it lands on the toolbar beneath and arms the move; the tab wrap's bare space moves too
@@ -68,33 +66,11 @@ function PreviewWindowBody({
   const [editing, setEditing] = useState(false)
   useEffect(() => setEditing(false), [target.path])
 
-  // Inspector (G-1 shell): a preview-scoped pane; Escape closes it FIRST, then the window (I-21).
+  // Inspector (G-1/G-3): the shared SidePane shell, overlay-mounted right; Escape closes it FIRST,
+  // then the window (I-21).
   const [inspectorOpen, setInspectorOpen] = useState(false)
-  const [inspW, setInspW] = useState(inspectorW)
+  const [inspW, setInspW] = useState(INSPECTOR.def)
   const [inspResizing, setInspResizing] = useState(false)
-  // The rail-resize pattern: pointer-captured edge drag; transitions pause so the pane tracks 1:1.
-  const startInspectorResize = (e: React.PointerEvent<HTMLElement>): void => {
-    e.preventDefault()
-    const el = e.currentTarget
-    const pid = e.pointerId
-    el.setPointerCapture(pid)
-    const s = { x: e.clientX, w: inspectorW }
-    setInspResizing(true)
-    const move = (ev: PointerEvent): void => {
-      inspectorW = clamp(s.w - (ev.clientX - s.x), INSPECTOR.min, INSPECTOR.max)
-      setInspW(inspectorW)
-    }
-    const end = (): void => {
-      if (el.hasPointerCapture(pid)) el.releasePointerCapture(pid)
-      el.removeEventListener('pointermove', move)
-      el.removeEventListener('pointerup', end)
-      el.removeEventListener('pointercancel', end)
-      setInspResizing(false)
-    }
-    el.addEventListener('pointermove', move)
-    el.addEventListener('pointerup', end)
-    el.addEventListener('pointercancel', end)
-  }
   useEffect(() => {
     // Skip an Escape a focused surface already handled (mirrors NavWindow / App.tsx).
     const onKey = (e: KeyboardEvent): void => {
@@ -277,22 +253,21 @@ function PreviewWindowBody({
           warm={warmSeam}
         />
       </div>
-      <GlassWindow
+      <SidePane
+        windowId="page-preview"
+        side="right"
+        bounds={INSPECTOR}
+        open={inspectorOpen}
         className="pgpreview-inspector"
-        style={{ background: 'var(--state-muted)' }}
-        aria-hidden={!inspectorOpen}
+        resizeClassName="pgpreview-inspector-resize"
+        resizeLabel="Resize inspector"
+        onWidthChange={setInspW}
+        onResizingChange={setInspResizing}
       >
-        <div className="pgpreview-inspector-body" />
-      </GlassWindow>
-      {inspectorOpen && (
-        <div
-          className="pgpreview-inspector-resize"
-          onPointerDown={startInspectorResize}
-          role="separator"
-          aria-orientation="vertical"
-          aria-label="Resize inspector"
-        />
-      )}
+        <div className="pgpreview-inspector-body">
+          {inspectorOpen && <PreviewInspector target={target} />}
+        </div>
+      </SidePane>
       <FloatingResizeCorners startDrag={startDrag} />
     </GlassPane>
   )

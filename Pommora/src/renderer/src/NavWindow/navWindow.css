@@ -48,15 +48,10 @@
   flex: 1;
   min-height: 0;
 }
+/* Positioning only — the pane's inner geometry (padding, radius, flex) is the sidepane shell's. */
 .navwindow-rail {
-  display: flex;
-  flex-direction: column;
   width: var(--navwindow-rail, 200px);
   flex-shrink: 0;
-  min-height: 0;
-  overflow: hidden;
-  padding: 6px;
-  border-radius: var(--glass-radius);
 }
 .navwindow-rail-list {
   flex: 1;

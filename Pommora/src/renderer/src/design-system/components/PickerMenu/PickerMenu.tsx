@@ -169,7 +169,11 @@ export function PickerMenu({
   useEffect(() => {
     if (!selfManaged || !onDismiss || open !== true || closing) return
     const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') onDismiss()
+      if (e.key !== 'Escape') return
+      // Mark the Escape handled (the house contract): window-level closers check defaultPrevented,
+      // so one press dismisses the picker WITHOUT also collapsing the pane/window hosting it.
+      e.preventDefault()
+      onDismiss()
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)

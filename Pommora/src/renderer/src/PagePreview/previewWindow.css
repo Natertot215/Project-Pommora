@@ -174,9 +174,9 @@
   color: var(--label-control);
 }
 
-/* ---- inspector (G-1 shell): the shell InspectorPanel's construction verbatim, preview-scoped —
-   a full-height GlassWindow on the NavWindow rail's material (state-muted veil), inset ring,
-   slide driven by --io with NO own transition (--io carries it, exactly like inspector-panel.css). ---- */
+/* ---- inspector (G-1/G-3): the shared SidePane shell, overlay-positioned — full-height on the
+   inset ring, slide driven by --io with NO own transition (--io carries it). Material + inner
+   geometry come from the sidepane shell; only positioning lives here. ---- */
 .pgpreview-inspector {
   position: absolute;
   top: var(--pgpreview-inspector-inset);
@@ -184,18 +184,90 @@
   bottom: var(--pgpreview-inspector-inset);
   width: var(--pgpreview-inspector-w);
   z-index: 2;
-  border-radius: var(--glass-radius);
-  overflow: hidden;
   transform: translateX(calc((1 - var(--io)) * (100% + var(--pgpreview-inspector-inset) + 14px)));
   pointer-events: none;
 }
 .pgpreview.is-inspector-open .pgpreview-inspector {
   pointer-events: auto;
 }
-/* The rail's inner geometry, verbatim (navwindow-rail: 6px padding). */
 .pgpreview-inspector-body {
-  padding: 6px;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+/* ---- the front-matter inspector rows (I-13/I-14): label left, value right; the title field and
+   the banner actions sit above the property list. ---- */
+.pgpreview-insp {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px;
+}
+.pgpreview-insp > .property-editor,
+.pgpreview-insp-title {
+  width: 100%;
+  border: none;
+  background: none;
+  outline: none;
+  color: var(--label-primary);
+  font-size: var(--text-control-size);
+  font-weight: 600;
+  padding: 4px 2px 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: text;
+}
+.pgpreview-insp-banner {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.pgpreview-insp-banner button {
+  border: none;
+  background: none;
+  padding: 3px 6px;
+  border-radius: 5px;
+  color: var(--label-secondary);
+  cursor: pointer;
+}
+.pgpreview-insp-banner button:hover {
+  background: var(--state-hover);
+}
+.pgpreview-insp-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 26px;
+}
+.pgpreview-insp-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 40%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--label-secondary);
+}
+.pgpreview-insp-value {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  border-radius: 5px;
+  padding: 2px 4px;
+  cursor: pointer;
+}
+.pgpreview-insp-value:hover {
+  background: var(--state-hover);
+}
+.pgpreview-insp-empty {
+  color: var(--label-tertiary);
+  font-size: var(--text-caption-size);
 }
 /* The rail-resize twin: an edge-drag strip at the pane's left seam (col-resize, above the pane). */
 .pgpreview-inspector-resize {

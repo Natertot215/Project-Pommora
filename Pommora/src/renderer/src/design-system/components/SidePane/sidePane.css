@@ -1,0 +1,14 @@
+/* The shared side-pane shell (G-3): inner geometry both flavors render identically. Positioning
+   (in-flow rail vs overlay inspector), the width var, and any slide live on the host's class. */
+
+.sidepane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  padding: 6px;
+  border-radius: var(--glass-radius);
+}
+.sidepane-resize {
+  cursor: ew-resize;
+}

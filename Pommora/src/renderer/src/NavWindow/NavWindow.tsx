@@ -6,10 +6,11 @@ import {
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
 } from 'react'
-import { GlassPane, GlassWindow } from '@renderer/design-system/materials'
+import { GlassPane } from '@renderer/design-system/materials'
 import { Icon } from '@renderer/design-system/symbols'
 import { cx } from '@renderer/design-system/cx'
 import { text } from '@renderer/design-system/tokens'
+import { SidePane, sidePaneWidth } from '@renderer/design-system/components/SidePane/SidePane'
 import type { NavTarget } from '@shared/types'
 import { useExitPresence } from '../design-system/useExitPresence'
 import { useSession } from '../store'
@@ -18,11 +19,11 @@ import { NavList } from '../Navigation/NavList'
 import { NavGallery } from './NavGallery'
 import './navWindow.css'
 
-// KNOB — the pane's default opening size + resize/rail bounds.
+// KNOB — the pane's default opening size + resize/rail bounds (rail width persists in SidePane).
 const WIN = { minW: 360, minH: 280, defW: 850, defH: 600 }
 const RAIL = { min: 120, def: 200, max: 320 }
 
-type DragMode = 'move' | 'rail' | 'nw' | 'ne' | 'sw' | 'se'
+type DragMode = 'move' | 'nw' | 'ne' | 'sw' | 'se'
 
 // Module-scope so geometry survives the useExitPresence unmount (reopen restores last position/size).
 const geo = {
@@ -30,7 +31,6 @@ const geo = {
   y: null as number | null,
   w: WIN.defW,
   h: WIN.defH,
-  rail: RAIL.def,
 }
 // Persists the List/Gallery choice across opens (the pane remounts each open via useExitPresence).
 let savedViewMode: 'list' | 'gallery' = 'list'
@@ -148,7 +148,6 @@ function NavWindowBody({ closing }: { closing: boolean }): React.JSX.Element {
       gy: geo.y ?? 0,
       gw: geo.w,
       gh: geo.h,
-      rail: geo.rail,
     }
     const move = (ev: PointerEvent): void => {
       const dx = ev.clientX - s.x
@@ -156,8 +155,6 @@ function NavWindowBody({ closing }: { closing: boolean }): React.JSX.Element {
       if (mode === 'move') {
         geo.x = clamp(s.gx + dx, 0, window.innerWidth - 80)
         geo.y = clamp(s.gy + dy, 0, window.innerHeight - 40)
-      } else if (mode === 'rail') {
-        geo.rail = clamp(s.rail + dx, RAIL.min, RAIL.max)
       } else {
         // Corner resize — a west/north corner drags its own edge, holding the opposite edge fixed.
         if (mode === 'nw' || mode === 'sw') {
@@ -194,12 +191,15 @@ function NavWindowBody({ closing }: { closing: boolean }): React.JSX.Element {
     if ((e.target as HTMLElement).matches(DRAG_SURFACES)) startDrag('move', e)
   }
 
+  // The rail width lives in SidePane's per-window store; the var feeds the css layout. Seeded
+  // from the same store so a reopen's first frame already paints the restored width.
+  const [railW, setRailW] = useState(() => sidePaneWidth('navwindow', RAIL.def))
   const style = {
     left: geo.x ?? 0,
     top: geo.y ?? 0,
     width: geo.w,
     height: geo.h,
-    '--navwindow-rail': `${geo.rail}px`,
+    '--navwindow-rail': `${railW}px`,
   } as CSSProperties
 
   return (
@@ -214,7 +214,15 @@ function NavWindowBody({ closing }: { closing: boolean }): React.JSX.Element {
         <Icon name="x" size={14} />
       </button>
       <div className="navwindow-body">
-        <GlassWindow className="navwindow-rail" style={{ background: 'var(--state-muted)' }}>
+        <SidePane
+          windowId="navwindow"
+          side="left"
+          bounds={RAIL}
+          className="navwindow-rail"
+          resizeClassName="navwindow-rail-resize"
+          resizeLabel="Resize favorites"
+          onWidthChange={setRailW}
+        >
           <div className="navwindow-rail-list edge-fade">
             <NavList items={resolvedFavorites} onSelect={goClose} onOpenNewTab={goNewTab} />
           </div>
@@ -226,14 +234,7 @@ function NavWindowBody({ closing }: { closing: boolean }): React.JSX.Element {
             <Icon name="chevrons-up-down" size={12} />
             <span>{viewMode === 'list' ? 'List' : 'Gallery'}</span>
           </button>
-        </GlassWindow>
-        <div
-          className="navwindow-rail-resize"
-          onPointerDown={(e) => startDrag('rail', e)}
-          role="separator"
-          aria-orientation="vertical"
-          aria-label="Resize favorites"
-        />
+        </SidePane>
         <div className="navwindow-main">
           <div className="navwindow-search">
             <input
