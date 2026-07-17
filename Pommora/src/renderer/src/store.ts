@@ -336,6 +336,10 @@ export const useSession = create<SessionState>((set, get) => {
   // call routes to the error state instead of an unhandled rejection.
   const openVia = async (attempt: () => Promise<boolean>): Promise<void> => {
     try {
+      // Close the preview BEFORE the root can flip (D-9): its PageEmbed owns its own pending save,
+      // and the unmount flush must bind the OLD root — flushActivePage only covers the main editor.
+      // Closed even if the adopt is then cancelled: data safety beats window persistence.
+      set({ previewTarget: null })
       // Flush the active page's pending body write to the CURRENT nexus before an adopt flips the root —
       // else the editor's unmount-flush (fired by the selection-clear below, after the root already moved)
       // writes the old body into the NEW nexus, overwriting a same-relative-path file there. Awaited so main
@@ -358,6 +362,7 @@ export const useSession = create<SessionState>((set, get) => {
           tabs: [],
           activeTabId: '',
           tabMru: [],
+          previewTarget: null,
         })
         clearWarm() // warmth is per-nexus AND session-only — never crosses an adoption (I-10)
         await get().load()
@@ -689,6 +694,18 @@ export const useSession = create<SessionState>((set, get) => {
         if (rec.changed) {
           for (const t of s.tabs) if (!rec.tabs.some((n) => n.id === t.id)) dropWarmTab(t.id) // deleted-entity closes
           applyTabResult({ tabs: rec.tabs, activeTabId: rec.activeTabId, mru: rec.mru })
+        }
+      }
+      // The preview window reconciles like a tab (D-6): re-path on rename/move; a deleted page
+      // closes the preview (the keyed embed unmounts; its flush hits a dead path, which the crud
+      // guard refuses — the stale body is never written anywhere).
+      {
+        const pt = get().previewTarget
+        if (pt) {
+          const r = reconcileWith(index, { kind: 'page', id: pt.id, path: pt.path })
+          if (r.kind === 'none') set({ previewTarget: null })
+          else if (r.kind === 'page' && r.path !== pt.path)
+            set({ previewTarget: { id: pt.id, path: r.path } })
         }
       }
       // Always read the OS accent: it feeds --accent only when the setting is `system`,

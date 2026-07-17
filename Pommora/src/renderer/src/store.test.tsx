@@ -346,6 +346,18 @@ describe('store — applyTree reconciles EVERY tab (I-2a)', () => {
   })
 })
 
+describe('store — applyTree reconciles the preview window (D-6)', () => {
+  it('re-paths the preview on a rename and closes it on a delete', async () => {
+    seed({ previewTarget: { id: 'b', path: 'Notes/B.md' } })
+
+    await useSession.getState().applyTree(treeWith([{ id: 'b', path: 'Notes/Renamed.md' }]))
+    expect(useSession.getState().previewTarget).toEqual({ id: 'b', path: 'Notes/Renamed.md' })
+
+    await useSession.getState().applyTree(treeWith([]))
+    expect(useSession.getState().previewTarget).toBeNull()
+  })
+})
+
 describe('store — recents reorder + batched close', () => {
   const savedRecents = (): unknown =>
     (window as unknown as { nexus: { nav: { saveRecents: { mock: { calls: unknown[][] } } } } })
