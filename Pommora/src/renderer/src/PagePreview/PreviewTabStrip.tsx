@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { cx } from '@renderer/design-system/cx'
+import { SortableZone, useDragItem } from '@renderer/design-system/interactions/drag'
 import { defaultEntityIcon, Icon } from '@renderer/design-system/symbols'
 import { duration, text } from '@renderer/design-system/tokens'
 import { EntityGlyph } from '../Navigation/EntityGlyph'
@@ -35,6 +36,7 @@ export function PreviewTabStrip({
   const preview = useSession((s) => s.preview)
   const activatePreviewTab = useSession((s) => s.activatePreviewTab)
   const closePreviewTab = useSession((s) => s.closePreviewTab)
+  const reorderPreviewTabs = useSession((s) => s.reorderPreviewTabs)
   const tabs = preview?.tabs
   const activeTabId = preview?.activeTabId
 
@@ -102,26 +104,38 @@ export function PreviewTabStrip({
       <div className="pgpreview-tabwrap">
         {showStrip && (
           <div className="pgpreview-tabscroll edge-fade-x" ref={scrollRef}>
-            <div className="pgpreview-tabstrip">
-              {renderEntries.map(({ entry, ghost }, i) => (
-                <Fragment key={entry.tab.id}>
-                  {i > 0 && (
-                    <span
-                      className={cx('tab-seg', (ghost || i === firstLive) && 'is-closing')}
-                      aria-hidden
+            {/* Page tabs drag-reorder within the zone (the toolbar strip's pattern); the map
+                sentinel and ghosts stay out of the item set, so they're drag-inert and
+                un-landable — the model refuses them besides. */}
+            <SortableZone
+              items={renderEntries
+                .filter((e) => !e.ghost && e.entry.tab.target.kind === 'page')
+                .map((e) => e.entry.tab.id)}
+              layout="list"
+              axis="x"
+              onReorder={reorderPreviewTabs}
+            >
+              <div className="pgpreview-tabstrip">
+                {renderEntries.map(({ entry, ghost }, i) => (
+                  <Fragment key={entry.tab.id}>
+                    {i > 0 && (
+                      <span
+                        className={cx('tab-seg', (ghost || i === firstLive) && 'is-closing')}
+                        aria-hidden
+                      />
+                    )}
+                    <PreviewTabItem
+                      entry={entry}
+                      navFlavor={preview?.flavor === 'nav'}
+                      active={!ghost && entry.tab.id === activeTabId}
+                      closing={ghost}
+                      onActivate={() => activatePreviewTab(entry.tab.id)}
+                      onClose={() => requestClose(entry.tab.id)}
                     />
-                  )}
-                  <PreviewTabItem
-                    entry={entry}
-                    navFlavor={preview?.flavor === 'nav'}
-                    active={!ghost && entry.tab.id === activeTabId}
-                    closing={ghost}
-                    onActivate={() => activatePreviewTab(entry.tab.id)}
-                    onClose={() => requestClose(entry.tab.id)}
-                  />
-                </Fragment>
-              ))}
-            </div>
+                  </Fragment>
+                ))}
+              </div>
+            </SortableZone>
           </div>
         )}
       </div>
@@ -152,8 +166,13 @@ function PreviewTabItem({
     navFlavor && entry.res?.icon === 'map'
       ? { ...entry.res, icon: defaultEntityIcon('page') }
       : entry.res
+  // Inert unless this id is in the zone's item set (map + ghosts never are).
+  const drag = useDragItem(entry.tab.id)
   return (
     <div
+      ref={drag.setNodeRef}
+      style={drag.style}
+      {...drag.handle}
       data-tab-id={entry.tab.id}
       className={cx(
         'tab',
@@ -161,9 +180,12 @@ function PreviewTabItem({
         active && 'is-active',
         closing && 'is-closing',
         isMap && 'tab-map',
+        drag.isDragging && 'is-dragging',
       )}
       title={label}
-      onClick={onActivate}
+      onClick={() => {
+        if (!drag.isDragging) onActivate()
+      }}
     >
       {res ? (
         <EntityGlyph item={res} size={TAB_ICON} className="tab-icon" />

@@ -34,6 +34,19 @@ export function openTabIn(
   return { ...p, tabs: [...p.tabs, tab], activeTabId: tab.id }
 }
 
+/** Drag-reorder a page tab onto another's slot. The map sentinel is immovable AND un-landable —
+ *  it holds slot 1 (H-2), so a move that names it either way is refused. */
+export function reorderTabIn(p: PreviewState, activeId: string, overId: string): PreviewState {
+  const from = p.tabs.findIndex((t) => t.id === activeId)
+  const to = p.tabs.findIndex((t) => t.id === overId)
+  if (from === -1 || to === -1 || from === to) return p
+  if (p.tabs[from].target.kind === 'navwindow' || p.tabs[to].target.kind === 'navwindow') return p
+  const tabs = p.tabs.slice()
+  const [moved] = tabs.splice(from, 1)
+  tabs.splice(to, 0, moved)
+  return { ...p, tabs }
+}
+
 /** Close a tab: the active falls to its left neighbor; the origin re-parents to the left-most
  *  surviving page tab; the last tab closing kills the window (null). */
 export function closeTabIn(p: PreviewState, id: string): PreviewState | null {

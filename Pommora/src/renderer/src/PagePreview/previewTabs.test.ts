@@ -113,6 +113,45 @@ describe('previewTabs — durable sets (H-3/H-6/H-10)', () => {
     expect(useSession.getState().previewTarget).toEqual({ id: 'y', path: 'Notes/y.md' })
   })
 
+  it('drag-reorder moves a page tab and the mirrored record keeps the new order (H-3)', () => {
+    useSession.getState().openPreview(page('x'))
+    useSession.getState().openPreviewTab(page('y'))
+    useSession.getState().openPreviewTab(page('z'))
+    const p = useSession.getState().preview!
+    useSession.getState().reorderPreviewTabs(p.tabs[2].id, p.tabs[0].id)
+    const next = useSession.getState().preview!
+    expect(next.tabs.map((t) => (t.target.kind === 'page' ? t.target.id : '?'))).toEqual([
+      'z',
+      'x',
+      'y',
+    ])
+    expect(useSession.getState().previewsFile.origins.x?.tabs.map((t) => t.target)).toMatchObject([
+      { id: 'z' },
+      { id: 'x' },
+      { id: 'y' },
+    ])
+  })
+
+  it('the map sentinel neither moves nor gets landed on (H-2)', () => {
+    useSession.setState({
+      previewsFile: {
+        navSet: {
+          tabs: [{ target: { kind: 'page', id: 'x', path: 'Notes/x.md' } }],
+          activeIndex: 0,
+        },
+        origins: {},
+        open: null,
+      },
+    })
+    useSession.getState().openNavPreview()
+    const p = useSession.getState().preview!
+    expect(p.tabs[0].target.kind).toBe('navwindow')
+    useSession.getState().reorderPreviewTabs(p.tabs[0].id, p.tabs[1].id) // move the map → refused
+    expect(useSession.getState().preview).toBe(p)
+    useSession.getState().reorderPreviewTabs(p.tabs[1].id, p.tabs[0].id) // land on the map → refused
+    expect(useSession.getState().preview).toBe(p)
+  })
+
   it('a re-parent re-keys the record: the old origin retires, the survivor keys the set (H-6)', () => {
     useSession.getState().openPreview(page('x'))
     useSession.getState().openPreviewTab(page('y'))

@@ -22,6 +22,7 @@ import {
   closeTabIn,
   deriveTarget,
   openTabIn,
+  reorderTabIn,
   type PreviewState,
   type PreviewTab,
 } from './PagePreview/previewTabs'
@@ -296,6 +297,8 @@ interface SessionState {
   openNavPreview: () => void
   openPreviewTab: (target: PreviewTarget) => void
   activatePreviewTab: (id: string) => void
+  /** Drag-reorder within the strip; the map sentinel never moves (H-2). Order persists (H-3). */
+  reorderPreviewTabs: (activeId: string, overId: string) => void
   closePreviewTab: (id: string, exit?: 'dismiss' | 'engulf') => void
   closePreview: (reason?: 'dismiss' | 'engulf') => void
   /** B-2: the NavWindow's routing override toggle — persisted in `page-previews.json`. */
@@ -1318,6 +1321,13 @@ export const useSession = create<SessionState>((set, get) => {
       if (!cur || cur.activeTabId === id || !cur.tabs.some((t) => t.id === id)) return
       const next = { ...cur, activeTabId: id }
       commitPreview(next, { previewSlide: stampByOrder(cur, id) })
+    },
+    reorderPreviewTabs: (activeId, overId) => {
+      const cur = get().preview
+      if (!cur) return
+      const next = reorderTabIn(cur, activeId, overId)
+      if (next === cur) return
+      commitPreview(next)
     },
     previewExit: 'dismiss',
     closePreviewTab: (id, exit) => {
