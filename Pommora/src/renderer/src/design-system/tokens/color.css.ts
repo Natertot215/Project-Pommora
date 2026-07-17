@@ -9,7 +9,7 @@ const primitive = createGlobalTheme(':root', {
   color: {
     system: {
       grey: '#71717A',
-      white: '#E1E1E1',
+      white: '#E8E8E8',
       black: '#010101',
     },
   },
