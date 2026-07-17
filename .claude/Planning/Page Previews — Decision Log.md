@@ -8,7 +8,7 @@
 
 ### Status — Continuation
 
-Interrogation is essentially complete — the Interaction Matrix's seven questions all resolved: no-op on re-click (I-1), NavWindow closes on summon (I-4), title editable + self-follows (I-13), banner changeable-as-always (I-14), Settings = the shared Page-toolbar component (I-15), ⌘-click bypass is in (I-19), ⌘N-in-preview → new tab as the only preview-scoped command (I-20). D-2 hardened: the multi-preview *ability* is load-bearing and gets A-B tested post-ship. New surface B-7: the Obsidian-style connections hover-card (scrollable, read-only dropdown pane). Three light sub-calls remain with Nathan: **B-7's phase** (core vs fast-follow), **I-19's target** (⌘-click bypass → in place vs new tab), **I-20's close** (does ⌘N-promote close the preview). Then: self-review → adversarial review (standard agent) → pass to planning + /handoff.
+**The tab-model pivot landed** (Nathan's redesign): chevrons are dead; the preview is a semi-multi-tabbed mini-app on shared floating chrome — section H rewritten wholesale, F-4/F-5 motion laws added, D-2/D-7/I-4/I-19/I-20/B-7 updated. Open with Nathan: **H-6** (origin-tab close = left-most becomes parent — confirm read), **H-8** (warm-for-both recommendation), plus the coexistence question (can the NavWindow flavor and a page-preview window be open simultaneously?) and the H-9 collapsed-tab layout detail. **Early-build directive is live:** Nathan wants the window shells built (in `PagePreview/` or shared) ahead of functionality so he can live-drive UIX, with grounding agents dispatched in parallel — the brainstorm's no-code gate is explicitly waived for the chrome shell only. Then: self-review → adversarial review → planning + /handoff.
 
 ### Sources
 
@@ -23,6 +23,8 @@ Interrogation is essentially complete — the Interaction Matrix's seven questio
 - `Pommora/src/renderer/src/Embeds/embedScale.ts` — the G-10 zoom knob (`EMBED_SCALE`/`EMBED_ZOOM`), the F-3 seam.
 - `Pommora/src/renderer/src/Toolbar/ToolbarTrio.tsx` — the inspector-toggle glass-swap G-1 reuses: the glass pill voids as the inspector swallows the trio, icons ride onto the inspector's glass, driven by `--io` (toolbar.css).
 - `Pommora/src/main/settings.ts` — `.nexus/settings.json` handling: the serialized read-modify-write primitive (foreign keys preserved) the B-6 config writes through.
+- `Pommora/src/main/index.ts:447` + `paths.ts:64` — app tabs persist via the synced `tabs.json` sidecar; the pattern H-3's NavWindow tabs follow.
+- `Pommora/src/renderer/src/Tabs/warmCache.ts` — in-memory map of serialized editor state + scrollTop + PageDetail, 20-cap per tab, KB-scale; proves warmth is cheap (H-8) — mounted editors are the cost, not cached state.
 - `Pommora/src/renderer/src/NavWindow/NavWindow.tsx:139` — the floating-chrome reference: pointer-captured move/rail/corner-resize engine (`startDrag`), module-scoped geometry persistence, `useExitPresence`, bare-surface drag allow-list (`DRAG_SURFACES`), Escape-close skipping `defaultPrevented`. Inlined in NavWindow, not extracted.
 - `Pommora/src/renderer/src/design-system/components/PickerMenu/PickerMenu.tsx:24` — the body-portal top-layer primitive (z 1100, escapes clipping/transformed ancestors, re-measures on scroll/resize) — the anchored-card alternative's chassis.
 - `Pommora/src/renderer/src/Tabs/warmCache.ts:28` — warm cache keyed by tabId; a tab-less preview has no natural key (it bypasses the cache; `openPage` is cheap).
@@ -53,7 +55,7 @@ Interrogation is essentially complete — the Interaction Matrix's seven questio
 
 - **B-6:** [confirmed] Connections-in-preview is **core** (Nathan: "that has to be in it"): a user config making inline `[[Connection]]` clicks open the target as a preview instead of navigating — `connections.ts:16`'s `api.open` slot is the branch point. The config lives in the nexus **`.nexus/settings.json`**, written through `main/settings.ts`'s serialized read-modify-write primitive (foreign keys preserved).
 
-- **B-7:** [confirmed, phase open] **Connections hover-card** (Nathan, unprompted: "Obsidian does this great"): hovering a `[[Connection]]` summons a **dropdown pane of the page itself — scrollable, never editable**. A *second, lighter surface* distinct from the preview window: the anchored-card chassis rejected for A-1 finds its home here (PickerMenu positioning + read-only PageEmbed). Open sub-call: core alongside the window, or the first fast-follow.
+- **B-7:** [confirmed] **Connections hover-card** (Nathan: "Obsidian does this great"): hovering a `[[Connection]]` summons a **dropdown pane of the page itself — scrollable, never editable**. A second, lighter surface distinct from the preview window: the anchored-card chassis rejected for A-1 finds its home here (PickerMenu positioning + read-only PageEmbed). **This phase ships the trigger + a blank dropdown pane** — the interaction mechanics and its data-level role — while the embedded-page UIX inside it lands post-plan.
 
 - **B-3:** [confirmed] "Open in New Tab" (the context-menu action) always bypasses the preview — it's an explicit full-page ask; the preview never has a tab.
 
@@ -77,7 +79,7 @@ Interrogation is essentially complete — the Interaction Matrix's seven questio
 
 - **D-1:** [confirmed] Tab-neutral by construction: the preview never touches `selection`, `tabs`, history, or the warm cache — it reads via `openPage` directly (the PageEmbed pattern). No store slice beyond an open/target flag.
 
-- **D-2:** [confirmed] **Singleton for now** (a second open replaces the first — the NSPanel model), but the "list of one" architecture is **load-bearing, not aspirational**: Nathan wants the *ability* for multiple coexisting previews scoped in (the same posture as the project's single-window-now/multi-window-ready seams) so multi-preview can be **A-B tested** after the core ships. If multi wins, the chevron's NavWindow-return (H) retires entirely — you'd just keep both previews open.
+- **D-2:** [confirmed] **Scope single-preview only** — one page-preview window; a new summon overtakes (swaps to the new origin's per-session tab set, H-3). But the **plumbing is built for multiple** (the single-window-now/multi-window-ready posture) so multi-preview can be **A-B tested** post-ship without a rewrite. UX ships singleton; architecture ships plural.
 
 - **D-3:** [assumed] Non-modal, no focus steal (the NavWindow precedent): opening a preview doesn't blur the editor behind it; its own search-less chrome takes focus only when clicked into.
 
@@ -87,11 +89,15 @@ Interrogation is essentially complete — the Interaction Matrix's seven questio
 
 - **D-6:** [open] Tree-push reconciliation: the previewed page can be renamed/moved/deleted mid-preview (the watcher pushes a new tree). The preview must re-resolve its path (rename-follow, like tabs reconcile) or close gracefully on a dead path — a stale-path autosave would write to the old file. The main-pane precedent is applyTree's reconcile; the preview needs its own tiny version keyed off the page id.
 
-- **D-7:** [assumed] Geometry persistence (if A-1 = window): module-scoped like NavWindow's `geo` — size persists per session, opens anchored/centered per design call; nothing on disk.
+- **D-7:** [confirmed] **NavWindow and PagePreview unify their open-in-size defaults** — one shared default geometry for the floating chrome. Per-session persistence may *differ* per flavor (each remembers its own size/position separately); module-scoped like NavWindow's `geo`, nothing on disk.
 
 #### F — Chrome, Toolbar & Titles
 
-- **F-1:** [confirmed] The toolbar's action inventory: **back-chevron** (conditional — only when a back target exists, H-2), **fullscreen/promote** (B-5, rides the A-4 engulf), **Exit** (close), **Inspector** toggle (G), **Settings**. The *arrangement* — keeping it uncluttered, and the chevron-vs-fullscreen adjacency problem (both reasonably sit trailing-left; either leading makes the other look off) — is Figma territory, flagged unresolvable in text.
+- **F-1:** [confirmed] The toolbar's action inventory: the **tab bar** (H — which also hosts the single-tab centered title, H-9), **fullscreen/promote** (B-5, rides the A-4 engulf), **Exit** (the shared X, right-most), **Inspector** toggle (G), **Settings**. No chevrons (H retired them). Keeping it uncluttered is Figma territory.
+
+- **F-4:** [confirmed] **One tab-motion source: NavWindow + Toolbar + PagePreview all DRY from `tabBar.css`.** Switching preview/NavWindow tabs uses the *same* tab-bar and detail slide animations the app tabs use — hover X, tab-label-color-slide, tab open/close motion, the directional view slide. No parallel keyframes anywhere.
+
+- **F-5:** [confirmed] Flavor-difference icons animate on the tab slide: the right-side icons that differ between the NavWindow flavor and a preview tab **slide in/out with the tab motion** — left-side icons enter from the left, right-side from the right — falling behind / emerging from the **shared X's right-most position**. And in the NavWindow flavor, switching to a page tab slides the NavWindow's sidebar closed: the tab slides in and *pushes the sidebar out in one continuous motion*.
 
 - **F-2:** [confirmed] In-line titles, two states. **With banner:** banner + title heading render as usual — nothing special. **Without banner:** the page body starts with no heading-divider, and the title renders **in the toolbar area** the way tabs render theirs, as a filepath breadcrumb — `Collection > Set > Page Name` — in the same label color the navigation filepaths use, at **caption** size (for now).
 
@@ -103,13 +109,29 @@ Interrogation is essentially complete — the Interaction Matrix's seven questio
 
 - **G-2:** [confirmed] The inspector's layout gets a **Figma design pass**; the Swift build's inspector (archived at `The Studio/Archive/Pommora`) is the reference — it already mostly looks the way Nathan wants.
 
-#### H — In-Preview Navigation
+#### H — The Tab System (in-preview navigation is tabs, not history)
 
-- **H-1:** [confirmed] A wiki-link ([[Connection]]) clicked **inside** a preview opens its target **in the same preview, overtaking** the current page — never a second surface, never a main-pane navigate.
+The preview is **semi-multi-tabbed — a mini-app**. There are **no back/forward chevrons anywhere**; tabs replaced them. App-level tab history stays untouched (the tab-neutral law, D-1, holds throughout).
 
-- **H-2:** [confirmed] The chevron is **back-only** (no forward) and exists **only when a back target exists** — two cases, nothing else: walking back up a wiki-link opening hierarchy (the preview-local stack), or returning a NavWindow-summoned preview to the NavWindow. A preview opened from a table title-click with no internal navigation shows no chevron. The stack dies with the preview; completely separate from tab history — the tab-neutral law (D-1) holds.
+- **H-1:** [confirmed] A wiki-link ([[Connection]]) clicked inside a preview opens its target as a **new tab in the same window** — never a second window, never a main-pane navigate. Connection navigation is the *only* way a page-preview grows tabs.
 
-- **H-3:** [assumed] When both targets apply (NavWindow-summoned, then wiki-navigated): the chevron walks the wiki hierarchy first, and the NavWindow return fires at the bottom of the stack.
+- **H-2:** [confirmed] Two summon flavors share one chrome. **NavWindow-flavored:** tab 1 is the NavWindow itself — perma-pinned left-most, non-orderable, icon-only with the **map icon** (the app-level pinned-tab look); page-opens from it add tabs beside it, and switching to a page tab slides the NavWindow's sidebar closed (F-5). **PagePreview-flavored:** tab 1 is the summoned page.
+
+- **H-3:** [confirmed] Persistence tiers. **NavWindow tabs persist multi-session** (disk — the `tabs.json` sidecar pattern). **A page-preview's tabs persist per-session, keyed by the preview:** close the preview, reopen it, and its connection-opened tabs + order return; all of it wipes on quit. Both flavors keep tab order; page-preview order wipes on quit with the rest.
+
+- **H-4:** [confirmed] Icon normalization: a page tab in the NavWindow flavor whose icon is *also* the map icon renders its **type icon** instead (file-text, grid, …) so nothing masquerades as the pinned NavWindow tab. Known accepted edge: a type whose icon is itself set to map — not worth fighting.
+
+- **H-5:** [confirmed] Neither flavor allows pinned tabs, and neither allows manual tab creation (no hover `+`). Tabs are born from navigation only.
+
+- **H-6:** [open] ← confirm the read. "Closing the original tab the preview opened from promotes the parent PreviewWindow to the left-most in order" — read as: closing the origin tab never closes the window; the left-most surviving tab becomes the window's new parent/identity (and the per-session tab-set keying re-parents with it). The window closes only when its last tab does.
+
+- **H-7:** [confirmed] A connection click targeting the page active **behind** the preview (the main pane's current page) simply doesn't fire — it's already in view.
+
+- **H-8:** [open] ← with Nathan, recommendation attached. Warmth: his spec was NavWindow tabs warm (scroll/state), page-preview tabs hot-only-while-open — but the investigation shows warmth is nearly free (`warmCache.ts`: an in-memory map of serialized editor state + scrollTop + PageDetail, 20-cap per tab, KB-scale entries, no mounted editors). **Recommendation: warm for both**, per-session, wiped on quit — don't self-limit.
+
+- **H-9:** [confirmed] The title ↔ tab morph: a single-tab, bannerless preview shows the centered breadcrumb (F-2) in the shared tab bar; going multi-tab **collapses the centered title into a normal icon + title tab** alongside the rest. Exact collapsed-tab alignment/motion is design-stage.
+
+- **H-10:** [assumed] Storage: NavWindow tabs → a synced `.nexus/` sidecar on the `tabs.json` pattern; the per-session page-preview state (which preview is open, per-preview tab sets + order) → **main-process memory** — it survives a renderer reload (⌘R) and dies on quit, which is exactly the spec. No disk writes for state that's contractually wiped.
 
 #### I — Interaction Matrix (the meticulous pass — every gesture × every preview state)
 
@@ -118,7 +140,7 @@ Interrogation is essentially complete — the Interaction Matrix's seven questio
 - **I-1:** [confirmed] Clicking the already-previewed page's title is a **no-op** — same as the app's existing behavior for selecting the already-selected (the select same-target gate). No pulse, nothing.
 - **I-2:** [confirmed] Overtake is a keyed remount (C-4): the outgoing page's pending autosave flushes to its own file before the incoming page mounts.
 - **I-3:** [assumed] Embedded views route too: a view tile on a SurfacePM page shares A-7's navigate, so its title-clicks honor the same `open_in` routing — the branch lives at the navigate, not per-surface.
-- **I-4:** [confirmed] The NavWindow **closes** when it summons a preview; the chevron reopens it (focusing an already-reopened one rather than duplicating). Standing caveat: this whole return mechanic is what the D-2 multi-preview A-B test may retire.
+- **I-4:** [confirmed] The NavWindow never "closes into" a preview — it **is tab 1** of its own flavor (H-2): opening a page from it adds a tab beside it and slides its sidebar away (F-5); clicking the map tab is the return. No summon-close, no reopen mechanics.
 - **I-5:** [assumed] Rapid double title-click is idempotent — the second click hits the already-open-on-this-page guard (whatever I-1 resolves to).
 - **I-6:** [assumed] First-open placement is a design-stage call (centered default is the hypothesis); thereafter D-7's session geometry holds through overtakes — contents swap, the window doesn't jump.
 
@@ -139,11 +161,11 @@ Interrogation is essentially complete — the Interaction Matrix's seven questio
 - **I-16:** [assumed] Window-drag surfaces: bare toolbar areas + the title breadcrumb drag the window (the NavWindow `DRAG_SURFACES` allow-list pattern); buttons and the editor never do.
 - **I-17:** [assumed] Block DND works inside the preview; drag math reads the *computed* zoom, not the token — the embed is scaled (F-3), the exact trap TableView already documents for `--zoom`-scaled tiles.
 - **I-18:** [assumed] Scroll/caret follow the SurfacePM laws: the preview owns its wheel when hovered, caret-priority scrolling inside the editor, text-selection autoscroll near edges stays inside the preview.
-- **I-19:** [confirmed, target open] ⌘-click is **in** as the explicit full-page bypass on preview-routed clicks (connections with B-6 on, preview-collection titles). Open sub-call: bypass to full-page *in place*, or to a *new tab*.
+- **I-19:** [confirmed] ⌘-click is the explicit full-page bypass on preview-routed clicks (connections with B-6 on, preview-collection titles) — it opens a **new app tab**.
 
 **Keyboard & focus**
 
-- **I-20:** [confirmed] No preview-scoped keyboard commands beyond one: **⌘N while focused in a preview opens the previewed page in a new tab** (a promotion variant; presumably closes the preview like B-5 — [assumed]). ⌘W keeps its normal meaning (the tab), Escape keeps D-4's (the topmost surface).
+- **I-20:** [confirmed] No preview-scoped keyboard commands beyond one: **⌘N while focused in a preview opens the active preview tab's page in a new app tab** — a promotion variant that closes the preview (Nathan's yes); [assumed] with multiple preview tabs it closes just the promoted tab, the window only when it was the last. ⌘W keeps its normal meaning (the app tab), Escape keeps D-4's (the topmost surface).
 - **I-21:** [assumed] Escape order within the preview: open inspector closes first, then the preview — topmost-first (D-4), one press never kills two layers.
 - **I-22:** [assumed] Editing shortcuts (⌘B, etc.) go to whichever editor holds focus; app-global shortcuts pass through — the preview never traps focus (D-3).
 
@@ -158,10 +180,12 @@ Interrogation is essentially complete — the Interaction Matrix's seven questio
 
 ### Core (must-have)
 
-- The routing branch at A-7 → a **singleton floating movable window** (NavWindow chrome, window-background material) rendering the page through **PageEmbed, fully editable**, with the F-1 toolbar (conditional back-chevron · promote · exit · inspector · settings) and F-2 title treatment.
+- The routing branch at A-7 → a **single page-preview window** (plural-ready plumbing, D-2) on the shared floating chrome: window-background material, NavWindow-pattern move/resize, unified size defaults (D-7).
+- **The tab system** (H): wiki-links open as tabs in-window; the NavWindow flavor with its perma-pinned map tab + sidebar slide-out; persistence tiers (NavWindow multi-session, page-preview per-session); all tab motion DRY'd from `tabBar.css` (F-4/F-5).
+- Pages render through **PageEmbed, fully editable, keyed by path** (C-4), with the F-2 title/breadcrumb ↔ tab morph (H-9).
 - **The preview inspector** (G-1): front-matter/metadata editing, opening/closing via the ToolbarTrio glass-swap exactly as the real inspector does.
-- **Connections-in-preview** (B-6): the settings.json config routing `[[Connection]]` clicks to a preview.
-- In-preview wiki-nav with the back-only conditional chevron (H); promote-to-full via the A-4 engulf; tree-push reconcile (D-6); NavWindow peek entry with its own routing override (B-2); tab-neutral throughout.
+- **Connections-in-preview** (B-6) via settings.json, plus the **hover-card trigger with a blank pane** (B-7 — embed UIX post-plan).
+- Promote-to-full via the A-4 engulf (+ ⌘N and ⌘-click variants, I-19/I-20); tree-push reconcile (D-6); per-source routing (B-2); tab-neutral throughout (D-1).
 
 #### Prospects (allowed later, not now)
 
