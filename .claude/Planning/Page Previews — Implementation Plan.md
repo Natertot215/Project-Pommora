@@ -40,7 +40,7 @@ Decision ids: H-1, H-2 (sentinel), H-5, H-6, H-7, H-11, D-1, D-2, I-1, I-5.
 **Interfaces:**
 - Produces: `TabTarget` gains `{ kind: 'navwindow' }` — the NavWindow flavor's tab-1 sentinel (H-2), serialized as-is in the sidecar (Phase 3), exempt from warmth (Phase 4).
 
-- [ ] **Step 1:** In `types.ts`, extend the tab-target union where `{ kind: 'newtab' }` is declared:
+- [x] **Step 1:** In `types.ts`, extend the tab-target union where `{ kind: 'newtab' }` is declared:
 
 ```ts
 /** The NavWindow flavor's tab-1 sentinel — the gallery itself; no id/path, never warmed. */
@@ -49,7 +49,7 @@ export type PreviewTabTarget = SelectTarget | { kind: 'navwindow' }
 
 (Keep the app-tab `TabTarget` untouched — app tabs never hold a navwindow tab. The preview model uses `PreviewTabTarget`.)
 
-- [ ] **Step 2:** `npm run typecheck` → PASS (additive type). Commit with Task 1.2.
+- [x] **Step 2:** `npm run typecheck` → PASS (additive type). Commit with Task 1.2.
 
 ### Task 1.2: The `previewTabs` slice
 
@@ -77,7 +77,7 @@ closePreviewTab(id: string): void                          // H-6 re-parent; las
 closePreview(): void
 ```
 
-- [ ] **Step 1: Failing tests first** (`previewTabs.test.ts`):
+- [x] **Step 1: Failing tests first** (`previewTabs.test.ts`):
 
 ```ts
 import { describe, expect, it, beforeEach } from 'vitest'
@@ -135,10 +135,10 @@ describe('previewTabs — the tab model (H-1/H-5/H-6/H-7)', () => {
 })
 ```
 
-- [ ] **Step 2:** Run → FAIL (`openPreviewTab` undefined).
-- [ ] **Step 3:** Implement `previewTabs.ts` as pure helpers (mirror `tabsModel`'s shapes; ids via the store's `makeTabId`) + the store slice: `openPreview` builds `{ flavor:'page', originId, tabs:[origin], activeTabId }` (same-origin re-summon short-circuits; overtake replaces after Phase 3 restores the remembered set); `openPreviewTab` dedups by target id then spawns; `closePreviewTab` splices, re-parents `originId` to the new left-most page tab, nulls on empty; keep D-8 wiring (`openPreview` still sets `navOpen:false`; `openNav`/`toggleNav`/`openVia` clear `preview`). Migrate the shipped guards: `applyTree`'s reconcile + D-9's adopt-close now operate on `preview` (reconcile every tab like the app-tab branch; a dead active tab falls to its left neighbor; dead origin re-parents). **Keep `previewTarget` as a derived state field** mirroring the active page tab's target (`preview && activeTab.target.kind === 'page' ? activeTab.target : null`) — PreviewWindow and its imports keep working unchanged until Task 2.2 rewires them.
-- [ ] **Step 4:** All new tests + the existing D-6 store test (rewrite it to the slice shape) PASS.
-- [ ] **Step 5:** Commit `feat(preview): previewTabs slice — tab model, dedup, re-parent, reconcile (H-1/H-5/H-6, D-6/D-9 migrated)`.
+- [x] **Step 2:** Run → FAIL (`openPreviewTab` undefined).
+- [x] **Step 3:** Implement `previewTabs.ts` as pure helpers (mirror `tabsModel`'s shapes; ids via the store's `makeTabId`) + the store slice: `openPreview` builds `{ flavor:'page', originId, tabs:[origin], activeTabId }` (same-origin re-summon short-circuits; overtake replaces after Phase 3 restores the remembered set); `openPreviewTab` dedups by target id then spawns; `closePreviewTab` splices, re-parents `originId` to the new left-most page tab, nulls on empty; keep D-8 wiring (`openPreview` still sets `navOpen:false`; `openNav`/`toggleNav`/`openVia` clear `preview`). Migrate the shipped guards: `applyTree`'s reconcile + D-9's adopt-close now operate on `preview` (reconcile every tab like the app-tab branch; a dead active tab falls to its left neighbor; dead origin re-parents). **Keep `previewTarget` as a derived state field** mirroring the active page tab's target (`preview && activeTab.target.kind === 'page' ? activeTab.target : null`) — PreviewWindow and its imports keep working unchanged until Task 2.2 rewires them.
+- [x] **Step 4:** All new tests + the existing D-6 store test (rewrite it to the slice shape) PASS.
+- [x] **Step 5:** Commit `feat(preview): previewTabs slice — tab model, dedup, re-parent, reconcile (H-1/H-5/H-6, D-6/D-9 migrated)`.
 
 ### Task 1.3: The preview's own switch orchestration
 
@@ -149,9 +149,9 @@ describe('previewTabs — the tab model (H-1/H-5/H-6/H-7)', () => {
 **Interfaces:**
 - Produces: `previewSlide: { dir: 'back' | 'fwd'; seq: number } | null` — stamped by `activatePreviewTab` (strip-order direction, the app-tab rule) and `openPreviewTab` (always 'fwd'); consumed by Phase 2's strip + body slide. The preview does NOT reuse `navSlide` (H-11 — one global slot fences the main pane).
 
-- [ ] **Step 1: Failing test:** activating a tab left of the current stamps `dir:'back'`, right stamps `'fwd'`, monotonically increasing `seq`.
-- [ ] **Step 2:** Implement the stamp in the two actions (mirror `navSlide`'s stamping shape; module `previewSlideSeq` counter).
-- [ ] **Step 3:** PASS → gates → **Phase Protocol steps 2–5** (review, simplify, commit, ping, plan re-read).
+- [x] **Step 1: Failing test:** activating a tab left of the current stamps `dir:'back'`, right stamps `'fwd'`, monotonically increasing `seq`.
+- [x] **Step 2:** Implement the stamp in the two actions (mirror `navSlide`'s stamping shape; module `previewSlideSeq` counter).
+- [x] **Step 3:** PASS → gates → **Phase Protocol steps 2–5** (review, simplify, commit, ping, plan re-read).
 
 ---
 
