@@ -223,9 +223,10 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 4px;
-  border-radius: 4px;
-  background: var(--fill-tertiary);
+  /* Inner breathing room — rows never read pushed to the field's edges. */
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--fill-quaternary);
 }
 /* The bottom subfield: a divider inset from the pane's sides, holding the footnote location
    breadcrumb (the page's container chain). */
@@ -246,7 +247,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 26px;
+  min-height: 22px;
 }
 .pgpreview-insp-label {
   display: flex;
