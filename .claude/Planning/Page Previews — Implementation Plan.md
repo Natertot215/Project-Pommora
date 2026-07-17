@@ -330,7 +330,7 @@ Decision ids: H-2, H-4, B-2 (override), F-7, G-3/G-4 (rail mount), I-4, Reconcil
 - Modify: `store.ts` (`openNavPreview()` — flavor `'nav'`, tab 1 the `navwindow` sentinel; NavWindow row "Open in Preview" adds page tabs to THIS window per B-2's override toggle — a NavWindow-chrome control persisted in `PreviewsFile`), `NavWindow/NavWindow.tsx` (mount the strip; the whole body is the map tab's content — page tabs swap it away with the G-4 sidebar push; map tab icon-only, non-orderable, H-4 icon normalization for page tabs whose icon is `map`), `previewState.ts` (navSet round-trip already shaped)
 - F-7: the search row nudges down only when `tabs.length > 1`, height transition on `--ease-standard`.
 
-- [ ] **Steps:** failing slice tests (nav flavor spawn, sentinel exempt from ⌘N/promote, H-4 normalization) → implement → PASS → gates → CDP-verify the full flavor → Phase Protocol 2–5.
+- [x] **Steps:** failing slice tests (nav flavor spawn, sentinel exempt from ⌘N/promote, H-4 normalization) → implement → PASS → gates → CDP-verify the full flavor → Phase Protocol 2–5.
 
 ---
 
