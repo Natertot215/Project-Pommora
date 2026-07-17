@@ -6,6 +6,15 @@
 - **Core Value:** A Page can be *peeked* — read (and possibly edited) in place — without navigating: no selection change, no tab churn, no Back/Forward pollution.
 - **Success Criteria:** A `page-preview` Collection's title click opens the preview; dismissing it lands you exactly where you were; the main pane, tabs, and history are untouched throughout.
 
+### Planning Requirements (Nathan's, carried INTO the plan verbatim)
+
+- Every phase ends with: gates green (typecheck + full vitest + build, pipefail, background) → a review agent pass → code-simplifier + comment-killer. Re-assess the plan between green phases; rewrite drifted downstream tasks.
+- Doc reconciliation (this log's Reconciliation section) lands WITH the code, committed.
+- **Every design choice gets confirmed inline as it's made AND restated in the final report.**
+- **The final report comes at the END OF THE PLAN, nowhere else**: every knob (name · file · default), every design decision (exhaustive), every assumption/consideration taken or deferred, and what Nathan must eyeball live.
+- Standard Agent dispatches only — never the Workflow tool. Phases, never dates.
+- Ping Nathan's phone at each task/phase completion; don't stop until the plan is finished.
+
 ### Status — Continuation
 
 **Interrogation is closed** — the tab-model pivot landed and every question resolved: one floating window total across both flavors (D-8), multi-session durable tab sets for both — per-origin for page-previews (H-3), warm for both (H-8), one sidecar for all durable state (H-10), the title-collapse motion specced (H-9), origin-close re-parenting (H-6). Both grounding reuse maps are folded (chrome extraction points, tabBar.css split, tabsModel reuse, ConnectionsApi closure swap, `--bg-window` material, the liquid-glass-in-transformed-ancestor constraint → F-6). **Early-build directive is live:** the window shell + tab strip get built now (shared chrome hook + `PagePreview/`) ahead of functionality so Nathan can live-drive UIX — the brainstorm's no-code gate is explicitly waived for the chrome shell only. Remaining phases: self-review → adversarial review → planning + /handoff.
@@ -112,6 +121,10 @@
 #### G — Preview Inspector
 
 - **G-1:** [confirmed] The preview carries its **own inspector, in core** — separate from the DetailView inspector — as the front-matter/metadata editing surface, the mechanism the Swift build's front-matter inspector used. It opens and closes on the preview surface **animating and looking exactly as the real inspector does**: the ToolbarTrio glass-swap (`ToolbarTrio.tsx` — the glass pill voids as the inspector swallows the trio, icons ride onto the inspector's glass, driven by `--io` in toolbar.css) and the same swap animation, reused verbatim.
+
+- **G-3:** [confirmed] **One side-pane component across both flavors** (Nathan's closing law): the NavWindow's sidebar/rail and the PagePreview's inspector are **the same component** — one mount, parameterized by side (left in the NavWindow flavor, right in the PagePreview flavor). The PagePreview is treated as the same mount host the NavWindow is; no parallel pane implementations. The shell's current separate `.pgpreview-inspector` converges into this shared component at implementation.
+
+- **G-4:** [confirmed] **The tab-slide pushes the side pane**: when a tab change's view slide lands, it visually **collides with the open side pane and pushes it aside** — sidebar in the NavWindow flavor, inspector in the PagePreview flavor — reading as one continuous motion (the slide hits the pane and shoves it out). Extends F-5's sidebar push-out to both flavors, driven off the same slide.
 
 - **G-2:** [confirmed] The inspector's layout gets a **Figma design pass**; the Swift build's inspector (archived at `The Studio/Archive/Pommora`) is the reference — it already mostly looks the way Nathan wants.
 
