@@ -144,6 +144,8 @@ import { popCellMenu } from './cellMenu'
 import { popConnMenu } from './connMenu'
 import { popTabMenu } from './tabMenu'
 import type { TabMenuContext } from '@shared/tabMenu'
+import { popNavRowMenu } from './navRowMenu'
+import type { NavRowMenuContext } from '@shared/navRowMenu'
 import { popPropertyMenu } from './propertyMenu'
 import { popOptionMenu } from './optionMenu'
 import { popIconFavoriteMenu } from './iconFavoriteMenu'
@@ -2014,6 +2016,12 @@ ipcMain.handle('cell-menu', async (e, ctx: CellMenuContext) => {
 ipcMain.handle('tab-menu', async (e, ctx: TabMenuContext) => {
   const win = BrowserWindow.fromWebContents(e.sender)
   return win && isPlainObject(ctx) ? popTabMenu(win, ctx as unknown as TabMenuContext) : null
+})
+
+// Pop a NavWindow row/card's native right-click menu (D-3) → the chosen action.
+ipcMain.handle('nav-row-menu', async (e, ctx: NavRowMenuContext) => {
+  const win = BrowserWindow.fromWebContents(e.sender)
+  return win && isPlainObject(ctx) ? popNavRowMenu(win, ctx as unknown as NavRowMenuContext) : null
 })
 
 // Pop a wikilink's native right-click menu (Open in Preview) → the chosen action.

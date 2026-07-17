@@ -1,11 +1,9 @@
-import { Fragment, useRef, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { Icon } from '@renderer/design-system/symbols'
 import { cx } from '@renderer/design-system/cx'
 import { text } from '@renderer/design-system/tokens'
 import { OverflowScroll } from '@renderer/design-system/components/OverflowScroll'
 import { TableRowDnd, useTableRowDrag } from '../Detail/Views/Table/tableDnd'
-import { PickerMenu } from '@renderer/design-system/components/PickerMenu'
-import { MenuItem, MenuSeparator } from '@renderer/design-system/components/menu'
 import type { NavTarget, SelectTarget } from '@shared/types'
 import { useSession } from '../store'
 import { isOpenInTabs } from '../Tabs/tabsModel'
@@ -13,8 +11,6 @@ import { navKey } from './navRecents'
 import type { ResolvedNav } from './navResolve'
 import { EntityGlyph } from './EntityGlyph'
 import './navList.css'
-
-const MENU_GLYPH = 13
 
 /** The location breadcrumb (icon › name › …) shared by the list rows and the gallery cards — same
  *  markup + shared nav-path-* classes, differing only by wrapper class + glyph size. Null when at root. */
@@ -42,95 +38,72 @@ export function NavCrumbs({
 }
 
 /** Per-row context menu (Navigation spec: open / pin / favorite / remove live in a context menu, not
- *  the row). Reuses the app's floating-menu pattern — a self-managed PickerMenu (portal + Bloom +
- *  backdrop/Escape dismiss) of MenuItem rows, hung off a zero-size anchor pinned at the click point.
- *  Open/Pin/Favorite labels flip on live store membership; Remove drops the recents entry. Shared by
- *  the NavWindow list AND gallery (the D-3 in-renderer points). */
+ *  the row) — a NATIVE Electron menu (the tab/cell-menu pattern), popped at the cursor. The renderer
+ *  sends the row's live membership; main returns the chosen action; the labels flip on that state.
+ *  Renders nothing: it fires on mount and closes when the menu resolves. Shared by the NavWindow list
+ *  AND gallery (the D-3 points). */
 export function NavRowMenu({
   item,
-  x,
-  y,
   onClose,
   onOpenNewTab,
 }: {
   item: ResolvedNav
-  x: number
-  y: number
   onClose: () => void
   onOpenNewTab?: (target: NavTarget) => void
-}): React.JSX.Element {
-  const anchorRef = useRef<HTMLSpanElement>(null)
-  const isPinned = useSession((s) => s.pins.some((p) => navKey(p) === item.key))
-  const isFavorite = useSession((s) => s.favorites.some((f) => navKey(f) === item.key))
-  const alreadyOpen = useSession((s) => isOpenInTabs(s.tabs, s.pins, item.target as SelectTarget))
-  const pinTarget = useSession((s) => s.pinTarget)
-  const unpinTarget = useSession((s) => s.unpinTarget)
-  const addFavorite = useSession((s) => s.addFavorite)
-  const removeFavorite = useSession((s) => s.removeFavorite)
-  const removeRecent = useSession((s) => s.removeRecent)
-  const openPreview = useSession((s) => s.openPreview)
-  const target = item.target
-
-  const act = (fn: () => void) => () => {
-    onClose()
-    fn()
-  }
-  return (
-    <>
-      <span
-        ref={anchorRef}
-        aria-hidden
-        style={{ position: 'fixed', left: x, top: y, width: 0, height: 0 }}
-      />
-      <PickerMenu open onDismiss={onClose} triggerRef={anchorRef} center>
-        <div className="nav-row-menu">
-          {onOpenNewTab && (
-            <MenuItem
-              leading={<Icon name="copy" size={MENU_GLYPH} />}
-              onClick={act(() => onOpenNewTab(item.target))}
-            >
-              {alreadyOpen ? 'Open' : 'Open in New Tab'}
-            </MenuItem>
-          )}
-          {target.kind === 'page' && (
-            <MenuItem
-              leading={<Icon name="app-window" size={MENU_GLYPH} />}
-              onClick={act(() => {
-                // B-2: inside the NavWindow the override routes this to a tab in THAT window
-                // (openPreviewTab lands in the open nav flavor); off → the floating preview.
-                const s = useSession.getState()
-                const ref = { id: target.id, path: target.path }
-                if (s.navOpen && (s.previewsFile.navOverride ?? true)) s.openPreviewTab(ref)
-                else openPreview(ref)
-              })}
-            >
-              Open in Preview
-            </MenuItem>
-          )}
-          {(onOpenNewTab || item.target.kind === 'page') && <MenuSeparator flush />}
-          <MenuItem
-            leading={<Icon name={isPinned ? 'pin-off' : 'pin'} size={MENU_GLYPH} />}
-            onClick={act(() => (isPinned ? unpinTarget(item.key) : pinTarget(item.target)))}
-          >
-            {isPinned ? 'Unpin' : 'Pin'}
-          </MenuItem>
-          <MenuItem
-            leading={<Icon name={isFavorite ? 'star-off' : 'star'} size={MENU_GLYPH} />}
-            onClick={act(() => (isFavorite ? removeFavorite(item.key) : addFavorite(item.target)))}
-          >
-            {isFavorite ? 'Unfavorite' : 'Favorite'}
-          </MenuItem>
-          <MenuSeparator flush />
-          <MenuItem
-            leading={<Icon name="x" size={MENU_GLYPH} />}
-            onClick={act(() => removeRecent(item.key))}
-          >
-            Remove
-          </MenuItem>
-        </div>
-      </PickerMenu>
-    </>
-  )
+}): null {
+  useEffect(() => {
+    let live = true
+    const s = useSession.getState()
+    const target = item.target
+    const isPinned = s.pins.some((p) => navKey(p) === item.key)
+    const isFavorite = s.favorites.some((f) => navKey(f) === item.key)
+    void window.nexus
+      .navRowMenu({
+        canOpenNewTab: onOpenNewTab !== undefined,
+        alreadyOpen: isOpenInTabs(s.tabs, s.pins, target as SelectTarget),
+        isPage: target.kind === 'page',
+        isPinned,
+        isFavorite,
+      })
+      .then((action) => {
+        if (!live) return
+        onClose()
+        const st = useSession.getState()
+        switch (action) {
+          case 'open-new-tab':
+            onOpenNewTab?.(target)
+            break
+          case 'open-preview':
+            if (target.kind === 'page') {
+              // B-2: inside the NavWindow the override routes this to a tab in THAT window
+              // (openPreviewTab lands in the open nav flavor); off → the floating preview.
+              const ref = { id: target.id, path: target.path }
+              if (st.navOpen && (st.previewsFile.navOverride ?? true)) st.openPreviewTab(ref)
+              else st.openPreview(ref)
+            }
+            break
+          case 'pin':
+            st.pinTarget(target)
+            break
+          case 'unpin':
+            st.unpinTarget(item.key)
+            break
+          case 'favorite':
+            st.addFavorite(target)
+            break
+          case 'unfavorite':
+            st.removeFavorite(item.key)
+            break
+          case 'remove':
+            st.removeRecent(item.key)
+            break
+        }
+      })
+    return () => {
+      live = false
+    }
+  }, [item, onClose, onOpenNewTab])
+  return null
 }
 
 type RowDrag = ReturnType<typeof useTableRowDrag>
@@ -218,9 +191,8 @@ export function NavList({
   const reorderPin = useSession((s) => s.reorderPin)
   const reorderRecentStore = useSession((s) => s.reorderRecent)
   const reorderRecent = onReorderRecent ?? reorderRecentStore
-  const [menu, setMenu] = useState<{ item: ResolvedNav; x: number; y: number } | null>(null)
-  const openMenu = (it: ResolvedNav, e: React.MouseEvent): void =>
-    setMenu({ item: it, x: e.clientX, y: e.clientY })
+  const [menu, setMenu] = useState<{ item: ResolvedNav } | null>(null)
+  const openMenu = (it: ResolvedNav): void => setMenu({ item: it })
   const pinRows = reorderable ? (pins ?? []) : []
   if (items.length === 0 && pinRows.length === 0 && !extras?.length) return null
   const recents = reorderable ? items : []
@@ -277,13 +249,7 @@ export function NavList({
         list
       )}
       {menu && (
-        <NavRowMenu
-          item={menu.item}
-          x={menu.x}
-          y={menu.y}
-          onClose={() => setMenu(null)}
-          onOpenNewTab={onOpenNewTab}
-        />
+        <NavRowMenu item={menu.item} onClose={() => setMenu(null)} onOpenNewTab={onOpenNewTab} />
       )}
     </>
   )

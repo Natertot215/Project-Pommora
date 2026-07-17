@@ -40,11 +40,11 @@ export function NavGallery({
   const reorderRecent = onReorderRecent ?? reorderRecentStore
   const nexusId = useSession((s) => s.tree?.nexus.id ?? '')
   // The cards share NavList's row menu (D-3's gallery point) — same items, same open/pin/favorite state.
-  const [menu, setMenu] = useState<{ item: ResolvedNav; x: number; y: number } | null>(null)
+  const [menu, setMenu] = useState<{ item: ResolvedNav } | null>(null)
   const openMenu = (it: ResolvedNav, e: React.MouseEvent): void => {
     e.preventDefault()
     e.stopPropagation()
-    setMenu({ item: it, x: e.clientX, y: e.clientY })
+    setMenu({ item: it })
   }
   const card = (it: ResolvedNav): React.JSX.Element => (
     <DraggableCard key={it.key} it={it} nexusId={nexusId} onSelect={onSelect} onMenu={openMenu} />
@@ -77,13 +77,7 @@ export function NavGallery({
         )}
       </div>
       {menu && (
-        <NavRowMenu
-          item={menu.item}
-          x={menu.x}
-          y={menu.y}
-          onClose={() => setMenu(null)}
-          onOpenNewTab={onOpenNewTab}
-        />
+        <NavRowMenu item={menu.item} onClose={() => setMenu(null)} onOpenNewTab={onOpenNewTab} />
       )}
     </div>
   )

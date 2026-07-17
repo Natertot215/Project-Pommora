@@ -31,6 +31,7 @@ import type { CalloutMenuAction } from '@shared/calloutMenu'
 import type { CellMenuAction, CellMenuContext } from '@shared/cellMenu'
 import type { ConnMenuAction } from '@shared/connections'
 import type { TabMenuAction, TabMenuContext } from '@shared/tabMenu'
+import type { NavRowMenuAction, NavRowMenuContext } from '@shared/navRowMenu'
 import type { PropertyMenuAction, PropertyMenuContext } from '@shared/propertyMenu'
 import type { OptionMenuAction, OptionMenuContext } from '@shared/optionMenu'
 import type { ColumnMenuAction, ColumnMenuContext } from '@shared/columnMenu'
@@ -469,6 +470,9 @@ const api = {
     ipcRenderer.invoke('cell-menu', ctx),
   tabMenu: (ctx: TabMenuContext): Promise<TabMenuAction | null> =>
     ipcRenderer.invoke('tab-menu', ctx),
+  // Pop a NavWindow row/card's native right-click menu (Open · Pin · Favorite · Remove) → the action.
+  navRowMenu: (ctx: NavRowMenuContext): Promise<NavRowMenuAction | null> =>
+    ipcRenderer.invoke('nav-row-menu', ctx),
   // Pop a wikilink's native right-click menu (Open in Preview) → the chosen action.
   connMenu: (): Promise<ConnMenuAction | null> => ipcRenderer.invoke('conn-menu'),
   // Pop a property's native menu (editor ⋮ / row right-click); Delete confirms in main first.
