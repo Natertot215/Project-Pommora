@@ -14,7 +14,7 @@ Pommora is a personal management app based on Nathan’s frustration with modern
 - **Pages:** Markdown documents inside a Collection or Set, conforming to its Collection’s properties. Pages use MarkdownPM for its editor surface, which includes in-line connections to other pages. 
 - **Agenda:** the calendar layer — **Tasks** (reminder-shaped) and **Events** (calendar-shaped), each with a built-in Status.
 - **Properties:** the nexus-wide typed attributes that collections inherit, and their members fill in — Select, Status, Date, and the rest; the schema is nexus-wide, collections validate properties for their pages to use. 
-- **Connections:** inline `[[Title]]` colored-text links in a Page's body, stored in **SQLite**, connecting to another Page — the Content ↔ Content matrix.
+- **Connections:** inline `[[Title]]` colored-text links that live in a Page's Markdown body (the canonical source) and **resolve via SQLite** — a regeneratable index off the read path, never the store — connecting to another Page as the Content ↔ Content matrix.
 
 **Files are canonical.** Pages are `.md` (YAML frontmatter + body); Contexts, Agenda, and all config are JSON sidecars; an entity's kind comes from its folder's sidecar, not the extension. Foreign keys are preserved on every write, and the SQLite index is a regeneratable accelerator off the read path. Agent-legibility of a user's Nexus, and future cloud-sync capability are core constructs for all development.
 
