@@ -20,7 +20,12 @@ import {
   iconNameOr,
   type IconName,
 } from '@renderer/design-system/symbols'
-import { MenuItem, MenuSeparator, MenuPaneTopRow } from '../../design-system/components/menu'
+import {
+  MenuItem,
+  MenuSeparator,
+  MenuPaneTopRow,
+  MenuScrollFrame,
+} from '../../design-system/components/menu'
 import {
   flushTrailing,
   footingLabel,
@@ -163,9 +168,64 @@ export function GroupingPane({
   const hasMiddle =
     group.kind !== 'property' || declaredType(group.property_id, schema) !== 'datetime'
 
-  return (
+  // The footings pin to the pane's bottom edge (the ViewSettings Format-footer pattern) through
+  // MenuScrollFrame's footer slot — never inline in the scroll body, where a short pane lets the
+  // divider ride up mid-pane. Present only while the Group By list is collapsed.
+  const footings = groupByOpen ? undefined : (
     <>
-      <MenuPaneTopRow label={label} current="Grouping" onBack={onBack} />
+      <MenuSeparator flush />
+      <FootingPick
+        icon="folder-minus"
+        label="Ungrouped"
+        value={view.ungrouped_placement ?? 'bottom'}
+        options={[
+          { value: 'top', label: 'Top' },
+          { value: 'bottom', label: 'Bottom' },
+        ]}
+        onPick={(v) => save({ ungrouped_placement: v })}
+      />
+      {dateHeadingProp &&
+        NUMERIC_FORMATS.has(view.column_styles?.[dateHeadingProp]?.date_format ?? 'full') && (
+          <FootingPick
+            icon="type"
+            label="Separation"
+            value={view.date_separator ?? 'dash'}
+            options={[
+              { value: 'dash', label: 'Dash' },
+              { value: 'slash', label: 'Slash' },
+            ]}
+            onPick={(v) => save({ date_separator: v })}
+          />
+        )}
+      {!structural && group.kind === 'property' && (
+        <MenuItem
+          className={flushTrailing}
+          leading={
+            <span className={footingSymbol}>
+              <Icon name="eye-off" size={12} />
+            </span>
+          }
+          trailing={
+            <span
+              className={cx(chipBox, group.hide_empty_groups ? undefined : chipColor.default)}
+              style={checkboxBoxStyle(group.hide_empty_groups, undefined)}
+            >
+              {group.hide_empty_groups ? <Icon name="check" size={12} strokeWidth={3} /> : null}
+            </span>
+          }
+          onClick={() => saveGroup({ ...group, hide_empty_groups: !group.hide_empty_groups })}
+        >
+          <span className={footingLabel}>Hide Empty Groups</span>
+        </MenuItem>
+      )}
+    </>
+  )
+
+  return (
+    <MenuScrollFrame
+      header={<MenuPaneTopRow label={label} current="Grouping" onBack={onBack} />}
+      footer={footings}
+    >
       <MenuItem
         className={flushTrailing}
         leading={<Icon name="layers" size={14} />}
@@ -289,54 +349,9 @@ export function GroupingPane({
               </div>
             </>
           )}
-          <MenuSeparator flush />
-          <FootingPick
-            icon="folder-minus"
-            label="Ungrouped"
-            value={view.ungrouped_placement ?? 'bottom'}
-            options={[
-              { value: 'top', label: 'Top' },
-              { value: 'bottom', label: 'Bottom' },
-            ]}
-            onPick={(v) => save({ ungrouped_placement: v })}
-          />
-          {dateHeadingProp &&
-            NUMERIC_FORMATS.has(view.column_styles?.[dateHeadingProp]?.date_format ?? 'full') && (
-              <FootingPick
-                icon="type"
-                label="Separation"
-                value={view.date_separator ?? 'dash'}
-                options={[
-                  { value: 'dash', label: 'Dash' },
-                  { value: 'slash', label: 'Slash' },
-                ]}
-                onPick={(v) => save({ date_separator: v })}
-              />
-            )}
-          {!structural && group.kind === 'property' && (
-            <MenuItem
-              className={flushTrailing}
-              leading={
-                <span className={footingSymbol}>
-                  <Icon name="eye-off" size={12} />
-                </span>
-              }
-              trailing={
-                <span
-                  className={cx(chipBox, group.hide_empty_groups ? undefined : chipColor.default)}
-                  style={checkboxBoxStyle(group.hide_empty_groups, undefined)}
-                >
-                  {group.hide_empty_groups ? <Icon name="check" size={12} strokeWidth={3} /> : null}
-                </span>
-              }
-              onClick={() => saveGroup({ ...group, hide_empty_groups: !group.hide_empty_groups })}
-            >
-              <span className={footingLabel}>Hide Empty Groups</span>
-            </MenuItem>
-          )}
         </>
       )}
-    </>
+    </MenuScrollFrame>
   )
 }
 
