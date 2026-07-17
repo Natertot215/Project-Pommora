@@ -22,6 +22,7 @@ export function PageEmbed({
   onBeginEdit,
   connections,
   locked = false,
+  registerFlush,
 }: {
   /** Nexus-relative path to the `.md` — the page's address for load + save. */
   path: string
@@ -30,6 +31,8 @@ export function PageEmbed({
   connections?: ConnectionsApi
   /** B-5 content lock: a locked embed can't be entered for editing (stays a selectable portal). */
   locked?: boolean
+  /** Opt-in awaitable-flush registration (the pageFlush pattern) for hosts whose close defers unmount. */
+  registerFlush?: (fn: (() => Promise<void>) | null) => void
 }): React.JSX.Element {
   const [body, setBody] = useState<string | null>(null)
   const pending = useRef<{ timer: ReturnType<typeof setTimeout>; body: string } | null>(null)
@@ -45,19 +48,26 @@ export function PageEmbed({
     }
   }, [path])
 
-  const flush = (): void => {
+  const flush = (): Promise<void> => {
     const p = pending.current
-    if (!p) return
+    if (!p) return Promise.resolve()
     clearTimeout(p.timer)
     pending.current = null
-    void window.nexus.updatePageBody(path, p.body)
+    return window.nexus.updatePageBody(path, p.body).then(() => undefined)
   }
   const flushRef = useRef(flush)
   flushRef.current = flush
-  useEffect(() => () => flushRef.current(), [])
+  useEffect(() => () => void flushRef.current(), [])
   useEffect(() => {
-    if (!editing) flushRef.current()
+    if (!editing) void flushRef.current()
   }, [editing])
+  // Hosts whose close path outlives the world (the preview's exit-presence) register an awaitable
+  // flush so pending writes land BEFORE the world changes — the unmount flush alone fires too late.
+  useEffect(() => {
+    if (!registerFlush) return
+    registerFlush(() => flushRef.current())
+    return () => registerFlush(null)
+  }, [registerFlush])
   const scheduleSave = (next: string): void => {
     if (pending.current) clearTimeout(pending.current.timer)
     pending.current = { body: next, timer: setTimeout(() => flushRef.current(), SAVE_DEBOUNCE_MS) }

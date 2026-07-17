@@ -9,6 +9,7 @@ import { useExitPresence } from '../design-system/useExitPresence'
 import { PageEmbed } from '../Embeds/PageEmbed'
 import { buildPageIndex, flattenPages, type ConnectionsApi } from '../MarkdownPM/connections'
 import { showConnectionMenu } from '../Embeds/connectionMenu'
+import { registerPreviewFlush } from '../Detail/pageFlush'
 import { NavCrumbs } from '../Navigation/NavList'
 import { buildResolveIndex, resolveWith } from '../Navigation/navResolve'
 import { useSession, type PreviewTarget } from '../store'
@@ -182,6 +183,7 @@ function PreviewWindowBody({
           editing={editing}
           onBeginEdit={() => setEditing(true)}
           connections={connections}
+          registerFlush={registerPreviewFlush}
         />
       </div>
       <GlassWindow

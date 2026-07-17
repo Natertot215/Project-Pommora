@@ -34,7 +34,7 @@ import {
   tabKey,
 } from './Tabs/tabsModel'
 import { captureWarm, clearWarm, dropWarmTab, readWarm } from './Tabs/warmCache'
-import { flushActivePage } from './Detail/pageFlush'
+import { flushActivePage, flushPreviewPage } from './Detail/pageFlush'
 import { dropCapturedOutside } from './Navigation/useNavThumbnails'
 import { stabilize } from './treeStabilize'
 import { applyAccent, applySystemAccent } from './design-system/accent'
@@ -336,10 +336,11 @@ export const useSession = create<SessionState>((set, get) => {
   // call routes to the error state instead of an unhandled rejection.
   const openVia = async (attempt: () => Promise<boolean>): Promise<void> => {
     try {
-      // Close the preview BEFORE the root can flip (D-9): its PageEmbed owns its own pending save,
-      // and the unmount flush must bind the OLD root — flushActivePage only covers the main editor.
-      // Closed even if the adopt is then cancelled: data safety beats window persistence.
+      // Close the preview BEFORE the root can flip (D-9), and AWAIT its registered flush — the
+      // exit presence defers the unmount past the adopt, so the unmount flush alone would bind the
+      // NEW root. Closed even if the adopt is then cancelled: data safety beats window persistence.
       set({ previewTarget: null })
+      await flushPreviewPage()
       // Flush the active page's pending body write to the CURRENT nexus before an adopt flips the root —
       // else the editor's unmount-flush (fired by the selection-clear below, after the root already moved)
       // writes the old body into the NEW nexus, overwriting a same-relative-path file there. Awaited so main

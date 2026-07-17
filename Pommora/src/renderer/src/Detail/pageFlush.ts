@@ -15,3 +15,19 @@ export function registerPageFlush(fn: (() => Promise<void>) | null): void {
 export function flushActivePage(): Promise<void> {
   return flush?.() ?? Promise.resolve()
 }
+
+// The preview window's twin slot: its PageEmbed keeps its own pending save, and the close path can't
+// rely on the unmount flush — useExitPresence defers the unmount past the adopt, so the write would
+// bind the NEW root. The preview registers here; openVia awaits it before the switch.
+
+let previewFlush: (() => Promise<void>) | null = null
+
+/** The preview's PageEmbed registers its awaitable flush while mounted; passes null on unmount. */
+export function registerPreviewFlush(fn: (() => Promise<void>) | null): void {
+  previewFlush = fn
+}
+
+/** Flush + await the preview's pending write (no-op when no preview is mounted). */
+export function flushPreviewPage(): Promise<void> {
+  return previewFlush?.() ?? Promise.resolve()
+}
