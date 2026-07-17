@@ -61,13 +61,15 @@ export function PreviewInspector({ target }: { target: PreviewTarget }): React.J
   }, [target.path])
 
   const schema = useMemo(() => schemaForPage(tree, target.path), [tree, target.path])
-  // The subfield's location breadcrumb — the page's container chain (no page crumb).
+  // The subfield's location breadcrumb — the container chain + the page itself as the last crumb.
   const location = useMemo(() => {
     if (!tree) return []
-    return (
-      resolveWith(buildResolveIndex(tree), { kind: 'page', id: target.id, path: target.path })
-        ?.path ?? []
-    )
+    const res = resolveWith(buildResolveIndex(tree), {
+      kind: 'page',
+      id: target.id,
+      path: target.path,
+    })
+    return res ? [...res.path, { icon: res.icon, title: res.title }] : []
   }, [tree, target])
   const ctx = useMemo<ResolveContext | null>(
     () => (tree ? { schema, contextsById: buildContextsById(tree), labels: tree.labels } : null),
@@ -128,10 +130,13 @@ export function PreviewInspector({ target }: { target: PreviewTarget }): React.J
   return (
     <div className="pgpreview-insp">
       <div className="pgpreview-insp-rows edge-fade">
+        {/* The Swift layout: two rounded fill-tertiary fields — contexts, then properties. */}
         {[
-        ...tierRows.map((t) => ({ def: null, ...t })),
-        ...schema.map((d) => ({ def: d, id: d.id, label: d.name })),
-      ].map(({ def, id, label }) => {
+          tierRows.map((t) => ({ def: null, ...t })),
+          schema.map((d) => ({ def: d, id: d.id, label: d.name })),
+        ].map((group, gi) => (
+          <div key={gi === 0 ? 'contexts' : 'properties'} className="pgpreview-insp-group">
+            {group.map(({ def, id, label }) => {
         const col: ResolvedColumn = { id, kind: def ? 'property' : 'tier' }
         return (
           <div key={id} className="pgpreview-insp-row">
@@ -187,9 +192,11 @@ export function PreviewInspector({ target }: { target: PreviewTarget }): React.J
                 }) ?? <span className="pgpreview-insp-empty">Empty</span>)
               )}
             </span>
+              </div>
+            )
+            })}
           </div>
-        )
-        })}
+        ))}
       </div>
       <div className="pgpreview-insp-subfield">
         <NavCrumbs path={location} className="pgpreview-insp-loc" iconSize={11} />

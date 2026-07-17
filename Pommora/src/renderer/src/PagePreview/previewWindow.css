@@ -214,8 +214,18 @@
   scrollbar-width: none;
   display: flex;
   flex-direction: column;
+  gap: 8px;
+  /* The rows start BELOW the toolbar strip, never squished against the pane top (the Swift read). */
+  padding: var(--pgpreview-toolbar-h) 4px 4px;
+}
+/* A Swift-style group field: contexts and properties each sit in a rounded fill. */
+.pgpreview-insp-group {
+  display: flex;
+  flex-direction: column;
   gap: 2px;
   padding: 4px;
+  border-radius: 4px;
+  background: var(--fill-tertiary);
 }
 /* The bottom subfield: a divider inset from the pane's sides, holding the footnote location
    breadcrumb (the page's container chain). */
@@ -230,7 +240,7 @@
 .pgpreview-insp-subfield .pgpreview-insp-loc {
   min-width: 0;
   color: var(--label-tertiary);
-  font-size: var(--text-footnote-size);
+  font-size: var(--text-subline-size);
 }
 .pgpreview-insp-row {
   display: flex;

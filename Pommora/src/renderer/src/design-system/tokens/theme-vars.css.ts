@@ -90,6 +90,8 @@ globalStyle(':root', {
     '--weight-bold': font.weight.bold,
     // Type sizes plain CSS needs (single-sourced from the scale); add more as consumers appear.
     '--text-title3-size': font.scale.title3.size,
+    '--text-caption-size': font.scale.caption.size,
+    '--text-subline-size': font.scale.subline.size,
     // Icon-size ladder — so plain-CSS glyphs (e.g. the fold chevron) route to the same steps.
     '--icon-xs': size.icon.xs,
     '--icon-sm': size.icon.sm,
