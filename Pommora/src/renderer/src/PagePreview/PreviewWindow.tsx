@@ -82,7 +82,11 @@ function PreviewWindowBody({
   const [previewBody, setPreviewBody] = useState('')
   const statsTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const seededPath = useRef<string | null>(null)
-  useEffect(() => setPreviewBody(''), [target.path])
+  useEffect(() => {
+    setPreviewBody('')
+    // Kill any pending debounced write from the outgoing page so it can't land as a stale count.
+    if (statsTimer.current) clearTimeout(statsTimer.current)
+  }, [target.path])
   useEffect(
     () => () => {
       if (statsTimer.current) clearTimeout(statsTimer.current)

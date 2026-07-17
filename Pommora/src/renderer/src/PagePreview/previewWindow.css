@@ -285,7 +285,8 @@
   bottom: var(--subline-h);
 }
 .pgpreview.subfield-near .pgpreview-subfield-toggle,
-.pgpreview-subfield-toggle:hover {
+.pgpreview-subfield-toggle:hover,
+.pgpreview-subfield-toggle:focus-visible {
   opacity: 1;
 }
 .pgpreview-subfield-toggle:hover {

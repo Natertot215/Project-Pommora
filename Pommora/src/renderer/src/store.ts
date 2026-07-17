@@ -390,6 +390,12 @@ export const useSession = create<SessionState>((set, get) => {
       previewsFile: EMPTY_PREVIEWS,
       previewTarget: null,
       previewSlide: null,
+      // Per-nexus settings default here so a nexus WITHOUT the setting can't inherit the previous
+      // one's (the load below only applies a value when the new nexus has one persisted).
+      subfieldExpanded: true,
+      subfieldOrder: {},
+      navWindowMode: 'list',
+      navViewMode: 'list',
     })
     clearWarm() // warmth is per-nexus AND session-only — never crosses an adoption (I-10)
     clearPreviewWarm()
