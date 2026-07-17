@@ -1,0 +1,145 @@
+/* The container-agnostic tab motion layer (F-4): a tab, its sibling segment, the hover ×, and the
+   Back/Forward content slide — no toolbar skin, no store wiring. Any strip mounts these classes;
+   the --tab-* knobs default here and a host container (the toolbar's .tab-bar knob block, the
+   preview strip) overrides them. */
+
+.tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tab-gap, 6px);
+  height: 100%;
+  /* grow:0 packs the tabs LEFT at their preferred width (no stretch-to-fill); they shrink toward
+     --tab-min and then overflow-scroll as the strip fills. */
+  flex: 0 1 var(--tab-pref, 180px);
+  min-width: var(--tab-min, 90px);
+  max-width: var(--tab-max, 240px);
+  padding: 0 var(--tab-pad-x, 12px);
+  color: var(--label-tertiary);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  /* Open/close = width motion on the standard token (--duration-base). On OPEN the width is delayed one
+     fast beat so the segment (sibling, below) appears FIRST and the tab then slides out beside it; color
+     is the active fade. */
+  transition:
+    color var(--duration-base) var(--ease-standard),
+    max-width var(--duration-base) var(--ease-standard) var(--duration-fast),
+    min-width var(--duration-base) var(--ease-standard) var(--duration-fast),
+    padding var(--duration-base) var(--ease-standard) var(--duration-fast),
+    opacity var(--duration-base) var(--ease-standard) var(--duration-fast);
+}
+/* A tab opens by growing from nothing (the neighbors reflow with it). */
+@starting-style {
+  .tab {
+    min-width: 0;
+    max-width: 0;
+    padding: 0;
+    opacity: 0;
+  }
+}
+/* …and closes the same way — but immediately (no open-delay): the tab collapses first, then the segment
+   follows (its own delayed exit). The store drops it when the motion lands. */
+.tab.is-closing {
+  min-width: 0;
+  max-width: 0;
+  padding: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition-delay: 0s;
+}
+.tab:hover {
+  background: var(--state-hover);
+}
+/* Active tab: the label switches tertiary → control, fading on the standard token (the color transition
+   on .tab above). */
+.tab.is-active {
+  color: var(--label-control);
+}
+.tab.is-dragging {
+  opacity: var(--drag-muted);
+}
+/* The inter-tab segment — a SIBLING pill (not a ::before) rendered before every tab but the first, so
+   the tab's overflow:hidden can't clip it as the tab collapses to 0. It RIDES the tab's own motion:
+   the same base duration and the same fast open-delay, so it fades in exactly while the tab slides
+   out, and collapses in step with it on close (is-closing zeroes the delay, like the tab's). */
+.tab-seg {
+  flex: 0 0 auto;
+  align-self: center;
+  width: var(--tab-divider-w, 2px);
+  height: var(--tab-divider-h, 16px);
+  background: var(--separator-segment);
+  border-radius: 999px;
+  pointer-events: none;
+  transition:
+    opacity var(--duration-base) var(--ease-standard) var(--duration-fast),
+    width var(--duration-base) var(--ease-standard) var(--duration-fast);
+}
+@starting-style {
+  .tab-seg {
+    opacity: 0;
+  }
+}
+.tab-seg.is-closing {
+  width: 0;
+  opacity: 0;
+  transition-delay: 0s;
+}
+.tab-icon {
+  flex: 0 0 auto;
+  color: inherit;
+}
+/* Back/Forward swap: the tab's content slides in from the step's direction — back ⇐ from the left,
+   forward ⇒ from the right (a keyed remount replays it per step). */
+@keyframes tab-nav-slide-back {
+  from {
+    transform: translateX(calc(-1 * var(--tab-nav-slide, 10px)));
+    opacity: 0;
+  }
+}
+@keyframes tab-nav-slide-fwd {
+  from {
+    transform: translateX(var(--tab-nav-slide, 10px));
+    opacity: 0;
+  }
+}
+.nav-slide-back {
+  animation: tab-nav-slide-back var(--duration-base) var(--ease-standard);
+}
+.nav-slide-fwd {
+  animation: tab-nav-slide-fwd var(--duration-base) var(--ease-standard);
+}
+.tab-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* Reserve the ×'s lane so a long title ellipsizes cleanly BEFORE it — no fuzzy fade under the glyph. */
+  padding-right: 14px;
+}
+
+/* The hover-fade × (J-1: the chip glyph, a plain fade — no melt on glass). It sits in the label's
+   reserved right lane, so the ellipsis clears it without masking the text. */
+.tab-x {
+  position: absolute;
+  right: calc(var(--tab-pad-x, 12px) - 6px);
+  display: flex;
+  padding: 3px;
+  border: none;
+  border-radius: 5px;
+  background: none;
+  color: var(--label-tertiary);
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard),
+    background var(--duration-fast) var(--ease-standard);
+}
+.tab:hover .tab-x {
+  opacity: 1;
+}
+.tab-x:hover {
+  color: var(--label-primary);
+  background: var(--state-hover);
+}

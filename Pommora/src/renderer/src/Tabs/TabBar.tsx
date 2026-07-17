@@ -9,6 +9,7 @@ import { useSession } from '../store'
 import { buildResolveIndex, resolveWith, type ResolvedNav } from '../Navigation/navResolve'
 import { EntityGlyph } from '../Navigation/EntityGlyph'
 import { cycle, derivePinnedTabs } from './tabsModel'
+import './tabStrip.css'
 import './tabBar.css'
 
 const BASE_MS = Number.parseInt(duration.base, 10)
