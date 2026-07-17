@@ -1,14 +1,14 @@
 ## Project Pommora
 
-Pommora is a personal management app based on Nathan’s frustration with modern productivity apps that excel in one aspect but are absolutely terrible in others — Pommora is Nathan’s “Fine, I’ll do it myself — Thanos.” Pommora’s main leverage is taking the extremely flexible, properties-based categorization of Notion and the inherently agentic-legible, local-first approach used by Obsidian, aiming to create a true local-first, all-in-one productivity and organizational platform. Pommora’s structure is based on relating **Content** ←> **Content** through *Connections*, with their attributes given through their **Collection’s** schema-based **Properties,** and linking them all together through relationships to **Contexts.** 
+Pommora is a personal management app based on Nathan’s frustration with modern productivity apps that excel in one aspect but are absolutely terrible in others — Pommora is Nathan’s “Fine, I’ll do it myself — Thanos.” Pommora’s main leverage is taking the extremely flexible, properties-based categorization of Notion and the inherently agentic-legible, local-first approach used by Obsidian, aiming to create a true local-first, all-in-one productivity and organizational platform. Pommora’s structure is based on relating **Content** <-> **Content** through *Connections*, with their attributes given through their **Collection’s** schema-based **Properties,** and linking them all together through relationships to **Contexts.** 
 
 **Contexts:** The organization layer — three free-standing tiers that Content relates *to*. None contains or parents another; an entity tags whichever tiers fit.
 
 - **Areas:** broad life domains — Personal, Academics, Work.
-- **Topics:** the subject areas within them — Productivity, Side Projects, Reading List.
+- **Topics:** the subject areas within them — Productivity, Side Projects, Reading List. 
 - **Projects:** specific efforts — CS 161, Pommora, "Atomic Habits."
 
-**Content:** The operational layer — what you actually make, linked to each other through **Connections** for content ←> content relations, and with **Front-matter** for content ←> tier relations.
+**Content:** The operational layer — what you actually make, linked to each other through **Connections** for content ↔ content relations, and with **Front-matter** for content ←> tier relations. 
 
 - **Collections & Sets:** a **Collection** is a folder that carries a shared property schema and saved views; it nests Sets to any depth as organizing subfolders that inherit that schema.
 - **Pages:** Markdown documents inside a Collection or Set, conforming to its Collection’s properties — the only Content that holds free prose. Pages use MarkdownPM for its editor surface, which includes in-line connections to other pages. 
@@ -67,7 +67,7 @@ The GUI only launches with `ELECTRON_RUN_AS_NODE` **unset** (this env has it set
 
 ### Important Information 
 
-- **Connections** are in-line `[[Title]]`, resolved via SQLite, and **aren’t** displayed in any container views *(tables, galleries, lists…)*. **Contexts** are properties resolved via front-matter; content ←> content relational properties **don’t** exist. 
+- **Connections** are in-line `[[Title]]`, resolved via SQLite, and **aren’t** displayed in any container views *(tables, galleries, lists…)*. **Contexts** are properties resolved via front-matter; content ↔ content relational properties **don’t** exist. 
 - If Nathan mistakenly says "label-quaternary" or "label-quinary," he actually means fills → `design-system/tokens.` 
 - **Collections** *used* to be called “Vaults” with what’s now sets being called collections instead before a rename. If Nathan says “Vault,” he means Collection, not as in Obsidian's alternative for Pomona’s Nexus.
 - If Nathan says "double-click" in a context where "right-click" makes more sense, it's almost certainly what he intended to say.
