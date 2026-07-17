@@ -43,7 +43,8 @@ export function Subfield({ scope }: { scope?: SubfieldScope }): React.JSX.Elemen
   const rawCrumbs = subfieldCrumbs(tree, crumbSelection, trail, (t) => void select(t))
   // The preview is tab-neutral — its crumbs describe location but don't navigate the main pane.
   const crumbs = scope ? rawCrumbs.map((c) => ({ ...c, onClick: undefined })) : rawCrumbs
-  const kind = scope ? 'page' : selection.kind
+  // Items describe the same view as the crumbs — the scoped page under a preview, else the selection.
+  const kind = crumbSelection.kind
   // Persisted order wins (filtered to known ids); fall back to the registry default per view kind.
   const items = (order[kind] ?? DEFAULT_ITEMS[kind] ?? []).filter(isSubfieldItemId)
 
