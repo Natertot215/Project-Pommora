@@ -43,6 +43,7 @@ import {
   tabKey,
 } from './Tabs/tabsModel'
 import { captureWarm, clearWarm, dropWarmTab, readWarm } from './Tabs/warmCache'
+import { clearPreviewWarm, dropPreviewWarm } from './PagePreview/previewWarm'
 import { flushActivePage, flushPreviewPage } from './Detail/pageFlush'
 import { dropCapturedOutside } from './Navigation/useNavThumbnails'
 import { stabilize } from './treeStabilize'
@@ -374,6 +375,7 @@ export const useSession = create<SessionState>((set, get) => {
       previewSlide: null,
     })
     clearWarm() // warmth is per-nexus AND session-only — never crosses an adoption (I-10)
+    clearPreviewWarm()
   }
 
   // Shared "open attempt" path for the picker and drag-to-open: run the bridge
@@ -850,6 +852,7 @@ export const useSession = create<SessionState>((set, get) => {
             else if (r.kind === 'page' && r.path !== t.target.path) repath.set(t.id, r.path)
           }
           if (deadIds.length > 0 || repath.size > 0) {
+            for (const id of deadIds) dropPreviewWarm(id) // a dead tab's warmth dies with it
             let next: PreviewState | null = cur
             for (const id of deadIds) next = next && closeTabIn(next, id)
             if (next && repath.size > 0)
@@ -1220,14 +1223,20 @@ export const useSession = create<SessionState>((set, get) => {
       void get().ensureAgendaSnapshot() // warm the agenda snapshot so search can list Tasks/Events
       const hadPreview = get().preview !== null
       set({ navOpen: true, preview: null, previewTarget: null })
-      if (hadPreview) mirrorPreviews() // D-8 closed the preview — record `open` cleared
+      if (hadPreview) {
+        clearPreviewWarm()
+        mirrorPreviews() // D-8 closed the preview — record `open` cleared
+      }
     },
     closeNav: () => set({ navOpen: false }),
     toggleNav: () => {
       if (!get().navOpen) void get().ensureAgendaSnapshot()
       const hadPreview = get().preview !== null
       set((s) => ({ navOpen: !s.navOpen, preview: null, previewTarget: null }))
-      if (hadPreview) mirrorPreviews()
+      if (hadPreview) {
+        clearPreviewWarm()
+        mirrorPreviews()
+      }
     },
     preview: null,
     previewsFile: EMPTY_PREVIEWS,
@@ -1249,6 +1258,7 @@ export const useSession = create<SessionState>((set, get) => {
         tabs,
         activeTabId: (activeTab ?? tabs[0]).id,
       }
+      clearPreviewWarm() // a summon/overtake re-mints every tab id — prior warmth is unreachable
       set({ preview, previewTarget: deriveTarget(preview), navOpen: false })
       mirrorPreviews()
     },
@@ -1263,6 +1273,7 @@ export const useSession = create<SessionState>((set, get) => {
         tabs: [sentinel, ...pages],
         activeTabId: (activeTab ?? sentinel).id,
       }
+      clearPreviewWarm()
       set({ preview, previewTarget: deriveTarget(preview), navOpen: false })
       mirrorPreviews()
     },
@@ -1294,10 +1305,14 @@ export const useSession = create<SessionState>((set, get) => {
       if (!cur) return
       const next = closeTabIn(cur, id)
       if (next === cur) return
+      if (next === null) clearPreviewWarm()
+      else dropPreviewWarm(id)
       commitPreview(next)
     },
     closePreview: () => {
       // X/Escape: the window closes but its set stays remembered (H-3) — only `open` clears.
+      // Warmth dies with the window: a restore re-mints tab ids, so old entries are unreachable.
+      clearPreviewWarm()
       set({ preview: null, previewTarget: null })
       mirrorPreviews()
     },

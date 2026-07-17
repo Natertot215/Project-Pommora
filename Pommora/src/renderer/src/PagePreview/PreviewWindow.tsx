@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { GlassPane, GlassWindow } from '@renderer/design-system/materials'
 import { Icon } from '@renderer/design-system/symbols'
 import { duration, easing } from '@renderer/design-system/tokens'
@@ -15,6 +15,7 @@ import { NavCrumbs } from '../Navigation/NavList'
 import { buildResolveIndex, resolveWith } from '../Navigation/navResolve'
 import { useSession, type PreviewTarget } from '../store'
 import { PreviewTabStrip } from './PreviewTabStrip'
+import { capturePreviewWarm, readPreviewWarm, type PreviewWarmEntry } from './previewWarm'
 import './previewWindow.css'
 
 // KNOB — D-7: the unified floating-chrome opening size (shared with NavWindow's WIN block).
@@ -153,6 +154,59 @@ function PreviewWindowBody({
         ?.animate([{ transform: `translateX(${x}px)` }, { transform: 'translateX(0)' }], timing)
   }, [target.path, previewSlide, inspectorOpen])
 
+  // Warmth (H-8): the embed's editor state keys on the ACTIVE preview-tab id. The seam binds at
+  // the editor's mount (its mount-once effect freezes the closure), so a switch's unmount capture
+  // always lands under the tab that owned it. Captures are LIVENESS-GATED: the editor's unmount
+  // capture trails the store's drop (close-the-active-tab, window close), and ungated it would
+  // re-insert every dropped id — one ghost editorState per close, accumulating all session.
+  const activePreviewTabId = useSession((s) => s.preview?.activeTabId)
+  const captureIfLive = useCallback((tabId: string, entry: PreviewWarmEntry): void => {
+    const p = useSession.getState().preview
+    if (p?.tabs.some((t) => t.id === tabId)) capturePreviewWarm(tabId, entry)
+  }, [])
+  const warmSeam = useMemo(
+    () =>
+      activePreviewTabId
+        ? {
+            restore: () => readPreviewWarm(activePreviewTabId),
+            capture: (state: { editorState: unknown; scrollTop: number }) =>
+              captureIfLive(activePreviewTabId, state),
+          }
+        : undefined,
+    [activePreviewTabId, captureIfLive],
+  )
+
+  // Per-tab BODY scroll warmth: the preview's one scroller is the body (the editor chain never
+  // overflows here), so the window tracks it — a passive listener records the active tab's scroll
+  // as it happens (no switch-time read of a maybe-clamped value), and a switch restores the
+  // incoming tab's after its embed committed (child effects run first, so content height exists).
+  useEffect(() => {
+    const el = bodyRef.current
+    if (!el || !activePreviewTabId) return
+    const onScroll = (): void => captureIfLive(activePreviewTabId, { bodyScrollTop: el.scrollTop })
+    el.addEventListener('scroll', onScroll, { passive: true })
+    return () => el.removeEventListener('scroll', onScroll)
+  }, [activePreviewTabId])
+  useEffect(() => {
+    if (!activePreviewTabId) return
+    const saved = readPreviewWarm(activePreviewTabId)?.bodyScrollTop ?? 0
+    // CM6 builds the embed's height ASYNC after mount — an immediate set clamps to 0 on the
+    // not-yet-tall body (and the listener would record the clamp as truth). Double-rAF lands
+    // after its first measure/layout pass; the restore's own scroll event then re-captures right.
+    let inner = 0
+    const outer = requestAnimationFrame(() => {
+      inner = requestAnimationFrame(() => {
+        if (bodyRef.current) bodyRef.current.scrollTop = saved
+      })
+    })
+    return () => {
+      cancelAnimationFrame(outer)
+      cancelAnimationFrame(inner)
+    }
+    // target.path IS the switch signal — the effect must fire per content swap, not per tab-id.
+    // biome-ignore lint/correctness/useExhaustiveDependencies: see above
+  }, [target.path])
+
   // B-5 promotion: open for real through the normal select, closing the preview.
   const promote = (): void => {
     closePreview()
@@ -212,7 +266,7 @@ function PreviewWindowBody({
           </button>
         </div>
       </div>
-      <div className="pgpreview-body edge-fade">
+      <div className="pgpreview-body edge-fade" ref={bodyRef}>
         <PageEmbed
           key={target.path}
           path={target.path}
@@ -220,6 +274,7 @@ function PreviewWindowBody({
           onBeginEdit={() => setEditing(true)}
           connections={connections}
           registerFlush={registerPreviewFlush}
+          warm={warmSeam}
         />
       </div>
       <GlassWindow

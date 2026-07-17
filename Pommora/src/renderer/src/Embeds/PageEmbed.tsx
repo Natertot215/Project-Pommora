@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { MarkdownEditor } from '@renderer/MarkdownPM'
+import { MarkdownEditor, type WarmSeam } from '@renderer/MarkdownPM'
 import type { ConnectionsApi } from '@renderer/MarkdownPM/connections'
 import './embeds.css'
 
@@ -23,6 +23,7 @@ export function PageEmbed({
   connections,
   locked = false,
   registerFlush,
+  warm,
 }: {
   /** Nexus-relative path to the `.md` — the page's address for load + save. */
   path: string
@@ -33,20 +34,30 @@ export function PageEmbed({
   locked?: boolean
   /** Opt-in awaitable-flush registration (the pageFlush pattern) for hosts whose close defers unmount. */
   registerFlush?: (fn: (() => Promise<void>) | null) => void
+  /** Opt-in warmth (H-8): a restored entry mounts the editor synchronously (its doc IS the body —
+   *  no fetch, no blank frame); capture fires at editor unmount. Block tiles mount cold. */
+  warm?: WarmSeam
 }): React.JSX.Element {
-  const [body, setBody] = useState<string | null>(null)
+  // The body is bound to the path it was loaded FOR — an un-keyed host swapping `path` in place
+  // (a tile re-aimed at another page) blanks and refetches, exactly as a fresh mount would. A warm
+  // hit seeds it from the restored editor state's serialized doc: no fetch, no blank frame.
+  const [loaded, setLoaded] = useState<{ path: string; body: string } | null>(() => {
+    const doc = (warm?.restore()?.editorState as { doc?: unknown } | undefined)?.doc
+    return typeof doc === 'string' ? { path, body: doc } : null
+  })
+  const body = loaded?.path === path ? loaded.body : null
   const pending = useRef<{ timer: ReturnType<typeof setTimeout>; body: string } | null>(null)
 
   useEffect(() => {
+    if (body !== null) return // already holding this path's body (warm mount or a done fetch)
     let live = true
-    setBody(null)
     void window.nexus.openPage(path).then((r) => {
-      if (live) setBody(r.ok ? r.page.body : '')
+      if (live) setLoaded({ path, body: r.ok ? r.page.body : '' })
     })
     return () => {
       live = false
     }
-  }, [path])
+  }, [path, body])
 
   const flush = (): Promise<void> => {
     const p = pending.current
@@ -94,6 +105,7 @@ export function PageEmbed({
         autoFocus
         zoom={EMBED_ZOOM}
         edgeFade
+        warm={warm}
       />
     </div>
   )

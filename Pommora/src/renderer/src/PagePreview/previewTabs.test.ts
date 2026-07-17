@@ -1,12 +1,14 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest'
 import { useSession } from '../store'
+import { capturePreviewWarm, clearPreviewWarm, readPreviewWarm } from './previewWarm'
 
 const page = (id: string) => ({ id, path: `Notes/${id}.md` })
 
-beforeEach(() =>
-  useSession.setState({ preview: null, previewsFile: { navSet: null, origins: {}, open: null } }),
-)
+beforeEach(() => {
+  clearPreviewWarm()
+  useSession.setState({ preview: null, previewsFile: { navSet: null, origins: {}, open: null } })
+})
 
 describe('previewTabs — the tab model (H-1/H-5/H-6/H-7)', () => {
   it('summon opens a single-tab window; re-summon of the same origin is a no-op (I-1)', () => {
@@ -153,6 +155,33 @@ describe('previewTabs — the nav flavor (H-2)', () => {
     useSession.getState().closePreviewTab(p.tabs[1].id)
     const p2 = useSession.getState().preview!
     expect(p2.tabs.map((t) => t.target.kind)).toEqual(['navwindow'])
+  })
+})
+
+describe('previewTabs — warmth (H-8)', () => {
+  it('round-trips per tab id; a tab close evicts its entry; the window close clears all', () => {
+    useSession.getState().openPreview(page('x'))
+    useSession.getState().openPreviewTab(page('y'))
+    const p = useSession.getState().preview!
+    const [xTab, yTab] = p.tabs
+    capturePreviewWarm(xTab.id, { editorState: { doc: 'X' }, scrollTop: 5 })
+    capturePreviewWarm(yTab.id, { editorState: { doc: 'Y' }, scrollTop: 9 })
+    expect(readPreviewWarm(xTab.id)?.scrollTop).toBe(5)
+
+    useSession.getState().closePreviewTab(yTab.id)
+    expect(readPreviewWarm(yTab.id)).toBeUndefined()
+    expect(readPreviewWarm(xTab.id)?.scrollTop).toBe(5)
+
+    useSession.getState().closePreview()
+    expect(readPreviewWarm(xTab.id)).toBeUndefined()
+  })
+
+  it('a summon clears prior warmth — restored ids are fresh, old entries unreachable', () => {
+    useSession.getState().openPreview(page('x'))
+    const xTab = useSession.getState().preview!.tabs[0]
+    capturePreviewWarm(xTab.id, { scrollTop: 7 })
+    useSession.getState().openPreview(page('z'))
+    expect(readPreviewWarm(xTab.id)).toBeUndefined()
   })
 })
 
