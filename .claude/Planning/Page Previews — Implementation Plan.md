@@ -310,7 +310,7 @@ Decision ids: A-4, B-5, I-23, F-1 (scan).
 - Modify: `store.ts` (`closePreview(reason?: 'dismiss' | 'engulf')` stored transiently for the exit), `PreviewWindow.tsx` (exit class `closing` vs `engulfing`), `Detail/DetailPane.tsx` (export a rect ref — a module `getDetailPaneRect()` reading the pane element), `previewWindow.css` (the engulf keyframe: FLIP from the window's geometry rect to the detail-pane rect, opacity crossfade, `--duration-base`/`--ease-standard`; a named primitive — `preview-engulf`)
 - Promote paths (scan button, ⌘N when it closes the window) pass `'engulf'`; X/Escape pass `'dismiss'`.
 
-- [ ] **Steps:** implement → gates → CDP-record: promote plays the engulf (screenshot mid-flight + settled), dismiss plays the scale-out → Phase Protocol 2–5. **Motion treatment is design-stage — build the FLIP, screenshot, log the exact values inline for Nathan's morning tune.**
+- [x] **Steps:** implement → gates → CDP-record: promote plays the engulf (screenshot mid-flight + settled), dismiss plays the scale-out → Phase Protocol 2–5. **Motion treatment is design-stage — build the FLIP, screenshot, log the exact values inline for Nathan's morning tune.**
 
 ---
 
