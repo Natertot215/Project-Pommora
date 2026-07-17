@@ -197,8 +197,8 @@ Decision ids: H-3, H-6 (re-key), H-10, D-9, I-24.
 - Modify: `Pommora/src/main/io/tabsState.ts`, `Pommora/src/main/io/navState.ts` (rebase both onto it — same debounce/pending-with-root/in-flight/flush contract, behavior-identical)
 - Test: existing `tabsState.test.ts` + `navState.test.ts` stay green (that IS the test); add one helper test for the drain contract.
 
-- [ ] **Step 1:** Lift the shared machine (schedule/write/flush/pending-carries-root) parameterized by `{ file, debounceMs, serialize }`; each module keeps its own validation + shape.
-- [ ] **Step 2:** Gates green (the two suites prove behavior parity). Commit `refactor(io): one debounced-sidecar machine — tabsState + navState rebase (H-10)`.
+- [x] **Step 1:** Lift the shared machine (schedule/write/flush/pending-carries-root) parameterized by `{ file, debounceMs, serialize }`; each module keeps its own validation + shape.
+- [x] **Step 2:** Gates green (the two suites prove behavior parity). Commit `refactor(io): one debounced-sidecar machine — tabsState + navState rebase (H-10)`.
 
 ### Task 3.2: `page-previews.json`
 
@@ -218,10 +218,10 @@ export interface PreviewsFile {
 }
 ```
 
-- [ ] **Step 1: Failing io tests:** lenient read (garbage → empty file shape), round-trip, re-key rename (`origins.x` → `origins.y`), drain-at-quit.
-- [ ] **Step 2:** Implement on the Task 3.1 helper. PASS.
-- [ ] **Step 3:** Renderer wiring in the slice: on summon, load the origin's remembered set **and reconcile it against the live tree before showing** (dead paths drop, renamed re-path — the `reconcileTabs`-equivalent; an emptied set falls back to `[origin]`); every mutation schedules a save (re-key on re-parent writes both the retirement and the new key); `open` mirrors the slice; adopt drains via the existing `Promise.all` hookups.
-- [ ] **Step 4: Failing store tests:** summon restores + reconciles; re-parent re-keys; retired origin re-summons fresh. PASS → gates → Phase Protocol 2–5.
+- [x] **Step 1: Failing io tests:** lenient read (garbage → empty file shape), round-trip, re-key rename (`origins.x` → `origins.y`), drain-at-quit.
+- [x] **Step 2:** Implement on the Task 3.1 helper. PASS.
+- [x] **Step 3:** Renderer wiring in the slice: on summon, load the origin's remembered set **and reconcile it against the live tree before showing** (dead paths drop, renamed re-path — the `reconcileTabs`-equivalent; an emptied set falls back to `[origin]`); every mutation schedules a save (re-key on re-parent writes both the retirement and the new key); `open` mirrors the slice; adopt drains via the existing `Promise.all` hookups.
+- [x] **Step 4: Failing store tests:** summon restores + reconciles; re-parent re-keys; retired origin re-summons fresh. PASS → gates → Phase Protocol 2–5.
 
 ---
 
