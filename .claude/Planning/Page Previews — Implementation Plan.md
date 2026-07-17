@@ -235,7 +235,7 @@ Decision ids: H-8, C-4 (kept), I-10.
 - Modify: `Pommora/src/renderer/src/Embeds/PageEmbed.tsx` (optional `warm?: { restore: () => WarmEntry | undefined; capture: (state: WarmEntry) => void }` — the MarkdownEditor already accepts this contract; PageEmbed threads it + uses a restored `pageDetail` body to mount synchronously instead of the blank `pgembed` div), `PagePreview/previewTabs.ts` + `store.ts` (the warm Map is a **slice-owned module** mirroring `warmCache.ts` per H-11 — never component-local; `closePreviewTab` calls its drop, nexus adopt clears it), `PreviewWindow.tsx` (passes the warm hooks keyed by **preview-tab id**)
 - Test: a store-level test that capture/restore round-trips per preview-tab id; block tiles (no `warm` prop) unchanged.
 
-- [ ] **Steps:** failing test → implement → PASS → gates → CDP-verify a tab switch restores scroll instantly → Phase Protocol 2–5. (`key={path}` stays; warmth is restore-on-mount, per the log. **`closePreviewTab` evicts the closed tab's warm entry** — the Map never grows unbounded within a session.)
+- [x] **Steps:** failing test → implement → PASS → gates → CDP-verify a tab switch restores scroll instantly → Phase Protocol 2–5. (`key={path}` stays; warmth is restore-on-mount, per the log. **`closePreviewTab` evicts the closed tab's warm entry** — the Map never grows unbounded within a session.)
 
 ---
 
