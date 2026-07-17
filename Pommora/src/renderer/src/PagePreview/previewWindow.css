@@ -38,6 +38,8 @@
   --pgpreview-bg: var(--bg-window);
   --pgpreview-bg-a: 90%;
   --pgpreview-inspector-w: 260px; /* KNOB — inspector pane width */
+  --pgpreview-tab-fade: 16px; /* KNOB — the tab strip's overflow edge dissolve */
+  --pgpreview-morph-slide: -12px; /* KNOB — the title's collapse-left travel in the H-9 morph */
   /* KNOB — the pane's ring from the window edges: the same --glass-inset ring the NavWindow
      gives its rail, so the two sidebars sit identically in their windows. */
   --pgpreview-inspector-inset: var(--glass-inset);
@@ -77,6 +79,56 @@
   /* KNOB — the title/tab area sizes on the caption ramp, independent of the toolbar glyphs
      (the crumb glyph size is the iconSize prop in PreviewWindow.tsx). */
   font-size: var(--text-caption-size);
+  /* The H-9 morph: the title fades/slides LEFT toward the strip as tab #2 grows in, and returns
+     the same way — the strip's own motion is the tab-open @starting-style growth (tabStrip.css). */
+  transition:
+    opacity var(--duration-base) var(--ease-standard),
+    transform var(--duration-base) var(--ease-standard);
+}
+@starting-style {
+  .pgpreview-title {
+    opacity: 0;
+    transform: translateX(-50%) translateX(var(--pgpreview-morph-slide));
+  }
+}
+.pgpreview-title.is-collapsing {
+  opacity: 0;
+  transform: translateX(-50%) translateX(var(--pgpreview-morph-slide));
+}
+
+/* ---- the tab strip (H-9): left-aligned in the toolbar's center, its own scroll + edge fade
+   (the toolbar's .tab-scroll affordance mirrored, never imported). The motion classes come from
+   tabStrip.css; geometry re-knobs here at caption scale. ---- */
+.pgpreview-tabwrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+}
+.pgpreview-tabscroll {
+  --edge-fade: var(--pgpreview-tab-fade);
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+.pgpreview-tabstrip {
+  /* KNOBS — preview tab geometry: the caption-scale counterpart of the toolbar's .tab-bar block. */
+  --tab-min: 70px;
+  --tab-pref: 150px;
+  --tab-max: 200px;
+  --tab-pad-x: 10px;
+  --tab-gap: 5px;
+  display: flex;
+  align-items: center;
+  width: max-content;
+  min-width: 100%;
+  height: 100%;
 }
 .pgpreview-crumbs {
   min-width: 0;

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { GlassPane, GlassWindow } from '@renderer/design-system/materials'
 import { Icon } from '@renderer/design-system/symbols'
+import { duration, easing } from '@renderer/design-system/tokens'
 import {
   FloatingResizeCorners,
   useFloatingWindow,
@@ -13,6 +14,7 @@ import { registerPreviewFlush } from '../Detail/pageFlush'
 import { NavCrumbs } from '../Navigation/NavList'
 import { buildResolveIndex, resolveWith } from '../Navigation/navResolve'
 import { useSession, type PreviewTarget } from '../store'
+import { PreviewTabStrip } from './PreviewTabStrip'
 import './previewWindow.css'
 
 // KNOB — D-7: the unified floating-chrome opening size (shared with NavWindow's WIN block).
@@ -26,12 +28,21 @@ let inspectorW = INSPECTOR.def
 const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v))
 
 // The bare surfaces a window-move may start from. The breadcrumb title is pointer-inert (I-16), so a
-// press on it lands on the toolbar beneath and arms the move.
-const DRAG_SURFACES = '.pgpreview, .pgpreview-toolbar, .pgpreview-body'
+// press on it lands on the toolbar beneath and arms the move; the tab wrap's bare space moves too
+// (a press on a .tab is not the wrap and never arms).
+const DRAG_SURFACES =
+  '.pgpreview, .pgpreview-toolbar, .pgpreview-body, .pgpreview-tabwrap, .pgpreview-tabscroll, .pgpreview-tabstrip'
+
+// The tab-switch content slide (H-11): the DetailPane's view-slide values on the preview's own stamp.
+const SLIDE_PX = 14
 
 export function PreviewWindow(): React.JSX.Element | null {
+  // The window's existence keys on the PAGE flavor, not the derived target — the nav flavor renders
+  // in NavWindow's chrome, and its map tab nulls the target without closing anything (H-2/I-4).
+  // A page-flavor window always has an active page tab, so the target is non-null while open.
+  const open = useSession((s) => s.preview?.flavor === 'page')
   const target = useSession((s) => s.previewTarget)
-  const { mounted, closing } = useExitPresence(target !== null)
+  const { mounted, closing } = useExitPresence(open)
   // Hold the last real target through the exit animation (the store nulls it at close). The body is
   // NOT keyed by target: an overtake swaps contents in place — the window never jumps (I-6).
   const held = useRef(target)
@@ -94,29 +105,53 @@ function PreviewWindowBody({
     return () => window.removeEventListener('keydown', onKey)
   }, [closePreview, inspectorOpen])
 
-  // Wiki-links inside the preview stay inside it — a click overtakes the shown page (H-1's shell
-  // interim until tabs land).
-  const openPreview = useSession((s) => s.openPreview)
+  // Wiki-links inside the preview stay inside it — a click opens (or dedup-focuses) a tab (H-1).
+  const openPreviewTab = useSession((s) => s.openPreviewTab)
   const connections = useMemo<ConnectionsApi | undefined>(() => {
     if (!tree) return undefined
     const idx = buildPageIndex(flattenPages(tree))
     return {
       ...idx,
-      open: (page) => openPreview({ id: page.id, path: page.path }),
+      open: (page) => openPreviewTab({ id: page.id, path: page.path }),
       menu: showConnectionMenu,
     }
-  }, [tree, openPreview])
+  }, [tree, openPreviewTab])
+
+  const resolveIndex = useMemo(() => (tree ? buildResolveIndex(tree) : null), [tree])
 
   // The F-2 breadcrumb: the page's container chain + the page itself as the last crumb.
   const crumbs = useMemo(() => {
-    if (!tree) return []
-    const res = resolveWith(buildResolveIndex(tree), {
-      kind: 'page',
-      id: target.id,
-      path: target.path,
-    })
+    if (!resolveIndex) return []
+    const res = resolveWith(resolveIndex, { kind: 'page', id: target.id, path: target.path })
     return res ? [...res.path, { icon: res.icon, title: res.title }] : []
-  }, [tree, target])
+  }, [resolveIndex, target])
+
+  // Tab-switch slide: the incoming page slides in from the strip direction (the DetailPane WAAPI
+  // pattern on the preview's own stamp), and the open inspector RIDES the same keyframes — the
+  // G-4 one-motion push (transform only: the pane never blinks).
+  const previewSlide = useSession((s) => s.previewSlide)
+  const bodyRef = useRef<HTMLDivElement>(null)
+  const prevPath = useRef(target.path)
+  const playedSeq = useRef(0)
+  useEffect(() => {
+    const swapped = prevPath.current !== target.path
+    prevPath.current = target.path
+    if (!swapped || !previewSlide || previewSlide.seq === playedSeq.current) return
+    playedSeq.current = previewSlide.seq
+    const x = previewSlide.dir === 'back' ? -SLIDE_PX : SLIDE_PX
+    const timing = { duration: Number.parseInt(duration.fast, 10), easing: easing.standard }
+    bodyRef.current?.animate(
+      [
+        { transform: `translateX(${x}px)`, opacity: 0 },
+        { transform: 'translateX(0)', opacity: 1 },
+      ],
+      timing,
+    )
+    if (inspectorOpen)
+      bodyRef.current?.parentElement
+        ?.querySelector('.pgpreview-inspector')
+        ?.animate([{ transform: `translateX(${x}px)` }, { transform: 'translateX(0)' }], timing)
+  }, [target.path, previewSlide, inspectorOpen])
 
   // B-5 promotion: open for real through the normal select, closing the preview.
   const promote = (): void => {
@@ -141,9 +176,6 @@ function PreviewWindowBody({
       onPointerDown={onWindowDown}
     >
       <div className="pgpreview-toolbar">
-        <div className="pgpreview-title">
-          <NavCrumbs path={crumbs} className="pgpreview-crumbs" iconSize={11} />
-        </div>
         <div className="pgpreview-actions">
           <button
             type="button"
@@ -154,6 +186,10 @@ function PreviewWindowBody({
             <Icon name="scan" size={13} />
           </button>
         </div>
+        <PreviewTabStrip
+          index={resolveIndex}
+          title={<NavCrumbs path={crumbs} className="pgpreview-crumbs" iconSize={11} />}
+        />
         <div className="pgpreview-actions">
           {/* The flow pair rides the inspector's edge (the main toolbar's --io swallow); the X
               holds home. */}
