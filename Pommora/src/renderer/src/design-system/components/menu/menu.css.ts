@@ -229,6 +229,9 @@ export const footingSymbol = style({
 // A BottomRow's icon buttons read label-secondary (the footing tone), not the accessoryButton default
 // tertiary — the tripled class outranks accessoryButton's `&&`.
 globalStyle(`${bottomRow} ${accessoryButton}${accessoryButton}`, { color: c.label.secondary })
+// A footing's value reads the footing tone (secondary) too — the row's own primary color yields
+// inside the bottom bar, so a footing's label + value + symbol all sit at one secondary tier.
+globalStyle(`${bottomBar} ${detail}`, { color: c.label.secondary })
 
 // ── Scroll frame — the shared pinned-header/footer + scrolling-body primitive (MenuScrollFrame) ──
 // A pane's optional header and footer stay put (flush against the surface, never scrolling) while the
