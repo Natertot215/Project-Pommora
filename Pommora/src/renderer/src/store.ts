@@ -44,6 +44,7 @@ import {
 } from './Tabs/tabsModel'
 import { captureWarm, clearWarm, dropWarmTab, readWarm } from './Tabs/warmCache'
 import { clearPreviewWarm, dropPreviewWarm } from './PagePreview/previewWarm'
+import { stashWindowMorph } from './PagePreview/WindowMorph'
 import { flushActivePage, flushPreviewPage } from './Detail/pageFlush'
 import { dropCapturedOutside } from './Navigation/useNavThumbnails'
 import { stabilize } from './treeStabilize'
@@ -301,7 +302,7 @@ interface SessionState {
   setNavOverride: (on: boolean) => void
   /** How the CURRENT close should read (A-4): promote paths pass 'engulf' (the window flies into
    *  the detail pane), X/Escape 'dismiss' (the scale-out). Consumed by the exit animation. */
-  previewExit: 'dismiss' | 'engulf'
+  previewExit: 'dismiss' | 'engulf' | 'morph'
 
   /** Re-fetch the open page's detail (after a frontmatter write like a page banner/cover). No-op if no page. */
   reloadPage: () => Promise<void>
@@ -1269,7 +1270,13 @@ export const useSession = create<SessionState>((set, get) => {
       mirrorPreviews()
     },
     openNavPreview: () => {
-      if (get().preview?.flavor === 'nav') return
+      const cur = get().preview
+      if (cur?.flavor === 'nav') return
+      // A live page preview MORPHS into the NavWindow (one window changing shape, never a
+      // dismiss + fresh open): its rect is stashed for the nav's mount FLIP, and the 'morph'
+      // exit hides the outgoing window instantly so the nav carries the whole motion.
+      const morphing = cur?.flavor === 'page'
+      if (morphing) stashWindowMorph()
       // H-2: the map sentinel is always tab 1; the remembered page tabs restore after it. The map
       // tab opens ACTIVE (the gallery is the landing view; remembered tabs sit beside it).
       const { tabs: pages } = reconcileRecord(get().previewsFile.navSet)
@@ -1281,7 +1288,11 @@ export const useSession = create<SessionState>((set, get) => {
         activeTabId: sentinel.id,
       }
       clearPreviewWarm()
-      set({ preview, previewTarget: deriveTarget(preview), previewExit: 'dismiss' })
+      set({
+        preview,
+        previewTarget: deriveTarget(preview),
+        previewExit: morphing ? 'morph' : 'dismiss',
+      })
       mirrorPreviews()
     },
     setNavOverride: (on) => savePreviewsFile({ ...get().previewsFile, navOverride: on }),

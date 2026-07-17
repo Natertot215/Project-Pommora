@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { GlassPane } from '@renderer/design-system/materials'
 import { Icon } from '@renderer/design-system/symbols'
 import { cx } from '@renderer/design-system/cx'
-import { text } from '@renderer/design-system/tokens'
+import { duration, easing, text } from '@renderer/design-system/tokens'
 import { SidePane, sidePaneWidth } from '@renderer/design-system/components/SidePane/SidePane'
 import {
   FloatingResizeCorners,
@@ -21,6 +21,7 @@ import { splitSearch, useNavData } from '../Navigation/useNavData'
 import { NavList } from '../Navigation/NavList'
 import { INSPECTOR } from '../PagePreview/PreviewWindow'
 import { PreviewInspector } from '../PagePreview/PreviewInspector'
+import { consumeWindowMorph } from '../PagePreview/WindowMorph'
 import { PreviewTabStrip } from '../PagePreview/PreviewTabStrip'
 import { usePreviewWarm } from '../PagePreview/usePreviewWarm'
 import { NavGallery } from './NavGallery'
@@ -36,7 +37,7 @@ let savedViewMode: 'list' | 'gallery' = 'list'
 // The bare backgrounds a window-move may start from (matched against the press target itself, so any
 // child content — row internals, card bodies, the search input — never arms a move).
 const DRAG_SURFACES =
-  '.navwindow, .navwindow-body, .navwindow-rail, .navwindow-rail-list, .navwindow-main, .navwindow-main-scroll, .navwindow-search, .navwindow-page, .navwindow-tabs, .nav-list, .nav-gallery, .nav-gallery-grid'
+  '.navwindow, .navwindow-body, .navwindow-content, .navwindow-rail, .navwindow-rail-list, .navwindow-main, .navwindow-main-scroll, .navwindow-search, .navwindow-page, .navwindow-tabs, .pgpreview-tabwrap, .pgpreview-tabscroll, .pgpreview-tabstrip, .nav-list, .nav-gallery, .nav-gallery-grid'
 
 export function NavWindow(): React.JSX.Element | null {
   const navOpen = useSession((s) => s.navOpen)
@@ -78,14 +79,37 @@ function NavWindowBody({ closing }: { closing: boolean }): React.JSX.Element {
 
   const [query, setQuery] = useState('')
   const searchRef = useRef<HTMLInputElement>(null)
+
+  // The flavor-swap entrance: an open that came from a live page preview FLIPs from its stashed
+  // rect into place (the engulf pattern reversed). The css intro is cancelled pre-paint — one
+  // window, one motion; a plain open finds no stash and plays the normal scale-in.
+  const winRef = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const from = consumeWindowMorph()
+    const el = winRef.current?.parentElement
+    if (!from || !el) return
+    for (const a of el.getAnimations()) a.cancel()
+    const to = el.getBoundingClientRect()
+    const dx = from.left + from.width / 2 - (to.left + to.width / 2)
+    const dy = from.top + from.height / 2 - (to.top + to.height / 2)
+    el.animate(
+      [
+        {
+          transform: `translate(${dx}px, ${dy}px) scale(${from.width / to.width}, ${from.height / to.height})`,
+        },
+        { transform: 'translate(0px, 0px) scale(1)' },
+      ],
+      { duration: Number.parseInt(duration.base, 10), easing: easing.standard },
+    )
+  }, [])
   const {
     style: winStyle,
     onWindowDown,
     startDrag,
   } = useFloatingWindow('navwindow', WIN, DRAG_SURFACES)
 
-  // The preview chrome (H-2 shared toolbar): inspector pane state — the same SidePane +
-  // front-matter body as the floating preview, sharing ONE remembered width slot.
+  // The inspector — PAGE TABS ONLY (Nathan's call): its button lives in the sliding page-tab
+  // chrome, its pane shares the preview's SidePane + width slot, and it dies on the map return.
   const [inspectorOpen, setInspectorOpen] = useState(false)
   const [inspW, setInspW] = useState(INSPECTOR.def)
   const [inspResizing, setInspResizing] = useState(false)
@@ -95,7 +119,8 @@ function NavWindowBody({ closing }: { closing: boolean }): React.JSX.Element {
       // Bail unless this is the LIVE surface — during the 380ms flavor-swap exit both windows'
       // handlers coexist, and a stale one must never eat the press (D-4: one press, one layer).
       if (e.key !== 'Escape' || e.defaultPrevented || !useSession.getState().navOpen) return
-      if (inspectorOpen) setInspectorOpen(false) // I-21: the pane first, then the window
+      if (inspectorOpen)
+        setInspectorOpen(false) // I-21: the pane first, then the window
       else closeNav()
     }
     window.addEventListener('keydown', onKey)
@@ -116,11 +141,6 @@ function NavWindowBody({ closing }: { closing: boolean }): React.JSX.Element {
       savedViewMode = m === 'list' ? 'gallery' : 'list'
       return savedViewMode
     })
-
-  // B-2: the routing override — "Open in Preview" from this window's rows opens a tab HERE instead
-  // of the floating preview. Persisted in page-previews.json; default on (the override wins).
-  const navOverride = useSession((s) => s.previewsFile.navOverride ?? true)
-  const setNavOverride = useSession((s) => s.setNavOverride)
 
   // The nav flavor (H-2): the whole body below is the MAP TAB's content; an active page tab swaps
   // it away and slides the rail closed (G-4/F-5). The strip is persistent window chrome above it.
@@ -186,7 +206,12 @@ function NavWindowBody({ closing }: { closing: boolean }): React.JSX.Element {
         inspectorOpen && 'is-inspector-open',
         inspResizing && 'is-inspector-resizing',
       )}
-      style={style}
+      // The preview window's tint verbatim — the flavor swap keeps ONE background, no opacity
+      // jump (inline because GlassPane's frost sets its own background).
+      style={{
+        ...style,
+        background: 'color-mix(in srgb, var(--pgpreview-bg) var(--pgpreview-bg-a), transparent)',
+      }}
       role="dialog"
       aria-label="Navigation"
       onPointerDown={onWindowDown}
@@ -203,7 +228,7 @@ function NavWindowBody({ closing }: { closing: boolean }): React.JSX.Element {
       </div>
       <div className="navwindow-actions navwindow-actions-trail">
         <div className="navwindow-actions-flow">
-          <button type="button" className="pgpreview-action" title="Settings" disabled>
+          <button type="button" className="pgpreview-action" title="Settings">
             <Icon name="sliders-horizontal" size={13} />
           </button>
           <button
@@ -217,12 +242,7 @@ function NavWindowBody({ closing }: { closing: boolean }): React.JSX.Element {
           </button>
         </div>
       </div>
-      {/* F-7: the strip row exists only past one tab — its height grows in, nudging the body down
-          on the standard ease; the map tab is the perma-pinned return (H-2/I-4). */}
-      <div className={cx('navwindow-tabs', hasTabs && 'has-tabs')}>
-        <PreviewTabStrip index={resolveIndex} title={null} />
-      </div>
-      <div className="navwindow-body">
+      <div className="navwindow-body" ref={winRef}>
         <SidePane
           windowId="navwindow"
           side="left"
@@ -243,70 +263,68 @@ function NavWindowBody({ closing }: { closing: boolean }): React.JSX.Element {
             <Icon name="chevrons-up-down" size={12} />
             <span>{viewMode === 'list' ? 'List' : 'Gallery'}</span>
           </button>
-          <button
-            type="button"
-            className={cx('navwindow-style-toggle', text.footnote.emphasized)}
-            aria-pressed={navOverride}
-            title="Where Open in Preview lands: tabs in this window, or the floating preview"
-            onClick={() => setNavOverride(!navOverride)}
-          >
-            <Icon name="app-window" size={12} />
-            <span>{navOverride ? 'Tabs' : 'Window'}</span>
-          </button>
         </SidePane>
-        {pageTarget ? (
-          <div className="navwindow-page edge-fade" ref={pageScrollRef}>
-            <PageEmbed
-              key={pageTarget.path}
-              path={pageTarget.path}
-              editing={editing}
-              onBeginEdit={() => setEditing(true)}
-              connections={connections}
-              registerFlush={registerPreviewFlush}
-              warm={warmSeam}
-            />
+        <div className="navwindow-content">
+          {/* F-7: the strip row exists only past one tab — its height grows in on the standard
+              ease. It lives in the content column so the rail runs the window's FULL height and
+              the tabs start right of the sidebar, exactly like the app's tab bar (H-2/I-4). */}
+          <div className={cx('navwindow-tabs', hasTabs && 'has-tabs')}>
+            <PreviewTabStrip index={resolveIndex} title={null} />
           </div>
-        ) : (
-          <div className="navwindow-main">
-            <div className="navwindow-search">
-              <input
-                ref={searchRef}
-                className={text.body.standard}
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search…"
-                spellCheck={false}
+          {pageTarget ? (
+            <div className="navwindow-page edge-fade" ref={pageScrollRef}>
+              <PageEmbed
+                key={pageTarget.path}
+                path={pageTarget.path}
+                editing={editing}
+                onBeginEdit={() => setEditing(true)}
+                connections={connections}
+                registerFlush={registerPreviewFlush}
+                warm={warmSeam}
               />
             </div>
-            <div className="navwindow-main-scroll edge-fade">
-              {results ? (
-                <NavList
-                  items={results.items}
-                  extras={results.extras}
-                  onSelect={goClose}
-                  onOpenNewTab={goNewTab}
+          ) : (
+            <div className="navwindow-main">
+              <div className="navwindow-search">
+                <input
+                  ref={searchRef}
+                  className={text.body.standard}
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search…"
+                  spellCheck={false}
                 />
-              ) : viewMode === 'gallery' ? (
-                <NavGallery
-                  pins={resolvedPins}
-                  items={shownRecents}
-                  onReorderRecent={reorderShownRecent}
-                  onSelect={goClose}
-                  onOpenNewTab={goNewTab}
-                />
-              ) : (
-                <NavList
-                  pins={resolvedPins}
-                  items={shownRecents}
-                  reorderable
-                  onReorderRecent={reorderShownRecent}
-                  onSelect={goClose}
-                  onOpenNewTab={goNewTab}
-                />
-              )}
+              </div>
+              <div className="navwindow-main-scroll edge-fade">
+                {results ? (
+                  <NavList
+                    items={results.items}
+                    extras={results.extras}
+                    onSelect={goClose}
+                    onOpenNewTab={goNewTab}
+                  />
+                ) : viewMode === 'gallery' ? (
+                  <NavGallery
+                    pins={resolvedPins}
+                    items={shownRecents}
+                    onReorderRecent={reorderShownRecent}
+                    onSelect={goClose}
+                    onOpenNewTab={goNewTab}
+                  />
+                ) : (
+                  <NavList
+                    pins={resolvedPins}
+                    items={shownRecents}
+                    reorderable
+                    onReorderRecent={reorderShownRecent}
+                    onSelect={goClose}
+                    onOpenNewTab={goNewTab}
+                  />
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
       <SidePane
         windowId="preview-inspector"

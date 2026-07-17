@@ -173,7 +173,13 @@ function PreviewWindowBody({
     )
   }, [closing])
 
-  const closingClass = !closing ? '' : exitReason === 'engulf' ? ' engulfing' : ' closing'
+  const closingClass = !closing
+    ? ''
+    : exitReason === 'engulf'
+      ? ' engulfing'
+      : exitReason === 'morph'
+        ? ' morphing'
+        : ' closing'
 
   return (
     <GlassPane
@@ -210,7 +216,7 @@ function PreviewWindowBody({
           {/* The flow pair rides the inspector's edge (the main toolbar's --io swallow); the X
               holds home. */}
           <div className="pgpreview-actions-flow">
-            <button type="button" className="pgpreview-action" title="Settings" disabled>
+            <button type="button" className="pgpreview-action" title="Settings">
               <Icon name="sliders-horizontal" size={13} />
             </button>
             <button

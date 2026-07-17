@@ -10,6 +10,7 @@ import { propertyTypeIconName } from '../Components/Detail/PropertyTypes'
 import { text } from '@renderer/design-system/tokens'
 import { CalendarPicker } from '@renderer/design-system/components/CalendarPicker/CalendarPicker'
 import { PickerMenu } from '@renderer/design-system/components/PickerMenu/PickerMenu'
+import { MenuItem } from '@renderer/design-system/components/menu'
 import { Cell } from '../Detail/Views/Table/Cell'
 import { buildContextsById, type ResolveContext } from '../Detail/Views/Table/resolveContext'
 import { contextOptionsFor } from '../Detail/Views/pipeline/contextOptions'
@@ -49,6 +50,9 @@ export function PreviewInspector({ target }: { target: PreviewTarget }): React.J
   const [revealed, setRevealed] = useState<ReadonlySet<string>>(new Set())
   const [addOpen, setAddOpen] = useState(false)
   const addRef = useRef<HTMLButtonElement | null>(null)
+  // Right-click a property row → the remove menu (un-assigns: the key deletes from frontmatter).
+  const [rowMenu, setRowMenu] = useState<{ id: string; x: number; y: number } | null>(null)
+  const rowMenuRef = useRef<HTMLSpanElement | null>(null)
 
   useEffect(() => {
     let live = true
@@ -84,20 +88,12 @@ export function PreviewInspector({ target }: { target: PreviewTarget }): React.J
     [fm, title, target],
   )
 
-  const isEmptyValue = (v: PropertyValue): boolean =>
-    v.kind === 'null' ||
-    ((v.kind === 'context' || v.kind === 'multiSelect' || v.kind === 'file') &&
-      v.value.length === 0) ||
-    ((v.kind === 'select' || v.kind === 'status' || v.kind === 'url') && v.value === '')
-  const isEmptyProp = (id: string): boolean =>
-    row ? isEmptyValue(resolveFieldValue(row, id, schema)) : true
+  // Properties are ASSIGNED (Nathan's model): a row shows when its key exists in the page's
+  // frontmatter OR was assigned this session via + Add Property — an assigned-but-empty row is
+  // valid and stays. Unassigned properties live behind the Add picker.
+  const isAssigned = (id: string): boolean => revealed.has(id) || fm?.properties?.[id] !== undefined
 
-  // A dismissed editor over a STILL-empty property un-reveals it (the row only stays for values).
-  const closeEditing = (): void => {
-    const id = editing?.id
-    setEditing(null)
-    if (id && isEmptyProp(id)) setRevealed((prev) => new Set([...prev].filter((r) => r !== id)))
-  }
+  const closeEditing = (): void => setEditing(null)
 
   const commitValue = (propertyId: string, value: PropertyValue | null): void => {
     setFm((prev) =>
@@ -153,15 +149,25 @@ export function PreviewInspector({ target }: { target: PreviewTarget }): React.J
             properties hide; + Add Property reveals one through its own picker. */}
         {[
           tierRows.map((t) => ({ def: null, ...t })),
-          schema
-            .filter((d) => revealed.has(d.id) || !isEmptyProp(d.id))
-            .map((d) => ({ def: d, id: d.id, label: d.name })),
+          schema.filter((d) => isAssigned(d.id)).map((d) => ({ def: d, id: d.id, label: d.name })),
         ].map((group, gi) => (
           <div key={gi === 0 ? 'contexts' : 'properties'} className="pgpreview-insp-group">
             {group.map(({ def, id, label }) => {
         const col: ResolvedColumn = { id, kind: def ? 'property' : 'tier' }
         return (
-          <div key={id} className="pgpreview-insp-row">
+          <div
+            key={id}
+            className="pgpreview-insp-row"
+            data-insp-id={id}
+            onContextMenu={
+              def
+                ? (e) => {
+                    e.preventDefault()
+                    setRowMenu({ id, x: e.clientX, y: e.clientY })
+                  }
+                : undefined
+            }
+          >
             <span className={cx('pgpreview-insp-label', text.caption.standard)}>
               <Icon
                 name={
@@ -217,30 +223,58 @@ export function PreviewInspector({ target }: { target: PreviewTarget }): React.J
               </div>
             )
             })}
-            {gi === 1 && schema.some((d) => !revealed.has(d.id) && isEmptyProp(d.id)) && (
-              <button
-                type="button"
-                ref={addRef}
-                className={cx('pgpreview-insp-add', text.caption.standard)}
-                onClick={() => setAddOpen(true)}
-              >
-                <Icon name="plus" size={11} />
-                <span>Add Property</span>
-              </button>
-            )}
           </div>
         ))}
+        {schema.some((d) => !isAssigned(d.id)) && (
+          <button
+            type="button"
+            ref={addRef}
+            className={cx('pgpreview-insp-add', text.footnote.standard)}
+            onClick={() => setAddOpen(true)}
+          >
+            <Icon name="plus" size={11} />
+            <span>Add Property</span>
+          </button>
+        )}
       </div>
+      {rowMenu && (
+        <>
+          <span
+            ref={rowMenuRef}
+            aria-hidden
+            style={{ position: 'fixed', left: rowMenu.x, top: rowMenu.y, width: 0, height: 0 }}
+          />
+          <PickerMenu solid open onDismiss={() => setRowMenu(null)} triggerRef={rowMenuRef} center>
+            <div className="nav-row-menu">
+              <MenuItem
+                leading={<Icon name="x" size={13} />}
+                onClick={() => {
+                  commitValue(rowMenu.id, null)
+                  setRevealed((prev) => new Set([...prev].filter((r) => r !== rowMenu.id)))
+                  setRowMenu(null)
+                }}
+              >
+                Remove Property
+              </MenuItem>
+            </div>
+          </PickerMenu>
+        </>
+      )}
       {addOpen && (
         <PickerMenu solid open onDismiss={() => setAddOpen(false)} triggerRef={addRef}>
-          <div className="pgpreview-insp-addmenu">
+          {/* The Group/Sort property menu, borrowed whole — tight MenuItem rows. */}
+          <div className="nav-row-menu">
             {schema
-              .filter((d) => !revealed.has(d.id) && isEmptyProp(d.id))
+              .filter((d) => !isAssigned(d.id))
               .map((d) => (
-                <button
+                <MenuItem
                   key={d.id}
-                  type="button"
-                  className={cx('pgpreview-insp-addrow', text.caption.standard)}
+                  leading={
+                    <Icon
+                      name={asRenderableIcon(d.icon) ?? propertyTypeIconName(d.type) ?? 'tag'}
+                      size={13}
+                    />
+                  }
                   onClick={() => {
                     setAddOpen(false)
                     setRevealed((prev) => new Set([...prev, d.id]))
@@ -248,20 +282,23 @@ export function PreviewInspector({ target }: { target: PreviewTarget }): React.J
                       commitValue(d.id, { kind: 'checkbox', value: true })
                       return
                     }
-                    triggerRef.current = addRef.current
-                    if (d.type === 'datetime') setEditing({ id: d.id, mode: 'date' })
-                    else if (d.type === 'number' || d.type === 'url')
-                      setEditing({ id: d.id, mode: 'editor' })
-                    else if (d.type !== 'file' && d.type !== 'last_edited_time')
-                      setEditing({ id: d.id, mode: 'picker' })
+                    // The editor anchors to the revealed row's VALUE field on the right — the row
+                    // mounts next frame.
+                    requestAnimationFrame(() => {
+                      triggerRef.current =
+                        document.querySelector<HTMLElement>(
+                          `[data-insp-id="${d.id}"] .pgpreview-insp-value`,
+                        ) ?? addRef.current
+                      if (d.type === 'datetime') setEditing({ id: d.id, mode: 'date' })
+                      else if (d.type === 'number' || d.type === 'url')
+                        setEditing({ id: d.id, mode: 'editor' })
+                      else if (d.type !== 'file' && d.type !== 'last_edited_time')
+                        setEditing({ id: d.id, mode: 'picker' })
+                    })
                   }}
                 >
-                  <Icon
-                    name={asRenderableIcon(d.icon) ?? propertyTypeIconName(d.type) ?? 'tag'}
-                    size={12}
-                  />
-                  <span>{d.name}</span>
-                </button>
+                  {d.name}
+                </MenuItem>
               ))}
           </div>
         </PickerMenu>

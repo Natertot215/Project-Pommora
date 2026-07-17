@@ -5,9 +5,17 @@
   flex-direction: column;
   padding: var(--glass-inset);
   border-radius: var(--glass-radius);
+  /* The window CLIPS: a parked (closed) side pane must never peek past the glass edge. */
+  overflow: hidden;
   animation: navwindow-in var(--disclosure) var(--ease-standard);
   /* KNOB — the shared content inset (search divider + rows align to this). */
   --navwindow-inset: 12px;
+  /* The preview window's tint knobs verbatim (previewWindow.css) — both flavors paint ONE
+     background, so the nav ⇄ preview swap never jumps opacity. Consumed inline in NavWindow.tsx. */
+  --pgpreview-bg: var(--bg-window);
+  --pgpreview-bg-a: 90%;
+  /* The shared inspector chrome contract — its rows clear this strip (previewWindow.css). */
+  --pgpreview-toolbar-h: 34px;
   /* KNOB — the inspector pane's ring from the window edges (the preview's identical treatment). */
   --navwindow-inspector-inset: var(--glass-inset);
   /* The inspector open/close driver — the preview's --io contract, shielded to this subtree. */
@@ -104,8 +112,8 @@
   );
 }
 
-/* ---- the inspector (H-2 shared chrome): the preview's pane verbatim — the SidePane shell,
-   overlay-right on the inset ring, slid by --io with no own transition. ---- */
+/* The inspector (page tabs only): the preview's pane verbatim — the SidePane shell, overlay-right
+   on the inset ring, slid by --io with no own transition; the window's clip parks it invisibly. */
 .navwindow-inspector {
   position: absolute;
   top: var(--navwindow-inspector-inset);
@@ -134,7 +142,6 @@
   z-index: 4;
   cursor: col-resize;
 }
-/* Edge-drag resize tracks the cursor 1:1 — no transition lag while dragging (the shell's rule). */
 .navwindow.is-inspector-resizing,
 .navwindow.is-inspector-resizing .navwindow-page,
 .navwindow.is-inspector-resizing .navwindow-actions-flow {
@@ -142,7 +149,10 @@
 }
 
 /* F-7: the strip row exists only past one tab — height grows in on the standard ease, nudging the
-   search row down; a single-tab (map-only) window keeps today's exact layout. */
+   search row down; a single-tab (map-only) window keeps today's exact layout. The strip lives in
+   the CONTENT COLUMN right of the rail (never above it), so the rail runs the window's full
+   height and the tabs start right of the sidebar, exactly like the app's tab bar — a page tab
+   sliding the rail away reflows them left for free. The right inset clears settings + X. */
 .navwindow-tabs {
   --navwindow-tabs-h: 30px; /* KNOB — the strip row's height */
   height: 0;
@@ -150,7 +160,22 @@
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  transition: height var(--duration-base) var(--ease-standard);
+  padding-left: 6px;
+  padding-right: calc(var(--glass-inset) + 56px); /* KNOB — clearance past settings + X */
+  transition:
+    height var(--duration-base) var(--ease-standard),
+    padding-left var(--duration-base) var(--ease-standard);
+}
+.navwindow.is-page-tab .navwindow-tabs {
+  padding-left: calc(var(--glass-inset) + 30px); /* KNOB — clearance past the scan glyph */
+}
+/* The right column beside the rail: strip row on top, then the map body or the page embed. */
+.navwindow-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
 }
 .navwindow-tabs.has-tabs {
   height: var(--navwindow-tabs-h);
@@ -174,18 +199,23 @@
 .navwindow-rail {
   width: var(--navwindow-rail, 200px);
   flex-shrink: 0;
-  transition: width var(--duration-base) var(--ease-standard);
+  transition:
+    width var(--duration-base) var(--ease-standard),
+    opacity var(--duration-base) var(--ease-standard);
 }
+/* Fades while it slides shut: the glass material's inline 1px borders would otherwise survive
+   the 0-width collapse as a doubled hairline beside the window edge. */
 .navwindow.is-page-tab .navwindow-rail {
   width: 0;
   padding: 0;
+  opacity: 0;
 }
 .navwindow.is-page-tab .navwindow-rail-resize {
   display: none;
 }
 
 /* The page tab's content (H-2): the body-owns-scroll model, same as the floating preview; the
-   open inspector squeezes it aside like the preview body. */
+   open inspector squeezes it aside. */
 .navwindow-page {
   flex: 1;
   min-width: 0;
