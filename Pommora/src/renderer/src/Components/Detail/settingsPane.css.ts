@@ -306,17 +306,16 @@ export const optionsAdd = style([
 ])
 
 /** Status only — the per-group + . Reuses the "Options" + button, hidden until you hover the group
- *  (its heading or its chips), per Nathan's reveal. Tertiary at rest, brightening on direct hover; the
- *  `&&` clears `.app-toolbar button`'s control-tone default (0,1,1) so rest reads genuinely tertiary. */
+ *  (its heading or its chips), per Nathan's reveal. Tertiary at rest, a state-hover fill on direct
+ *  hover; the `&&` clears `.app-toolbar button`'s control-tone default (0,1,1) so rest reads tertiary. */
 export const groupAdd = style([
   optionsAdd,
   {
     opacity: 0,
-    transition: `opacity ${duration.fast} ${easing.standard}, background ${duration.fast} ${easing.standard}, color ${duration.fast} ${easing.standard}`,
+    transition: `opacity ${duration.fast} ${easing.standard}, background ${duration.fast} ${easing.standard}`,
     selectors: {
       [`${statusGroup}:hover &`]: { opacity: 1 },
       '&&': { color: c.label.tertiary },
-      '&:hover': { color: c.label.secondary },
     },
   },
 ])

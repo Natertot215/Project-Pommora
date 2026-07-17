@@ -82,12 +82,13 @@ button.subfield-crumb.ghost:hover {
   background: none;
   padding: 2px;
   display: inline-flex;
+  border-radius: 5px;
   color: var(--label-secondary);
   cursor: default;
   -webkit-app-region: no-drag;
 }
 .subfield-add:hover {
-  color: var(--label-primary);
+  background: var(--state-hover);
 }
 
 /* App-level collapse: the bar's fixed-height reveal slides open/closed; the chevron rides directly
@@ -123,6 +124,7 @@ button.subfield-crumb.ghost:hover {
   border: 0;
   background: none;
   padding: 0 12px 0 0;
+  border-radius: 5px;
   color: var(--label-secondary);
   cursor: default;
   opacity: 0;
@@ -130,7 +132,7 @@ button.subfield-crumb.ghost:hover {
   transition:
     bottom var(--duration-base) var(--ease-standard),
     opacity var(--duration-fast) var(--ease-standard),
-    color var(--duration-fast) var(--ease-standard);
+    background var(--duration-fast) var(--ease-standard);
 }
 .detail-pane.subfield-open .subfield-toggle {
   bottom: var(--subline-h);
@@ -140,7 +142,7 @@ button.subfield-crumb.ghost:hover {
 }
 .subfield-toggle:hover {
   opacity: 1;
-  color: var(--label-control);
+  background: var(--state-hover);
 }
 .shell.is-resizing .subfield-toggle {
   transition: none;

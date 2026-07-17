@@ -152,6 +152,5 @@
   opacity: 0;
 }
 .tab-plus:hover {
-  color: var(--label-primary);
   background: var(--state-hover);
 }

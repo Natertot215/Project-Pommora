@@ -172,7 +172,7 @@ export const configBtn = style({
   opacity: 0,
   transition:
     'opacity var(--duration-fast) var(--ease-standard), background var(--duration-fast) var(--ease-standard)',
-  ':hover': { color: c.label.secondary },
+  ':hover': { background: c.state.hover },
 })
 globalStyle(`${tile}:hover ${configBtn}`, { opacity: 1 })
 
