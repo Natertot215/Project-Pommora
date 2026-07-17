@@ -296,7 +296,7 @@ Decision ids: B-6, B-7, I-19, I-20, H-11 (the one handler branch).
 - Create: `Pommora/src/renderer/src/Embeds/ConnectionHoverCard.tsx` (PickerMenu chassis, blank body)
 - Modify: `MarkdownPM/connections/index.ts` (`hover?: (page, rect) => void`), `editor/connections.ts` (mouseover/mouseout with a hover-intent delay knob `CONN_HOVER_INTENT_MS = 450`, anchor rect from `posAtCoords`), hosts wire `hover` → mount the card; dismiss = pointer-leave with a 200ms grace + Escape (the placeholder contract; full mechanics post-plan).
 
-- [ ] **Steps per task:** failing test where logic-bearing → implement → PASS. Gates → Phase Protocol 2–5. (CM6 extension change: verify live only after a full renderer reload.)
+- [x] **Steps per task:** failing test where logic-bearing → implement → PASS. Gates → Phase Protocol 2–5. (CM6 extension change: verify live only after a full renderer reload.)
 
 ---
 
