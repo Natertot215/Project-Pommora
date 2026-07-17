@@ -8,7 +8,7 @@
 
 ### Status — Continuation
 
-**The tab-model pivot landed** (Nathan's redesign): chevrons are dead; the preview is a semi-multi-tabbed mini-app on shared floating chrome — section H rewritten wholesale, F-4/F-5 motion laws added, D-2/D-7/I-4/I-19/I-20/B-7 updated. Open with Nathan: **H-6** (origin-tab close = left-most becomes parent — confirm read), **H-8** (warm-for-both recommendation), plus the coexistence question (can the NavWindow flavor and a page-preview window be open simultaneously?) and the H-9 collapsed-tab layout detail. **Early-build directive is live:** Nathan wants the window shells built (in `PagePreview/` or shared) ahead of functionality so he can live-drive UIX, with grounding agents dispatched in parallel — the brainstorm's no-code gate is explicitly waived for the chrome shell only. Then: self-review → adversarial review → planning + /handoff.
+**Interrogation is closed** — the tab-model pivot landed and every question resolved: one floating window total across both flavors (D-8), multi-session durable tab sets for both — per-origin for page-previews (H-3), warm for both (H-8), one sidecar for all durable state (H-10), the title-collapse motion specced (H-9), origin-close re-parenting (H-6). Both grounding reuse maps are folded (chrome extraction points, tabBar.css split, tabsModel reuse, ConnectionsApi closure swap, `--bg-window` material, the liquid-glass-in-transformed-ancestor constraint → F-6). **Early-build directive is live:** the window shell + tab strip get built now (shared chrome hook + `PagePreview/`) ahead of functionality so Nathan can live-drive UIX — the brainstorm's no-code gate is explicitly waived for the chrome shell only. Remaining phases: self-review → adversarial review → planning + /handoff.
 
 ### Sources
 
@@ -79,7 +79,9 @@
 
 - **D-1:** [confirmed] Tab-neutral by construction: the preview never touches `selection`, `tabs`, history, or the warm cache — it reads via `openPage` directly (the PageEmbed pattern). No store slice beyond an open/target flag.
 
-- **D-2:** [confirmed] **Scope single-preview only** — one page-preview window; a new summon overtakes (swaps to the new origin's per-session tab set, H-3). But the **plumbing is built for multiple** (the single-window-now/multi-window-ready posture) so multi-preview can be **A-B tested** post-ship without a rewrite. UX ships singleton; architecture ships plural.
+- **D-2:** [confirmed] **Scope single-preview only** — one page-preview window; a new summon overtakes (swaps to the new origin's tab set, H-3). But the **plumbing is built for multiple** (the single-window-now/multi-window-ready posture) so multi-preview can be **A-B tested** post-ship without a rewrite. UX ships singleton; architecture ships plural.
+
+- **D-8:** [confirmed] **One floating window total, across both flavors** — the NavWindow flavor and a page-preview window can never coexist; summoning one swaps the other out (both restore losslessly from H-3's durable tab sets). Inside the windows, the only preview-summoning surfaces are: NavWindow rows (add a tab in place) and connection links inside a preview (add a tab, H-1). A PagePreview has no other navigable surface.
 
 - **D-3:** [assumed] Non-modal, no focus steal (the NavWindow precedent): opening a preview doesn't blur the editor behind it; its own search-less chrome takes focus only when clicked into.
 
@@ -97,7 +99,9 @@
 
 - **F-4:** [confirmed] **One tab-motion source: NavWindow + Toolbar + PagePreview all DRY from `tabBar.css`.** Switching preview/NavWindow tabs uses the *same* tab-bar and detail slide animations the app tabs use — hover X, tab-label-color-slide, tab open/close motion, the directional view slide. No parallel keyframes anywhere.
 
-- **F-5:** [confirmed] Flavor-difference icons animate on the tab slide: the right-side icons that differ between the NavWindow flavor and a preview tab **slide in/out with the tab motion** — left-side icons enter from the left, right-side from the right — falling behind / emerging from the **shared X's right-most position**. And in the NavWindow flavor, switching to a page tab slides the NavWindow's sidebar closed: the tab slides in and *pushes the sidebar out in one continuous motion*.
+- **F-5:** [confirmed] Flavor-difference icons animate on the tab slide: the right-side icons that differ between the NavWindow flavor and a preview tab **slide in/out with the tab motion** — left-side icons enter from the left, right-side from the right — falling behind / emerging from the **shared X's right-most position**. And in the NavWindow flavor, switching to a page tab slides the NavWindow's sidebar closed: the tab slides in and *pushes the sidebar out in one continuous motion* (candidate primitive: `PaneSlider` — "the one slide primitive every pane rides," measure-then-flip, already composes with `useExitPresence`).
+
+- **F-6:** [confirmed] The trio inside the preview renders **bare buttons on the frost (`glass={false}`)** — real liquid glass inside a `position: fixed`, scale-animated ancestor is exactly the case `ToolbarTrio.tsx` documents as rendering soft and re-initing on mount. The glass-swap *animation* (G-1) is unaffected; only the material mode changes.
 
 - **F-2:** [confirmed] In-line titles, two states. **With banner:** banner + title heading render as usual — nothing special. **Without banner:** the page body starts with no heading-divider, and the title renders **in the toolbar area** the way tabs render theirs, as a filepath breadcrumb — `Collection > Set > Page Name` — in the same label color the navigation filepaths use, at **caption** size (for now).
 
@@ -117,21 +121,23 @@ The preview is **semi-multi-tabbed — a mini-app**. There are **no back/forward
 
 - **H-2:** [confirmed] Two summon flavors share one chrome. **NavWindow-flavored:** tab 1 is the NavWindow itself — perma-pinned left-most, non-orderable, icon-only with the **map icon** (the app-level pinned-tab look); page-opens from it add tabs beside it, and switching to a page tab slides the NavWindow's sidebar closed (F-5). **PagePreview-flavored:** tab 1 is the summoned page.
 
-- **H-3:** [confirmed] Persistence tiers. **NavWindow tabs persist multi-session** (disk — the `tabs.json` sidecar pattern). **A page-preview's tabs persist per-session, keyed by the preview:** close the preview, reopen it, and its connection-opened tabs + order return; all of it wipes on quit. Both flavors keep tab order; page-preview order wipes on quit with the rest.
+- **H-3:** [confirmed] Persistence: **both flavors persist multi-session.** NavWindow keeps its one tab set; page-previews keep **per-origin tab sets** — keyed by the origin page, so summoning page X restores X's remembered connection-opened tabs + order while page Y keeps its own. (Upgraded from per-session once the cost proved trivial — Nathan: "a real Pommora plus, no other app does it.") Tab *lists* are durable; warm editor state stays session-scoped (H-8).
 
 - **H-4:** [confirmed] Icon normalization: a page tab in the NavWindow flavor whose icon is *also* the map icon renders its **type icon** instead (file-text, grid, …) so nothing masquerades as the pinned NavWindow tab. Known accepted edge: a type whose icon is itself set to map — not worth fighting.
 
 - **H-5:** [confirmed] Neither flavor allows pinned tabs, and neither allows manual tab creation (no hover `+`). Tabs are born from navigation only.
 
-- **H-6:** [open] ← confirm the read. "Closing the original tab the preview opened from promotes the parent PreviewWindow to the left-most in order" — read as: closing the origin tab never closes the window; the left-most surviving tab becomes the window's new parent/identity (and the per-session tab-set keying re-parents with it). The window closes only when its last tab does.
+- **H-6:** [confirmed] Closing the origin tab never closes the window: the left-most surviving tab becomes the window's new parent/identity (the per-origin tab-set keying re-parents with it). The window closes only when its last tab does.
 
 - **H-7:** [confirmed] A connection click targeting the page active **behind** the preview (the main pane's current page) simply doesn't fire — it's already in view.
 
-- **H-8:** [open] ← with Nathan, recommendation attached. Warmth: his spec was NavWindow tabs warm (scroll/state), page-preview tabs hot-only-while-open — but the investigation shows warmth is nearly free (`warmCache.ts`: an in-memory map of serialized editor state + scrollTop + PageDetail, 20-cap per tab, KB-scale entries, no mounted editors). **Recommendation: warm for both**, per-session, wiped on quit — don't self-limit.
+- **H-8:** [confirmed] **Warm for both flavors** — the investigation showed warmth is nearly free (`warmCache.ts`: an in-memory map of serialized editor state + scrollTop + PageDetail, 20-cap per tab, KB-scale entries, no mounted editors; mounted CM6 instances are the only real cost, and inactive tabs don't mount). Warm state is session-scoped and dies with the session; the durable layer is the tab lists (H-3).
 
-- **H-9:** [confirmed] The title ↔ tab morph: a single-tab, bannerless preview shows the centered breadcrumb (F-2) in the shared tab bar; going multi-tab **collapses the centered title into a normal icon + title tab** alongside the rest. Exact collapsed-tab alignment/motion is design-stage.
+- **H-9:** [confirmed] The title ↔ tab morph, with its motion: a single-tab bannerless preview shows the centered breadcrumb (F-2) in the shared tab bar; on the second tab's birth, the **new tab enters from the right** (appended after the origin tab, the standard tab-open animation) while the **centered title slides left, collapsing into a standard icon-leading tab in the normal left-aligned strip** — one motion, all from the shared tab animations (F-4).
 
-- **H-10:** [assumed] Storage: NavWindow tabs → a synced `.nexus/` sidecar on the `tabs.json` pattern; the per-session page-preview state (which preview is open, per-preview tab sets + order) → **main-process memory** — it survives a renderer reload (⌘R) and dies on quit, which is exactly the spec. No disk writes for state that's contractually wiped.
+- **H-10:** [confirmed] Storage: **one synced sidecar** (e.g. `.nexus/page-previews.json`) cloning the `tabs.json` pattern end-to-end — a `paths.ts` entry, an `io/` read/validate/debounced-write/flush module, an IPC pair with the `adopting` guard, preload bridge, drain hookup at nexus-switch + quit. It holds the NavWindow tab set and the per-origin preview tab sets + order (H-3). No main-process session memory needed — durable state is on disk, warm state stays in the renderer.
+
+- **H-11:** [confirmed] Reuse spine (grounded): the `Tabs/tabsModel.ts` pure-function layer and the `Tab` record are stateless and reusable wholesale by a `previewTabs` slice — which needs its **own active-detail state**, never the singular `selection` (the main strip and the preview each want an independent active target). The pins derivation drops (H-5: no pinned tabs). Wiki-clicks route by swapping one closure: `ConnectionsApi` is prop-injected at both consumers, so the preview passes `open: → openPreviewTab(...)` instead of `select(...)` — zero changes to the CM6 click handler or PageEmbed.
 
 #### I — Interaction Matrix (the meticulous pass — every gesture × every preview state)
 
@@ -213,7 +219,7 @@ The preview is **semi-multi-tabbed — a mini-app**. There are **no back/forward
 - [[Navigation]] :59 — the deferred "in-pane preview mode" line retires into the shipped behavior.
 - `SettingsPane.tsx:110` — the B-8 parked comment retires.
 - [[Interaction]] — gains the preview's open/close motion as a Bloom consumer (a line, not a section).
-- Implementation adjacency: a second floating window justifies extracting NavWindow's move/resize engine into a shared chrome (design-system/interactions) — decide at planning, not here.
+- Implementation adjacencies (grounded by the reuse maps): **(1)** the floating chrome extracts from NavWindow's inlined engine (`NavWindow.tsx:139-195` + `geo`/`clampGeo`) into a shared hook — three injection points: the drag-surface allow-list becomes a prop, the close callback injects, geometry keys per-window (the module singleton can't serve two windows); NavWindow rebases onto it during implementation. **(2)** `tabBar.css` splits: the pure motion layer (`.tab`, `.tab-seg`, `.tab-x`, nav-slide keyframes — store-free) becomes container-agnostic; the toolbar skin (app-region, the `:has()` reveal chain, `winDragBy`) stays toolbar-only; `TabBar.tsx` splits into a presentational strip + wiring layers. **(3)** the preview needs its own slide stamp (the global `navSlide` is a single app-wide slot) and its own active-detail state — `tabsModel.ts` pure functions reused wholesale (H-11). **(4)** the preview window's material is `--bg-window` (`shared/theme.ts` → the token bridge), the NotchedPane/PickerMenu "solid" precedent — not GlassPane-only frost.
 
 #### Lessons
 
