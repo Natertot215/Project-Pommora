@@ -59,7 +59,7 @@ export type PreviewTabTarget = SelectTarget | { kind: 'navwindow' }
 - Test: `Pommora/src/renderer/src/PagePreview/previewTabs.test.ts`
 
 **Interfaces:**
-- Consumes: `Tabs/tabsModel.ts` pure functions (`openTab`, `closeTab`, `reconcileTabs`), `PreviewTabTarget`.
+- Consumes: `Tabs/tabsModel.ts`'s `reconcileTabs` + its Tab/target *shapes* only — the dedup/spawn/close bodies are bespoke (`closeTab`'s last-tab NavView reseed is wrong for the null-on-empty window, H-6; `openTab`'s pinned arg has no preview meaning, H-5). Plus `PreviewTabTarget`.
 - Produces (the store's preview API — all downstream phases consume exactly these):
 
 ```ts
@@ -136,7 +136,7 @@ describe('previewTabs — the tab model (H-1/H-5/H-6/H-7)', () => {
 ```
 
 - [ ] **Step 2:** Run → FAIL (`openPreviewTab` undefined).
-- [ ] **Step 3:** Implement `previewTabs.ts` as pure helpers (mirror `tabsModel`'s shapes; ids via the store's `makeTabId`) + the store slice: `openPreview` builds `{ flavor:'page', originId, tabs:[origin], activeTabId }` (same-origin re-summon short-circuits; overtake replaces after Phase 3 restores the remembered set); `openPreviewTab` dedups by target id then spawns; `closePreviewTab` splices, re-parents `originId` to the new left-most page tab, nulls on empty; keep D-8 wiring (`openPreview` still sets `navOpen:false`; `openNav`/`toggleNav`/`openVia` clear `preview`). Migrate the shipped guards: `applyTree`'s reconcile + D-9's adopt-close now operate on `preview` (reconcile every tab like the app-tab branch; a dead active tab falls to its left neighbor; dead origin re-parents). `previewTarget` derives for the window: `preview && activeTab.target.kind === 'page' ? activeTab.target : null` — PreviewWindow reads the active tab.
+- [ ] **Step 3:** Implement `previewTabs.ts` as pure helpers (mirror `tabsModel`'s shapes; ids via the store's `makeTabId`) + the store slice: `openPreview` builds `{ flavor:'page', originId, tabs:[origin], activeTabId }` (same-origin re-summon short-circuits; overtake replaces after Phase 3 restores the remembered set); `openPreviewTab` dedups by target id then spawns; `closePreviewTab` splices, re-parents `originId` to the new left-most page tab, nulls on empty; keep D-8 wiring (`openPreview` still sets `navOpen:false`; `openNav`/`toggleNav`/`openVia` clear `preview`). Migrate the shipped guards: `applyTree`'s reconcile + D-9's adopt-close now operate on `preview` (reconcile every tab like the app-tab branch; a dead active tab falls to its left neighbor; dead origin re-parents). **Keep `previewTarget` as a derived state field** mirroring the active page tab's target (`preview && activeTab.target.kind === 'page' ? activeTab.target : null`) — PreviewWindow and its imports keep working unchanged until Task 2.2 rewires them.
 - [ ] **Step 4:** All new tests + the existing D-6 store test (rewrite it to the slice shape) PASS.
 - [ ] **Step 5:** Commit `feat(preview): previewTabs slice — tab model, dedup, re-parent, reconcile (H-1/H-5/H-6, D-6/D-9 migrated)`.
 
@@ -176,10 +176,10 @@ Decision ids: F-1, F-4, F-5, H-9 (both variants), G-4, I-16, A-2.
 - Modify: `PreviewWindow.tsx` (mount strip in the toolbar's center region; body slide on `previewSlide` via WAAPI — the DetailPane pattern, `duration.fast`/`easing.standard`, ±14px), `previewWindow.css`
 
 **Interfaces:**
-- Consumes: `preview.tabs`/`activeTabId`, `activatePreviewTab`, `closePreviewTab`, `previewSlide`.
+- Consumes: `preview.tabs`/`activeTabId`, `activatePreviewTab`, `closePreviewTab`, `openPreviewTab`, `previewSlide`.
 - Produces: single-tab bannerless state renders the centered breadcrumb (shipped `pgpreview-title`); on tab #2's birth the title collapses left into a standard icon-leading tab in a left-aligned strip (H-9 — the strip mounts, the centered title unmounts, both on the shared tab-open motion; the banner'd origin simply grows its tab, no slide-collapse); per-tab hover ×; labels caption-sized (`--pgpreview-tab-size`).
 
-- [ ] **Step 1:** Build the strip on `tabStrip.css` classes (`.tab`, `.tab-seg`, `.tab-x`) with preview wiring only — no pins, no +, no divider (H-5). Tab icons: page's resolved icon; map icon reserved for Phase 8.
+- [ ] **Step 1:** Build the strip on `tabStrip.css` classes (`.tab`, `.tab-seg`, `.tab-x`) with preview wiring only — no pins, no +, no divider (H-5); the strip gets its **own overflow-x scroll wrapper with the shared edge-fade** (the toolbar's `.tab-scroll` affordance stays toolbar-only — mirror it, don't import it). Tab icons: page's resolved icon; map icon reserved for Phase 8. **Rewire `PreviewWindow.tsx`'s `ConnectionsApi.open` from `openPreview` to `openPreviewTab` (H-1)** — the shipped `open: openPreview` overtakes, which would leave the tab system green-but-dead.
 - [ ] **Step 2:** Morph: `PreviewWindow` renders `tabs.length > 1 ? <PreviewTabStrip/> : <NavCrumbs …/>` inside one container whose swap rides the tab-open transition (the entering tab's `@starting-style` growth is the motion; the title fades/slides left on the same tokens — one clean read, no bespoke keyframes).
 - [ ] **Step 3:** G-4 pane push: when a tab switch lands with the inspector open, the body slide's direction pushes the pane — drive the shipped `.pgpreview-inspector` transform from the same WAAPI moment (translate the pane by the slide delta, settling back — verify `PaneSlider` composes first; if it doesn't read as collide-and-push, animate the pane's transform directly off the same stamp). **Confirm the exact read via CDP screenshots at design; log the choice inline.**
 - [ ] **Step 4:** Gates → CDP-verify against `~/test` (open preview, wiki-click a second tab, screenshot: strip + morph + slide) → Phase Protocol 2–5.
@@ -235,7 +235,7 @@ Decision ids: H-8, C-4 (kept), I-10.
 - Modify: `Pommora/src/renderer/src/Embeds/PageEmbed.tsx` (optional `warm?: { restore: () => WarmEntry | undefined; capture: (state: WarmEntry) => void }` — the MarkdownEditor already accepts this contract; PageEmbed threads it + uses a restored `pageDetail` body to mount synchronously instead of the blank `pgembed` div), `PreviewWindow.tsx` (wire warm keyed by **preview-tab id**, a preview-scoped `Map` mirroring `warmCache`'s shape — session-only, cleared on nexus adopt)
 - Test: a store-level test that capture/restore round-trips per preview-tab id; block tiles (no `warm` prop) unchanged.
 
-- [ ] **Steps:** failing test → implement → PASS → gates → CDP-verify a tab switch restores scroll instantly → Phase Protocol 2–5. (`key={path}` stays; warmth is restore-on-mount, per the log.)
+- [ ] **Steps:** failing test → implement → PASS → gates → CDP-verify a tab switch restores scroll instantly → Phase Protocol 2–5. (`key={path}` stays; warmth is restore-on-mount, per the log. **`closePreviewTab` evicts the closed tab's warm entry** — the Map never grows unbounded within a session.)
 
 ---
 
@@ -261,7 +261,7 @@ Decision ids: G-1, G-2, G-3, F-6, I-13, I-14, E (front-matter writes).
 - Modify: `PreviewWindow.tsx` (mount as the SidePane's body)
 
 **Interfaces:**
-- Consumes: the active preview tab's page — `openPage` detail (frontmatter + the collection schema via `findCollectionForSet`/collection lookup); property writes through the EXISTING property-update IPC the main inspector's machinery uses (`mutate`/property paths — reuse the PropertyPanel stubs' intended wiring where it fits; they're purposeful stubs, extend rather than fork).
+- Consumes: the active preview tab's page — `openPage` detail (frontmatter + the collection schema via `findCollectionForSet`/collection lookup); property writes through the EXISTING live path: **`PropertiesPane.tsx`'s editors + `mutate({ op: 'setProperty', … })`** (the PropertyPanel/PropertiesPulldown stubs stay untouched — zero call sites, not the live wiring).
 - Produces: the Swift front-matter-inspector mechanism — the page's properties listed and editable (typed inputs per PropertyValue kind), title + icon rows (I-13 title edit renames via `mutate rename`, flushing the pending body first — the D-6 self-rename plan item), banner change/remove (I-14, the existing banner mutate).
 
 - [ ] **Steps:** failing store-level test for the write path → implement fields per type (reuse the app's existing pickers/inputs — PickerMenu, checkbox, text — never hand-rolled) → PASS → gates → CDP screenshot the open inspector with real properties (Read for Nathan) → Phase Protocol 2–5. **Layout follows the Swift reference; a Figma pass (G-2) refines later — log every layout call inline.**
@@ -287,7 +287,7 @@ Decision ids: B-6, B-7, I-19, I-20, H-11 (the one handler branch).
 ### Task 6.3: B-2 — the sidebar rows honor the Collection's routing
 
 **Files:**
-- Modify: `Pommora/src/renderer/src/Sidebar/Sidebar.tsx` — the page-row click site gets the same owner-resolution branch TableView carries (`findCollectionForSet` → `openIn === 'page-preview'` → `openPreview`, ⌘-click bypass to new tab). Embedded view tiles need nothing: they render TableView, whose shipped branch already resolves per-collection (I-3).
+- Modify: `Pommora/src/renderer/src/Sidebar/Sidebar.tsx` — the page-row click site (`onSelectPage`) gets the same owner-resolution branch TableView carries; the sidebar row resolves its **owning collection from the page's tree position** (walk via `findCollection`/`findCollectionForSet` against the row's parent container — the sidebar has no `source` prop) → `openIn === 'page-preview'` → `openPreview`, ⌘-click bypass to new tab. Embedded view tiles need nothing: they render TableView, whose shipped branch already resolves per-collection (I-3).
 - Test: none new (the branch is the shipped TableView shape); CDP-verify a sidebar click on a preview-collection page opens the window.
 
 ### Task 6.4: B-7 — the hover trigger + blank pane
