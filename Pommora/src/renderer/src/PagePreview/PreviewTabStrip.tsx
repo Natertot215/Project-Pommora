@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { cx } from '@renderer/design-system/cx'
-import { Icon } from '@renderer/design-system/symbols'
+import { defaultEntityIcon, Icon } from '@renderer/design-system/symbols'
 import { duration, text } from '@renderer/design-system/tokens'
 import { EntityGlyph } from '../Navigation/EntityGlyph'
 import { resolveWith, type ResolveIndex, type ResolvedNav } from '../Navigation/navResolve'
@@ -113,6 +113,7 @@ export function PreviewTabStrip({
                   )}
                   <PreviewTabItem
                     entry={entry}
+                    navFlavor={preview?.flavor === 'nav'}
                     active={!ghost && entry.tab.id === activeTabId}
                     closing={ghost}
                     onActivate={() => activatePreviewTab(entry.tab.id)}
@@ -130,12 +131,14 @@ export function PreviewTabStrip({
 
 function PreviewTabItem({
   entry,
+  navFlavor,
   active,
   closing,
   onActivate,
   onClose,
 }: {
   entry: Entry
+  navFlavor: boolean
   active: boolean
   closing: boolean
   onActivate: () => void
@@ -143,19 +146,32 @@ function PreviewTabItem({
 }): React.JSX.Element {
   const isMap = entry.tab.target.kind === 'navwindow'
   const label = isMap ? 'Navigation' : (entry.res?.title ?? '')
+  // H-4 (nav flavor only): a page tab whose own icon is ALSO the map glyph renders its type icon
+  // instead — nothing masquerades as the perma-pinned NavWindow tab.
+  const res =
+    navFlavor && entry.res?.icon === 'map'
+      ? { ...entry.res, icon: defaultEntityIcon('page') }
+      : entry.res
   return (
     <div
       data-tab-id={entry.tab.id}
-      className={cx('tab', text.caption.standard, active && 'is-active', closing && 'is-closing')}
+      className={cx(
+        'tab',
+        text.caption.standard,
+        active && 'is-active',
+        closing && 'is-closing',
+        isMap && 'tab-map',
+      )}
       title={label}
       onClick={onActivate}
     >
-      {entry.res ? (
-        <EntityGlyph item={entry.res} size={TAB_ICON} className="tab-icon" />
+      {res ? (
+        <EntityGlyph item={res} size={TAB_ICON} className="tab-icon" />
       ) : (
         <Icon name={isMap ? 'map' : 'file'} size={TAB_ICON} className="tab-icon" />
       )}
-      <span className="tab-label">{label}</span>
+      {/* The map tab is icon-only (H-2) — the label is its tooltip. */}
+      {!isMap && <span className="tab-label">{label}</span>}
       {/* The map tab is perma-pinned (H-2) — no ×; the model refuses the close anyway. */}
       {!isMap && (
         <button

@@ -95,7 +95,14 @@ export function NavRowMenu({
           {target.kind === 'page' && (
             <MenuItem
               leading={<Icon name="app-window" size={MENU_GLYPH} />}
-              onClick={act(() => openPreview({ id: target.id, path: target.path }))}
+              onClick={act(() => {
+                // B-2: inside the NavWindow the override routes this to a tab in THAT window
+                // (openPreviewTab lands in the open nav flavor); off → the floating preview.
+                const s = useSession.getState()
+                const ref = { id: target.id, path: target.path }
+                if (s.navOpen && (s.previewsFile.navOverride ?? true)) s.openPreviewTab(ref)
+                else openPreview(ref)
+              })}
             >
               Open in Preview
             </MenuItem>

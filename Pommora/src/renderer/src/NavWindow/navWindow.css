@@ -43,15 +43,70 @@
   background: var(--state-hover);
 }
 
+/* F-7: the strip row exists only past one tab — height grows in on the standard ease, nudging the
+   search row down; a single-tab (map-only) window keeps today's exact layout. */
+.navwindow-tabs {
+  --navwindow-tabs-h: 30px; /* KNOB — the strip row's height */
+  height: 0;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  transition: height var(--duration-base) var(--ease-standard);
+}
+.navwindow-tabs.has-tabs {
+  height: var(--navwindow-tabs-h);
+}
+/* The map tab (H-2): icon-only + compact (the app pinned-tab look), the perma-pinned return. */
+.navwindow-tabs .tab-map {
+  flex: 0 0 auto;
+  min-width: 34px;
+  max-width: 34px;
+  justify-content: center;
+  padding: 0;
+}
+
 .navwindow-body {
   display: flex;
   flex: 1;
   min-height: 0;
 }
-/* Positioning only — the pane's inner geometry (padding, radius, flex) is the sidepane shell's. */
+/* Positioning only — the pane's inner geometry (padding, radius, flex) is the sidepane shell's.
+   An active page tab slides the rail closed (G-4/F-5) — the map tab's return reopens it. */
 .navwindow-rail {
   width: var(--navwindow-rail, 200px);
   flex-shrink: 0;
+  transition: width var(--duration-base) var(--ease-standard);
+}
+.navwindow.is-page-tab .navwindow-rail {
+  width: 0;
+  padding: 0;
+}
+.navwindow.is-page-tab .navwindow-rail-resize {
+  display: none;
+}
+
+/* The page tab's content (H-2): the body-owns-scroll model, same as the floating preview. */
+.navwindow-page {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.navwindow-page .pgembed,
+.navwindow-page .pgembed .mdpm-shell,
+.navwindow-page .mdpm-editor,
+.navwindow-page .mdpm-editor .cm-editor {
+  height: auto;
+}
+.navwindow-page .pgembed,
+.navwindow-page .pgembed .mdpm-shell {
+  overflow: visible;
+}
+.navwindow-page .mdpm-editor .cm-scroller {
+  overscroll-behavior: auto;
+  overflow: visible;
 }
 .navwindow-rail-list {
   flex: 1;
@@ -119,31 +174,4 @@
 }
 .navwindow-style-toggle:hover {
   background: var(--state-hover);
-}
-
-.navwindow-resize {
-  position: absolute;
-  width: 14px;
-  height: 14px;
-  z-index: 2;
-}
-.navwindow-resize-nw {
-  top: 0;
-  left: 0;
-  cursor: nwse-resize;
-}
-.navwindow-resize-ne {
-  top: 0;
-  right: 0;
-  cursor: nesw-resize;
-}
-.navwindow-resize-sw {
-  bottom: 0;
-  left: 0;
-  cursor: nesw-resize;
-}
-.navwindow-resize-se {
-  bottom: 0;
-  right: 0;
-  cursor: nwse-resize;
 }

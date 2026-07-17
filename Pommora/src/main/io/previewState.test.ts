@@ -50,7 +50,7 @@ describe('previewState — lenient read', () => {
 })
 
 describe('previewState — the debounced write', () => {
-  it('round-trips the whole file (origins keys intact) via the drain', async () => {
+  it('round-trips the whole file (origins keys + the B-2 override intact) via the drain', async () => {
     const file: PreviewsFile = {
       navSet: { tabs: [{ target: { kind: 'navwindow' } }, { target: page('n') }], activeIndex: 1 },
       origins: {
@@ -58,6 +58,7 @@ describe('previewState — the debounced write', () => {
         y: { tabs: [{ target: page('y') }], activeIndex: 0 },
       },
       open: { flavor: 'page', originId: 'x' },
+      navOverride: false,
     }
     schedulePreviewsWrite(root, file)
     await flushPreviewsWrites()

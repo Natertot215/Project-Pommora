@@ -55,7 +55,12 @@ export async function readPreviewsState(root: string): Promise<PreviewsFile> {
     const flavor = raw.open.flavor
     if (flavor === 'page' || flavor === 'nav') open = { flavor, originId: raw.open.originId }
   }
-  return { navSet: readRecord(raw.navSet), origins, open }
+  return {
+    navSet: readRecord(raw.navSet),
+    origins,
+    open,
+    ...(typeof raw.navOverride === 'boolean' ? { navOverride: raw.navOverride } : {}),
+  }
 }
 
 // --- debounced write --------------------------------------------------------

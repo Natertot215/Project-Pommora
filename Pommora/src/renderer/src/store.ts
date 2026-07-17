@@ -297,6 +297,8 @@ interface SessionState {
   activatePreviewTab: (id: string) => void
   closePreviewTab: (id: string, exit?: 'dismiss' | 'engulf') => void
   closePreview: (reason?: 'dismiss' | 'engulf') => void
+  /** B-2: the NavWindow's routing override toggle — persisted in `page-previews.json`. */
+  setNavOverride: (on: boolean) => void
   /** How the CURRENT close should read (A-4): promote paths pass 'engulf' (the window flies into
    *  the detail pane), X/Escape 'dismiss' (the scale-out). Consumed by the exit animation. */
   previewExit: 'dismiss' | 'engulf'
@@ -372,6 +374,7 @@ export const useSession = create<SessionState>((set, get) => {
       tabs: [],
       activeTabId: '',
       tabMru: [],
+      navOpen: false, // the nav flavor dies with its nexus — navOpen ⟺ nav-preview stays invariant
       preview: null,
       previewsFile: EMPTY_PREVIEWS,
       previewTarget: null,
@@ -389,7 +392,7 @@ export const useSession = create<SessionState>((set, get) => {
       // Close the preview BEFORE the root can flip (D-9), and AWAIT its registered flush — the
       // exit presence defers the unmount past the adopt, so the unmount flush alone would bind the
       // NEW root. Closed even if the adopt is then cancelled: data safety beats window persistence.
-      set({ preview: null, previewTarget: null })
+      set({ navOpen: false, preview: null, previewTarget: null })
       await flushPreviewPage()
       // Flush the active page's pending body write to the CURRENT nexus before an adopt flips the root —
       // else the editor's unmount-flush (fired by the selection-clear below, after the root already moved)
@@ -1224,22 +1227,20 @@ export const useSession = create<SessionState>((set, get) => {
     navOpen: false,
     openNav: () => {
       void get().ensureAgendaSnapshot() // warm the agenda snapshot so search can list Tasks/Events
-      const hadPreview = get().preview !== null
-      set({ navOpen: true, preview: null, previewTarget: null })
-      if (hadPreview) {
-        clearPreviewWarm()
-        mirrorPreviews() // D-8 closed the preview — record `open` cleared
-      }
+      // D-8 closes any page preview; the NavWindow then IS the nav flavor (H-2) — its durable tab
+      // set restores beside the perma map tab.
+      set({ navOpen: true })
+      get().openNavPreview()
     },
-    closeNav: () => set({ navOpen: false }),
+    closeNav: () => {
+      // The window closes; its set stays remembered (H-3) — the mirror already holds every mutation.
+      clearPreviewWarm()
+      set({ navOpen: false, preview: null, previewTarget: null })
+      mirrorPreviews()
+    },
     toggleNav: () => {
-      if (!get().navOpen) void get().ensureAgendaSnapshot()
-      const hadPreview = get().preview !== null
-      set((s) => ({ navOpen: !s.navOpen, preview: null, previewTarget: null }))
-      if (hadPreview) {
-        clearPreviewWarm()
-        mirrorPreviews()
-      }
+      if (get().navOpen) get().closeNav()
+      else get().openNav()
     },
     preview: null,
     previewsFile: EMPTY_PREVIEWS,
@@ -1269,19 +1270,21 @@ export const useSession = create<SessionState>((set, get) => {
     },
     openNavPreview: () => {
       if (get().preview?.flavor === 'nav') return
-      // H-2: the map sentinel is always tab 1; the remembered page tabs restore after it.
-      const { tabs: pages, activeTab } = reconcileRecord(get().previewsFile.navSet)
+      // H-2: the map sentinel is always tab 1; the remembered page tabs restore after it. The map
+      // tab opens ACTIVE (the gallery is the landing view; remembered tabs sit beside it).
+      const { tabs: pages } = reconcileRecord(get().previewsFile.navSet)
       const sentinel = { id: makeTabId(), target: { kind: 'navwindow' as const } }
       const preview: PreviewState = {
         flavor: 'nav',
         originId: 'navwindow',
         tabs: [sentinel, ...pages],
-        activeTabId: (activeTab ?? sentinel).id,
+        activeTabId: sentinel.id,
       }
       clearPreviewWarm()
-      set({ preview, previewTarget: deriveTarget(preview), navOpen: false, previewExit: 'dismiss' })
+      set({ preview, previewTarget: deriveTarget(preview), previewExit: 'dismiss' })
       mirrorPreviews()
     },
+    setNavOverride: (on) => savePreviewsFile({ ...get().previewsFile, navOverride: on }),
     openPreviewTab: (target) => {
       const cur = get().preview
       // H-7 lives at the caller (the behind-the-window gate needs the main selection); here a

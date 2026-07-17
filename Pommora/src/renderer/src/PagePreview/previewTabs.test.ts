@@ -7,7 +7,11 @@ const page = (id: string) => ({ id, path: `Notes/${id}.md` })
 
 beforeEach(() => {
   clearPreviewWarm()
-  useSession.setState({ preview: null, previewsFile: { navSet: null, origins: {}, open: null } })
+  useSession.setState({
+    preview: null,
+    navOpen: false,
+    previewsFile: { navSet: null, origins: {}, open: null },
+  })
 })
 
 describe('previewTabs — the tab model (H-1/H-5/H-6/H-7)', () => {
@@ -182,6 +186,38 @@ describe('previewTabs — warmth (H-8)', () => {
     capturePreviewWarm(xTab.id, { scrollTop: 7 })
     useSession.getState().openPreview(page('z'))
     expect(readPreviewWarm(xTab.id)).toBeUndefined()
+  })
+})
+
+describe('previewTabs — the NavWindow flavor entry (H-2/H-3)', () => {
+  it('openNav seeds the nav flavor with the remembered set (map tab active); closeNav keeps it durable', () => {
+    useSession.setState({
+      previewsFile: {
+        navSet: {
+          tabs: [{ target: { kind: 'page', id: 'n', path: 'Notes/n.md' } }],
+          activeIndex: 0,
+        },
+        origins: {},
+        open: null,
+      },
+    })
+    useSession.getState().openNav()
+    const p = useSession.getState().preview!
+    expect(useSession.getState().navOpen).toBe(true)
+    expect(p.flavor).toBe('nav')
+    expect(p.tabs.map((t) => t.target.kind)).toEqual(['navwindow', 'page'])
+    expect(p.activeTabId).toBe(p.tabs[0].id) // the map tab lands active (the gallery is the landing)
+
+    useSession.getState().closeNav()
+    expect(useSession.getState().preview).toBeNull()
+    expect(useSession.getState().navOpen).toBe(false)
+    expect(useSession.getState().previewsFile.navSet?.tabs).toHaveLength(2) // durable (H-3)
+  })
+
+  it('the B-2 override toggle persists in the previews file', () => {
+    expect(useSession.getState().previewsFile.navOverride ?? true).toBe(true)
+    useSession.getState().setNavOverride(false)
+    expect(useSession.getState().previewsFile.navOverride).toBe(false)
   })
 })
 
