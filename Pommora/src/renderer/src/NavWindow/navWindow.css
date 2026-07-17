@@ -80,7 +80,12 @@
 }
 .navwindow-actions-lead {
   left: calc(var(--glass-inset) + 4px);
-  transform: translateX(-6px);
+  /* The scan/Open shows on BOTH flavors — a page tab promotes that page, the map flavor promotes the
+     NavWindow into NavView — so the lead is always visible; only the trail (settings/inspector) is
+     page-tab-only (the `.is-page-tab .navwindow-actions` rule still reveals it there). */
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);
 }
 .navwindow-actions-trail {
   /* Home = left of the holding X (its box + a breath). */

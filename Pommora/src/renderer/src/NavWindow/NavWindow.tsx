@@ -150,13 +150,19 @@ function NavWindowBody({ closing }: { closing: boolean }): React.JSX.Element {
     }
   }, [pageTarget])
 
-  // B-5 promotion from the nav flavor: the page opens for real; the nav window closes on select
-  // (its set stays durable, H-3).
+  // The shared toolbar's scan/Open targets by the active flavor. On a page tab it promotes that page
+  // for real (B-5). On the MAP flavor it promotes the NavWindow itself into NavView — carrying the
+  // view mode ONCE (DF-2), then closing and opening/focusing the single NavView tab (no engulf; the
+  // scan is a fixed toolbar action, not an animated FLIP). The nav set stays durable either way (H-3).
   const promote = (): void => {
-    if (!pageTarget) return
-    const ref = { kind: 'page' as const, id: pageTarget.id, path: pageTarget.path }
+    if (pageTarget) {
+      closeNav()
+      void select({ kind: 'page', id: pageTarget.id, path: pageTarget.path })
+      return
+    }
+    setNavViewMode(viewMode)
     closeNav()
-    void select(ref)
+    openNewTab()
   }
   const hasTabs = preview?.flavor === 'nav' && preview.tabs.length > 1
   const resolveIndex = useMemo(() => (tree ? buildResolveIndex(tree) : null), [tree])
@@ -169,6 +175,8 @@ function NavWindowBody({ closing }: { closing: boolean }): React.JSX.Element {
   const warmSeam = usePreviewWarm(pageScrollRef, pageTarget?.path)
   const openPreviewTab = useSession((s) => s.openPreviewTab)
   const select = useSession((s) => s.select)
+  const openNewTab = useSession((s) => s.openNewTab)
+  const setNavViewMode = useSession((s) => s.setNavViewMode)
   const { hover, card: hoverCard } = useConnectionHover()
   const connections = useMemo<ConnectionsApi | undefined>(() => {
     if (!tree) return undefined
