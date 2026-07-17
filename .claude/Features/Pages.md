@@ -20,7 +20,7 @@ A Page's property values live in its frontmatter, keyed by property ID, conformi
 
 #### II. Opening Behavior
 
-Clicking a Page opens it in the main detail pane, replacing the previous selection; one Page is open at a time, and the editor auto-saves on a debounce. A Collection can route its Pages to a compact preview card instead via `open_in`, but that routing is Pending — Pages open in the main pane. Routing → `Collections.md`.
+Clicking a Page opens it in the main detail pane, replacing the previous selection; one Page is open at a time, and the editor auto-saves on a debounce. A Collection can route its Pages to the floating Page Preview window instead via `open_in` — title clicks (and sidebar rows) open the preview, ⌘-click bypasses to a full page in a new tab. Routing → `Collections.md`; the window → `PagePreview.md`.
 
 #### II. Connections
 
@@ -44,7 +44,6 @@ A `.md` file authored outside Pommora opens untouched. A missing `id` is synthes
 
 **Properties Panel:** A property panel on the Page to view and edit the schema's property values. The data layer is complete; the surface isn't built.
 
-**Compact Preview Window:** A lightweight preview card for Pages in a `compact` Collection (`open_in`). The routing is unwired, so Pages open in the main pane.
 
 **Columns Directive:** The `Columns` multi-column section directive. Callouts already render in the editor (→ `MarkdownPM.md`); Columns isn't built.
 

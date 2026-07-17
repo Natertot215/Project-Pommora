@@ -68,6 +68,7 @@ Owned by the in-house engine — see [[PommoraDND]]. In brief: a live "feel" (du
 - **Banner** (`Detail/Banner/Banner.css`): title inset slide on `--duration-base`; "Add Banner" hover reveal.
 - **Menus** (`menu.css.ts` / `menuSurface.css.ts`): row hover is an instant state swap (no transition); the surface **opens** with the Bloom (`dropdown-menu` keyframes on the `slow` token) and **retracts** with `dropdown-menu-out` on click-off.
 - **Modals / pickers:** `PhotoCropModal` is imperative (pointer-tracked, no timed motion); the `IconPicker` rides the shared `PickerMenu` (the Dropdown motion) — a beaked, trigger-anchored pane, no bespoke chrome.
+- **Floating windows** (`previewWindow.css` / `navWindow.css`): both open/close on the shared **floating-window in/out** — a scale-fade on `--disclosure`, exit held by `useExitPresence`. The Page Preview's promote plays the **engulf** instead: a WAAPI FLIP from the window's live rect onto the detail pane's (translate to center, scale to box, fade) on `base`/`easing.standard` — runtime rects, so no CSS keyframes. Tab switches slide content on the preview's own stamp (the DetailPane view-slide values), and an open side pane rides the same keyframes — one motion (G-4). The title↔tab morph rides the tab-open `@starting-style` growth (`tabStrip.css`) with the title fading/sliding on the base tokens.
 
 ### Duration Inventory & DRY Backlog
 

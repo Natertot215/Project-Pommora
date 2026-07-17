@@ -107,7 +107,7 @@ Pages support everything in standard Markdown — paragraphs, headings, bulleted
 - **Columns** — a section rendered in evenly-divided horizontal columns; visual layout only.
 - **Callouts** — content rendered as an outlined box, distinct from a blockquote's filled left-bar emphasis.
 
-Each Collection decides where its Pages open — the main detail pane, or a compact preview card. Editor architecture → `Features/MarkdownPM.md`; the page entity → `Features/Pages.md`.
+Each Collection decides where its Pages open — the main detail pane, or the floating Page Preview window (`Features/PagePreview.md`). Editor architecture → `Features/MarkdownPM.md`; the page entity → `Features/Pages.md`.
 
 #### Page Collections and Sets
 
@@ -193,7 +193,7 @@ The current build is ad-hoc-signed. A distributable release adds electron-builde
 ### v1 Scope
 
 - **Contexts** (Areas / Topics / Projects) — free-standing organization surfaces with per-Nexus configurable labels, all three in one sidebar section. No containment, no parents, no cross-tier links.
-- **Page Collections + Sets + Pages** — schema-bearing Collections, schema-less recursive Sets, and Markdown Pages. UI labels renameable. Each Collection chooses preview-card vs. main-pane opening.
+- **Page Collections + Sets + Pages** — schema-bearing Collections, schema-less recursive Sets, and Markdown Pages. UI labels renameable. Each Collection chooses preview-window vs. main-pane opening.
 - **Pages** — Markdown + frontmatter (including per-tier multi-relations), the MarkdownPM editor, Columns and Callouts.
 - **Agenda** — Tasks and Events with a required built-in Status on each; sync opt-in; reached through a Calendar entry, no sidebar section.
 - **Homepage** — singleton dashboard, seeded on first launch.
@@ -209,7 +209,7 @@ The current build is ad-hoc-signed. A distributable release adds electron-builde
 
 #### What Items Were (historical pointer)
 
-Items were Pommora's second operational entity beside Pages until the two converged to redundancy — identical file format, property catalog, container shape, and tier relations. The per-collection open mode (preview vs. window) absorbed the last difference onto a single Page entity; legacy Item folders adopt as ordinary Page Collections, and the retired item-link syntax is now plain preserved text. Full record → `History.md`.
+Items were Pommora's second operational entity beside Pages until the two converged to redundancy — identical file format, property catalog, container shape, and tier relations. The per-collection open mode (preview vs. full page) absorbed the last difference onto a single Page entity; legacy Item folders adopt as ordinary Page Collections, and the retired item-link syntax is now plain preserved text. Full record → `History.md`.
 ---
 
 ### Prospects

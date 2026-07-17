@@ -25,7 +25,7 @@ The schema editor — create properties (minted into the nexus-wide registry and
 
 #### II. Open-In Mode
 
-Each Collection carries an `open_in` field (`compact` | `window`; absent = `window`) deciding where its Pages open — the main detail pane, or a compact preview card. The field persists on the sidecar; the compact-card routing is Pending, so Pages open in the main pane. Opening behavior → `Pages.md`.
+Each Collection carries an `open_in` field (`page-preview` | `full-page`; absent = `full-page`) deciding where its Pages open — the main detail pane, or the floating Page Preview window. Container-view title clicks and sidebar rows both honor it; ⌘-click is always the explicit full-page bypass to a new tab. The field is set from the SettingsPane's Configuration leaf. Opening behavior → `Pages.md`; the window → `PagePreview.md`.
 
 #### II. Move Semantics
 
@@ -60,4 +60,3 @@ The SQLite index — off the read path, regeneratable — records each page row'
 
 ### Pending
 
-**Compact Preview Window:** The `open_in: compact` routing — a lightweight preview card for a Collection's Pages. The field persists; the routing is unwired, so Pages open in the main pane.
