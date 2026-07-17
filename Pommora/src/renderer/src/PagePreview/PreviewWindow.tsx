@@ -17,6 +17,13 @@ import './previewWindow.css'
 // KNOB — D-7: the unified floating-chrome opening size (shared with NavWindow's WIN block).
 const WIN = { minW: 360, minH: 280, defW: 850, defH: 600 }
 
+// KNOB — inspector pane resize bounds (the NavWindow RAIL pattern); width persists per session
+// (module-scoped, like the window geo).
+const INSPECTOR = { min: 180, def: 260, max: 420 }
+let inspectorW = INSPECTOR.def
+
+const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v))
+
 // The bare surfaces a window-move may start from. The breadcrumb title is pointer-inert (I-16), so a
 // press on it lands on the toolbar beneath and arms the move.
 const DRAG_SURFACES = '.pgpreview, .pgpreview-toolbar, .pgpreview-body'
@@ -50,6 +57,31 @@ function PreviewWindowBody({
 
   // Inspector (G-1 shell): a preview-scoped pane; Escape closes it FIRST, then the window (I-21).
   const [inspectorOpen, setInspectorOpen] = useState(false)
+  const [inspW, setInspW] = useState(inspectorW)
+  const [inspResizing, setInspResizing] = useState(false)
+  // The rail-resize pattern: pointer-captured edge drag; transitions pause so the pane tracks 1:1.
+  const startInspectorResize = (e: React.PointerEvent<HTMLElement>): void => {
+    e.preventDefault()
+    const el = e.currentTarget
+    const pid = e.pointerId
+    el.setPointerCapture(pid)
+    const s = { x: e.clientX, w: inspectorW }
+    setInspResizing(true)
+    const move = (ev: PointerEvent): void => {
+      inspectorW = clamp(s.w - (ev.clientX - s.x), INSPECTOR.min, INSPECTOR.max)
+      setInspW(inspectorW)
+    }
+    const end = (): void => {
+      if (el.hasPointerCapture(pid)) el.releasePointerCapture(pid)
+      el.removeEventListener('pointermove', move)
+      el.removeEventListener('pointerup', end)
+      el.removeEventListener('pointercancel', end)
+      setInspResizing(false)
+    }
+    el.addEventListener('pointermove', move)
+    el.addEventListener('pointerup', end)
+    el.addEventListener('pointercancel', end)
+  }
   useEffect(() => {
     // Skip an Escape a focused surface already handled (mirrors NavWindow / App.tsx).
     const onKey = (e: KeyboardEvent): void => {
@@ -93,13 +125,16 @@ function PreviewWindowBody({
 
   return (
     <GlassPane
-      className={`pgpreview${closing ? ' closing' : ''}${inspectorOpen ? ' is-inspector-open' : ''}`}
+      className={`pgpreview${closing ? ' closing' : ''}${inspectorOpen ? ' is-inspector-open' : ''}${inspResizing ? ' is-inspector-resizing' : ''}`}
       // The glass tint knobs (previewWindow.css) compose here — inline because GlassPane's frost
       // sets its own background.
-      style={{
-        ...style,
-        background: 'color-mix(in srgb, var(--pgpreview-bg) var(--pgpreview-bg-a), transparent)',
-      }}
+      style={
+        {
+          ...style,
+          background: 'color-mix(in srgb, var(--pgpreview-bg) var(--pgpreview-bg-a), transparent)',
+          '--pgpreview-inspector-w': `${inspW}px`,
+        } as React.CSSProperties
+      }
       role="dialog"
       aria-label="Page Preview"
       onPointerDown={onWindowDown}
@@ -117,8 +152,10 @@ function PreviewWindowBody({
           >
             <Icon name="scan" size={13} />
           </button>
-          {/* The flow pair rides the inspector's edge (the main toolbar's --io swallow); scan and
-              the X hold home. */}
+        </div>
+        <div className="pgpreview-actions">
+          {/* The flow pair rides the inspector's edge (the main toolbar's --io swallow); the X
+              holds home. */}
           <div className="pgpreview-actions-flow">
             <button type="button" className="pgpreview-action" title="Settings" disabled>
               <Icon name="sliders-horizontal" size={13} />
@@ -154,6 +191,15 @@ function PreviewWindowBody({
       >
         <div className="pgpreview-inspector-body" />
       </GlassWindow>
+      {inspectorOpen && (
+        <div
+          className="pgpreview-inspector-resize"
+          onPointerDown={startInspectorResize}
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize inspector"
+        />
+      )}
       <FloatingResizeCorners startDrag={startDrag} />
     </GlassPane>
   )

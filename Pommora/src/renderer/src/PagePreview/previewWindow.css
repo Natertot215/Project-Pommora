@@ -53,10 +53,11 @@
   top: 0;
   left: 0;
   right: 0;
-  z-index: 2;
+  /* Above the inspector pane (z2): the buttons ride ON its glass, never under it. */
+  z-index: 3;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   height: var(--pgpreview-toolbar-h);
   padding: 0 2px;
 }
@@ -135,14 +136,31 @@
 .pgpreview.is-inspector-open .pgpreview-inspector {
   pointer-events: auto;
 }
+/* The rail's inner geometry, verbatim (navwindow-rail: 6px padding). */
 .pgpreview-inspector-body {
-  padding: 16px;
+  padding: 6px;
+  height: 100%;
+}
+/* The rail-resize twin: an edge-drag strip at the pane's left seam (col-resize, above the pane). */
+.pgpreview-inspector-resize {
+  position: absolute;
+  top: var(--pgpreview-inspector-inset);
+  bottom: var(--pgpreview-inspector-inset);
+  right: calc(var(--pgpreview-inspector-inset) + var(--pgpreview-inspector-w) - 3px);
+  width: 9px;
+  z-index: 4;
+  cursor: col-resize;
 }
 .pgpreview-body {
   transition: padding-right var(--duration-base) var(--ease-standard);
 }
 .pgpreview.is-inspector-open .pgpreview-body {
   padding-right: calc(var(--pgpreview-inspector-w) + var(--pgpreview-inspector-inset));
+}
+/* Edge-drag resize tracks the cursor 1:1 — no transition lag while dragging (the shell's rule). */
+.pgpreview.is-inspector-resizing .pgpreview-body,
+.pgpreview.is-inspector-resizing .pgpreview-actions-flow {
+  transition: none;
 }
 
 /* The settings + inspector pair rides the pane's edge (the main toolbar's swallow, toolbar.css):
