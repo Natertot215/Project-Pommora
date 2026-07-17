@@ -31,5 +31,19 @@ export function connectionClicks(getApi: GetApi): ReturnType<typeof EditorView.d
       api.open(res.page)
       return true
     },
+    // Right-click on a resolved connection hands off to the host's menu hook (Open in Preview et al).
+    contextmenu(event, view) {
+      const api = getApi()
+      if (!api?.menu) return false
+      const pos = view.posAtCoords({ x: event.clientX, y: event.clientY })
+      if (pos == null) return false
+      const hit = wikiLinkAt(view, pos)
+      if (!hit) return false
+      const res = api.resolve(hit.title)
+      if (res.status !== 'resolved' || !res.page) return false
+      event.preventDefault()
+      api.menu(res.page, { x: event.clientX, y: event.clientY })
+      return true
+    },
   })
 }

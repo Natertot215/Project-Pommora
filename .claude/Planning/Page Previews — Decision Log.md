@@ -171,6 +171,8 @@ The preview is **semi-multi-tabbed — a mini-app**. There are **no back/forward
 - **I-18:** [assumed] Scroll/caret follow the SurfacePM laws: the preview owns its wheel when hovered, caret-priority scrolling inside the editor, text-selection autoscroll near edges stays inside the preview.
 - **I-19:** [confirmed] ⌘-click is the explicit full-page bypass on preview-routed clicks (connections with B-6 on, preview-collection titles) — it opens a **new app tab**.
 
+- **I-25:** [confirmed] **"Open in Preview" is a right-click action** on wikilinks and navigation items (Nathan's directive, shipped in the shell): wikilinks via an optional `menu` hook on `ConnectionsApi` (a CM6 `contextmenu` handler hands the resolved page + click point to the host, which mounts a PickerMenu — the NavRowMenu anchor pattern); nav rows/cards via a page-only item in the shared NavRowMenu. The **sidebar's** context menu is native (main-process `contextMenu`) — adding it there is a main change, pending Nathan's call.
+
 **Keyboard & focus**
 
 - **I-20:** [confirmed] No preview-scoped keyboard commands beyond one: **⌘N while focused in a preview opens the active preview tab's page in a new app tab** — a promotion variant that closes the preview (Nathan's yes); [assumed] with multiple preview tabs it closes just the promoted tab, the window only when it was the last. ⌘W keeps its normal meaning (the app tab), Escape keeps D-4's (the topmost surface).

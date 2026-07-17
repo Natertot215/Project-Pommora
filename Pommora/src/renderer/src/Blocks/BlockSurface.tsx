@@ -9,7 +9,13 @@ import {
   type ViewPickerItem,
 } from '@shared/blocks'
 import { FEEL_PRESETS } from '@renderer/design-system/interactions/feel'
-import { buildPageIndex, flattenPages, type ConnectionsApi } from '@renderer/MarkdownPM/connections'
+import {
+  buildPageIndex,
+  flattenPages,
+  type ConnectionsApi,
+  type ConnPage,
+} from '@renderer/MarkdownPM/connections'
+import { ConnectionMenu } from '@renderer/Embeds/ConnectionMenu'
 import { attachBelow, insertBand, removeTile as removeLeaf } from '@renderer/SurfacePM/core/ops'
 import { getTile } from '@renderer/SurfacePM/core/model'
 import { SurfaceView, type BackdropTarget } from '@renderer/SurfacePM/SurfaceView'
@@ -145,10 +151,15 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
 
   // Markdown blocks are link SOURCES (D-8) — the tile editor gets the same
   // [[connection]] autocomplete + click-through the page editor has.
+  const [connMenu, setConnMenu] = useState<{ page: ConnPage; x: number; y: number } | null>(null)
   const connections = useMemo<ConnectionsApi | undefined>(() => {
     if (!tree) return undefined
     const idx = buildPageIndex(flatPages)
-    return { ...idx, open: (page) => void select({ kind: 'page', id: page.id, path: page.path }) }
+    return {
+      ...idx,
+      open: (page) => void select({ kind: 'page', id: page.id, path: page.path }),
+      menu: (page, at) => setConnMenu({ page, ...at }),
+    }
   }, [tree, flatPages, select])
 
   useEffect(() => {
@@ -440,6 +451,7 @@ export function BlockSurface({ host }: { host: BlockHostRef }): React.JSX.Elemen
           containerLocked={hostLocked}
         />
       )}
+      {connMenu && <ConnectionMenu {...connMenu} onClose={() => setConnMenu(null)} />}
     </div>
   )
 }

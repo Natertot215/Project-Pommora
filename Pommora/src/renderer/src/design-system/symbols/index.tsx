@@ -1,4 +1,5 @@
 import {
+  AppWindow,
   ArrowUpDown,
   Calendar,
   CalendarDays,
@@ -96,6 +97,7 @@ export const icons = {
   'chevron-right': ChevronRight,
   'chevron-up': ChevronUp,
   'chevron-down': ChevronDown,
+  'app-window': AppWindow,
   map: MapIcon,
   'maximize-2': Maximize2,
   x: X,

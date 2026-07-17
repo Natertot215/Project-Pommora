@@ -20,6 +20,8 @@ export interface PageIndex {
 
 export interface ConnectionsApi extends PageIndex {
   open: (page: ConnPage) => void
+  /** Optional right-click hook — the host surfaces a context menu for the link at the given point. */
+  menu?: (page: ConnPage, at: { x: number; y: number }) => void
 }
 
 export function flattenPages(tree: NexusTree): ConnPage[] {

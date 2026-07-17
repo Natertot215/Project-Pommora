@@ -68,6 +68,8 @@ export function NavRowMenu({
   const addFavorite = useSession((s) => s.addFavorite)
   const removeFavorite = useSession((s) => s.removeFavorite)
   const removeRecent = useSession((s) => s.removeRecent)
+  const openPreview = useSession((s) => s.openPreview)
+  const target = item.target
 
   const act = (fn: () => void) => () => {
     onClose()
@@ -83,16 +85,22 @@ export function NavRowMenu({
       <PickerMenu open onDismiss={onClose} triggerRef={anchorRef} center>
         <div className="nav-row-menu">
           {onOpenNewTab && (
-            <>
-              <MenuItem
-                leading={<Icon name="copy" size={MENU_GLYPH} />}
-                onClick={act(() => onOpenNewTab(item.target))}
-              >
-                {alreadyOpen ? 'Open' : 'Open in New Tab'}
-              </MenuItem>
-              <MenuSeparator flush />
-            </>
+            <MenuItem
+              leading={<Icon name="copy" size={MENU_GLYPH} />}
+              onClick={act(() => onOpenNewTab(item.target))}
+            >
+              {alreadyOpen ? 'Open' : 'Open in New Tab'}
+            </MenuItem>
           )}
+          {target.kind === 'page' && (
+            <MenuItem
+              leading={<Icon name="app-window" size={MENU_GLYPH} />}
+              onClick={act(() => openPreview({ id: target.id, path: target.path }))}
+            >
+              Open in Preview
+            </MenuItem>
+          )}
+          {(onOpenNewTab || item.target.kind === 'page') && <MenuSeparator flush />}
           <MenuItem
             leading={<Icon name={isPinned ? 'pin-off' : 'pin'} size={MENU_GLYPH} />}
             onClick={act(() => (isPinned ? unpinTarget(item.key) : pinTarget(item.target)))}

@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSession } from '../store'
 import { MarkdownEditor } from '../MarkdownPM'
-import { buildPageIndex, flattenPages, type ConnectionsApi } from '../MarkdownPM/connections'
+import {
+  buildPageIndex,
+  flattenPages,
+  type ConnectionsApi,
+  type ConnPage,
+} from '../MarkdownPM/connections'
+import { ConnectionMenu } from '../Embeds/ConnectionMenu'
 import { IconPicker } from '../Components/IconPicker'
 import { navKey } from '../Navigation/navRecents'
 import { captureWarm, readWarm } from '../Tabs/warmCache'
@@ -27,10 +33,15 @@ export function PageView(): React.JSX.Element {
   const liveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const [iconPickerOpen, setIconPickerOpen] = useState(false)
 
+  const [connMenu, setConnMenu] = useState<{ page: ConnPage; x: number; y: number } | null>(null)
   const connections = useMemo<ConnectionsApi | undefined>(() => {
     if (!tree) return undefined
     const idx = buildPageIndex(flattenPages(tree))
-    return { ...idx, open: (page) => void select({ kind: 'page', id: page.id, path: page.path }) }
+    return {
+      ...idx,
+      open: (page) => void select({ kind: 'page', id: page.id, path: page.path }),
+      menu: (page, at) => setConnMenu({ page, ...at }),
+    }
   }, [tree, select])
 
   // The pending save is per-path: rescheduling the SAME page replaces its timer (normal typing debounce),
@@ -159,6 +170,7 @@ export function PageView(): React.JSX.Element {
               void mutate({ op: 'setIcon', path: pageDetail.path, kind: 'page', icon: id })
             }
           />
+          {connMenu && <ConnectionMenu {...connMenu} onClose={() => setConnMenu(null)} />}
         </>
       )
   }

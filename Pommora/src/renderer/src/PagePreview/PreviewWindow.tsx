@@ -7,6 +7,7 @@ import {
 } from '../design-system/interactions/FloatingWindow'
 import { useExitPresence } from '../design-system/useExitPresence'
 import { PageEmbed } from '../Embeds/PageEmbed'
+import { buildPageIndex, flattenPages, type ConnectionsApi } from '../MarkdownPM/connections'
 import { NavCrumbs } from '../Navigation/NavList'
 import { buildResolveIndex, resolveWith } from '../Navigation/navResolve'
 import { useSession, type PreviewTarget } from '../store'
@@ -54,6 +55,15 @@ function PreviewWindowBody({
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [closePreview])
+
+  // Wiki-links inside the preview stay inside it — a click overtakes the shown page (H-1's shell
+  // interim until tabs land).
+  const openPreview = useSession((s) => s.openPreview)
+  const connections = useMemo<ConnectionsApi | undefined>(() => {
+    if (!tree) return undefined
+    const idx = buildPageIndex(flattenPages(tree))
+    return { ...idx, open: (page) => openPreview({ id: page.id, path: page.path }) }
+  }, [tree, openPreview])
 
   // The F-2 breadcrumb: the page's container chain + the page itself as the last crumb.
   const crumbs = useMemo(() => {
@@ -110,6 +120,7 @@ function PreviewWindowBody({
           path={target.path}
           editing={editing}
           onBeginEdit={() => setEditing(true)}
+          connections={connections}
         />
       </div>
       <FloatingResizeCorners startDrag={startDrag} />
