@@ -38,7 +38,9 @@
   --pgpreview-bg: var(--bg-window);
   --pgpreview-bg-a: 90%;
   --pgpreview-inspector-w: 260px; /* KNOB — inspector pane width */
-  --pgpreview-inspector-inset: 6px; /* KNOB — the pane's ring from the window edges */
+  /* KNOB — the pane's ring from the window edges: the same --glass-inset ring the NavWindow
+     gives its rail, so the two sidebars sit identically in their windows. */
+  --pgpreview-inspector-inset: var(--glass-inset);
   /* The inspector open/close driver — the shell's --io, shielded to this subtree (registered
      inheriting, so without this the MAIN inspector's --io would leak in). One var carries the pane
      slide, the icon ride, and the body squeeze. */
@@ -64,7 +66,11 @@
 .pgpreview-title {
   position: absolute;
   left: 50%;
-  transform: translateX(-50%);
+  /* The title/tabs re-center over the CONTENT as the inspector opens — riding --io, no own
+     transition, so it tracks the pane slide and live resize 1:1. */
+  transform: translateX(
+    calc(-50% - var(--io) * (var(--pgpreview-inspector-w) + var(--pgpreview-inspector-inset)) / 2)
+  );
   display: flex;
   max-width: 55%;
   min-width: 0;
