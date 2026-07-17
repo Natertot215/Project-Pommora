@@ -9,8 +9,9 @@ import { asRenderableIcon, defaultEntityIcon, Icon } from '@renderer/design-syst
 import { propertyTypeIconName } from '../Components/Detail/PropertyTypes'
 import { text } from '@renderer/design-system/tokens'
 import { CalendarPicker } from '@renderer/design-system/components/CalendarPicker/CalendarPicker'
-import { PickerMenu } from '@renderer/design-system/components/PickerMenu/PickerMenu'
+import { PickerMenu, PickerOption } from '@renderer/design-system/components/PickerMenu'
 import { MenuItem } from '@renderer/design-system/components/menu'
+import { iconOption } from '../Components/Detail/pickerControl.css'
 import { Cell } from '../Detail/Views/Table/Cell'
 import { buildContextsById, type ResolveContext } from '../Detail/Views/Table/resolveContext'
 import { contextOptionsFor } from '../Detail/Views/pipeline/contextOptions'
@@ -88,10 +89,15 @@ export function PreviewInspector({ target }: { target: PreviewTarget }): React.J
     [fm, title, target],
   )
 
-  // Properties are ASSIGNED (Nathan's model): a row shows when its key exists in the page's
-  // frontmatter OR was assigned this session via + Add Property — an assigned-but-empty row is
-  // valid and stays. Unassigned properties live behind the Add picker.
-  const isAssigned = (id: string): boolean => revealed.has(id) || fm?.properties?.[id] !== undefined
+  // Everything is ASSIGNED (Nathan's model) — context tiers included: a row shows when its key
+  // exists in the page's frontmatter (an empty tier array counts) OR was assigned this session via
+  // + Add Property. Assigned-but-empty is valid and stays; the unassigned live behind the Add picker.
+  const isAssigned = (id: string): boolean => {
+    if (revealed.has(id)) return true
+    const tier = TIER_LEVEL_BY_ID[id]
+    if (tier) return fm?.[`tier${tier}` as 'tier1' | 'tier2' | 'tier3'] !== undefined
+    return fm?.properties?.[id] !== undefined
+  }
 
   const closeEditing = (): void => setEditing(null)
 
@@ -123,6 +129,28 @@ export function PreviewInspector({ target }: { target: PreviewTarget }): React.J
     else setEditing({ id: def.id, mode: 'picker' })
   }
 
+  // The Add picker's shared landing: reveal the row, then open its editor anchored to the value
+  // field on the right (the row mounts next frame). A tier passes no def — it opens the context
+  // picker; a checkbox commits true directly and needs no editor.
+  const revealAndEdit = (id: string, def?: PropertyDefinition): void => {
+    setAddOpen(false)
+    setRevealed((prev) => new Set([...prev, id]))
+    if (def?.type === 'checkbox') {
+      commitValue(id, { kind: 'checkbox', value: true })
+      return
+    }
+    if (def && (def.type === 'file' || def.type === 'last_edited_time')) return
+    requestAnimationFrame(() => {
+      triggerRef.current =
+        document.querySelector<HTMLElement>(`[data-insp-id="${id}"] .pgpreview-insp-value`) ??
+        addRef.current
+      if (def?.type === 'datetime') setEditing({ id, mode: 'date' })
+      else if (def && (def.type === 'number' || def.type === 'url'))
+        setEditing({ id, mode: 'editor' })
+      else setEditing({ id, mode: 'picker' })
+    })
+  }
+
   if (!ctx || !row || !fm) return <div className="pgpreview-insp" />
 
   const editingDef =
@@ -145,87 +173,92 @@ export function PreviewInspector({ target }: { target: PreviewTarget }): React.J
   return (
     <div className="pgpreview-insp">
       <div className="pgpreview-insp-rows edge-fade">
-        {/* The Swift layout: two rounded fill fields — contexts, then properties. Empty
-            properties hide; + Add Property reveals one through its own picker. */}
+        {/* The Swift layout: two rounded fill fields — contexts, then properties — each rendered
+            only once something's assigned into it. Nothing pre-shows: on an empty page the Add
+            affordance alone sits at the top (the Obsidian read). */}
         {[
-          tierRows.map((t) => ({ def: null, ...t })),
+          tierRows.filter((t) => isAssigned(t.id)).map((t) => ({ def: null, ...t })),
           schema.filter((d) => isAssigned(d.id)).map((d) => ({ def: d, id: d.id, label: d.name })),
-        ].map((group, gi) => (
-          <div key={gi === 0 ? 'contexts' : 'properties'} className="pgpreview-insp-group">
-            {group.map(({ def, id, label }) => {
-        const col: ResolvedColumn = { id, kind: def ? 'property' : 'tier' }
-        return (
-          <div
-            key={id}
-            className="pgpreview-insp-row"
-            data-insp-id={id}
-            onContextMenu={
-              def
-                ? (e) => {
-                    e.preventDefault()
-                    setRowMenu({ id, x: e.clientX, y: e.clientY })
-                  }
-                : undefined
-            }
-          >
-            <span className={cx('pgpreview-insp-label', text.caption.standard)}>
-              <Icon
-                name={
-                  def
-                    ? (asRenderableIcon(def.icon) ?? propertyTypeIconName(def.type) ?? 'tag')
-                    : defaultEntityIcon(TIER_ENTITY[id] ?? 'area')
-                }
-                size={12}
-              />
-              {label}
-            </span>
-            {/* biome-ignore lint/a11y/useKeyWithClickEvents: pointer-first edit entry, like cells */}
-            <span
-              className="pgpreview-insp-value"
-              onClick={(e) => {
-                if (def) return editRow(def, e.currentTarget)
-                triggerRef.current = e.currentTarget
-                setEditing({ id, mode: 'picker' })
-              }}
-            >
-              {editing?.id === id && editing.mode === 'editor' && def ? (
-                <PropertyEditor
-                  initial={(() => {
-                    const v = resolveFieldValue(row, id, schema)
-                    return v.kind === 'number' || v.kind === 'url' ? String(v.value) : ''
-                  })()}
-                  numeric={def.type === 'number'}
-                  validate={def.type === 'url' ? isValidLink : undefined}
-                  onCommit={(raw) => {
-                    const t = raw.trim()
-                    commitValue(
-                      id,
-                      t === ''
-                        ? null
-                        : def.type === 'number'
-                          ? { kind: 'number', value: Number(t) }
-                          : { kind: 'url', value: t },
-                    )
-                    setEditing(null)
-                  }}
-                  onCancel={() => setEditing(null)}
-                />
-              ) : (
-                (Cell({
-                  row,
-                  column: col,
-                  ctx,
-                  hideIcon: false,
-                  style: { look: 'pill' },
-                }) ?? <span className="pgpreview-insp-empty">Empty</span>)
-              )}
-            </span>
-              </div>
-            )
-            })}
-          </div>
-        ))}
-        {schema.some((d) => !isAssigned(d.id)) && (
+        ].map((group, gi) =>
+          group.length === 0 ? null : (
+            <div key={gi === 0 ? 'contexts' : 'properties'} className="pgpreview-insp-group">
+              {group.map(({ def, id, label }) => {
+                const col: ResolvedColumn = { id, kind: def ? 'property' : 'tier' }
+                return (
+                  <div
+                    key={id}
+                    className="pgpreview-insp-row"
+                    data-insp-id={id}
+                    onContextMenu={
+                      def
+                        ? (e) => {
+                            e.preventDefault()
+                            setRowMenu({ id, x: e.clientX, y: e.clientY })
+                          }
+                        : undefined
+                    }
+                  >
+                    <span className={cx('pgpreview-insp-label', text.caption.standard)}>
+                      <Icon
+                        name={
+                          def
+                            ? (asRenderableIcon(def.icon) ??
+                              propertyTypeIconName(def.type) ??
+                              'tag')
+                            : defaultEntityIcon(TIER_ENTITY[id] ?? 'area')
+                        }
+                        size={12}
+                      />
+                      {label}
+                    </span>
+                    {/* biome-ignore lint/a11y/useKeyWithClickEvents: pointer-first edit entry, like cells */}
+                    <span
+                      className="pgpreview-insp-value"
+                      onClick={(e) => {
+                        if (def) return editRow(def, e.currentTarget)
+                        triggerRef.current = e.currentTarget
+                        setEditing({ id, mode: 'picker' })
+                      }}
+                    >
+                      {editing?.id === id && editing.mode === 'editor' && def ? (
+                        <PropertyEditor
+                          initial={(() => {
+                            const v = resolveFieldValue(row, id, schema)
+                            return v.kind === 'number' || v.kind === 'url' ? String(v.value) : ''
+                          })()}
+                          numeric={def.type === 'number'}
+                          validate={def.type === 'url' ? isValidLink : undefined}
+                          onCommit={(raw) => {
+                            const t = raw.trim()
+                            commitValue(
+                              id,
+                              t === ''
+                                ? null
+                                : def.type === 'number'
+                                  ? { kind: 'number', value: Number(t) }
+                                  : { kind: 'url', value: t },
+                            )
+                            setEditing(null)
+                          }}
+                          onCancel={() => setEditing(null)}
+                        />
+                      ) : (
+                        (Cell({
+                          row,
+                          column: col,
+                          ctx,
+                          hideIcon: false,
+                          style: { look: 'pill' },
+                        }) ?? <span className="pgpreview-insp-empty">Empty</span>)
+                      )}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          ),
+        )}
+        {(tierRows.some((t) => !isAssigned(t.id)) || schema.some((d) => !isAssigned(d.id))) && (
           <button
             type="button"
             ref={addRef}
@@ -261,46 +294,32 @@ export function PreviewInspector({ target }: { target: PreviewTarget }): React.J
         </>
       )}
       {addOpen && (
-        <PickerMenu solid open onDismiss={() => setAddOpen(false)} triggerRef={addRef}>
-          {/* The Group/Sort property menu, borrowed whole — tight MenuItem rows. */}
-          <div className="nav-row-menu">
-            {schema
-              .filter((d) => !isAssigned(d.id))
-              .map((d) => (
-                <MenuItem
-                  key={d.id}
-                  leading={
-                    <Icon
-                      name={asRenderableIcon(d.icon) ?? propertyTypeIconName(d.type) ?? 'tag'}
-                      size={13}
-                    />
-                  }
-                  onClick={() => {
-                    setAddOpen(false)
-                    setRevealed((prev) => new Set([...prev, d.id]))
-                    if (d.type === 'checkbox') {
-                      commitValue(d.id, { kind: 'checkbox', value: true })
-                      return
-                    }
-                    // The editor anchors to the revealed row's VALUE field on the right — the row
-                    // mounts next frame.
-                    requestAnimationFrame(() => {
-                      triggerRef.current =
-                        document.querySelector<HTMLElement>(
-                          `[data-insp-id="${d.id}"] .pgpreview-insp-value`,
-                        ) ?? addRef.current
-                      if (d.type === 'datetime') setEditing({ id: d.id, mode: 'date' })
-                      else if (d.type === 'number' || d.type === 'url')
-                        setEditing({ id: d.id, mode: 'editor' })
-                      else if (d.type !== 'file' && d.type !== 'last_edited_time')
-                        setEditing({ id: d.id, mode: 'picker' })
-                    })
-                  }}
-                >
+        <PickerMenu solid open onDismiss={() => setAddOpen(false)} triggerRef={addRef} center>
+          {/* The grouping pane's picker verbatim — PickerOption rows with the icon treatment.
+              Unassigned tiers lead (contexts add from here too), unassigned properties follow. */}
+          {tierRows
+            .filter((t) => !isAssigned(t.id))
+            .map((t) => (
+              <PickerOption key={t.id} onClick={() => revealAndEdit(t.id)}>
+                <span className={iconOption}>
+                  <Icon name={defaultEntityIcon(TIER_ENTITY[t.id] ?? 'area')} size={13} />
+                  {t.label}
+                </span>
+              </PickerOption>
+            ))}
+          {schema
+            .filter((d) => !isAssigned(d.id))
+            .map((d) => (
+              <PickerOption key={d.id} onClick={() => revealAndEdit(d.id, d)}>
+                <span className={iconOption}>
+                  <Icon
+                    name={asRenderableIcon(d.icon) ?? propertyTypeIconName(d.type) ?? 'tag'}
+                    size={13}
+                  />
                   {d.name}
-                </MenuItem>
-              ))}
-          </div>
+                </span>
+              </PickerOption>
+            ))}
         </PickerMenu>
       )}
       <div className="pgpreview-insp-subfield">

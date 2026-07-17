@@ -119,13 +119,15 @@
   height: 100%;
   padding: 0 6px;
   border: none;
+  border-radius: 6px;
   background: none;
   color: var(--label-secondary);
   cursor: pointer;
   opacity: 0;
   transition:
     opacity var(--duration-fast) var(--ease-standard),
-    color var(--duration-fast) var(--ease-standard);
+    color var(--duration-fast) var(--ease-standard),
+    background var(--duration-fast) var(--ease-standard);
 }
 .tab-bar:hover .tab-plus {
   opacity: 1;
@@ -151,4 +153,5 @@
 }
 .tab-plus:hover {
   color: var(--label-primary);
+  background: var(--state-hover);
 }
