@@ -9,9 +9,9 @@ import { computeStats } from './subfieldStats'
 
 /** The catalog of Subfield items. v1: page document stats + the container add-menu. New ids slot in
  *  here, and the per-view default order below — the seam for future user-defined (scoped) items. */
-export type SubfieldItemId = 'pageStats' | 'addMenu'
+export type SubfieldItemId = 'pageStats' | 'addMenu' | 'viewType'
 
-const ALL_ITEM_IDS: SubfieldItemId[] = ['pageStats', 'addMenu']
+const ALL_ITEM_IDS: SubfieldItemId[] = ['pageStats', 'addMenu', 'viewType']
 /** Narrow a persisted (untrusted) id string to a known item id — drops stale/unknown entries. */
 export function isSubfieldItemId(id: string): id is SubfieldItemId {
   return (ALL_ITEM_IDS as string[]).includes(id)
@@ -30,7 +30,7 @@ export interface SubfieldItemProps {
 }
 
 export const DEFAULT_ITEMS: Record<SelectionState['kind'], SubfieldItemId[]> = {
-  none: [],
+  none: ['viewType'],
   homepage: [],
   context: [],
   collection: ['addMenu'],
@@ -99,6 +99,24 @@ function AddMenuItem(): React.JSX.Element | null {
   )
 }
 
+/** List ⇄ Gallery toggle for NavView (the `none` empty state) — drives the persisted `navViewMode`
+ *  slice (separate from NavWindow's `navWindowMode`). Mirrors the NavWindow rail toggle's markup. */
+function ViewTypeItem(): React.JSX.Element {
+  const mode = useSession((s) => s.navViewMode)
+  const setMode = useSession((s) => s.setNavViewMode)
+  return (
+    <button
+      type="button"
+      className="subfield-viewtype"
+      onClick={() => setMode(mode === 'list' ? 'gallery' : 'list')}
+      title={mode === 'list' ? 'Switch to Gallery' : 'Switch to List'}
+    >
+      <Icon name="chevrons-up-down" size="sm" />
+      <span>{mode === 'list' ? 'List' : 'Gallery'}</span>
+    </button>
+  )
+}
+
 export function SubfieldItem({
   id,
   scope,
@@ -108,5 +126,7 @@ export function SubfieldItem({
       return <PageStatsItem scope={scope} />
     case 'addMenu':
       return <AddMenuItem />
+    case 'viewType':
+      return <ViewTypeItem />
   }
 }

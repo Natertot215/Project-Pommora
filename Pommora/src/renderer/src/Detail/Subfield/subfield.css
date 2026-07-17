@@ -91,6 +91,24 @@ button.subfield-crumb.ghost:hover {
   background: var(--state-hover);
 }
 
+/* NavView's List/Gallery toggle — an icon-leading label, secondary like the other footing glyphs. */
+.subfield-viewtype {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 2px 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 5px;
+  color: var(--label-secondary);
+  cursor: default;
+  -webkit-app-region: no-drag;
+}
+.subfield-viewtype:hover {
+  background: var(--state-hover);
+}
+
 /* App-level collapse: the bar's fixed-height reveal slides open/closed; the chevron rides directly
    above it (mirrors its height) so it bounces up and down with the toggle. */
 .subfield-reveal {

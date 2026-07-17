@@ -17,6 +17,7 @@ import type {
   NavFavorite,
   NavStateResult,
   NavTarget,
+  NavViewModes,
   NexusState,
   PageResult,
   PinEntry,
@@ -65,7 +66,9 @@ import { ensureIdentity } from './identity'
 import {
   ensureSettings,
   readDefaultViewScale,
+  readNavViewModes,
   readSubfield,
+  writeNavViewModes,
   writePersonalization,
   writeSubfield,
 } from './settings'
@@ -1458,6 +1461,27 @@ ipcMain.handle(
       if (!config || typeof config !== 'object')
         return { ok: false, error: 'Invalid subfield config.' }
       await writeSubfield(root, config as SubfieldConfig)
+      return { ok: true }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  },
+)
+
+// Nav view modes (List/Gallery per surface) — a React-owned `navViewModes` foreign key.
+ipcMain.handle('navViewModes:get', async (): Promise<NavViewModes | null> => {
+  const root = sessionRoot()
+  return root === null ? null : readNavViewModes(root)
+})
+ipcMain.handle(
+  'navViewModes:set',
+  async (_e, modes: unknown): Promise<{ ok: true } | { ok: false; error: string }> => {
+    try {
+      const root = sessionRoot()
+      if (root === null) return { ok: false, error: 'No nexus is open.' }
+      if (!modes || typeof modes !== 'object')
+        return { ok: false, error: 'Invalid nav view modes.' }
+      await writeNavViewModes(root, modes as NavViewModes)
       return { ok: true }
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) }

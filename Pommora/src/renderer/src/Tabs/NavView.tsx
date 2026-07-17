@@ -6,6 +6,7 @@ import { useSession } from '../store'
 import { assetUrl } from '../assetUrl'
 import { splitSearch, useNavData } from '../Navigation/useNavData'
 import { NavGallery } from '../NavWindow/NavGallery'
+import { NavList } from '../Navigation/NavList'
 import { AddBannerButton } from '../Detail/Banner/AddBannerButton'
 import '../Detail/Banner/Banner.css'
 import './navView.css'
@@ -17,6 +18,8 @@ import './navView.css'
 export function NavView(): React.JSX.Element {
   // resolvedRecents arrives already pin-deduped (useNavData filters against the pin set).
   const { resolvedRecents, resolvedPins, search, go } = useNavData()
+  // The List/Gallery toggle lives in the detail-pane Subfield (the `none` viewType item), driving this.
+  const viewMode = useSession((s) => s.navViewMode)
   const ownBanner = useSession((s) => s.tree?.navView.banner)
   const homeBanner = useSession((s) => s.tree?.homepage.banner)
   const banner = ownBanner ?? homeBanner
@@ -64,15 +67,32 @@ export function NavView(): React.JSX.Element {
         </div>
       )}
       <div className="nav-view-scroll edge-fade">
-        {/* NavView is a gallery, so search stays in gallery cards (never the list) — filtered items only,
-            no pins section; unresolvable agenda matches (extras) can't be cards and drop out. */}
-        <NavGallery
-          pins={results ? [] : resolvedPins}
-          items={results ? results.items : resolvedRecents}
-          frozenLayout={!!results}
-          onSelect={open}
-          onOpenNewTab={openNew}
-        />
+        {/* Search stays in gallery cards regardless of the toggle (filtered items only, no pins section;
+            unresolvable agenda matches can't be cards and drop out). The viewType toggle switches only
+            the recents/empty view between List and Gallery. */}
+        {results ? (
+          <NavGallery
+            pins={[]}
+            items={results.items}
+            frozenLayout
+            onSelect={open}
+            onOpenNewTab={openNew}
+          />
+        ) : viewMode === 'list' ? (
+          <NavList
+            pins={resolvedPins}
+            items={resolvedRecents}
+            onSelect={open}
+            onOpenNewTab={openNew}
+          />
+        ) : (
+          <NavGallery
+            pins={resolvedPins}
+            items={resolvedRecents}
+            onSelect={open}
+            onOpenNewTab={openNew}
+          />
+        )}
       </div>
     </div>
   )

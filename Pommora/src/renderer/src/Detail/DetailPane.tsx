@@ -77,6 +77,7 @@ export const getDetailPaneRect = (): DOMRect | null => paneEl?.getBoundingClient
 export function DetailPane(): React.JSX.Element {
   const selection = useSession((s) => s.selection)
   const selectionKind = selection.kind
+  const tree = useSession((s) => s.tree)
   // Cold-switch pause: the outgoing view holds as its last frame, input-frozen, until the incoming
   // page's fetch lands (or the deadline drops to the loading view) — see store.select's page case.
   const frozen = useSession((s) => s.pageFrozen)
@@ -109,11 +110,14 @@ export function DetailPane(): React.JSX.Element {
   // here rather than with a giant invisible button so the reveal zone never blocks clicks beneath it.
   const [near, setNear] = useState(false)
 
-  // The Subfield shows only where it has something to display: Collections, Sets, and Pages.
-  // Contexts + Homepage are omitted — there's nothing to display here anyway; put it back when
-  // there's actually stuff to show.
+  // The Subfield shows where it has something to display: Collections, Sets, Pages, and NavView (the
+  // `none` empty state, but only with a nexus open — bare `none` also renders the no-nexus prompt, and
+  // NavView carries the List/Gallery toggle). Contexts + Homepage stay omitted until they have content.
   const showSubfield =
-    selectionKind === 'collection' || selectionKind === 'set' || selectionKind === 'page'
+    selectionKind === 'collection' ||
+    selectionKind === 'set' ||
+    selectionKind === 'page' ||
+    (selectionKind === 'none' && !!tree)
 
   const paneClass =
     'detail-pane' +

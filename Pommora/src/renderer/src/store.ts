@@ -4,6 +4,7 @@ import {
   type AgendaEntry,
   type NavFavorite,
   type NavTarget,
+  type NavViewMode,
   type NexusTree,
   type PageDetail,
   type Personalization,
@@ -148,6 +149,12 @@ interface SessionState {
   /** Per-view-kind ordered Subfield item ids (persisted per nexus); absent kinds use registry defaults. */
   subfieldOrder: Partial<Record<SelectionState['kind'], string[]>>
   setSubfieldOrder: (kind: SelectionState['kind'], ids: string[]) => void
+  /** List/Gallery per nav surface — SEPARATE and each persisted per nexus (navViewModes settings key).
+   *  The floating NavWindow reads `navWindowMode`; the in-pane NavView reads `navViewMode`. */
+  navWindowMode: NavViewMode
+  setNavWindowMode: (mode: NavViewMode) => void
+  navViewMode: NavViewMode
+  setNavViewMode: (mode: NavViewMode) => void
   /** Nexus-wide interface personalization (settings.json) — the DRY config the apply-map consumes.
    *  Seeded from the tree; setPersonalization updates it, applies the DOM effect, and persists. */
   personalization: Personalization
@@ -665,6 +672,13 @@ export const useSession = create<SessionState>((set, get) => {
             } catch {
               // bridge/handler absent — keep the in-memory defaults
             }
+            // Per-nexus nav view modes (settings.json) — load once on open; keep defaults if absent.
+            try {
+              const modes = await window.nexus.navViewModes.get()
+              if (modes) set({ navWindowMode: modes.window, navViewMode: modes.view })
+            } catch {
+              // bridge/handler absent — keep the in-memory defaults
+            }
             // The fetched link-title cache — hydrate the whole map from main so cached titles render
             // with no flash (only never-seen URLs fetch). A superset of what's in the store, so it never
             // drops a session-fetched title; per-url selectors keep identity when values are unchanged.
@@ -956,6 +970,23 @@ export const useSession = create<SessionState>((set, get) => {
       const s = get()
       void window.nexus.subfield
         .set({ order: s.subfieldOrder, expanded: s.subfieldExpanded })
+        .catch(() => undefined)
+    },
+
+    navWindowMode: 'list',
+    setNavWindowMode: (mode) => {
+      set({ navWindowMode: mode })
+      const s = get()
+      void window.nexus.navViewModes
+        .set({ window: s.navWindowMode, view: s.navViewMode })
+        .catch(() => undefined)
+    },
+    navViewMode: 'list',
+    setNavViewMode: (mode) => {
+      set({ navViewMode: mode })
+      const s = get()
+      void window.nexus.navViewModes
+        .set({ window: s.navWindowMode, view: s.navViewMode })
         .catch(() => undefined)
     },
     personalization: {},

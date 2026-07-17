@@ -31,9 +31,6 @@ import './navWindow.css'
 const WIN = { minW: 360, minH: 280, defW: 850, defH: 600 }
 const RAIL = { min: 120, def: 200, max: 320 }
 
-// Persists the List/Gallery choice across opens (the pane remounts each open via useExitPresence).
-let savedViewMode: 'list' | 'gallery' = 'list'
-
 // The bare backgrounds a window-move may start from (matched against the press target itself, so any
 // child content — row internals, card bodies, the search input — never arms a move).
 const DRAG_SURFACES =
@@ -134,13 +131,11 @@ function NavWindowBody({ closing }: { closing: boolean }): React.JSX.Element {
   // The row/card menu's "Open in New Tab" (D-3) — same reconcile + close-on-select pipeline as a click.
   const goNewTab = (target: NavTarget): void =>
     go(target, closeOnSelect ? closeNav : undefined, { newTab: true })
-  // Rail Style toggle — List ⇄ Gallery. The choice persists across opens (module-scoped, like geo).
-  const [viewMode, setViewMode] = useState<'list' | 'gallery'>(savedViewMode)
-  const toggleViewMode = (): void =>
-    setViewMode((m) => {
-      savedViewMode = m === 'list' ? 'gallery' : 'list'
-      return savedViewMode
-    })
+  // Rail Style toggle — List ⇄ Gallery. Persisted per nexus in the store's `navWindowMode` slice
+  // (separate from NavView's `navViewMode`), so it survives relaunch and re-renders sibling readers.
+  const viewMode = useSession((s) => s.navWindowMode)
+  const setNavWindowMode = useSession((s) => s.setNavWindowMode)
+  const toggleViewMode = (): void => setNavWindowMode(viewMode === 'list' ? 'gallery' : 'list')
 
   // The nav flavor (H-2): the whole body below is the MAP TAB's content; an active page tab swaps
   // it away and slides the rail closed (G-4/F-5). The strip is persistent window chrome above it.

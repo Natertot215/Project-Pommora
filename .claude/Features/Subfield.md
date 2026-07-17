@@ -7,7 +7,7 @@ The bottom bar of every content view, named the **Subfield**. A breadcrumb on th
 ### What It Shows
 
 - **Breadcrumb** (`SubfieldBreadcrumb` + `crumbs.ts`) — the ancestor chain for the open view. Collection + depth-1 Set segments navigate (`store.select`); deeper Sub-Sets are plain; the current segment is inert. A container view also shows the **ghost crumb**: the last page you backed out of, rendered dimmed but still clickable to jump forward. The trail is `store.trail` (last-visited page per container id), recorded while a page is open.
-- **Per-view items** (`subfieldItems.tsx`) — a registry keyed by view kind. v1: **pages** show `lines · words · characters` (`subfieldStats.ts`, Markdown-stripped prose), **live as you type** — the editor's `liveBody` buffer in the store feeds the count ahead of the debounced save; **Collections / Sets** show a **+** add-menu (New Page / New container). **Homepage + Contexts show no Subfield yet** — nothing to display there until they have content.
+- **Per-view items** (`subfieldItems.tsx`) — a registry keyed by view kind. v1: **pages** show `lines · words · characters` (`subfieldStats.ts`, Markdown-stripped prose), **live as you type** — the editor's `liveBody` buffer in the store feeds the count ahead of the debounced save; **Collections / Sets** show a **+** add-menu (New Page / New container); **NavView** (the `none` empty state) shows a **List / Gallery** toggle driving `store.navViewMode`. **Homepage + Contexts show no Subfield yet** — nothing to display there until they have content. The footer shows for `none` only with a nexus open (bare `none` also renders the no-nexus prompt).
 
 ### Scoped Mounts (the floating preview)
 

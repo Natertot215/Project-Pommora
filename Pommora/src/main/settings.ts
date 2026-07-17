@@ -8,6 +8,8 @@ import { mkdir } from 'node:fs/promises'
 import {
   coerceViewScale,
   DEFAULT_LABELS,
+  type NavViewMode,
+  type NavViewModes,
   type NexusLabels,
   type SubfieldConfig,
 } from '@shared/types'
@@ -115,6 +117,22 @@ export async function readSubfield(root: string): Promise<SubfieldConfig | null>
 export async function writeSubfield(root: string, config: SubfieldConfig): Promise<void> {
   await ensureSettings(root)
   await updateSettings(root, (cur) => ({ ...cur, subfield: config }))
+}
+
+/** Read the React-owned `navViewModes` foreign key from settings.json (null when absent/malformed). */
+export async function readNavViewModes(root: string): Promise<NavViewModes | null> {
+  const existing = await readJsonObject(nexusConfig(root, NEXUS_CONFIG_FILES.settings))
+  const nv = existing?.navViewModes
+  if (!nv || typeof nv !== 'object') return null
+  const s = nv as Record<string, unknown>
+  const mode = (v: unknown): NavViewMode => (v === 'gallery' ? 'gallery' : 'list')
+  return { window: mode(s.window), view: mode(s.view) }
+}
+
+/** Write the `navViewModes` key, preserving every other (Swift-required + foreign) key. */
+export async function writeNavViewModes(root: string, modes: NavViewModes): Promise<void> {
+  await ensureSettings(root)
+  await updateSettings(root, (cur) => ({ ...cur, navViewModes: modes }))
 }
 
 /** Merge one personalization key into `settings.json` `personalization` (serialized; foreign +

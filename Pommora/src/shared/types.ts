@@ -440,6 +440,16 @@ export interface SubfieldConfig {
   expanded: boolean
 }
 
+/** List vs Gallery for a nav surface. */
+export type NavViewMode = 'list' | 'gallery'
+
+/** Per-nexus nav view modes — persisted as a foreign `navViewModes` key in settings.json. Kept
+ *  SEPARATE per surface: the floating NavWindow and the in-pane NavView each own theirs. */
+export interface NavViewModes {
+  window: NavViewMode
+  view: NavViewMode
+}
+
 /** A single page's full content, read on demand for the detail view. */
 export interface PageDetail {
   id: string

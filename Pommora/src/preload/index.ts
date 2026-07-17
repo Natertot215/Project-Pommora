@@ -6,6 +6,7 @@ import type {
   NavFavorite,
   NavStateResult,
   NavTarget,
+  NavViewModes,
   NexusState,
   NexusTree,
   OpenIn,
@@ -350,6 +351,12 @@ const api = {
     get: (): Promise<SubfieldConfig | null> => ipcRenderer.invoke('subfield:get'),
     set: (config: SubfieldConfig): Promise<{ ok: true } | { ok: false; error: string }> =>
       ipcRenderer.invoke('subfield:set', config),
+  },
+  // Nav view modes (List/Gallery per surface) — React-owned `navViewModes` key.
+  navViewModes: {
+    get: (): Promise<NavViewModes | null> => ipcRenderer.invoke('navViewModes:get'),
+    set: (modes: NavViewModes): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('navViewModes:set', modes),
   },
   // Agenda read for the sidebar's Agenda mode — lazy, called only when that mode is active.
   agenda: {
