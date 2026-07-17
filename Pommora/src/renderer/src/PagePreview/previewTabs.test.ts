@@ -1,9 +1,12 @@
+// @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest'
 import { useSession } from '../store'
 
 const page = (id: string) => ({ id, path: `Notes/${id}.md` })
 
-beforeEach(() => useSession.setState({ preview: null }))
+beforeEach(() =>
+  useSession.setState({ preview: null, previewsFile: { navSet: null, origins: {}, open: null } }),
+)
 
 describe('previewTabs — the tab model (H-1/H-5/H-6/H-7)', () => {
   it('summon opens a single-tab window; re-summon of the same origin is a no-op (I-1)', () => {
@@ -77,6 +80,64 @@ describe('previewTabs — the tab model (H-1/H-5/H-6/H-7)', () => {
     const p2 = useSession.getState().preview!
     expect(p2.tabs).toHaveLength(1)
     expect(p2.activeTabId).toBe(p2.tabs[0].id)
+  })
+})
+
+describe('previewTabs — durable sets (H-3/H-6/H-10)', () => {
+  it("a summon restores the origin's remembered set; the active pointer survives", () => {
+    useSession.setState({
+      previewsFile: {
+        navSet: null,
+        origins: {
+          x: {
+            tabs: [
+              { target: { kind: 'page', id: 'x', path: 'Notes/x.md' } },
+              { target: { kind: 'page', id: 'y', path: 'Notes/y.md' } },
+            ],
+            activeIndex: 1,
+          },
+        },
+        open: null,
+      },
+    })
+    useSession.getState().openPreview(page('x'))
+    const p = useSession.getState().preview!
+    expect(p.tabs.map((t) => (t.target.kind === 'page' ? t.target.id : ''))).toEqual(['x', 'y'])
+    expect(p.tabs.find((t) => t.id === p.activeTabId)?.target).toMatchObject({ id: 'y' })
+    expect(useSession.getState().previewTarget).toEqual({ id: 'y', path: 'Notes/y.md' })
+  })
+
+  it('a re-parent re-keys the record: the old origin retires, the survivor keys the set (H-6)', () => {
+    useSession.getState().openPreview(page('x'))
+    useSession.getState().openPreviewTab(page('y'))
+    const p = useSession.getState().preview!
+    useSession.getState().closePreviewTab(p.tabs[0].id)
+    const file = useSession.getState().previewsFile
+    expect(file.origins.x).toBeUndefined()
+    expect(file.origins.y?.tabs).toEqual([
+      { target: { kind: 'page', id: 'y', path: 'Notes/y.md' } },
+    ])
+    expect(file.open).toEqual({ flavor: 'page', originId: 'y' })
+  })
+
+  it('closing the last tab retires the set — a re-summon starts fresh; the X keeps it (H-3)', () => {
+    useSession.getState().openPreview(page('x'))
+    useSession.getState().openPreviewTab(page('y'))
+    useSession.getState().closePreview() // X: the set stays remembered, open clears
+    let file = useSession.getState().previewsFile
+    expect(file.origins.x?.tabs).toHaveLength(2)
+    expect(file.open).toBeNull()
+
+    useSession.getState().openPreview(page('x'))
+    const p = useSession.getState().preview!
+    expect(p.tabs).toHaveLength(2)
+    useSession.getState().closePreviewTab(p.tabs[1].id)
+    useSession.getState().closePreviewTab(useSession.getState().preview!.tabs[0].id)
+    file = useSession.getState().previewsFile
+    expect(useSession.getState().preview).toBeNull()
+    expect(file.origins.x).toBeUndefined() // emptied → retired
+    useSession.getState().openPreview(page('x'))
+    expect(useSession.getState().preview?.tabs).toHaveLength(1) // fresh
   })
 })
 

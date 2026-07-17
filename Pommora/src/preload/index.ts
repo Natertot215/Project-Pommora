@@ -13,6 +13,8 @@ import type {
   Personalization,
   PinEntry,
   PinsResult,
+  PreviewsFile,
+  PreviewsResult,
   RecentEntry,
   SubfieldConfig,
   TabSet,
@@ -379,6 +381,12 @@ const api = {
     load: (): Promise<TabsResult> => ipcRenderer.invoke('tabs:load'),
     save: (set: TabSet): Promise<{ ok: true } | { ok: false; error: string }> =>
       ipcRenderer.invoke('tabs:save', set),
+  },
+  // The preview tab sets — synced page-previews.json (nav set + per-origin sets + open pointer).
+  previews: {
+    load: (): Promise<PreviewsResult> => ipcRenderer.invoke('previews:load'),
+    save: (file: PreviewsFile): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('previews:save', file),
   },
   // Gallery thumbnails — capture the detail-pane rect (main writes under .nexus/assets and returns the
   // nexus-asset:// URL); evict prunes thumbnails outside the live recents∪pins set.

@@ -21,6 +21,8 @@ import type {
   PageResult,
   PinEntry,
   PinsResult,
+  PreviewsFile,
+  PreviewsResult,
   RecentEntry,
   SubfieldConfig,
   TabSet,
@@ -86,6 +88,12 @@ import {
   readTabsState,
   scheduleTabsWrite,
 } from './io/tabsState'
+import {
+  flushPreviewsWrites,
+  hasPendingPreviewsWrites,
+  readPreviewsState,
+  schedulePreviewsWrite,
+} from './io/previewState'
 import { loadOrMigratePins, removePin, writePin } from './io/pinsState'
 import { captureThumbnail, evictThumbnails } from './io/thumbnails'
 import { readViewOrders, writeViewOrders, type ViewOrders } from './io/viewOrders'
@@ -467,6 +475,31 @@ ipcMain.handle('tabs:save', (_e, set: unknown): { ok: true } | { ok: false; erro
   return { ok: true }
 })
 
+// The preview tab sets — a synced sidecar (`page-previews.json`, H-3/H-10): the NavWindow set,
+// per-origin page sets, the open pointer. Saves debounce main-side; drained with the nav/tab writes.
+ipcMain.handle('previews:load', async (): Promise<PreviewsResult> => {
+  const root = sessionRoot()
+  if (root === null) return { ok: false, error: 'No nexus open' }
+  try {
+    return { ok: true, file: await readPreviewsState(root) }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+})
+
+ipcMain.handle(
+  'previews:save',
+  (_e, file: unknown): { ok: true } | { ok: false; error: string } => {
+    if (adopting) return { ok: false, error: 'Nexus switching.' }
+    const root = sessionRoot()
+    if (root === null) return { ok: false, error: 'No nexus is open.' }
+    if (!isPlainObject(file) || !isPlainObject(file.origins))
+      return { ok: false, error: 'Bad previews file.' }
+    schedulePreviewsWrite(root, file as unknown as PreviewsFile)
+    return { ok: true }
+  },
+)
+
 // Gallery thumbnails — capture the detail-pane rect on entity-open, evict on membership roll-off.
 const isRect = (v: unknown): v is ThumbRect =>
   isPlainObject(v) && ['x', 'y', 'width', 'height'].every((k) => typeof v[k] === 'number')
@@ -544,9 +577,9 @@ async function adoptNexus(path: string): Promise<void> {
 }
 
 async function adoptNexusInner(path: string): Promise<void> {
-  // Drain the outgoing nexus's owed nav + tab writes before the session root changes, so a rapid
-  // switch-away-and-back can't let a queued write clobber the freshly-loaded state.
-  await Promise.all([flushNavWrites(), flushTabsWrites()])
+  // Drain the outgoing nexus's owed nav + tab + previews writes before the session root changes,
+  // so a rapid switch-away-and-back can't let a queued write clobber the freshly-loaded state.
+  await Promise.all([flushNavWrites(), flushTabsWrites(), flushPreviewsWrites()])
   await openSession(path)
   // openSession canonicalized the root (realpath); thread THAT everywhere below so the watcher's
   // session-match guard (watcher.ts) and the index/persistence key off the same string sessionRoot()
@@ -2095,19 +2128,19 @@ app.on('window-all-closed', () => {
 })
 
 // Quit cleanup. The index handle is regeneratable (a clean close just tidies + frees the WAL
-// files), but any owed nav or tab write — a queued debounce OR an in-flight favorite/pin — is
-// durable user state, so if one is outstanding we defer the quit, drain them all, then re-quit. The
-// guard makes the second pass fall straight through; the flushes loop so a record landing mid-drain
-// is caught before the re-quit.
+// files), but any owed nav, tab, or previews write — a queued debounce OR an in-flight favorite/pin
+// — is durable user state, so if one is outstanding we defer the quit, drain them all, then re-quit.
+// The guard makes the second pass fall straight through; the flushes loop so a record landing
+// mid-drain is caught before the re-quit.
 let flushingBeforeQuit = false
 app.on('before-quit', (e) => {
   if (flushingBeforeQuit) return
   stopWatcher()
   closeSessionIndex()
-  if (!hasPendingNavWrites() && !hasPendingTabsWrites()) return
+  if (!hasPendingNavWrites() && !hasPendingTabsWrites() && !hasPendingPreviewsWrites()) return
   e.preventDefault()
   flushingBeforeQuit = true
-  void Promise.all([flushNavWrites(), flushTabsWrites()]).then(
+  void Promise.all([flushNavWrites(), flushTabsWrites(), flushPreviewsWrites()]).then(
     () => app.quit(),
     () => app.quit(),
   )

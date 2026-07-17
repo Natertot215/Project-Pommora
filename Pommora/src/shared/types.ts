@@ -375,6 +375,25 @@ export interface TabSet {
 /** The `tabs:load` IPC envelope — `set` is null when no sidecar exists yet (the store seeds fresh). */
 export type TabsResult = { ok: true; set: TabSet | null } | { ok: false; error: string }
 
+/** A persisted preview tab set (H-3/H-10): targets only — ids are session-local and re-minted at
+ *  restore; `activeIndex` points into `tabs` by strip order. */
+export interface PreviewSetRecord {
+  tabs: { target: PreviewTabTarget }[]
+  activeIndex: number
+}
+
+/** The `page-previews.json` sidecar: the NavWindow flavor's one set, the per-origin page-preview
+ *  sets keyed by origin page id (re-keyed on re-parent, H-6), and which preview was open (recorded
+ *  for the map; launch never auto-summons, H-10). */
+export interface PreviewsFile {
+  navSet: PreviewSetRecord | null
+  origins: Record<string, PreviewSetRecord>
+  open: { flavor: 'page' | 'nav'; originId: string } | null
+}
+
+/** The `previews:load` IPC envelope — absent/corrupt sidecars read as the empty shape, never null. */
+export type PreviewsResult = { ok: true; file: PreviewsFile } | { ok: false; error: string }
+
 /** The `nav:loadPins` IPC envelope. */
 export type PinsResult = { ok: true; pins: PinEntry[] } | { ok: false; error: string }
 

@@ -8,6 +8,8 @@ import {
   type PageDetail,
   type Personalization,
   type PinEntry,
+  type PreviewSetRecord,
+  type PreviewsFile,
   type RecentEntry,
   type SelectionState,
   type SelectTarget,
@@ -16,7 +18,13 @@ import {
 } from '@shared/types'
 import { DEFAULT_NEW_NAME, type MutableKind, type MutateRequest } from '@shared/mutate'
 import { buildReconcileIndex, reconcileSelection, reconcileWith } from './selection'
-import { closeTabIn, deriveTarget, openTabIn, type PreviewState } from './PagePreview/previewTabs'
+import {
+  closeTabIn,
+  deriveTarget,
+  openTabIn,
+  type PreviewState,
+  type PreviewTab,
+} from './PagePreview/previewTabs'
 import { navKey, recordRecent, removeRecentByKey, RECENTS_CAP } from './Navigation/navRecents'
 import { byOrder, cleanPinTarget, pinFor, reorderTo } from './Navigation/navPins'
 import {
@@ -274,6 +282,9 @@ interface SessionState {
   /** The Page Preview floating window (Decision Log H): null = closed. One floating window
    *  total (D-8): opening either the preview or the NavWindow closes the other. */
   preview: PreviewState | null
+  /** The in-memory mirror of `page-previews.json` (H-3) — loaded once per nexus, updated on every
+   *  preview mutation, saved fire-and-forget (main debounces + drains). */
+  previewsFile: PreviewsFile
   /** DERIVED from `preview` (the active page tab) — kept in lockstep by every preview action so
    *  the window's consumers read one stable shape. */
   previewTarget: PreviewTarget | null
@@ -341,6 +352,30 @@ let coldStampSeq = -1
 let homepageLockWritesInFlight = 0
 
 export const useSession = create<SessionState>((set, get) => {
+  // The wholesale per-nexus session reset (I-10): every adopt path clears the same state —
+  // openVia BEFORE its adopt IPC (D-9 ordering), applyTree's foreign-root guard for adopts that
+  // arrive main-first (the menu's reload-state). Clearing activeTabId marks the tab set
+  // never-seeded, so load() re-reads the new nexus's sidecars.
+  const resetNexusSession = (): void => {
+    pageFetchSeq++
+    set({
+      selection: { kind: 'none' },
+      pageStatus: 'idle',
+      pageDetail: null,
+      pageError: undefined,
+      pageFrozen: false,
+      liveBody: null,
+      tabs: [],
+      activeTabId: '',
+      tabMru: [],
+      preview: null,
+      previewsFile: EMPTY_PREVIEWS,
+      previewTarget: null,
+      previewSlide: null,
+    })
+    clearWarm() // warmth is per-nexus AND session-only — never crosses an adoption (I-10)
+  }
+
   // Shared "open attempt" path for the picker and drag-to-open: run the bridge
   // call; on success re-read state via load() (one read path). A rejected bridge
   // call routes to the error state instead of an unhandled rejection.
@@ -357,27 +392,9 @@ export const useSession = create<SessionState>((set, get) => {
       // binds the OLD root; the flush clears the pending save, so that unmount-flush is then a no-op.
       await flushActivePage()
       if (await attempt()) {
-        // A new nexus was adopted — clear selection/detail from the old one before
-        // re-reading, so stale page detail doesn't linger against the new tree.
-        // (Scoped to the adopt path, not load(), which also serves launch + refresh.)
-        // Clearing activeTabId marks the tab set never-seeded, so load() re-reads the
-        // new nexus's sidecar (I-10 wholesale reset; main drained the outgoing writes).
-        pageFetchSeq++
-        set({
-          selection: { kind: 'none' },
-          pageStatus: 'idle',
-          pageDetail: null,
-          pageError: undefined,
-          pageFrozen: false,
-          liveBody: null,
-          tabs: [],
-          activeTabId: '',
-          tabMru: [],
-          preview: null,
-          previewTarget: null,
-          previewSlide: null,
-        })
-        clearWarm() // warmth is per-nexus AND session-only — never crosses an adoption (I-10)
+        // A new nexus was adopted — reset before re-reading, so stale state doesn't linger
+        // against the new tree (main drained the outgoing writes during the adopt).
+        resetNexusSession()
         await get().load()
       }
     } catch (e) {
@@ -406,12 +423,92 @@ export const useSession = create<SessionState>((set, get) => {
     return { dir: to < from ? 'back' : 'fwd', seq: ++previewSlideSeq }
   }
 
+  const EMPTY_PREVIEWS: PreviewsFile = { navSet: null, origins: {}, open: null }
+
+  const toPreviewRecord = (p: PreviewState): PreviewSetRecord => ({
+    tabs: p.tabs.map((t) => ({ target: t.target })),
+    activeIndex: Math.max(
+      0,
+      p.tabs.findIndex((t) => t.id === p.activeTabId),
+    ),
+  })
+
+  // Mirror the slice into the sidecar (H-3/H-10): the live window updates its record + the open
+  // pointer; `retire` drops a re-keyed or emptied origin (H-6). Fire-and-forget — main debounces
+  // and drains at quit/switch; the optional chain tolerates test stubs without the bridge.
+  const mirrorPreviews = (retire?: string): void => {
+    const s = get()
+    const p = s.preview
+    let file = s.previewsFile
+    if (retire && retire !== p?.originId) {
+      const { [retire]: _dropped, ...origins } = file.origins
+      file = { ...file, origins }
+    }
+    if (p) {
+      const rec = toPreviewRecord(p)
+      file =
+        p.flavor === 'nav'
+          ? { ...file, navSet: rec, open: { flavor: 'nav', originId: p.originId } }
+          : {
+              ...file,
+              origins: { ...file.origins, [p.originId]: rec },
+              open: { flavor: 'page', originId: p.originId },
+            }
+    } else {
+      file = { ...file, open: null }
+    }
+    savePreviewsFile(file)
+  }
+
+  const savePreviewsFile = (file: PreviewsFile): void => {
+    set({ previewsFile: file })
+    void (window as { nexus?: typeof window.nexus }).nexus?.previews
+      ?.save(file)
+      .catch(() => undefined)
+  }
+
+  // Reconcile a remembered set's page tabs against the live tree (the H-10 restore): dead paths
+  // drop, renames re-path, dupes dedup, ids re-mint. The stored-active survivor comes back so the
+  // caller can keep it focused; sentinels are the caller's business (nav prepends its own).
+  const reconcileRecord = (
+    rec: PreviewSetRecord | null | undefined,
+  ): { tabs: PreviewTab[]; activeTab: PreviewTab | null } => {
+    if (!rec) return { tabs: [], activeTab: null }
+    const tree = get().tree
+    const index = tree ? buildReconcileIndex(tree) : null
+    const seen = new Set<string>()
+    const tabs: PreviewTab[] = []
+    let activeTab: PreviewTab | null = null
+    rec.tabs.forEach((t, i) => {
+      if (t.target.kind !== 'page') return
+      let target = t.target
+      if (index) {
+        const r = reconcileWith(index, target)
+        if (r.kind === 'none') return
+        if (r.kind === 'page' && r.path !== target.path) target = { ...target, path: r.path }
+      }
+      if (seen.has(target.id)) return
+      seen.add(target.id)
+      const tab = { id: makeTabId(), target }
+      tabs.push(tab)
+      if (i === rec.activeIndex) activeTab = tab
+    })
+    return { tabs, activeTab }
+  }
+
   // The preview and its derived target move in lockstep (previewTarget is a Phase-2 casualty); commit
-  // both from one place so no action can let them drift.
+  // both from one place so no action can let them drift, and mirror the sidecar on every commit —
+  // a window emptied or re-parented away from its origin retires the old key (H-6).
   const commitPreview = (
     next: PreviewState | null,
     extra?: { previewSlide: ReturnType<typeof stampByOrder> },
-  ): void => set({ preview: next, previewTarget: deriveTarget(next), ...extra })
+  ): void => {
+    const prev = get().preview
+    set({ preview: next, previewTarget: deriveTarget(next), ...extra })
+    const retire =
+      prev && prev.flavor === 'page' && prev.originId !== next?.originId ? prev.originId : undefined
+    mirrorPreviews(retire)
+  }
 
   // The active tab — an unpinned tab, or a derived pinned tab (which carries no unpinned back-history).
   const findActiveTab = (): Tab | undefined => {
@@ -591,6 +688,10 @@ export const useSession = create<SessionState>((set, get) => {
             // path clears it). A mutation refetch must NOT re-read the sidecar: its debounced write
             // trails the in-memory set, so a re-read would roll the tabs backward.
             if (get().activeTabId === '') {
+              // The previews sidecar loads on the same once-per-nexus trigger; the stored `open`
+              // pointer is a record, never an auto-summon (H-10).
+              const previews = await window.nexus.previews?.load().catch(() => null)
+              if (previews?.ok) set({ previewsFile: previews.file })
               const stored = await window.nexus.tabs.load().catch(() => null)
               const storedSet = stored?.ok ? stored.set : null
               const pins = get().pins
@@ -676,6 +777,12 @@ export const useSession = create<SessionState>((set, get) => {
     // No 'loading' flash — the tree's already on screen — and the selection reconciles
     // so the detail pane never strands on a gone page (delete) or stale path (rename/move).
     applyTree: async (incoming) => {
+      // ONE reset invariant for every adopt path: a tree from a DIFFERENT nexus (the menu's
+      // reload-state adopts in main and never runs openVia's clear) wipes the per-nexus session
+      // state BEFORE any reconcile below can mirror the old nexus's tabs/previews into the new
+      // one's synced sidecars.
+      const prevRoot = get().tree?.nexus.rootPath
+      if (prevRoot !== undefined && prevRoot !== incoming.nexus.rootPath) resetNexusSession()
       // Recycle unchanged subtrees from the prior tree — IPC strips identity, so without this
       // every push re-rendered every consumer. An echo lands as the SAME tree (a zustand no-op);
       // an unrelated change keeps the open container's identity and its memoized pipeline.
@@ -757,6 +864,21 @@ export const useSession = create<SessionState>((set, get) => {
               }
             commitPreview(next)
           }
+        }
+        // Sidecar hygiene: an origins key whose page no longer exists can never be re-summoned —
+        // prune it (records re-path lazily at restore; only key liveness matters here).
+        const file = get().previewsFile
+        const dead = Object.keys(file.origins).filter((id) => {
+          const own = file.origins[id].tabs.find(
+            (t) => t.target.kind === 'page' && t.target.id === id,
+          )?.target
+          const path = own?.kind === 'page' ? own.path : ''
+          return reconcileWith(index, { kind: 'page', id, path }).kind === 'none'
+        })
+        if (dead.length > 0) {
+          const origins = { ...file.origins }
+          for (const id of dead) delete origins[id]
+          savePreviewsFile({ ...file, origins })
         }
       }
       // Always read the OS accent: it feeds --accent only when the setting is `system`,
@@ -1096,34 +1218,53 @@ export const useSession = create<SessionState>((set, get) => {
     navOpen: false,
     openNav: () => {
       void get().ensureAgendaSnapshot() // warm the agenda snapshot so search can list Tasks/Events
+      const hadPreview = get().preview !== null
       set({ navOpen: true, preview: null, previewTarget: null })
+      if (hadPreview) mirrorPreviews() // D-8 closed the preview — record `open` cleared
     },
     closeNav: () => set({ navOpen: false }),
     toggleNav: () => {
       if (!get().navOpen) void get().ensureAgendaSnapshot()
+      const hadPreview = get().preview !== null
       set((s) => ({ navOpen: !s.navOpen, preview: null, previewTarget: null }))
+      if (hadPreview) mirrorPreviews()
     },
     preview: null,
+    previewsFile: EMPTY_PREVIEWS,
     previewTarget: null,
     previewSlide: null,
     openPreview: (target) => {
       const cur = get().preview
       if (cur?.flavor === 'page' && cur.originId === target.id) return // I-1: same-origin no-op
-      const tab = { id: makeTabId(), target: { kind: 'page' as const, ...target } }
-      set({
-        preview: { flavor: 'page', originId: target.id, tabs: [tab], activeTabId: tab.id },
-        previewTarget: target,
-        navOpen: false,
-      })
+      // H-3: a summon restores the origin's remembered set, reconciled; an emptied or absent
+      // record falls back to the bare origin.
+      const { tabs: restored, activeTab } = reconcileRecord(get().previewsFile.origins[target.id])
+      const tabs =
+        restored.length > 0
+          ? restored
+          : [{ id: makeTabId(), target: { kind: 'page' as const, ...target } }]
+      const preview: PreviewState = {
+        flavor: 'page',
+        originId: target.id,
+        tabs,
+        activeTabId: (activeTab ?? tabs[0]).id,
+      }
+      set({ preview, previewTarget: deriveTarget(preview), navOpen: false })
+      mirrorPreviews()
     },
     openNavPreview: () => {
       if (get().preview?.flavor === 'nav') return
-      const tab = { id: makeTabId(), target: { kind: 'navwindow' as const } }
-      set({
-        preview: { flavor: 'nav', originId: 'navwindow', tabs: [tab], activeTabId: tab.id },
-        previewTarget: null,
-        navOpen: false,
-      })
+      // H-2: the map sentinel is always tab 1; the remembered page tabs restore after it.
+      const { tabs: pages, activeTab } = reconcileRecord(get().previewsFile.navSet)
+      const sentinel = { id: makeTabId(), target: { kind: 'navwindow' as const } }
+      const preview: PreviewState = {
+        flavor: 'nav',
+        originId: 'navwindow',
+        tabs: [sentinel, ...pages],
+        activeTabId: (activeTab ?? sentinel).id,
+      }
+      set({ preview, previewTarget: deriveTarget(preview), navOpen: false })
+      mirrorPreviews()
     },
     openPreviewTab: (target) => {
       const cur = get().preview
@@ -1155,7 +1296,11 @@ export const useSession = create<SessionState>((set, get) => {
       if (next === cur) return
       commitPreview(next)
     },
-    closePreview: () => set({ preview: null, previewTarget: null }),
+    closePreview: () => {
+      // X/Escape: the window closes but its set stays remembered (H-3) — only `open` clears.
+      set({ preview: null, previewTarget: null })
+      mirrorPreviews()
+    },
     select: async (target, opts) => {
       // Every navigation supersedes an in-flight cold page fetch (its response drops on the seq fence
       // below) and releases a pause left by one.

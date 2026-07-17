@@ -390,6 +390,55 @@ describe('store — applyTree reconciles the preview tabs (D-6)', () => {
     expect(p?.originId).toBe('a')
   })
 
+  it('a tree from a DIFFERENT nexus resets the session before any reconcile can leak state', async () => {
+    useSession.getState().openPreview({ id: 'b', path: 'Notes/B.md' })
+    await useSession.getState().applyTree(treeWith([{ id: 'b', path: 'Notes/B.md' }]))
+    expect(useSession.getState().previewsFile.origins.b).toBeDefined()
+
+    // The menu's reload-state path: a foreign-root tree lands with NO openVia clear before it.
+    const base = treeWith([])
+    await useSession
+      .getState()
+      .applyTree({ ...base, nexus: { ...base.nexus, id: 'other', rootPath: '/other' } })
+    const s = useSession.getState()
+    expect(s.preview).toBeNull()
+    expect(s.previewsFile).toEqual({ navSet: null, origins: {}, open: null })
+    expect(s.activeTabId).toBe('') // the once-per-nexus load gate re-opens
+  })
+
+  it('a summon reconciles the remembered set against the live tree (H-10 restore)', async () => {
+    await useSession.getState().applyTree(
+      treeWith([
+        { id: 'x', path: 'Notes/x.md' },
+        { id: 'y', path: 'Notes/Renamed.md' },
+      ]),
+    )
+    useSession.setState({
+      previewsFile: {
+        navSet: null,
+        origins: {
+          x: {
+            tabs: [
+              { target: { kind: 'page', id: 'x', path: 'Notes/x.md' } },
+              { target: { kind: 'page', id: 'y', path: 'Notes/y.md' } },
+              { target: { kind: 'page', id: 'z', path: 'Notes/z.md' } },
+            ],
+            activeIndex: 2,
+          },
+        },
+        open: null,
+      },
+    })
+    useSession.getState().openPreview({ id: 'x', path: 'Notes/x.md' })
+    const p = useSession.getState().preview
+    // Dead z drops; y re-paths to its rename; the dead stored-active falls to the first survivor.
+    expect(p?.tabs.map((t) => (t.target.kind === 'page' ? t.target.path : ''))).toEqual([
+      'Notes/x.md',
+      'Notes/Renamed.md',
+    ])
+    expect(p?.tabs.find((t) => t.id === p.activeTabId)?.target).toMatchObject({ id: 'x' })
+  })
+
   it('keeps the nav flavor alive through a reconcile: dead page tabs drop, the map tab stays', async () => {
     useSession.getState().openNavPreview()
     useSession.getState().openPreviewTab({ id: 'b', path: 'Notes/B.md' })
