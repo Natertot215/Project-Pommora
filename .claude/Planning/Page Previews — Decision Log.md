@@ -8,7 +8,7 @@
 
 ### Status — Continuation
 
-The frame is settled (singleton floating window on window-background, fully editable via PageEmbed keyed-by-path, in-core inspector via the ToolbarTrio glass-swap, connections-in-preview config in settings.json, conditional back-only chevron, promote-via-engulf, per-source routing: sidebar follows the Collection, NavWindow overrides). The **Interaction Matrix (section I)** is the live front: seven [open] items with Nathan — I-1 (re-click pulse vs no-op), I-4 (NavWindow closes on summon), I-13 (title editability in preview), I-14 (banner interactions), I-15 (Settings menu inventory), I-19 (⌘-click modifier matrix), I-20 (⌘W scope). Fold his answers, then: self-review → adversarial review (standard agent) → pass to planning + /handoff.
+Interrogation is essentially complete — the Interaction Matrix's seven questions all resolved: no-op on re-click (I-1), NavWindow closes on summon (I-4), title editable + self-follows (I-13), banner changeable-as-always (I-14), Settings = the shared Page-toolbar component (I-15), ⌘-click bypass is in (I-19), ⌘N-in-preview → new tab as the only preview-scoped command (I-20). D-2 hardened: the multi-preview *ability* is load-bearing and gets A-B tested post-ship. New surface B-7: the Obsidian-style connections hover-card (scrollable, read-only dropdown pane). Three light sub-calls remain with Nathan: **B-7's phase** (core vs fast-follow), **I-19's target** (⌘-click bypass → in place vs new tab), **I-20's close** (does ⌘N-promote close the preview). Then: self-review → adversarial review (standard agent) → pass to planning + /handoff.
 
 ### Sources
 
@@ -53,6 +53,8 @@ The frame is settled (singleton floating window on window-background, fully edit
 
 - **B-6:** [confirmed] Connections-in-preview is **core** (Nathan: "that has to be in it"): a user config making inline `[[Connection]]` clicks open the target as a preview instead of navigating — `connections.ts:16`'s `api.open` slot is the branch point. The config lives in the nexus **`.nexus/settings.json`**, written through `main/settings.ts`'s serialized read-modify-write primitive (foreign keys preserved).
 
+- **B-7:** [confirmed, phase open] **Connections hover-card** (Nathan, unprompted: "Obsidian does this great"): hovering a `[[Connection]]` summons a **dropdown pane of the page itself — scrollable, never editable**. A *second, lighter surface* distinct from the preview window: the anchored-card chassis rejected for A-1 finds its home here (PickerMenu positioning + read-only PageEmbed). Open sub-call: core alongside the window, or the first fast-follow.
+
 - **B-3:** [confirmed] "Open in New Tab" (the context-menu action) always bypasses the preview — it's an explicit full-page ask; the preview never has a tab.
 
 - **B-4:** [confirmed] The NavWindow peek (ratified tab-neutral) is this same surface summoned from a NavWindow row; its deferred "preview mode toggle" ties to the page's `open_in`.
@@ -75,7 +77,7 @@ The frame is settled (singleton floating window on window-background, fully edit
 
 - **D-1:** [confirmed] Tab-neutral by construction: the preview never touches `selection`, `tabs`, history, or the warm cache — it reads via `openPage` directly (the PageEmbed pattern). No store slice beyond an open/target flag.
 
-- **D-2:** [confirmed] **Singleton for now** (a second open replaces the first — the NSPanel model); the core stays designed as "a list of one" so multiple slots in later without a rewrite.
+- **D-2:** [confirmed] **Singleton for now** (a second open replaces the first — the NSPanel model), but the "list of one" architecture is **load-bearing, not aspirational**: Nathan wants the *ability* for multiple coexisting previews scoped in (the same posture as the project's single-window-now/multi-window-ready seams) so multi-preview can be **A-B tested** after the core ships. If multi wins, the chevron's NavWindow-return (H) retires entirely — you'd just keep both previews open.
 
 - **D-3:** [assumed] Non-modal, no focus steal (the NavWindow precedent): opening a preview doesn't blur the editor behind it; its own search-less chrome takes focus only when clicked into.
 
@@ -113,10 +115,10 @@ The frame is settled (singleton floating window on window-background, fully edit
 
 **Opens & summons**
 
-- **I-1:** [open] ← with Nathan. Clicking the title of the page *already previewed*: silent no-op, or the preview gives an attention pulse (a design-stage "I'm already here" affordance)?
+- **I-1:** [confirmed] Clicking the already-previewed page's title is a **no-op** — same as the app's existing behavior for selecting the already-selected (the select same-target gate). No pulse, nothing.
 - **I-2:** [confirmed] Overtake is a keyed remount (C-4): the outgoing page's pending autosave flushes to its own file before the incoming page mounts.
 - **I-3:** [assumed] Embedded views route too: a view tile on a SurfacePM page shares A-7's navigate, so its title-clicks honor the same `open_in` routing — the branch lives at the navigate, not per-surface.
-- **I-4:** [open] ← with Nathan. Implied by the chevron "returning" to it: the NavWindow **closes** when it summons a preview. Confirm; and if a NavWindow was manually reopened meanwhile, the chevron focuses it rather than duplicating.
+- **I-4:** [confirmed] The NavWindow **closes** when it summons a preview; the chevron reopens it (focusing an already-reopened one rather than duplicating). Standing caveat: this whole return mechanic is what the D-2 multi-preview A-B test may retire.
 - **I-5:** [assumed] Rapid double title-click is idempotent — the second click hits the already-open-on-this-page guard (whatever I-1 resolves to).
 - **I-6:** [assumed] First-open placement is a design-stage call (centered default is the hypothesis); thereafter D-7's session geometry holds through overtakes — contents swap, the window doesn't jump.
 
@@ -131,17 +133,17 @@ The frame is settled (singleton floating window on window-background, fully edit
 
 **Gestures inside the preview**
 
-- **I-13:** [open] ← with Nathan. Title editability: the main pane's title heading renames the file — does the preview's title (banner state, F-2) stay editable (self-rename → self-follows via D-6), or is it read-only in the preview?
-- **I-14:** [open] ← with Nathan. Banner interactions inside the preview — repositionable/changeable as usual, or locked to display-only?
-- **I-15:** [open] ← with Nathan. The Settings toolbar button's menu contents (per-page actions? lock? delete?) — inventory needed before the toolbar can be designed.
+- **I-13:** [confirmed] The preview's title is **editable** — a rename from inside the preview renames the file and the preview self-follows (D-6's rename-follow applied to itself).
+- **I-14:** [confirmed] The banner in the preview is **changeable/removable as always**. (Banner *repositioning* doesn't exist anywhere in the app yet — it's an app-wide follow-up prospect, not this feature's business.)
+- **I-15:** [confirmed] The Settings button is **the same settings component the Page's toolbar trio will use** — one shared button, not a preview-specific menu. Its contents are that component's own pending design; this spec just mounts it.
 - **I-16:** [assumed] Window-drag surfaces: bare toolbar areas + the title breadcrumb drag the window (the NavWindow `DRAG_SURFACES` allow-list pattern); buttons and the editor never do.
 - **I-17:** [assumed] Block DND works inside the preview; drag math reads the *computed* zoom, not the token — the embed is scaled (F-3), the exact trap TableView already documents for `--zoom`-scaled tiles.
 - **I-18:** [assumed] Scroll/caret follow the SurfacePM laws: the preview owns its wheel when hovered, caret-priority scrolling inside the editor, text-selection autoscroll near edges stays inside the preview.
-- **I-19:** [open] ← with Nathan. Modifier matrix: does ⌘-click act as the explicit full-page bypass (per B-3's spirit) on connection clicks (B-6 on) and preview-collection title clicks — and is it full-page-in-place or new-tab?
+- **I-19:** [confirmed, target open] ⌘-click is **in** as the explicit full-page bypass on preview-routed clicks (connections with B-6 on, preview-collection titles). Open sub-call: bypass to full-page *in place*, or to a *new tab*.
 
 **Keyboard & focus**
 
-- **I-20:** [open] ← with Nathan. ⌘W with the preview focused: close the preview, or the active tab? (Hypothesis: the preview — topmost-surface-first, matching Escape.)
+- **I-20:** [confirmed] No preview-scoped keyboard commands beyond one: **⌘N while focused in a preview opens the previewed page in a new tab** (a promotion variant; presumably closes the preview like B-5 — [assumed]). ⌘W keeps its normal meaning (the tab), Escape keeps D-4's (the topmost surface).
 - **I-21:** [assumed] Escape order within the preview: open inspector closes first, then the preview — topmost-first (D-4), one press never kills two layers.
 - **I-22:** [assumed] Editing shortcuts (⌘B, etc.) go to whichever editor holds focus; app-global shortcuts pass through — the preview never traps focus (D-3).
 
@@ -163,10 +165,12 @@ The frame is settled (singleton floating window on window-background, fully edit
 
 #### Prospects (allowed later, not now)
 
-- **Connections hover-preview** — a `mouseover` handler + `ConnectionsApi` method (the exact slot exists in `connections.ts`); the click-config (B-6, core) paves its path. Don't-foreclose: the preview stays summonable from an arbitrary anchor, not only a table row.
+- **Multiple simultaneous previews** — elevated by D-2: the core *ships the ability* (list-of-one architecture, no singleton assumptions baked in) and multi-preview gets **A-B tested** post-ship; if it wins, the chevron's NavWindow-return retires. First in line.
+- **Connections hover-card** (B-7) — if resolved fast-follow rather than core: the `mouseover` slot in `connections.ts` + PickerMenu chassis + read-only PageEmbed.
+- **Preview live-refresh** (C-5) — a watcher subscription so external edits repaint an open preview.
 - **Agenda entry preview** — Navigation.md routes Agenda search hits to "a placeholder preview window that belongs to Agenda's feature"; this surface is its natural host later.
-- **Multiple simultaneous previews** (if D-2 resolves singleton) — the "list of one" core leaves the door open.
 - **Drag a preview out into its own OS window** — the multi-window seams exist by design; far future.
+- **Banner repositioning** — doesn't exist anywhere in the app yet; an app-wide prospect that lands in main views and previews together, owned elsewhere.
 
 #### Out of Scope
 
