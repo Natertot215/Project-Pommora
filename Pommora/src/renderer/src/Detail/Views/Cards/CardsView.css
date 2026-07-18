@@ -12,6 +12,11 @@
   --cover-zoom: 1; /* KNOB — cover image zoom; >1 zooms into the top (previews read at 1.25) */
   --thumb-share: 65%; /* KNOB — the image band's share of the card height */
   --band-gap: 22px; /* KNOB — vertical rhythm between disclosure bands */
+  /* ONE padding source for everything in a card's value flow: the chip tokens' own vars. Chips read
+     them natively; the text-shaped values (dates, numbers, links) are re-pointed at the same vars
+     below — so C-3's tight packing is a single knob pair. */
+  --chip-zoom: 0.85; /* KNOB — chip density on cards (the chip tokens' global zoom var) */
+  --chip-pad-x: 4px; /* KNOB — horizontal padding of chips AND text values (tight, C-3) */
   zoom: calc(var(--zoom, 1) * var(--block-zoom, 1));
 }
 .cards-view.is-compact {
@@ -175,6 +180,46 @@
   flex: 0 0 auto;
   color: var(--label-secondary);
 }
+/* ── Properties (C-2/C-3): the card body between title and footing. ── */
+.card-props {
+  display: flex;
+  flex-direction: column;
+  gap: 3px; /* KNOB — Standard row rhythm */
+  min-width: 0;
+}
+.card-props.is-flow {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px 4px; /* KNOB — Compact flow packing */
+}
+.card-prop-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.card-prop-label {
+  flex: 0 0 auto;
+  color: var(--label-secondary);
+}
+/* A value never wraps (I-4) — it clamps at the card's width; chips inside keep their own
+   hover-scroll/melt mechanics. */
+.card-value {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+}
+/* The DRY padding link: text-shaped values read the chip tokens' pad var, so dates/numbers/links
+   pack at the same rhythm as the chips beside them. */
+.card-value .cell-text-scroll,
+.card-value .cell-control {
+  padding: 0 var(--chip-pad-x, 6px);
+}
+
 /* The location footing (E-3): NavCrumbs — the house breadcrumb formula (caption type, per-crumb
    icons, › separators). */
 .page-card-loc {

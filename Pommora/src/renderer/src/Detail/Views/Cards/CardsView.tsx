@@ -1,7 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { CollectionNode, ResolvedGroup, SetNode, ViewRow } from '@shared/types'
+import type {
+  CollectionNode,
+  NexusLabels,
+  ResolvedColumn,
+  ResolvedGroup,
+  SetNode,
+  ViewRow,
+} from '@shared/types'
 import type { PageFrontmatter } from '@shared/schemas'
+import { isBlankValue } from '@shared/propertyValue'
 import type { CardBanner, SavedView } from '@shared/views'
+import type { ColumnStyle } from '@shared/columnStyles'
 import { defaultEntityIcon, Icon, iconNameOr } from '@renderer/design-system/symbols'
 import { text } from '@renderer/design-system/tokens/typography.css'
 import { OverflowScroll } from '@renderer/design-system/components/OverflowScroll'
@@ -11,13 +20,17 @@ import { cx } from '@renderer/design-system/cx'
 import { assetUrl } from '../../../assetUrl'
 import { useSession } from '../../../store'
 import { useSaveView } from '@renderer/Embeds/ViewEmbedScope'
+import { resolveColumns } from '../pipeline/columns'
 import { flattenContainer } from '../pipeline/group'
 import { resolvedSortCount } from '../pipeline/sort'
+import { resolveFieldValue } from '../pipeline/value'
 import { resolveView } from '../pipeline/resolveView'
 import { useActiveView } from '../useActiveView'
+import { Cell } from '../Table/Cell'
+import { columnLabel } from '../Table/columnLabel'
 import { resolveContainerSchema } from '../Table/TableView'
 import { buildSetIcons, buildSetNames, groupLabel } from '../Table/cellResolve'
-import { buildResolveContext } from '../Table/resolveContext'
+import { buildResolveContext, type ResolveContext } from '../Table/resolveContext'
 import { NavCrumbs } from '../../../Navigation/NavList'
 import type { PathCrumb } from '../../../Navigation/navResolve'
 import './CardsView.css'
@@ -102,6 +115,8 @@ export function CardsView({ source }: { source: CollectionNode | SetNode }): Rea
   const setNames = useMemo(() => buildSetNames(source), [source])
   const setIcons = useMemo(() => buildSetIcons(source), [source])
   const ctx = useMemo(() => (tree ? buildResolveContext(tree, schema) : null), [tree, schema])
+  const columns = useMemo(() => resolveColumns(view, schema), [view, schema])
+  const labels = tree?.labels
   // Set id → its within-container location trail (Set › Sub-set crumbs) — one walk, read per card.
   const setChains = useMemo(() => {
     const m = new Map<string, PathCrumb[]>()
@@ -194,6 +209,9 @@ export function CardsView({ source }: { source: CollectionNode | SetNode }): Rea
                       view={view}
                       banner={banner}
                       nexusId={nexusId}
+                      columns={columns}
+                      ctx={ctx}
+                      labels={labels}
                       loc={
                         hideLocation
                           ? undefined
@@ -267,7 +285,52 @@ interface PageCardProps {
   view: SavedView
   banner: CardBanner
   nexusId: string
+  columns: ResolvedColumn[]
+  ctx: ResolveContext | null
+  labels: NexusLabels | undefined
   loc?: PathCrumb[]
+}
+
+/**
+ * The card's property body (C-2/C-3): every visible, non-blank column through the table's own Cell
+ * renderer. Standard = labeled rows; Compact = the label-less clamped value flow in property order.
+ */
+function CardProperties({
+  row,
+  view,
+  columns,
+  ctx,
+  labels,
+}: Pick<PageCardProps, 'row' | 'view' | 'columns' | 'ctx' | 'labels'>): React.JSX.Element | null {
+  if (!ctx || !labels) return null
+  const compact = (view.format ?? 'standard') === 'compact'
+  const shown = columns.filter(
+    (c) => c.kind !== 'title' && !isBlankValue(resolveFieldValue(row, c.id, ctx.schema)),
+  )
+  if (shown.length === 0) return null
+  const style = (id: string): ColumnStyle => view.column_styles?.[id] ?? {}
+  return compact ? (
+    <div className="card-props is-flow">
+      {shown.map((c) => (
+        <span key={c.id} className="card-value">
+          <Cell row={row} column={c} ctx={ctx} hideIcon={false} style={style(c.id)} />
+        </span>
+      ))}
+    </div>
+  ) : (
+    <div className="card-props">
+      {shown.map((c) => (
+        <div key={c.id} className="card-prop-row">
+          <span className={cx('card-prop-label', text.caption.standard)}>
+            {columnLabel(c.id, ctx.schema, labels)}
+          </span>
+          <span className="card-value">
+            <Cell row={row} column={c} ctx={ctx} hideIcon={false} style={style(c.id)} />
+          </span>
+        </div>
+      ))}
+    </div>
+  )
 }
 
 /** Wires one card into its band's SortableZone — the drag shell rides the card root (NavGallery's
@@ -282,6 +345,9 @@ function PageCard({
   view,
   banner,
   nexusId,
+  columns,
+  ctx,
+  labels,
   loc,
   drag,
 }: PageCardProps & { drag?: DragItem }): React.JSX.Element {
@@ -338,6 +404,7 @@ function PageCard({
           ) : (
             <OverflowScroll className="page-card-title">{titleBody}</OverflowScroll>
           )}
+          <CardProperties row={row} view={view} columns={columns} ctx={ctx} labels={labels} />
           {loc && loc.length > 0 && (
             <NavCrumbs path={loc} className="page-card-loc" iconSize={11} />
           )}
