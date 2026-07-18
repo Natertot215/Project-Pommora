@@ -107,6 +107,13 @@
     border-color var(--duration-base) var(--ease-standard),
     transform var(--duration-slow) var(--ease-standard);
 }
+/* Composite the pop: while hovered the body rides its own layer, so the title scales as one texture
+   with the border instead of re-snapping per glyph (the visible jitter). Hover-scoped — a standing
+   will-change on every card would hold a GPU layer per card. */
+.page-card:hover .page-card-body,
+.set-card:hover .page-card-body {
+  will-change: transform;
+}
 
 .page-card-thumb {
   position: relative;
