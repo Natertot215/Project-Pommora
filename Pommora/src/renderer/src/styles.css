@@ -72,6 +72,10 @@ textarea,
 .hover-pop {
   position: relative;
   transition: transform var(--duration-slow) var(--ease-standard);
+  /* Standing compositor layer: the swell AND its return both run on the element's own texture, so
+     text never re-snaps per glyph against the scaling chassis (a hover-scoped hint drops the layer
+     at un-hover and the return jitters). Raster is viewport-tiled, so offscreen pops cost nothing. */
+  will-change: transform;
 }
 .hover-pop:hover {
   transform: scale(var(--pop-scale, 1.0175));
