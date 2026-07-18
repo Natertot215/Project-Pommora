@@ -146,9 +146,6 @@ const api = {
   // The ViewSettings Format native menu (Standard / Compact).
   viewFormatMenu: (current: 'standard' | 'compact'): Promise<'standard' | 'compact' | null> =>
     ipcRenderer.invoke('view-format-menu', current),
-  // The Configuration Open In native menu (Full Page / Preview).
-  openInMenu: (current: OpenIn): Promise<OpenIn | null> =>
-    ipcRenderer.invoke('open-in-menu', current),
   // The icon picker's right-click Favorite/Remove menu — resolves 'toggle' on click, null on dismiss.
   iconFavoriteMenu: (favorited: boolean): Promise<'toggle' | null> =>
     ipcRenderer.invoke('icon-favorite-menu', favorited),

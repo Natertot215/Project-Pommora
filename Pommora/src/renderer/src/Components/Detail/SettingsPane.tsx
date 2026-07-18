@@ -40,8 +40,6 @@ import { IconPicker } from '../IconPicker'
 import { InlineEditHeader } from './InlineEditHeader'
 import { useViewEmbedScope } from '@renderer/Embeds/ViewEmbedScope'
 
-const isMac = navigator.platform.toLowerCase().includes('mac')
-
 type PaneId = 'configuration' | 'properties' | 'visibility' | 'layout' | 'filter' | 'group' | 'sort'
 interface MenuEntry {
   id: PaneId
@@ -125,10 +123,9 @@ export function SettingsPane(): React.JSX.Element | null {
     await window.nexus.container.configure(schemaCollection.path, 'collection', { open_in: v })
     await load()
   }
-  const pickOpenIn = async (): Promise<void> => {
-    if (!isMac) return
-    const v = await window.nexus.openInMenu(openInValue)
-    if (v) await setOpenIn(v)
+  // Binary control: click flips Full Page ↔ Preview directly (the double-chevron reads as a toggle).
+  const toggleOpenIn = (): void => {
+    void setOpenIn(openInValue === 'page-preview' ? 'full-page' : 'page-preview')
   }
 
   const blankLeaf = (
@@ -155,7 +152,7 @@ export function SettingsPane(): React.JSX.Element | null {
             <Icon name="chevrons-up-down" size={ICON.rowChevron} />
           </span>
         }
-        onClick={() => void pickOpenIn()}
+        onClick={toggleOpenIn}
       >
         Open In
       </MenuItem>
