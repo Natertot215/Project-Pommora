@@ -67,9 +67,15 @@
     padding-right var(--duration-base) var(--ease-standard);
 }
 
-/* List rows align their content with the gallery cards (the scroll padding above provides the edge;
-   --navwindow-inset is zeroed). The pin marker therefore rides the surface-inset gutter to the LEFT
-   of the content — otherwise, at the zeroed inset, it lands on the lead glyph. */
+/* The LIST rides the content inset (matching pages) on BOTH sides, not the wider surface inset the
+   gallery/scroll sits on — so its rows aren't wider than the content view. The list's own padding adds
+   the content−surface gap on top of the scroll's surface inset; rows + pins shift as one, gallery untouched. */
+.nav-view .nav-list {
+  padding-left: calc(var(--content-inset) - var(--surface-inset));
+  padding-right: calc(var(--content-inset-right) - var(--surface-inset-right));
+}
+/* The pin marker rides the gutter to the LEFT of the content — otherwise, at the zeroed row inset, it
+   lands on the lead glyph. */
 .nav-view .nav-item-pin {
   left: calc(-1 * var(--nav-list-pin-gutter, 11px)); /* KNOB — pin's reach into the left gutter */
 }

@@ -23,6 +23,18 @@
 .shell.is-resizing .subfield {
   transition: none;
 }
+/* No breadcrumb (NavView) → the action leads on the left. It keeps the base subfield inset (so it lines
+   up with a page's breadcrumb, not indented past it) and just drops the flex gap the empty breadcrumb
+   would otherwise leave in front of it. */
+.subfield.subfield-lead {
+  justify-content: flex-start;
+  gap: 0;
+}
+/* Drop the button's own left padding here so the chevron sits flush on the subfield inset (where a
+   page's breadcrumb text lands), not 4px past it. */
+.subfield.subfield-lead .subfield-viewtype {
+  padding-left: 0;
+}
 
 .subfield-crumbs {
   display: flex;

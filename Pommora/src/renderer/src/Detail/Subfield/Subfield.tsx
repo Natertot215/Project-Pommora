@@ -49,7 +49,11 @@ export function Subfield({ scope }: { scope?: SubfieldScope }): React.JSX.Elemen
   const items = (order[kind] ?? DEFAULT_ITEMS[kind] ?? []).filter(isSubfieldItemId)
 
   return (
-    <div className={`subfield ${text.subline.emphasized}`}>
+    // With no breadcrumb (NavView) the action has nothing to sit opposite, so it leads on the left
+    // instead of being pushed to the far edge.
+    <div
+      className={`subfield ${text.subline.emphasized}${crumbs.length === 0 ? ' subfield-lead' : ''}`}
+    >
       <SubfieldBreadcrumb crumbs={crumbs} />
       <div className="subfield-items">
         {items.map((id) => (
