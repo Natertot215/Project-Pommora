@@ -106,6 +106,39 @@ export function NavRowMenu({
   return null
 }
 
+/** The hover-revealed pin toggle shared by the list rows and the gallery cards (D-3): fades in on the
+ *  row/card hover to pin, holds solid in the accent once pinned. `stopPropagation` on pointerdown keeps
+ *  the press off the row/card drag handle (a pin toggle must never arm a reorder). Position + reveal are
+ *  the caller's `className`; the mechanism is one. Null for adopted entities — they re-mint their id on
+ *  adoption, so they can't hold a durable pin. */
+export function NavPinButton({
+  it,
+  className,
+}: {
+  it: ResolvedNav
+  className: string
+}): React.JSX.Element | null {
+  const pinTarget = useSession((s) => s.pinTarget)
+  const unpinTarget = useSession((s) => s.unpinTarget)
+  if ('id' in it.target && it.target.id.startsWith('adopted-')) return null
+  const toggle = (e: React.MouseEvent): void => {
+    e.stopPropagation()
+    if (it.pinned) unpinTarget(it.key)
+    else pinTarget(it.target)
+  }
+  return (
+    <button
+      type="button"
+      className={cx(className, it.pinned && 'is-pinned')}
+      onPointerDown={(e) => e.stopPropagation()}
+      onClick={toggle}
+      aria-label={it.pinned ? 'Unpin' : 'Pin'}
+    >
+      <Icon name="pin" size={13} />
+    </button>
+  )
+}
+
 type RowDrag = ReturnType<typeof useTableRowDrag>
 
 // One row: (icon)(title) … (path). Title takes the slack and eclipse-scrolls under the path when long;
@@ -142,7 +175,7 @@ function NavRow({
         onMenu(it, e)
       }}
     >
-      {it.pinned && <Icon name="pin" size={12} className="nav-item-pin" />}
+      <NavPinButton it={it} className="nav-item-pin" />
       <div className="nav-item-main">
         <EntityGlyph item={it} size={15} className="nav-item-lead" />
         <OverflowScroll className="nav-item-title">{it.title}</OverflowScroll>

@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { Icon } from '@renderer/design-system/symbols'
 import { cx } from '@renderer/design-system/cx'
 import { text } from '@renderer/design-system/tokens'
 import { OverflowScroll } from '@renderer/design-system/components/OverflowScroll'
@@ -9,7 +8,7 @@ import { useSession } from '../store'
 import { navKey } from '../Navigation/navRecents'
 import type { ResolvedNav } from '../Navigation/navResolve'
 import { EntityGlyph } from '../Navigation/EntityGlyph'
-import { NavCrumbs, NavRowMenu } from '../Navigation/NavList'
+import { NavCrumbs, NavPinButton, NavRowMenu } from '../Navigation/NavList'
 import './navGallery.css'
 
 // The gallery view over the same nav data as NavList: pinned cards then recents in one flow, no divider,
@@ -108,23 +107,14 @@ function GalleryCard({
 }): React.JSX.Element {
   const selection = useSession((s) => s.selection)
   const version = useSession((s) => s.thumbVersions[it.key] ?? 0)
-  const pinTarget = useSession((s) => s.pinTarget)
-  const unpinTarget = useSession((s) => s.unpinTarget)
   const [failed, setFailed] = useState(false)
 
   const active = selection.kind !== 'none' && navKey(selection) === it.key
   const src = `nexus-asset://nexus/.nexus/assets/${nexusId}/thumbnails/${thumbFile(it.key)}.jpg?v=${version}`
-  // Adopted entities re-mint their id on adoption, so they can't hold a durable pin — hide the affordance.
-  const pinnable = !('id' in it.target && it.target.id.startsWith('adopted-'))
   // The drag engine fires a synthesized click after a pointer drag — don't treat a reorder-drop as a
   // navigation (mirrors TableView's `!isDragging` guard).
   const open = (): void => {
     if (!drag?.isDragging) onSelect(it.target)
-  }
-  const togglePin = (e: React.MouseEvent): void => {
-    e.stopPropagation()
-    if (it.pinned) unpinTarget(it.key)
-    else pinTarget(it.target)
   }
 
   return (
@@ -154,19 +144,7 @@ function GalleryCard({
           ) : (
             <img src={src} loading="lazy" alt="" onError={() => setFailed(true)} />
           )}
-          {pinnable && (
-            // stopPropagation on pointerdown too — else the press bubbles to the card's drag handle and
-            // arms a reorder instead of toggling the pin.
-            <button
-              type="button"
-              className={cx('nav-gallery-pin', it.pinned && 'is-pinned')}
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={togglePin}
-              aria-label={it.pinned ? 'Unpin' : 'Pin'}
-            >
-              <Icon name="pin" size={13} />
-            </button>
-          )}
+          <NavPinButton it={it} className="nav-gallery-pin" />
         </div>
         <div className="nav-gallery-text">
           <OverflowScroll className={cx('nav-gallery-title', text.footnote.emphasized)}>
