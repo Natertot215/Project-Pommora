@@ -21,7 +21,7 @@ import { assetUrl } from '../../../assetUrl'
 import { useSession } from '../../../store'
 import { useSaveView } from '@renderer/Embeds/ViewEmbedScope'
 import { resolveColumns } from '../pipeline/columns'
-import { flattenContainer } from '../pipeline/group'
+import { flattenContainer, groupsStructurally } from '../pipeline/group'
 import { resolvedSortCount } from '../pipeline/sort'
 import { resolveFieldValue } from '../pipeline/value'
 import { resolveView } from '../pipeline/resolveView'
@@ -151,6 +151,16 @@ export function CardsView({ source }: { source: CollectionNode | SetNode }): Rea
     walk(source.sets, [])
     return m
   }, [source])
+  // Under location (structural) grouping the band header IS the top-level set, so the breadcrumb
+  // drops that leading crumb and starts at the next set down — the band already shows it (E-3).
+  // Property/flat grouping keeps the full chain (the band is a bucket, not a location).
+  const structural = useMemo(() => groupsStructurally(view.group, schema), [view.group, schema])
+  const locFor = (row: ViewRow): PathCrumb[] | undefined => {
+    if (hideLocation || !row.parentSetId) return undefined
+    const chain = setChains.get(row.parentSetId)
+    if (!chain) return undefined
+    return structural ? chain.slice(1) : chain
+  }
 
   // Band collapse — seeded from the view, persisted through the shared writer (the table's model).
   const [collapsed, setCollapsed] = useState<Set<string>>(
@@ -234,13 +244,7 @@ export function CardsView({ source }: { source: CollectionNode | SetNode }): Rea
                       ctx={ctx}
                       labels={labels}
                       onSetProperty={setProperty}
-                      loc={
-                        hideLocation
-                          ? undefined
-                          : row.parentSetId
-                            ? setChains.get(row.parentSetId)
-                            : undefined
-                      }
+                      loc={locFor(row)}
                     />
                   ))}
                 </SortableZone>
@@ -315,33 +319,30 @@ interface PageCardProps {
 }
 
 /**
- * The card's property body (C-2/C-3): every visible, non-blank column through the table's own Cell
- * renderer. Standard = labeled rows; Compact = the label-less clamped value flow in property order.
- * Clicking the zone's EMPTY space opens the add-picker (G-1) — a value click stays the value's own.
+ * The card's property body (C-2/C-3): the visible, non-blank columns (`shown`) through the table's
+ * own Cell renderer. Standard = labeled rows; Compact = the label-less clamped value flow in property
+ * order. Only rendered when there ARE properties (no empty reserve gap); the add-picker for an
+ * empty card scopes to the breadcrumb instead. Clicking the flow's empty space adds another.
  */
 function CardProperties({
   row,
   view,
-  columns,
   ctx,
   labels,
+  shown,
   onZoneClick,
-}: Pick<PageCardProps, 'row' | 'view' | 'columns' | 'ctx' | 'labels'> & {
+}: Pick<PageCardProps, 'row' | 'view' | 'ctx' | 'labels'> & {
+  shown: ResolvedColumn[]
   onZoneClick: (e: React.MouseEvent) => void
 }): React.JSX.Element | null {
   if (!ctx || !labels) return null
   const compact = (view.format ?? 'standard') === 'compact'
-  // The area below the title is RESERVED for property management: it renders even valueless, so it
-  // stays the click surface for the value pickers + the empty-space add-picker (G-1).
-  const shown = columns.filter(
-    (c) => c.kind !== 'title' && !isBlankValue(resolveFieldValue(row, c.id, ctx.schema)),
-  )
   const style = (id: string): ColumnStyle => view.column_styles?.[id] ?? {}
   const zoneClick = (e: React.MouseEvent): void => {
     if (e.target === e.currentTarget) onZoneClick(e)
   }
   return compact ? (
-    // biome-ignore lint/a11y/noStaticElementInteractions: the empty zone is the add-picker surface.
+    // biome-ignore lint/a11y/noStaticElementInteractions: the flow's empty space adds a property.
     <div className="card-props is-flow" onClick={zoneClick}>
       {shown.map((c) => (
         <span key={c.id} className="card-value">
@@ -350,7 +351,7 @@ function CardProperties({
       ))}
     </div>
   ) : (
-    // biome-ignore lint/a11y/noStaticElementInteractions: the empty zone is the add-picker surface.
+    // biome-ignore lint/a11y/noStaticElementInteractions: the flow's empty space adds a property.
     <div className="card-props" onClick={zoneClick}>
       {shown.map((c) => (
         <div key={c.id} className="card-prop-row">
@@ -407,6 +408,19 @@ function PageCard({
         : [],
     [ctx, row],
   )
+  // The card's filled properties — the property body renders only when non-empty (no reserve gap),
+  // and the breadcrumb becomes the add surface when empty (G-1).
+  const shown = useMemo(
+    () =>
+      ctx
+        ? columns.filter(
+            (c) => c.kind !== 'title' && !isBlankValue(resolveFieldValue(row, c.id, ctx.schema)),
+          )
+        : [],
+    [ctx, columns, row],
+  )
+  const hasProps = shown.length > 0
+  const crumbs = loc ?? []
 
   const cover = typeof row.frontmatter.cover === 'string' ? row.frontmatter.cover : undefined
   const src =
@@ -453,22 +467,28 @@ function PageCard({
         )}
         <div className="page-card-text" ref={textRef}>
           {(view.wrap_titles ?? false) ? (
-            <span className={cx('page-card-title is-wrap', text.footnote.emphasized)}>{titleBody}</span>
+            <span className={cx('page-card-title is-wrap', text.footnote.emphasized)}>
+              {titleBody}
+            </span>
           ) : (
-            <OverflowScroll className={cx('page-card-title', text.footnote.emphasized)}>{titleBody}</OverflowScroll>
+            <OverflowScroll className={cx('page-card-title', text.footnote.emphasized)}>
+              {titleBody}
+            </OverflowScroll>
           )}
-          <CardProperties
-            row={row}
-            view={view}
-            columns={columns}
-            ctx={ctx}
-            labels={labels}
-            onZoneClick={openAdd}
-          />
-          {loc && loc.length > 0 && (
-            // biome-ignore lint/a11y/noStaticElementInteractions: the location row doubles as the add-picker surface.
-            <div className="page-card-loc-zone" onClick={openAdd}>
-              <NavCrumbs path={loc} className="page-card-loc" iconSize={11} />
+          {hasProps && (
+            <CardProperties
+              row={row}
+              view={view}
+              ctx={ctx}
+              labels={labels}
+              shown={shown}
+              onZoneClick={openAdd}
+            />
+          )}
+          {crumbs.length > 0 && (
+            // biome-ignore lint/a11y/noStaticElementInteractions: with no properties, clicking the breadcrumb IS the add mechanism (G-1); with properties it's inert location.
+            <div className="page-card-loc-zone" onClick={hasProps ? undefined : openAdd}>
+              <NavCrumbs path={crumbs} className="page-card-loc" iconSize={11} />
             </div>
           )}
         </div>

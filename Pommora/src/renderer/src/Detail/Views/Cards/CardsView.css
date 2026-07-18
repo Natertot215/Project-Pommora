@@ -184,16 +184,14 @@
   flex: 0 0 auto;
   color: var(--label-secondary);
 }
-/* ── Properties (C-2/C-3): the card body between title and footing — the RESERVED property zone.
-   It always renders (valueless included) and floors at --props-reserve, so it stays the click
-   surface for the value pickers + the Compact empty-space add-picker. ── */
+/* ── Properties (C-2/C-3): the card body between title and footing — rendered ONLY when the card
+   has values (an empty card shows no gap; its add trigger scopes to the breadcrumb, G-1). Empty
+   flow space inside stays the click surface for adding another. ── */
 .card-props {
   display: flex;
   flex-direction: column;
-  flex: 1 0 auto;
   gap: 3px; /* KNOB — Standard row rhythm */
   min-width: 0;
-  min-height: var(--props-reserve, 14px); /* KNOB — the empty zone's reserved height */
 }
 .card-props.is-flow {
   flex-direction: row;
@@ -242,14 +240,13 @@
   font-size: clamp(11px, 5.5cqi, 18px);
 }
 
-/* The location row's click zone — part of the property-management surface (it opens the add-picker). */
+/* The location footing zone. With properties above (card-props only renders when filled) it seats
+   under an inset hairline; standalone it's the add surface for a property-less card. */
 .page-card-loc-zone {
   display: flex;
   min-width: 0;
 }
-/* With a filled properties section above it, the location seats under an inset hairline (the
-   text-area padding keeps it off the card edges). */
-.card-props:not(:empty) + .page-card-loc-zone {
+.card-props + .page-card-loc-zone {
   border-top: 1.5px solid var(--separator-border);
   padding-top: 5px; /* KNOB — divider-to-crumbs clearance */
 }
