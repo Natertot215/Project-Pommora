@@ -43,7 +43,9 @@ export function Toolbar({
     const el = trioRef.current
     if (!el) return
     const apply = (): void => {
-      el.style.setProperty('--trio-w', `${el.offsetWidth}px`)
+      // Published on the RIGHT group (not the trio itself) so both the trio and the ViewDropdown can
+      // ride off it — CSS vars inherit downward, and the ride now lives on the group.
+      el.parentElement?.style.setProperty('--trio-w', `${el.offsetWidth}px`)
       setTrioW(el.offsetWidth)
     }
     apply()

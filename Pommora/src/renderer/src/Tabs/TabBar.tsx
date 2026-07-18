@@ -201,14 +201,16 @@ function TabBarBody({
           onReorder={reorderPin}
         >
           <div className="tab-pinned-zone">
-            {pinnedEntries.map((e) => (
-              <PinnedTab
-                key={e.tab.id}
-                entry={e}
-                active={e.tab.id === activeTabId}
-                onActivate={() => activateTab(e.tab.id)}
-                onMenu={runTabMenu(e.tab.id, true, false)}
-              />
+            {pinnedEntries.map((e, i) => (
+              <Fragment key={e.tab.id}>
+                {i > 0 && <span className="tab-seg" aria-hidden />}
+                <PinnedTab
+                  entry={e}
+                  active={e.tab.id === activeTabId}
+                  onActivate={() => activateTab(e.tab.id)}
+                  onMenu={runTabMenu(e.tab.id, true, false)}
+                />
+              </Fragment>
             ))}
           </div>
         </SortableZone>

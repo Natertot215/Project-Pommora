@@ -45,15 +45,12 @@
   align-items: flex-start;
   gap: 10px;
   pointer-events: none;
-}
-
-/* As the inspector slides in, the trio is "swallowed": it holds at home until the pane's leading edge
-   reaches the pill (the max() gate is exactly that contact), then rides the edge to land flush inside
-   the inspector's left corner — all off the shared --io, so it tracks the slide and live resize 1:1.
-   --trio-w is the measured pill width (Toolbar.tsx); 10px is the toolbar's right padding (home gap). */
-.app-toolbar-cluster--trio {
-  --trio-inset: 4px; /* breathing room so the swallowed trio doesn't sit flush against the pane's seam */
-  transform: translateX(
+  --trio-inset: 4px; /* breathing room so the swallowed pill doesn't sit flush against the pane's seam */
+  /* The trio's own "swallow" ride, factored into a shared var so the ViewDropdown rides the SAME delta:
+     both hold at home until the pane's edge reaches the trio pill, then slide so the trio lands flush
+     inside the inspector's left corner and the ViewDropdown stays its 10px to the left — off the shared
+     --io, tracking the slide + live resize 1:1. --trio-w is the measured pill width (Toolbar.tsx). */
+  --toolbar-ride: translateX(
     calc(
       -1 *
       max(
@@ -68,6 +65,11 @@
       )
     )
   );
+}
+/* The trio keeps its exact original ride (unchanged); the ViewDropdown (first child) rides the same. */
+.app-toolbar-cluster--trio,
+.app-toolbar-right > :first-child {
+  transform: var(--toolbar-ride);
 }
 
 /* Trio glass pill = its own in-flow layer behind the live buttons, so it fades out independently as the
