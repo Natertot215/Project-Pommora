@@ -1,6 +1,6 @@
 ### Framework — Roadmap
 
-Pommora's path to v1.0.0. The React + Electron build rebuilt the Swift paradigm from the ground up, reached parity, then passed it — **Page Previews + the Subfield unification closed the rebuild, and the build stands at v0.5.0**. Each minor version ships green and standalone — shipped detail → `History.md`, session state → `Handoff.md`. Scope is the **core 7** (data · properties · connections · markdown · navigation · table · gallery) plus the deferred frontier (the non-Table view renderers, block-surface completion, Agenda surfacing, settings UI, global search, LLM-chat inspector, OS integrations).
+Pommora's path to v1.0.0. The React + Electron build rebuilt the Swift paradigm from the ground up, reached parity, then passed it — **Page Previews + the Subfield unification closed the rebuild, and the build stands at v0.5.0**. Each minor version ships green and standalone — shipped detail → `History.md`, session state → `Handoff.md`. Numbers are soft — order and grouping firm up as each cluster lands. Scope is the **core 7** (data · properties · connections · markdown · navigation · table · gallery) plus the deferred frontier (the non-Table view renderers, block-surface completion, Agenda surfacing, settings UI, global search, LLM-chat inspector, OS integrations).
 
 ### Versioning
 
@@ -60,7 +60,6 @@ Collapsed the floating ↔ full-pane split so the Subfield footer and scan-promo
 
 ### II. Upcoming (v0.5.0 → v1.0.0)
 
-Numbers are soft — order and grouping firm up as each cluster lands.
 
 #### v0.6.0 — The View Renderers
 
