@@ -21,20 +21,20 @@ import { assetUrl } from '../../../assetUrl'
 import { useSession } from '../../../store'
 import { useSaveView } from '@renderer/Embeds/ViewEmbedScope'
 import { resolveColumns } from '../pipeline/columns'
+import { contextOptionsFor as contextOptionsForTier } from '../pipeline/contextOptions'
 import { flattenContainer, groupsStructurally } from '../pipeline/group'
 import { resolvedSortCount } from '../pipeline/sort'
 import { resolveFieldValue } from '../pipeline/value'
 import { resolveView } from '../pipeline/resolveView'
 import { useActiveView } from '../useActiveView'
-import { Cell } from '../Table/Cell'
-import { columnLabel } from '../Table/columnLabel'
+import { columnLabel, TIER_LEVEL_BY_ID } from '../Table/columnLabel'
 import { resolveContainerSchema } from '../Table/TableView'
 import { buildSetIcons, buildSetNames, groupLabel } from '../Table/cellResolve'
 import { buildResolveContext, type ResolveContext } from '../Table/resolveContext'
 import { NavCrumbs } from '../../../Navigation/NavList'
 import type { PathCrumb } from '../../../Navigation/navResolve'
-import type { PropertyDefinition } from '@shared/properties'
 import { ADDABLE_TYPES, CardAddPicker } from './CardAddPicker'
+import { CardValue } from './CardValue'
 import './CardsView.css'
 
 // A page's thumbnail file — navKey's `page:<id>` flips its colon to a dash on disk (io/thumbnails).
@@ -86,6 +86,29 @@ export function CardsView({ source }: { source: CollectionNode | SetNode }): Rea
     }
     setValueOverride((prev) => ({ ...prev, [row.id]: patched }))
     void mutate({ op: 'setProperty', path: row.path, propertyId, value })
+  }
+  // The commit router (the table's cell-write split): a reserved tier column writes the bare
+  // `tierN` frontmatter array through setTier; everything else is a property write.
+  const commitValue = (row: ViewRow, column: ResolvedColumn, value: PropertyValue | null): void => {
+    if (column.kind === 'tier') {
+      const tier = TIER_LEVEL_BY_ID[column.id]
+      const ids = value?.kind === 'context' ? value.value : []
+      const prior = effectiveValues[row.id] ?? { id: row.id }
+      setValueOverride((prev) => ({ ...prev, [row.id]: { ...prior, [`tier${tier}`]: ids } }))
+      void mutate({ op: 'setTier', path: row.path, tier, contextIds: ids })
+      return
+    }
+    setProperty(row, column.id, value)
+  }
+  // A context column's pickable list — reserved tiers read their fixed level, a user context prop
+  // its target tier; null for anything else (the table's contextOptionsFor).
+  const contextOptionsFor = (column: ResolvedColumn): ContextOption[] | null => {
+    const level =
+      column.kind === 'tier'
+        ? TIER_LEVEL_BY_ID[column.id]
+        : schema.find((d) => d.id === column.id)?.context_target?.tier
+    if (!level || !tree) return null
+    return contextOptionsForTier(level, tree)
   }
 
   // Manual card order — the per-machine viewOrders tiebreaker the table's sorter reads (I-9); the
@@ -243,7 +266,8 @@ export function CardsView({ source }: { source: CollectionNode | SetNode }): Rea
                       columns={columns}
                       ctx={ctx}
                       labels={labels}
-                      onSetProperty={setProperty}
+                      onCommitValue={commitValue}
+                      contextOptionsFor={contextOptionsFor}
                       loc={locFor(row)}
                     />
                   ))}
@@ -306,6 +330,8 @@ function SetCard({ set }: { set: SetNode }): React.JSX.Element {
   )
 }
 
+type ContextOption = { value: string; label: string; color?: string }
+
 interface PageCardProps {
   row: ViewRow
   view: SavedView
@@ -315,14 +341,15 @@ interface PageCardProps {
   ctx: ResolveContext | null
   labels: NexusLabels | undefined
   loc?: PathCrumb[]
-  onSetProperty: (row: ViewRow, propertyId: string, value: PropertyValue | null) => void
+  onCommitValue: (row: ViewRow, column: ResolvedColumn, value: PropertyValue | null) => void
+  contextOptionsFor: (column: ResolvedColumn) => ContextOption[] | null
 }
 
 /**
- * The card's property body (C-2/C-3): the visible, non-blank columns (`shown`) through the table's
- * own Cell renderer. Standard = labeled rows; Compact = the label-less clamped value flow in property
- * order. Only rendered when there ARE properties (no empty reserve gap); the add-picker for an
- * empty card scopes to the breadcrumb instead. Clicking the flow's empty space adds another.
+ * The card's property body (C-2/C-3): the visible, non-blank columns (`shown`), each an interactive
+ * CardValue (the ratified per-kind click matrix). Standard = labeled rows; Compact = the label-less
+ * clamped value flow in property order. Only rendered when there ARE properties (no empty reserve
+ * gap); an empty card's add-input is the breadcrumb. Clicking the flow's empty space adds another.
  */
 function CardProperties({
   row,
@@ -331,7 +358,12 @@ function CardProperties({
   labels,
   shown,
   onZoneClick,
-}: Pick<PageCardProps, 'row' | 'view' | 'ctx' | 'labels'> & {
+  onCommitValue,
+  contextOptionsFor,
+}: Pick<
+  PageCardProps,
+  'row' | 'view' | 'ctx' | 'labels' | 'onCommitValue' | 'contextOptionsFor'
+> & {
   shown: ResolvedColumn[]
   onZoneClick: (e: React.MouseEvent) => void
 }): React.JSX.Element | null {
@@ -341,13 +373,21 @@ function CardProperties({
   const zoneClick = (e: React.MouseEvent): void => {
     if (e.target === e.currentTarget) onZoneClick(e)
   }
+  const value = (c: ResolvedColumn): React.JSX.Element => (
+    <CardValue
+      row={row}
+      column={c}
+      ctx={ctx}
+      style={style(c.id)}
+      contextOptions={contextOptionsFor(c)}
+      onCommit={(col, v) => onCommitValue(row, col, v)}
+    />
+  )
   return compact ? (
     // biome-ignore lint/a11y/noStaticElementInteractions: the flow's empty space adds a property.
     <div className="card-props is-flow" onClick={zoneClick}>
       {shown.map((c) => (
-        <span key={c.id} className="card-value">
-          <Cell row={row} column={c} ctx={ctx} hideIcon={false} style={style(c.id)} />
-        </span>
+        <span key={c.id}>{value(c)}</span>
       ))}
     </div>
   ) : (
@@ -358,9 +398,7 @@ function CardProperties({
           <span className={cx('card-prop-label', text.caption.standard)}>
             {columnLabel(c.id, ctx.schema, labels)}
           </span>
-          <span className="card-value">
-            <Cell row={row} column={c} ctx={ctx} hideIcon={false} style={style(c.id)} />
-          </span>
+          {value(c)}
         </div>
       ))}
     </div>
@@ -384,7 +422,8 @@ function PageCard({
   labels,
   loc,
   drag,
-  onSetProperty,
+  onCommitValue,
+  contextOptionsFor,
 }: PageCardProps & { drag?: DragItem }): React.JSX.Element {
   const select = useSession((s) => s.select)
   const version = useSession((s) => s.thumbVersions[`page:${row.id}`] ?? 0)
@@ -465,7 +504,14 @@ function PageCard({
             )}
           </div>
         )}
-        <div className="page-card-text" ref={textRef}>
+        {/* biome-ignore lint/a11y/noStaticElementInteractions: empty text-area space is an add surface (title/props/loc bubble past). */}
+        <div
+          className="page-card-text"
+          ref={textRef}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) openAdd(e)
+          }}
+        >
           {(view.wrap_titles ?? false) ? (
             <span className={cx('page-card-title is-wrap', text.footnote.emphasized)}>
               {titleBody}
@@ -482,12 +528,14 @@ function PageCard({
               ctx={ctx}
               labels={labels}
               shown={shown}
+              onCommitValue={onCommitValue}
+              contextOptionsFor={contextOptionsFor}
               onZoneClick={openAdd}
             />
           )}
           {crumbs.length > 0 && (
-            // biome-ignore lint/a11y/noStaticElementInteractions: with no properties, clicking the breadcrumb IS the add mechanism (G-1); with properties it's inert location.
-            <div className="page-card-loc-zone" onClick={hasProps ? undefined : openAdd}>
+            // biome-ignore lint/a11y/noStaticElementInteractions: the breadcrumb is ALWAYS an add-property input (G-1) — NavCrumbs is non-navigable here.
+            <div className="page-card-loc-zone" onClick={openAdd}>
               <NavCrumbs path={crumbs} className="page-card-loc" iconSize={11} />
             </div>
           )}
@@ -499,7 +547,7 @@ function PageCard({
           currentOf={(d) => resolveFieldValue(row, d.id, ctx.schema)}
           open={addOpen}
           anchorRef={textRef}
-          onCommit={(d, v) => onSetProperty(row, d.id, v)}
+          onCommit={(d, v) => onCommitValue(row, { id: d.id, kind: 'property' }, v)}
           onDismiss={() => setAddOpen(false)}
         />
       )}

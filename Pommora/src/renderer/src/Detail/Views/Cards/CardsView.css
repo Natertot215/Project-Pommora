@@ -84,10 +84,10 @@
   gap: var(--card-gap-v) var(--card-gap-h);
 }
 
-/* A page card sizes to its CONTENT (I-5): the image band is a fixed height, title + properties +
-   footing extend below, and a grid row sizes to its tallest card (shorter cards top-align). */
+/* A page card's image band is a fixed height; title + properties + footing extend below. Cards
+   STRETCH to their grid row's height (the default), so every card in a row matches its tallest
+   sibling — a location can't make one card taller than its row-mates (I-5). */
 .page-card {
-  align-self: start;
   text-align: left;
   cursor: default;
   border: none;
