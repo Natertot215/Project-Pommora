@@ -37,7 +37,7 @@ Pommora is an **Electron** desktop app — a React + TypeScript renderer over a 
 - **Read and write are cleanly separable.** The read path is read-only by construction; mutations are additive, never woven into reads.
 - **Condensed control flow / DRY / simplicity-first** — model finite states as unions + switch; hoist shared logic; don't add unrequested complexity.
 - **Never do expensive work "on every X," never "reload the entire Y."** No O(N) / allocating / layout-reading work on a high-frequency trigger, and no full rebuild / re-walk when an incremental or cached update works — cache, memoize, snapshot, subscribe narrowly. It's THE lag source.
-- Design tokens **must** be pulled from their sources in `design-system` — never hand-roll tokens without explicit direction. All colors, label-fills, states, and tokens must come from their design-system source; never hand-rolled.
+- **Design tokens come from `design-system`, never hand-rolled.** Consume them as the `vars` / `text` objects (`import { vars, text } from '@renderer/design-system/tokens'`) or the emitted `--` CSS custom properties — never a literal `#hex`, `rgb()` / `rgba()`, or raw `px` for anything the system already names. This spans the whole vocabulary: the solid spectrum, label tones, fills, states, separators, motion (durations + easings), sizing, typography, and icons. The **accent is a runtime `--accent` pointer** to a spectrum solid (or the OS accent) — never bake a hue for it. Before authoring any new style, color, or mechanism, **sweep the existing tokens + primitives first** (menu tones, the chip tint, the ramps, PickerMenu / PaneSlider) and reuse — a hand-rolled parallel is the repeated failure. Sources are mapped at the bottom (§ II. Design-System Map).
 - **Docs name; code holds exacts.** These docs describe the *system* and reference the product spec (`PommoraPRD.md` + `Features/`) — they never restate exact code values. Name the token and its treatment ("the red solid at a low opacity"), never the literal `#hex` / `%` / line-for-line code stays in the code itself. 
 - **`Handoff.md` is a lean snapshot maintained via `/handoff`.** Sections: Session Summary + Lessons Learned + Next Session + Pending Focuses + Fix Log. Route locked decisions to `History.md`, spec content to `Features/*`, roadmap detail to `Framework.md`. 
 
@@ -66,3 +66,16 @@ Feature specifications live in `Features/`; root docs (PRD · Handoff · History
 - **Features //** → Feature-specific documentation that **must** be updated every time relevant code is committed. 
 - **Guidelines //** → Read [[Build-Gotchas]] before running the GUI + for information on the toolchain, chip-components, and liquid glass.
 - **Planning //** → Self-explanatory; location for all planning and temporary specifications.
+
+#### II. Design-System Map
+
+Where tokens live, under `Pommora/src/renderer/src/` — consume via the `vars` / `text` import or the emitted `--` vars, never by copying values out.
+
+- **Emitted CSS vars** (`--label-*`, `--fill-*`, `--state-*`, `--separator-border`, `--accent` · `--accent-fill` · `--accent-text`, `--duration-*` · `--ease-*`, `--icon-*`, `--link` · `--connection` · `--code`, `--list-outline-*`) → `design-system/tokens/theme-vars.css.ts`.
+- **The `vars` + `text` objects** (the one import everywhere) → `design-system/tokens/index.ts`.
+- **Authored sources:** color spectrum · label tones · fills · states · separators → `tokens/color.css.ts`; typography + `text.*` styles → `tokens/typography.css.ts`; sizing / spacing → `tokens/size.css.ts`; the chip tint → `tokens/chip.css.ts`; motion (durations + easings) → `tokens/motion.ts`; the tint / opacity system → `tokens/tint.ts`.
+- **Accent** — a runtime `--accent` pointer to a spectrum solid (or the OS accent), not a baked token → `design-system/accent.ts`.
+- **Icons** → `design-system/symbols/` (curated registry `index.tsx`; full Lucide set `AllSymbols.ts`).
+- **Glass materials** → `design-system/materials/`.
+- **Shell geometry** (`--content-inset` · `--surface-inset` · `--gutter` · `--glass-inset` · `--io` · `--toolbar-h` · `--sidebar-width`) → `styles.css` — layout insets, *not* design tokens.
+- **Live showcase** of every token → `design-system/showcase/` (`npm run showcase`).
