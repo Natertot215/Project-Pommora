@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import type { CollectionNode, SetNode } from '@shared/types'
 import type { PropertyDefinition } from '@shared/properties'
 import { DEFAULT_VIEW_ID, type SavedView, type ViewFormat, type ViewType } from '@shared/views'
@@ -18,14 +18,13 @@ import {
   footingSymbol,
   side,
 } from '../../design-system/components/menu/menu.css'
-import { PickerMenu } from '../../design-system/components/PickerMenu'
+import { Slider } from '../../design-system/components/Slider/Slider'
 import { useSession } from '../../store'
 import { useSaveView } from '@renderer/Embeds/ViewEmbedScope'
 import { InlineEditHeader } from './InlineEditHeader'
 import { VisibilityList } from './HiddenPane'
 import { LayoutToggles } from './LayoutToggles'
 import { CardsOptions } from './CardsOptions'
-import * as pc from './pickerControl.css'
 import { GroupingPane } from './GroupingPane'
 import { SortingPane } from './SortingPane'
 import { PaneSlider } from './PaneSlider'
@@ -45,15 +44,9 @@ const TYPE_GLYPH: Record<ViewType, IconName> = {
 }
 const IMPLEMENTED: ReadonlySet<ViewType> = new Set(['table', 'cards'])
 
-// The cards Scale steps — discrete factors behind the footer's double-chevron dropdown (the block
-// handle menu's Scale idiom). A stored off-grid factor snaps to its nearest step on read.
-const CARD_SCALE_FACTORS: readonly number[] = [1.5, 1.25, 1, 0.75, 0.5]
-const scaleStep = (factor?: number): number => {
-  const target = factor ?? 1
-  return CARD_SCALE_FACTORS.reduce((best, s) =>
-    Math.abs(s - target) < Math.abs(best - target) ? s : best,
-  )
-}
+// The cards Scale slider's range — the card-size factor. Steps of 0.05; default 1.
+const SCALE_MIN = 0.5
+const SCALE_MAX = 1.5
 
 // ── KNOB — ViewSettings' own height ceiling (its own, not the shared MENU_MAX_HEIGHT): the full door
 // stacks the tallest content (title + grid + four leaf rows + the pinned Format), so it earns more
@@ -104,29 +97,6 @@ export function ViewSettings({
 }): React.JSX.Element {
   const load = useSession((s) => s.load)
   const [leaf, setLeaf] = useState<Leaf | null>(null)
-  // The Scale dropdown — the block handle menu's idiom: hangs off the row's trailing value, a pick
-  // scrubs live and keeps it open; a document listener owns dismissal (spares the trigger + menu).
-  const [scaleOpen, setScaleOpen] = useState(false)
-  const scaleTriggerRef = useRef<HTMLButtonElement>(null)
-  useEffect(() => {
-    if (!scaleOpen) return
-    const onDown = (e: PointerEvent): void => {
-      const t = e.target as HTMLElement | null
-      if (scaleTriggerRef.current?.contains(t) || t?.closest?.('[data-scale-menu]')) return
-      setScaleOpen(false)
-    }
-    const onKey = (e: KeyboardEvent): void => {
-      if (e.key !== 'Escape') return
-      e.stopPropagation()
-      setScaleOpen(false)
-    }
-    document.addEventListener('pointerdown', onDown, true)
-    document.addEventListener('keydown', onKey, true)
-    return () => {
-      document.removeEventListener('pointerdown', onDown, true)
-      document.removeEventListener('keydown', onKey, true)
-    }
-  }, [scaleOpen])
   const views = source.views ?? []
   const canDelete = views.length > 1 && view.id !== DEFAULT_VIEW_ID
   const format: ViewFormat = view.format ?? 'standard'
@@ -164,9 +134,8 @@ export function ViewSettings({
   }
 
   // The cards footing (K-2): Style (a two-option double-chevron — flips on click, D-8) over Scale
-  // (current step + double-chevron popping the discrete steps, the block handle menu's idiom; a pick
-  // writes live and keeps the dropdown open). Pinned on the editor in both doors, the Format slot.
-  const currentScale = scaleStep(view.card_size)
+  // (the ProgressBar-logic slider with the glass knob). Pinned on the editor in both doors, the
+  // Format slot.
   const cardsFooting =
     view.type === 'cards' ? (
       <MenuBottomRow>
@@ -189,46 +158,22 @@ export function ViewSettings({
         >
           <span className={footingLabel}>Style</span>
         </MenuItem>
-        <MenuItem
-          className={flushTrailing}
-          leading={
-            <span className={footingSymbol}>
-              <Icon name="scaling" size={12} />
-            </span>
-          }
-          trailing={
-            <button
-              ref={scaleTriggerRef}
-              type="button"
-              className={pc.trigger}
-              onClick={() => setScaleOpen((o) => !o)}
-            >
-              <span className={pc.value}>{`${currentScale}x`}</span>
-              <Icon name="chevrons-up-down" size={12} />
-            </button>
-          }
-        >
+        <div className={vs.scaleRow}>
+          <span className={footingSymbol}>
+            <Icon name="scaling" size={12} />
+          </span>
           <span className={footingLabel}>Scale</span>
-        </MenuItem>
-        {scaleOpen && (
-          <PickerMenu open triggerRef={scaleTriggerRef} solid>
-            <div data-scale-menu>
-              {CARD_SCALE_FACTORS.map((f) => (
-                <MenuItem
-                  key={f}
-                  trailing={
-                    currentScale === f ? (
-                      <Icon name="check" size={12} className={vs.scaleCheck} />
-                    ) : undefined
-                  }
-                  onClick={() => write({ card_size: f })}
-                >
-                  {`${f.toFixed(2)}x`}
-                </MenuItem>
-              ))}
-            </div>
-          </PickerMenu>
-        )}
+          <Slider
+            value={view.card_size ?? 1}
+            min={SCALE_MIN}
+            max={SCALE_MAX}
+            step={0.05}
+            ariaLabel="Scale"
+            onCommit={(v) => write({ card_size: v })}
+            format={(v) => `${v.toFixed(2)}x`}
+            readoutClassName={detail}
+          />
+        </div>
       </MenuBottomRow>
     ) : null
 

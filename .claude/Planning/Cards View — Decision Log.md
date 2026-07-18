@@ -54,7 +54,7 @@
 
 - **D-1:** [confirmed] Cards reuse the NavView/NavWindow gallery card logic — image with divider + title. *(Decision: Nathan. Evidence: `NavWindow/NavGallery.tsx` + `navGallery.css` — CSS grid `auto-fit`/`minmax(--card-min)`, `--cover-zoom`/`--thumb-share`, container-query typography, `hover-pop`.)*
 - **D-2:** [confirmed] Image-bearing and imageless cards each have their own height treatment; one DRY `CardsView.css` home for the CSS. *(Decision: Nathan.)*
-- **D-3:** [confirmed] Card resize is the **Scale row in the options footer — a double-chevron step control** (the drag-handle Scale idiom): trailing current factor + chevrons pops the discrete steps `1.50x · 1.25x · 1.00x · 0.75x · 0.50x` in a solid nested PickerMenu; a pick writes live and keeps the dropdown open; an off-grid stored factor snaps to its nearest step on read. Reflow like gallery-mode NavViews. *(Decision: Nathan — supersedes the continuous slider; see Considered & Rejected.)*
+- **D-3:** [confirmed] Card resize is the **Scale slider** in the ViewSettings footing: 0.50×–1.50× in 0.05 steps, default 1.00× — the design-system **Slider** component (`components/Slider`), built on the ProgressBar's accent-over-track fill with a **glass knob** (the shared `frostMaterial` recipe) riding the fill edge; drafts locally while dragging, the view write lands on release. Reflow like gallery-mode NavViews. *(Decision: Nathan — "same logic as the progress-bar, knob wears the same glass"; supersedes the step dropdown, see Considered & Rejected.)*
 - **D-4:** [confirmed] `card_size` persistence reshapes from `'small'|'medium'|'large'` to a number (the scale factor), legacy strings mapped on read (small 0.75 · medium 1 · large 1.25). **The codec changes in the same task:** `card_size` accepts `number | legacy-enum` with `.catch(undefined)` (its optional siblings' pattern) — a bare `z.enum` plus `parseViews`'s (`readNexus.ts`) drop-on-decode-failure means a numeric write against the old codec deletes the view on next read. `card_size` had no other reader (grep-verified), so the codec was the only break point. *(Decision: Nathan; codec requirement from adversarial review, verified.)*
 - **D-5:** [confirmed] The Standard/Compact card layout reuses the existing `SavedView.format` field with per-renderer meaning (table: density; cards: card layout) — no new key. *(Decision: Nathan.)*
 - **D-6:** [confirmed] **Wrap Titles (on/off)** is a LayoutPane setting for the cards — on lets the title wrap; off keeps it single-line via the shared `OverflowScroll` (NavGallery's title treatment). *(Decision: Nathan.)*
@@ -125,7 +125,7 @@
   Set Cards:      Switch
   ───── ViewSettings footing (pinned, both doors) ─────
   Style:          (Standard / Compact)       ‹toggle — flips on click, D-8›
-  Scale:          (value)                    ‹double-chevron step dropdown, D-3›
+  Scale:          ────●── 1.00x              ‹the design-system Slider, D-3›
   ─────────────────────────────────────────────────────
   ```
 
@@ -162,7 +162,7 @@
 
 #### Considered & Rejected
 
-- **A continuous Scale slider (0.50×–1.50×)** — built first, replaced by the double-chevron discrete-step dropdown (D-3): the drag-handle Scale idiom already exists, and per-tick whole-view writes fought the save/refetch model.
+- **A native `<input type="range">` Scale control, then a discrete step dropdown** — both built and replaced by the design-system Slider (D-3): the range input hand-rolled its look against the token system, and the drag-handle step dropdown lost the continuous feel; the ProgressBar-fill + glass-knob slider keeps both.
 - **Two-option dropdowns** (Card Style / Format as PickerMenus) — rejected by the standing D-8 rule: a two-option double-chevron flips on click.
 
 #### Lessons

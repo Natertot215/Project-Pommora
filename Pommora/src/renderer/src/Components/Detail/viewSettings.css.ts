@@ -43,5 +43,11 @@ export const tile = style({
 /** The selected type — accent border at tint-primary. */
 export const tileSelected = style({ borderColor: tintAt('var(--accent)', TINT_STEPS.primary) })
 
-/** The Scale dropdown's current-step check — accent, the block handle menu's idiom. */
-export const scaleCheck = style({ color: 'var(--accent)' })
+/** The Scale footing row — footing glyph + label, the shared Slider, and the live value readout. */
+export const scaleRow = style({
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  width: '100%',
+  padding: '4px 2px',
+})
