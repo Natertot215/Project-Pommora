@@ -26,7 +26,11 @@
   display: flex;
   align-items: center;
   height: var(--tab-height);
-  margin: 0 4px;
+  margin-left: 4px;
+  /* Right edge condenses by the SAME --toolbar-swallow the right cluster slides by (defined on
+     .app-toolbar), so the trailing + stays flush against the swallowing ViewDropdown/trio as the
+     inspector opens instead of parking under the floating pane — one shared magnitude, no bespoke slide. */
+  margin-right: calc(4px + var(--toolbar-swallow));
   pointer-events: auto;
   /* NOT an app-region: a native drag region never delivers hover to the renderer, which kills the
      bar-hover + reveal over the empty space. The bar drags the window via the JS mover instead

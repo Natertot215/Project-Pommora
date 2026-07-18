@@ -19,6 +19,22 @@
   /* Back/Forward hugs the sidebar (tight left); trio sits a small gap off the window edge. */
   padding: 0 10px 0 4px;
   pointer-events: none;
+  --trio-inset: 4px; /* breathing room so the swallowed pill doesn't sit flush against the pane's seam */
+  /* The single swallow magnitude, shared by the right cluster's ride AND the tab-bar's right-edge
+     condense (below): how far the trio slides so it lands flush in the inspector's left corner — it
+     holds at home until the opening pane's edge reaches the trio pill, then tracks the slide 1:1 off the
+     shared --io. --trio-w is the measured pill width (Toolbar.tsx). The + rides the same delta, so it
+     stays flush against the swallowing cluster instead of parking under the pane. */
+  --toolbar-swallow: max(
+    0px,
+    calc(
+      var(--io) *
+      (var(--inspector-width) + var(--glass-inset)) -
+      10px -
+      var(--trio-w, 0px) -
+      var(--trio-inset)
+    )
+  );
   /* Only `left` animates (sidebar collapse); the trio rides the inspector via its own transform, so the
      bar's `right` no longer moves. */
   transition: left var(--duration-base) var(--ease-standard);
@@ -45,31 +61,12 @@
   align-items: flex-start;
   gap: 10px;
   pointer-events: none;
-  --trio-inset: 4px; /* breathing room so the swallowed pill doesn't sit flush against the pane's seam */
-  /* The trio's own "swallow" ride, factored into a shared var so the ViewDropdown rides the SAME delta:
-     both hold at home until the pane's edge reaches the trio pill, then slide so the trio lands flush
-     inside the inspector's left corner and the ViewDropdown stays its 10px to the left — off the shared
-     --io, tracking the slide + live resize 1:1. --trio-w is the measured pill width (Toolbar.tsx). */
-  --toolbar-ride: translateX(
-    calc(
-      -1 *
-      max(
-        0px,
-        calc(
-          var(--io) *
-          (var(--inspector-width) + var(--glass-inset)) -
-          10px -
-          var(--trio-w, 0px) -
-          var(--trio-inset)
-        )
-      )
-    )
-  );
 }
-/* The trio keeps its exact original ride (unchanged); the ViewDropdown (first child) rides the same. */
+/* The trio and the ViewDropdown (first child) both slide by the shared --toolbar-swallow magnitude, so
+   the trio lands flush in the inspector's left corner and the ViewDropdown holds its 10px to its left. */
 .app-toolbar-cluster--trio,
 .app-toolbar-right > :first-child {
-  transform: var(--toolbar-ride);
+  transform: translateX(calc(-1 * var(--toolbar-swallow)));
 }
 
 /* Trio glass pill = its own in-flow layer behind the live buttons, so it fades out independently as the
