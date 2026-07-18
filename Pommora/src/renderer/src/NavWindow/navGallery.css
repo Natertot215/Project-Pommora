@@ -91,7 +91,7 @@
   background: var(--fill-quaternary);
 }
 
-/* Pin overlaid top-left ON the thumbnail — no fill. Hover-revealed in label-secondary on unpinned
+/* Pin overlaid top-left ON the thumbnail — no fill. Hover-revealed in label-tertiary on unpinned
    cards; solid accent (still no background) once pinned. */
 .nav-gallery-pin {
   position: absolute;
@@ -101,7 +101,7 @@
   padding: 3px;
   border: none;
   background: none;
-  color: var(--label-secondary);
+  color: var(--label-tertiary);
   cursor: pointer;
   opacity: 0;
   transition: opacity var(--duration-base) var(--ease-standard);

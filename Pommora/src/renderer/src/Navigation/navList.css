@@ -17,7 +17,7 @@
 }
 /* Pin toggle centered in the row's left inset gutter (absolute so it never shifts the row content out
    of alignment with un-pinned rows). Shares the gallery's hover-reveal mechanism: fades in on the row
-   hover in label-secondary to pin, holds solid in the accent once pinned. */
+   hover in label-tertiary to pin, holds solid in the accent once pinned. */
 .nav-item-pin {
   position: absolute;
   left: calc(var(--navwindow-inset, 12px) / 2);
@@ -27,7 +27,7 @@
   padding: 0;
   border: none;
   background: none;
-  color: var(--label-secondary);
+  color: var(--label-tertiary);
   cursor: pointer;
   opacity: 0;
   transition: opacity var(--duration-base) var(--ease-standard);
