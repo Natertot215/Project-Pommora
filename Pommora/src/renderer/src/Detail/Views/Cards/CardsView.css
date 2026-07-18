@@ -18,10 +18,11 @@
   --band-gap: 14px; /* KNOB — the tightened band rhythm under imageless cards */
 }
 
-/* ── The Set Cards row (F-1): larger cards, same auto-fit reflow, leading the bands. ── */
+/* ── The Set Cards row (F-1): larger cards at a FIXED size — set-scale tracks (no stretch, unlike
+   the page grid's auto-fit fill); they wrap left-aligned as rows fill. ── */
 .set-cards-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(var(--set-card-min), 1fr));
+  grid-template-columns: repeat(auto-fill, var(--set-card-min));
   gap: var(--card-gap-v) var(--card-gap-h);
   margin-bottom: var(--band-gap);
 }
