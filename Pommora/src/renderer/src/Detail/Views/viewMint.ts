@@ -2,8 +2,9 @@
 // On landing a view-bearing container whose views[] is empty, `ensureContainerView` mints once (an
 // in-flight map keyed by container id guards a re-select from double-firing). Every other view writer
 // routes through `saveViewAdopting` — a sentinel-holding write awaits the in-flight mint and saves
-// against the real id, never minting its own. Store-free: the refetch (load) re-hydrates the
-// activeViews slice from disk, so no writer here needs the store.
+// against the real id, never minting its own. Store-free: the mint/adopt paths' refetch (load)
+// re-hydrates the activeViews slice from disk, so no writer here needs the store; ordinary saves
+// are confirmed by the live watcher's push alone.
 import type { CollectionNode, SetNode } from '@shared/types'
 import type { PropertyDefinition } from '@shared/properties'
 import { DEFAULT_VIEW_ID, mintDefaultView, type SavedView } from '@shared/views'
@@ -37,7 +38,11 @@ export function ensureContainerView(
 
 /** The ONE view writer every surface calls. A sentinel-holding write adopts the in-flight mint's real
  *  id (never mints its own); a real id saves directly. On a sentinel save it also adopts the id as the
- *  active view so the writer's edits stay on the view the user sees (the refetch re-hydrates the slice). */
+ *  active view so the writer's edits stay on the view the user sees (that refetch re-hydrates the
+ *  activeViews slice — the one state the watcher push doesn't carry). An ordinary save skips the
+ *  immediate refetch entirely: the sidecar write trips the live watcher, whose stabilized
+ *  `nexus:changed` push is the single canonical confirm — an explicit load() here was a second
+ *  full walk on every view write (and a visible double repaint on the glass chrome). */
 export async function saveViewAdopting(
   source: CollectionNode | SetNode,
   view: SavedView,
@@ -49,7 +54,9 @@ export async function saveViewAdopting(
     if (minted) toSave = { ...view, id: minted }
   }
   const res = await window.nexus.views.save(source.path, source.kind, toSave)
-  if (res.ok && toSave.id === DEFAULT_VIEW_ID) await window.nexus.activeViews.set(source.id, res.id)
-  await refetch()
+  if (res.ok && toSave.id === DEFAULT_VIEW_ID) {
+    await window.nexus.activeViews.set(source.id, res.id)
+    await refetch()
+  }
   return res
 }
