@@ -178,6 +178,31 @@ export function SidebarDnd({
           noop: entry.parentId === dragged.parentId && sameOrder(order, container.pageIds),
         }
       }
+      // Seam guard: a Set that's a sibling of the dragged page (same container) is the page↔Set
+      // boundary, not a reparent target — grazing it reorders the page to its own group's edge (the
+      // side the Sets block sits on), never drops it into the Set. Reparenting a page into a Set is
+      // done by dropping over the Set's expanded pages (the page-over-page branch above).
+      if (
+        entry.kind === 'set' &&
+        dragged.parentId &&
+        dragged.parentId === entry.parentId &&
+        dragged.parentPath
+      ) {
+        const container = idx.byId.get(dragged.parentId)
+        const below =
+          (container?.kind === 'set' ? placements.current.subSet : placements.current.set) ===
+          'bottom'
+        const pageIds = container?.pageIds ?? []
+        // Sets below the pages → the page joins at the end; sets above → at the start.
+        const before = below ? null : (pageIds.find((id) => id !== g.id) ?? null)
+        const order = nextOrder(pageIds, g.id, before)
+        return {
+          depth: dragged.depth,
+          lineY: (below ? over.top : over.bottom) - contentTop,
+          commit: { op: 'movePage', path: dragged.path, newParentPath: dragged.parentPath, order },
+          noop: sameOrder(order, pageIds),
+        }
+      }
       // Over a container header → drop in at the top of its pages.
       const beforeId = entry.pageIds.find((id) => id !== g.id) ?? null
       const order = nextOrder(entry.pageIds, g.id, beforeId)
