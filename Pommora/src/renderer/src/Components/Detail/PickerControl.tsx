@@ -20,11 +20,14 @@ export function PickerControl<T extends string>({
   value,
   options,
   onPick,
+  solid = false,
 }: {
   ariaLabel: string
   value: T
   options: PickerChoice<T>[]
   onPick: (v: T) => void
+  /** Opaque menu surface — for pickers that open over another pane (the block Scale idiom). */
+  solid?: boolean
 }): React.JSX.Element {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLButtonElement>(null)
@@ -40,7 +43,13 @@ export function PickerControl<T extends string>({
         <span className={s.value}>{labelOf(options, value)}</span>
         <Icon name="chevrons-up-down" size={12} />
       </button>
-      <PickerMenu open={open} onDismiss={() => setOpen(false)} triggerRef={ref} center>
+      <PickerMenu
+        open={open}
+        onDismiss={() => setOpen(false)}
+        triggerRef={ref}
+        center
+        solid={solid}
+      >
         {options.map((o) => (
           <PickerOption
             key={o.value}

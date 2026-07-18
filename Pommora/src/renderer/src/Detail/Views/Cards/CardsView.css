@@ -40,6 +40,8 @@
 .cards-band + .cards-band {
   margin-top: var(--band-gap);
 }
+/* The table's group-header treatment: title at label-primary (semibold via the ramp class in TSX),
+   glyphs at the shared label-secondary icon tone. */
 .cards-band-head {
   display: flex;
   align-items: center;
@@ -47,13 +49,11 @@
   border: none;
   background: none;
   padding: 0 0 8px; /* KNOB — heading-to-cards clearance */
-  color: var(--label-secondary);
+  color: var(--label-primary);
   cursor: default;
 }
-.cards-band-head:hover {
-  color: var(--label-primary);
-}
 .cards-band-twisty {
+  color: var(--label-secondary);
   transition: transform var(--duration-base) var(--ease-standard);
 }
 .cards-band-twisty.open {
@@ -83,6 +83,9 @@
   border: none;
   background: none;
   padding: 0;
+}
+.page-card.is-dragging {
+  opacity: 0.85;
 }
 /* Imageless (Card Banner: None) — the grid compacts: page cards shed the image band's aspect and
    sit at their natural title height. Set Cards stay banner-bearing by design (F-4). */

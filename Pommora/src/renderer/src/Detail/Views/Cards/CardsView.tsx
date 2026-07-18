@@ -6,11 +6,13 @@ import { defaultEntityIcon, Icon, iconNameOr } from '@renderer/design-system/sym
 import { text } from '@renderer/design-system/tokens/typography.css'
 import { OverflowScroll } from '@renderer/design-system/components/OverflowScroll'
 import { Reveal } from '@renderer/design-system/components/Reveal'
+import { type DragItem, SortableZone, useDragItem } from '@renderer/design-system/interactions/drag'
 import { cx } from '@renderer/design-system/cx'
 import { assetUrl } from '../../../assetUrl'
 import { useSession } from '../../../store'
 import { useSaveView } from '@renderer/Embeds/ViewEmbedScope'
 import { flattenContainer } from '../pipeline/group'
+import { resolvedSortCount } from '../pipeline/sort'
 import { resolveView } from '../pipeline/resolveView'
 import { useActiveView } from '../useActiveView'
 import { resolveContainerSchema } from '../Table/TableView'
@@ -51,10 +53,51 @@ export function CardsView({ source }: { source: CollectionNode | SetNode }): Rea
   const schema = useMemo(() => (tree ? resolveContainerSchema(tree, source) : []), [tree, source])
   const { view } = useActiveView(source, schema)
   const saveView = useSaveView(source, load)
+
+  // Manual card order — the per-machine viewOrders tiebreaker the table's sorter reads (I-9); the
+  // override gives instant feedback on a drop. Two+ effective sort criteria retire the drag, the
+  // table's law.
+  const [viewOrders, setViewOrders] = useState<Record<string, string[]>>({})
+  const [manualOverride, setManualOverride] = useState<string[] | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    setManualOverride(null)
+    void window.nexus.viewOrders.get().then((m) => {
+      if (!cancelled) setViewOrders(m)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [source.path])
+  const sortKeys = useMemo(() => resolvedSortCount(view.sort, schema), [view.sort, schema])
+  const sortedOrGrouped = sortKeys > 0 || view.group != null
+  const manualOrder =
+    sortedOrGrouped || manualOverride ? (manualOverride ?? viewOrders[view.id]) : undefined
+
   const groups = useMemo(() => {
     const { rows, setTree } = flattenContainer(source, values)
-    return resolveView({ rows, setTree, view, schema }).groups
-  }, [source, values, view, schema])
+    return resolveView({ rows, setTree, view, schema, manualOrder }).groups
+  }, [source, values, view, schema, manualOrder])
+
+  // A drop reorders within its band; the committed order is the FULL flattened id list across every
+  // band, so the one per-view manual order stays coherent (the sorter reads it as a global index map).
+  const reorderInBand = (bandKey: string, activeId: string, overId: string): void => {
+    const full: string[] = []
+    for (const g of groups) {
+      const ids = flattenGroups([g]).map((r) => r.id)
+      if (g.key === bandKey) {
+        const from = ids.indexOf(activeId)
+        const to = ids.indexOf(overId)
+        if (from !== -1 && to !== -1 && from !== to) {
+          const [moved] = ids.splice(from, 1)
+          ids.splice(to, 0, moved)
+        }
+      }
+      full.push(...ids)
+    }
+    setManualOverride(full)
+    void window.nexus.viewOrders.set(view.id, full)
+  }
 
   const setNames = useMemo(() => buildSetNames(source), [source])
   const setIcons = useMemo(() => buildSetIcons(source), [source])
@@ -133,26 +176,34 @@ export function CardsView({ source }: { source: CollectionNode | SetNode }): Rea
                 className={cx('cards-band-twisty', !isCollapsed && 'open')}
               />
               {glyph && <Icon name={glyph} size={14} className="cards-band-glyph" />}
-              <span className="cards-band-title">{bandLabel(g)}</span>
+              <span className={cx('cards-band-title', text.body.emphasized)}>{bandLabel(g)}</span>
             </button>
             <Reveal open={!isCollapsed} fill>
               <div className="cards-grid">
-                {rows.map((row) => (
-                  <PageCard
-                    key={row.id}
-                    row={row}
-                    view={view}
-                    banner={banner}
-                    nexusId={nexusId}
-                    loc={
-                      hideLocation
-                        ? undefined
-                        : row.parentSetId
-                          ? setChains.get(row.parentSetId)
-                          : undefined
-                    }
-                  />
-                ))}
+                <SortableZone
+                  items={rows.map((r) => r.id)}
+                  layout="grid"
+                  disabled={sortKeys >= 2}
+                  onReorder={(a, b) => reorderInBand(g.key, a, b)}
+                  getItemLabel={(id) => rows.find((r) => r.id === id)?.title ?? id}
+                >
+                  {rows.map((row) => (
+                    <DraggablePageCard
+                      key={row.id}
+                      row={row}
+                      view={view}
+                      banner={banner}
+                      nexusId={nexusId}
+                      loc={
+                        hideLocation
+                          ? undefined
+                          : row.parentSetId
+                            ? setChains.get(row.parentSetId)
+                            : undefined
+                      }
+                    />
+                  ))}
+                </SortableZone>
               </div>
             </Reveal>
           </section>
@@ -211,19 +262,29 @@ function SetCard({ set }: { set: SetNode }): React.JSX.Element {
   )
 }
 
+interface PageCardProps {
+  row: ViewRow
+  view: SavedView
+  banner: CardBanner
+  nexusId: string
+  loc?: PathCrumb[]
+}
+
+/** Wires one card into its band's SortableZone — the drag shell rides the card root (NavGallery's
+ *  DraggableCard split: the engine owns the root's transform; hover-pop lives on the body inside). */
+function DraggablePageCard(props: PageCardProps): React.JSX.Element {
+  const drag = useDragItem(props.row.id)
+  return <PageCard {...props} drag={drag} />
+}
+
 function PageCard({
   row,
   view,
   banner,
   nexusId,
   loc,
-}: {
-  row: ViewRow
-  view: SavedView
-  banner: CardBanner
-  nexusId: string
-  loc?: PathCrumb[]
-}): React.JSX.Element {
+  drag,
+}: PageCardProps & { drag?: DragItem }): React.JSX.Element {
   const select = useSession((s) => s.select)
   const version = useSession((s) => s.thumbVersions[`page:${row.id}`] ?? 0)
   const [failed, setFailed] = useState(false)
@@ -245,13 +306,19 @@ function PageCard({
     </>
   )
 
+  // The drag engine fires a synthesized click after a pointer drag — a reorder-drop must not
+  // navigate (NavGallery's `!isDragging` guard).
   return (
-    <button
-      type="button"
-      className="page-card"
-      onClick={(e) =>
-        void select({ kind: 'page', id: row.id, path: row.path }, { newTab: e.metaKey })
-      }
+    // biome-ignore lint/a11y/noStaticElementInteractions: the drag handle supplies the interaction role.
+    <div
+      ref={drag?.setNodeRef}
+      style={drag?.style}
+      {...(drag?.handle ?? { role: 'button', tabIndex: 0 })}
+      className={cx('page-card', drag?.isDragging && 'is-dragging')}
+      onClick={(e) => {
+        if (!drag?.isDragging)
+          void select({ kind: 'page', id: row.id, path: row.path }, { newTab: e.metaKey })
+      }}
     >
       <div className="page-card-body hover-pop">
         {banner !== 'none' && (
@@ -276,6 +343,6 @@ function PageCard({
           )}
         </div>
       </div>
-    </button>
+    </div>
   )
 }

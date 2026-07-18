@@ -45,6 +45,7 @@ export function CardsOptions({
             value={view.card_banner ?? 'cover'}
             options={BANNERS}
             onPick={(v) => write({ card_banner: v })}
+            solid
           />
         }
       >
