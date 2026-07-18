@@ -235,12 +235,6 @@
 .page-card-loc {
   color: var(--label-secondary);
 }
-/* With a filled properties section above it, the location seats under an inset hairline (the
-   text-area padding keeps it off the card edges). */
-.card-props:not(:empty) + .page-card-loc {
-  border-top: 1.5px solid var(--separator-border);
-  padding-top: 5px; /* KNOB — divider-to-crumbs clearance */
-}
 /* cqi typography — the card body is the query container, so the title scales with card width; the
    location keeps the breadcrumb formula's caption ramp. */
 .page-card .page-card-title,
@@ -252,4 +246,10 @@
 .page-card-loc-zone {
   display: flex;
   min-width: 0;
+}
+/* With a filled properties section above it, the location seats under an inset hairline (the
+   text-area padding keeps it off the card edges). */
+.card-props:not(:empty) + .page-card-loc-zone {
+  border-top: 1.5px solid var(--separator-border);
+  padding-top: 5px; /* KNOB — divider-to-crumbs clearance */
 }
