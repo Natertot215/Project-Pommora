@@ -2,14 +2,67 @@
    radius, gaps, title-area) starts from NavGallery's values — the title/property area is allowed to
    diverge as the card design settles. The pane insets live in Detail.css (the `:has(.cards-view)`
    body rule — the block-surface inset regime, no views gutter); the embed zoom law rides here so a
-   view embed scales the grid as a unit. */
+   view embed scales the grid as a unit. `.is-compact` = Card Banner: None — imageless cards, and
+   the band rhythm tightens with them (B-3). */
 .cards-view {
   --card-min: calc(180px * var(--card-scale, 1)); /* KNOB — column-width floor × the Scale factor */
+  --set-card-min: calc(var(--card-min) * 1.3); /* KNOB — the Set Cards row's larger floor */
   --card-gap-h: 10px; /* KNOB — inter-card spacing */
   --card-gap-v: 10px;
   --cover-zoom: 1; /* KNOB — cover image zoom; >1 zooms into the top (previews read at 1.25) */
   --thumb-share: 65%; /* KNOB — the image band's share of the card height */
+  --band-gap: 22px; /* KNOB — vertical rhythm between disclosure bands */
   zoom: calc(var(--zoom, 1) * var(--block-zoom, 1));
+}
+.cards-view.is-compact {
+  --band-gap: 14px; /* KNOB — the tightened band rhythm under imageless cards */
+}
+
+/* ── The Set Cards row (F-1): larger cards, same auto-fit reflow, leading the bands. ── */
+.set-cards-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(var(--set-card-min), 1fr));
+  gap: var(--card-gap-v) var(--card-gap-h);
+  margin-bottom: var(--band-gap);
+}
+.set-card {
+  aspect-ratio: 125 / 90;
+  align-self: start;
+  text-align: left;
+  cursor: default;
+  border: none;
+  background: none;
+  padding: 0;
+}
+
+/* ── Disclosure bands: heading (twisty + glyph + title) over the band's card grid. ── */
+.cards-band + .cards-band {
+  margin-top: var(--band-gap);
+}
+.cards-band-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: none;
+  padding: 0 0 8px; /* KNOB — heading-to-cards clearance */
+  color: var(--label-secondary);
+  cursor: default;
+}
+.cards-band-head:hover {
+  color: var(--label-primary);
+}
+.cards-band-twisty {
+  transition: transform var(--duration-base) var(--ease-standard);
+}
+.cards-band-twisty.open {
+  transform: rotate(90deg);
+}
+.cards-band-glyph {
+  color: var(--label-secondary);
+}
+.cards-band-title {
+  min-width: 0;
 }
 
 .cards-grid {
@@ -29,9 +82,9 @@
   background: none;
   padding: 0;
 }
-/* Imageless (Card Banner: None) — the grid compacts: cards shed the image band's aspect and sit at
-   their natural title height. */
-.cards-grid.is-compact .page-card {
+/* Imageless (Card Banner: None) — the grid compacts: page cards shed the image band's aspect and
+   sit at their natural title height. Set Cards stay banner-bearing by design (F-4). */
+.cards-view.is-compact .page-card {
   aspect-ratio: auto;
 }
 
@@ -89,18 +142,22 @@
   background: var(--state-muted);
   border-top: 1.5px solid var(--separator-border);
 }
-.cards-grid.is-compact .page-card-text {
+.cards-view.is-compact .page-card .page-card-text {
   border-top: none;
 }
 
-.page-card-title {
+.page-card-title,
+.page-card-loc {
+  flex: 0 0 auto; /* each is its own fixed row — the title never grows to fill / recenter */
   display: flex;
   align-items: center;
-  gap: 5px;
   min-width: 0;
-  color: var(--label-primary);
   --edge-fade: 14px;
   --scroll-fade: 14px;
+}
+.page-card-title {
+  gap: 5px;
+  color: var(--label-primary);
 }
 .page-card-title.is-wrap {
   display: inline;
@@ -113,7 +170,15 @@
   flex: 0 0 auto;
   color: var(--label-secondary);
 }
+/* The location footing (E-3): the card's Set › Sub-set trail, secondary tone. */
+.page-card-loc {
+  color: var(--label-secondary);
+}
 /* cqi typography — the card body is the query container, so text scales with card width. */
-.page-card .page-card-title {
+.page-card .page-card-title,
+.set-card .page-card-title {
   font-size: clamp(11px, 5.5cqi, 18px);
+}
+.page-card .page-card-loc {
+  font-size: clamp(9px, 4.3cqi, 14px);
 }
