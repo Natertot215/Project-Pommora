@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { ProgressBar } from '../ProgressBar/ProgressBar'
-import { frostMaterial } from '../../materials/glass-material'
+import { GlassSegment } from '../../materials'
 import * as s from './slider.css'
 
 const decimalsOf = (step: number): number => {
@@ -9,10 +9,10 @@ const decimalsOf = (step: number): number => {
 }
 
 /**
- * A pointer-driven value slider — the ProgressBar's accent-over-track fill with a glass knob (the
- * shared frostMaterial recipe) riding the fill edge. Drafts locally while dragging; `onCommit`
- * fires on release (and on an arrow-key step), never per-tick. `format` renders the live value
- * readout after the strip.
+ * A pointer-driven value slider — the ProgressBar's accent-over-track fill with the Switch's glass
+ * knob (GlassSegment over the label-control pill) riding the fill edge. Drafts locally while
+ * dragging: `onInput` fires per-tick for live consumers, `onCommit` on release (and on an
+ * arrow-key step) for the persisted write. `format` renders the live value readout after the strip.
  */
 export function Slider({
   value,
@@ -21,6 +21,7 @@ export function Slider({
   step = 1,
   ariaLabel,
   onCommit,
+  onInput,
   format,
   readoutClassName,
 }: {
@@ -30,6 +31,7 @@ export function Slider({
   step?: number
   ariaLabel: string
   onCommit: (v: number) => void
+  onInput?: (v: number) => void
   format?: (v: number) => string
   readoutClassName?: string
 }): React.JSX.Element {
@@ -58,10 +60,15 @@ export function Slider({
         tabIndex={0}
         onPointerDown={(e) => {
           e.currentTarget.setPointerCapture(e.pointerId)
-          setDraft(valueAt(e.clientX))
+          const next = valueAt(e.clientX)
+          setDraft(next)
+          onInput?.(next)
         }}
         onPointerMove={(e) => {
-          if (draft !== null) setDraft(valueAt(e.clientX))
+          if (draft === null) return
+          const next = valueAt(e.clientX)
+          setDraft(next)
+          onInput?.(next)
         }}
         onPointerUp={() => {
           if (draft !== null && draft !== value) onCommit(draft)
@@ -77,7 +84,11 @@ export function Slider({
         }}
       >
         <ProgressBar fill={pct / 100} />
-        <div className={s.knob} style={{ ...frostMaterial, left: `${pct}%` }} />
+        <div className={s.knob} style={{ left: `${pct}%` }}>
+          <GlassSegment style={{ borderRadius: 9 }}>
+            <span className={s.knobFill} />
+          </GlassSegment>
+        </div>
       </div>
       {format && <span className={readoutClassName}>{format(v)}</span>}
     </>

@@ -16,6 +16,7 @@ import {
   flushTrailing,
   footingLabel,
   footingSymbol,
+  item,
   side,
 } from '../../design-system/components/menu/menu.css'
 import { Slider } from '../../design-system/components/Slider/Slider'
@@ -47,6 +48,14 @@ const IMPLEMENTED: ReadonlySet<ViewType> = new Set(['table', 'cards'])
 // The cards Scale slider's range — the card-size factor. Steps of 0.05; default 1.
 const SCALE_MIN = 0.5
 const SCALE_MAX = 1.5
+
+// Live scrub: while the Scale knob drags, push the factor straight onto the mounted cards views'
+// CSS var — the grid reflows in real time with no per-tick view saves and no React churn. The
+// committed write re-renders with the same value, so React's own inline var simply reasserts it.
+const scrubCardScale = (v: number): void => {
+  for (const el of document.querySelectorAll<HTMLElement>('.cards-view'))
+    el.style.setProperty('--card-scale', String(v))
+}
 
 // ── KNOB — ViewSettings' own height ceiling (its own, not the shared MENU_MAX_HEIGHT): the full door
 // stacks the tallest content (title + grid + four leaf rows + the pinned Format), so it earns more
@@ -158,9 +167,11 @@ export function ViewSettings({
         >
           <span className={footingLabel}>Style</span>
         </MenuItem>
-        <div className={vs.scaleRow}>
-          <span className={footingSymbol}>
-            <Icon name="scaling" size={12} />
+        <div className={cx(item, flushTrailing, vs.scaleRow)}>
+          <span className={side}>
+            <span className={footingSymbol}>
+              <Icon name="scaling" size={12} />
+            </span>
           </span>
           <span className={footingLabel}>Scale</span>
           <Slider
@@ -169,6 +180,7 @@ export function ViewSettings({
             max={SCALE_MAX}
             step={0.05}
             ariaLabel="Scale"
+            onInput={scrubCardScale}
             onCommit={(v) => write({ card_size: v })}
             format={(v) => `${v.toFixed(2)}x`}
             readoutClassName={detail}

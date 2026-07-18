@@ -11,12 +11,19 @@ export const strip = style({
   touchAction: 'none',
 })
 
-/** The knob — sized + centered here; its glass is the shared frostMaterial recipe, applied inline. */
+/** The knob slot — positioned on the fill edge; holds the glass-wrapped fill (the Switch's knob). */
 export const knob = style({
   position: 'absolute',
-  width: 14,
-  height: 14,
-  borderRadius: '999px',
+  display: 'flex',
   transform: 'translateX(-50%)',
   pointerEvents: 'none',
+})
+
+/** The knob fill — the Switch knob's exact aspect + fill (26×18 pill, label-control white). */
+export const knobFill = style({
+  display: 'block',
+  width: '26px',
+  height: '18px',
+  borderRadius: '9px',
+  background: 'var(--label-control)',
 })
