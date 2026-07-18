@@ -3,7 +3,7 @@ import type { CardBanner, SavedView } from '@shared/views'
 import { Icon } from '@renderer/design-system/symbols'
 import { Switch } from '@renderer/design-system/components/Switches/Switch'
 import { MenuItem, MenuSeparator } from '../../design-system/components/menu'
-import { detail, flushTrailing, side } from '../../design-system/components/menu/menu.css'
+import { flushTrailing } from '../../design-system/components/menu/menu.css'
 import { cx } from '../../design-system/cx'
 import { useSession } from '../../store'
 import { useSaveView } from '@renderer/Embeds/ViewEmbedScope'
@@ -17,11 +17,10 @@ const BANNERS: PickerChoice<CardBanner>[] = [
 ]
 
 /**
- * The cards view's options — Card Banner (the card image source), Card Style (the property
- * layout), and the Hide Location / Wrap Titles / Hide Icons / Set Cards switches. Shared by both
- * Layout surfaces: the ViewSettings full door (under the type grid) and the SettingsPane flat
- * door. All persist per-view through the shared adopt-only writer. Card Style is a two-option
- * double-chevron, so it flips on click — never a dropdown.
+ * The cards view's options — Card Banner (the card image source) and the Hide Location / Wrap
+ * Titles / Hide Icons / Set Cards switches; Card Style + Scale live in the ViewSettings footing.
+ * Shared by both Layout surfaces: the full door's Layout leaf and the SettingsPane flat door. All
+ * persist per-view through the shared adopt-only writer.
  */
 export function CardsOptions({
   source,
@@ -33,7 +32,6 @@ export function CardsOptions({
   const load = useSession((st) => st.load)
   const saveView = useSaveView(source, load)
   const write = (patch: Partial<SavedView>): void => void saveView({ ...view, ...patch })
-  const format = view.format ?? 'standard'
 
   return (
     <>
@@ -51,19 +49,6 @@ export function CardsOptions({
         }
       >
         Card Banner
-      </MenuItem>
-      <MenuItem
-        className={cx(flushTrailing, toggleRow)}
-        leading={<Icon name="cards-grid" size={ICON.rootEntry} />}
-        trailing={
-          <span className={side}>
-            <span className={detail}>{format === 'compact' ? 'Compact' : 'Standard'}</span>
-            <Icon name="chevrons-up-down" size={ICON.rowChevron} />
-          </span>
-        }
-        onClick={() => write({ format: format === 'compact' ? 'standard' : 'compact' })}
-      >
-        Card Style
       </MenuItem>
       <MenuItem
         className={cx(flushTrailing, toggleRow)}

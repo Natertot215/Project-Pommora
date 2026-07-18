@@ -113,23 +113,23 @@
 #### K — Build Sequence & Options-Pane Spec
 
 - **K-1:** [confirmed] **Visuals before mechanics, on a branch.** All code lands on a `cards-view` branch, created before any code. Build order: (1) wire Cards as a selectable type (ViewPane type grid + the SettingsPane Layout door) with its options pane, (2) get the card visuals right under live driving, (3) only then the mechanical renderer work (grouping, drag, editing). *(Decision: Nathan.)*
-- **K-2:** [confirmed] The cards options live in the **Layout leaf**: the full door shows the table's standard four rows (Layout · Group · Filter · Sort) and cards' **Layout ›** slides into the options block with Scale as its pinned footer; the flat door (Settings · Layout — it IS the Layout surface) shows the options in its body with Scale pinned on the editor. *(Decision: Nathan.)*
+- **K-2:** [confirmed] The cards options live in the **Layout leaf**: the full door shows the table's standard four rows (Layout · Group · Filter · Sort) and cards' **Layout ›** slides into the options block; the flat door (Settings · Layout — it IS the Layout surface) shows the options in its body. **Style + Scale sit together in the ViewSettings footing** (the table-Format slot, pinned on the editor in both doors): Style is the D-8 flip-toggle, Scale the D-3 step dropdown. *(Decision: Nathan.)*
 - **K-4:** [confirmed] **Full-door structure for cards matches the table's** — type grid → the four leaf rows. Layout → the K-2 options; Group/Sort → the cards Grouping variant (same logic, no Sub-Group row) and the Sorting pane; Filter follows the table's current treatment (a blank placeholder pending the pane redesign). *(Decision: Nathan — "Group + Sort stay separate like tables; same logic just no sub-groups.")*
 - The cards options block (the Layout leaf's content):
 
   ```
   Card Banner:    (Cover / Preview / None)   ‹picker›
-  Card Style:     (Standard / Compact)       ‹toggle — flips on click, D-8›
   Hide Location:  Switch
   Wrap Titles:    Switch
   Hide Icons:     Switch
   Set Cards:      Switch
-  ───────────────────────
+  ───── ViewSettings footing (pinned, both doors) ─────
+  Style:          (Standard / Compact)       ‹toggle — flips on click, D-8›
   Scale:          (value)                    ‹double-chevron step dropdown, D-3›
-  ───────────────────────
+  ─────────────────────────────────────────────────────
   ```
 
-  Field mapping: Card Banner → `card_banner` (B-1) · Card Style → `format` (D-5) · Hide Location → `hide_location` (E-3) · Wrap Titles → `wrap_titles` (D-6) · Hide Icons → `hide_page_icons` · Set Cards → `set_cards` (F-1) · Scale → `card_size` as the step factor (D-3/D-4), in the divider-separated footer region (the table Format row's slot). *(Decision: Nathan.)*
+  Field mapping: Card Banner → `card_banner` (B-1) · Style → `format` (D-5) · Hide Location → `hide_location` (E-3) · Wrap Titles → `wrap_titles` (D-6) · Hide Icons → `hide_page_icons` · Set Cards → `set_cards` (F-1) · Scale → `card_size` as the step factor (D-3/D-4). *(Decision: Nathan.)*
 
   Codec discipline for the new keys: the banner-mode enum ships `.optional().catch(undefined)` (the `format`/`structural_order_mode` pattern — a bare enum is the D-4 view-drop landmine); the new booleans follow the existing bare `z.boolean().optional()` convention. All land in the same task as the `card_size` reshape. The `views.ts` Swift-parity header carries the cards keys in its React-ahead superset list (→ J-5). `show_cover` (a zero-consumer reserved bool) is superseded by `card_banner` and retires with it; `show_banner` stays reserved.
 
@@ -142,7 +142,7 @@
 - **Property display + editing on cards:** all visible properties via `resolveColumns` (C-5); values render through the shared chip/cell renderers; value click opens the per-kind picker on both layouts; the empty-space two-stage property→value pane (`PaneSlider` + `PropertyPicker`) is Compact-only (G-1/G-2).
 - **Grouping:** flattened location bands (no indent, E-2), property bands replace them (E-6), ungrouped under the container's own heading (E-7), collapse persistence, heading "+" on structural headings only (I-2), heading chrome = collapse + "+" (I-7).
 - **Cards' own Grouping-pane variant** (no Sub-Group row) + the **Location entry** in the Sorting pane driving the flatten mode (E-4, J-3).
-- **The Layout leaf (cards content), K-2's row set exactly:** Card Banner picker (B-1) · Card Style toggle (D-5/D-8) · Hide Location (standing switch, grouping-independent, E-3) · Wrap Titles (D-6) · Hide Icons (`hide_page_icons`) · Set Cards (F-1) · the Scale step-dropdown footer (`card_size` → number, D-3/D-4).
+- **The Layout leaf (cards content), K-2's row set exactly:** Card Banner picker (B-1) · Hide Location (standing switch, grouping-independent, E-3) · Wrap Titles (D-6) · Hide Icons (`hide_page_icons`) · Set Cards (F-1); the ViewSettings footing carries Style (D-5/D-8) + Scale (`card_size` → number, D-3/D-4).
 - **Set Cards:** larger top-row cards — Set banner + icon + title — clicking navigates to the Set (F-1/F-2, I-3).
 - **In-group card drag-reorder** by displacement, retired under multi-key sorts (I-1, I-9).
 - **Renders inside existing view embeds** with no special treatment (A-2).

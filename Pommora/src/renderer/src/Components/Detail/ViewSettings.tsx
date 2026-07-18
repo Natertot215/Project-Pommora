@@ -163,13 +163,32 @@ export function ViewSettings({
     }
   }
 
-  // Scale — the cards Layout leaf's pinned footer (K-2): current step + double-chevron popping the
-  // discrete steps (the block handle menu's Scale idiom); a pick writes live and keeps the dropdown
-  // open. The flat door pins it on the editor itself (that door IS Settings · Layout).
+  // The cards footing (K-2): Style (a two-option double-chevron — flips on click, D-8) over Scale
+  // (current step + double-chevron popping the discrete steps, the block handle menu's idiom; a pick
+  // writes live and keeps the dropdown open). Pinned on the editor in both doors, the Format slot.
   const currentScale = scaleStep(view.card_size)
-  const scaleRow =
+  const cardsFooting =
     view.type === 'cards' ? (
       <MenuBottomRow>
+        <MenuItem
+          className={flushTrailing}
+          leading={
+            <span className={footingSymbol}>
+              <Icon name="cards-grid" size={12} />
+            </span>
+          }
+          trailing={
+            <span className={side}>
+              <span className={detail}>{format === 'compact' ? 'Compact' : 'Standard'}</span>
+              <span className={footingSymbol}>
+                <Icon name="chevrons-up-down" size={12} />
+              </span>
+            </span>
+          }
+          onClick={toggleFormat}
+        >
+          <span className={footingLabel}>Style</span>
+        </MenuItem>
         <MenuItem
           className={flushTrailing}
           leading={
@@ -221,7 +240,6 @@ export function ViewSettings({
       view.type === 'cards' ? (
         <MenuScrollFrame
           header={<MenuPaneTopRow label="Views" current="Layout" onBack={() => setLeaf(null)} />}
-          footer={scaleRow}
           maxHeight={VIEWSETTINGS_MAX_HEIGHT}
         >
           <CardsOptions source={source} view={view} />
@@ -336,7 +354,7 @@ export function ViewSettings({
   const mainFrame = (
     <MenuScrollFrame
       header={header}
-      footer={view.type === 'cards' ? (door === 'flat' ? scaleRow : null) : formatRow}
+      footer={view.type === 'cards' ? cardsFooting : formatRow}
       maxHeight={VIEWSETTINGS_MAX_HEIGHT}
     >
       {/* The full door carries its own click-to-edit identity; the flat door (SettingsPane → Layout)
