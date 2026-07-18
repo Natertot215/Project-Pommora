@@ -15,6 +15,8 @@ import { useActiveView } from '../useActiveView'
 import { resolveContainerSchema } from '../Table/TableView'
 import { buildSetIcons, buildSetNames, groupLabel } from '../Table/cellResolve'
 import { buildResolveContext } from '../Table/resolveContext'
+import { NavCrumbs } from '../../../Navigation/NavList'
+import type { PathCrumb } from '../../../Navigation/navResolve'
 import './CardsView.css'
 
 // A page's thumbnail file — navKey's `page:<id>` flips its colon to a dash on disk (io/thumbnails).
@@ -56,13 +58,13 @@ export function CardsView({ source }: { source: CollectionNode | SetNode }): Rea
   const setNames = useMemo(() => buildSetNames(source), [source])
   const setIcons = useMemo(() => buildSetIcons(source), [source])
   const ctx = useMemo(() => (tree ? buildResolveContext(tree, schema) : null), [tree, schema])
-  // Set id → its within-container location trail ("Set › Sub-set") — one walk, read per card.
+  // Set id → its within-container location trail (Set › Sub-set crumbs) — one walk, read per card.
   const setChains = useMemo(() => {
-    const m = new Map<string, string>()
-    const walk = (sets: SetNode[] | undefined, trail: string[]): void => {
+    const m = new Map<string, PathCrumb[]>()
+    const walk = (sets: SetNode[] | undefined, trail: PathCrumb[]): void => {
       for (const s of sets ?? []) {
-        const t = [...trail, s.title]
-        m.set(s.id, t.join(' › '))
+        const t = [...trail, { icon: iconNameOr(s.icon, defaultEntityIcon('set')), title: s.title }]
+        m.set(s.id, t)
         walk(s.sets, t)
       }
     }
@@ -219,7 +221,7 @@ function PageCard({
   view: SavedView
   banner: CardBanner
   nexusId: string
-  loc?: string
+  loc?: PathCrumb[]
 }): React.JSX.Element {
   const select = useSession((s) => s.select)
   const version = useSession((s) => s.thumbVersions[`page:${row.id}`] ?? 0)
@@ -268,7 +270,9 @@ function PageCard({
           ) : (
             <OverflowScroll className="page-card-title">{titleBody}</OverflowScroll>
           )}
-          {loc && <OverflowScroll className="page-card-loc">{loc}</OverflowScroll>}
+          {loc && loc.length > 0 && (
+            <NavCrumbs path={loc} className="page-card-loc" iconSize={11} />
+          )}
         </div>
       </div>
     </button>
