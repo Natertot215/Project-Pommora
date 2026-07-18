@@ -30,6 +30,7 @@ import {
   Heart,
   History,
   House,
+  Image,
   Import,
   LayoutDashboard,
   LayoutGrid,
@@ -60,6 +61,7 @@ import {
   Tags,
   TextAlignJustify,
   Type,
+  WrapText,
   X,
 } from 'lucide-react'
 import { forwardRef } from 'react'
@@ -118,6 +120,8 @@ export const icons = {
   layers: Layers,
   'grip-vertical': GripVertical,
   'grip-horizontal': GripHorizontal,
+  image: Image,
+  'wrap-text': WrapText,
   heart: Heart,
   hash: Hash,
   'square-check': SquareCheck,

@@ -24,14 +24,15 @@ import { useSaveView } from '@renderer/Embeds/ViewEmbedScope'
 import { InlineEditHeader } from './InlineEditHeader'
 import { VisibilityList } from './HiddenPane'
 import { LayoutToggles } from './LayoutToggles'
+import { GalleryOptions } from './GalleryOptions'
 import { GroupingPane } from './GroupingPane'
 import { SortingPane } from './SortingPane'
 import { PaneSlider } from './PaneSlider'
 import { cx } from '../../design-system/cx'
 import * as vs from './viewSettings.css'
 
-// Grid order (D-4) + each type's glyph (D-5). Only Table is buildable this cycle; the rest render at
-// full weight but their tiles are inert.
+// Grid order (D-4) + each type's glyph (D-5). Unimplemented types render at full weight but their
+// tiles are inert.
 const TYPE_ORDER: ViewType[] = ['table', 'cards', 'list', 'gallery', 'calendar', 'timeline']
 const TYPE_GLYPH: Record<ViewType, IconName> = {
   table: 'table',
@@ -41,7 +42,7 @@ const TYPE_GLYPH: Record<ViewType, IconName> = {
   calendar: 'calendar-days',
   timeline: 'chart-gantt',
 }
-const IMPLEMENTED: ReadonlySet<ViewType> = new Set(['table'])
+const IMPLEMENTED: ReadonlySet<ViewType> = new Set(['table', 'gallery'])
 const isMac = navigator.platform.toLowerCase().includes('mac')
 
 // ── KNOB — ViewSettings' own height ceiling (its own, not the shared MENU_MAX_HEIGHT): the full door
@@ -68,6 +69,9 @@ const LEAF_CURRENT: Record<Exclude<Leaf, 'layout'>, string> = {
   filter: 'Filtering',
   sort: 'Sorting',
 }
+// The gallery's Layout IS its inline options block (K-2), so its full door carries only the
+// config leaves.
+const GALLERY_LEAF_ROWS = LEAF_ROWS.filter((r) => r.id !== 'layout')
 
 /**
  * ViewSettings — the shared per-view editor, both doors (D-1). The full door (a ViewPane row's
@@ -94,6 +98,7 @@ export function ViewSettings({
   const load = useSession((s) => s.load)
   const [leaf, setLeaf] = useState<Leaf | null>(null)
   const [formatOpen, setFormatOpen] = useState(false)
+  const [scaleDraft, setScaleDraft] = useState<number | null>(null)
   const formatRef = useRef<HTMLDivElement>(null)
   const views = source.views ?? []
   const canDelete = views.length > 1 && view.id !== DEFAULT_VIEW_ID
@@ -159,6 +164,7 @@ export function ViewSettings({
         view={view}
         schema={schema}
         label="Views"
+        subGrouping={view.type !== 'gallery'}
         onBack={() => setLeaf(null)}
       />
     ) : leaf === 'sort' ? (
@@ -189,6 +195,39 @@ export function ViewSettings({
       ))}
     </div>
   )
+
+  // Scale — the gallery's pinned footer (K-2): the card-size slider. Drafts locally while dragging;
+  // the view write (whole-save + refetch) lands on release, never per-tick.
+  const scale = scaleDraft ?? view.card_size ?? 1
+  const commitScale = (): void => {
+    if (scaleDraft !== null && scaleDraft !== view.card_size) write({ card_size: scaleDraft })
+    setScaleDraft(null)
+  }
+  const scaleRow =
+    view.type === 'gallery' ? (
+      <MenuBottomRow>
+        <div className={vs.scaleRow}>
+          <span className={footingSymbol}>
+            <Icon name="scaling" size={12} />
+          </span>
+          <span className={footingLabel}>Scale</span>
+          <input
+            type="range"
+            min={0.5}
+            max={1.5}
+            step={0.05}
+            value={scale}
+            aria-label="Scale"
+            className={vs.scaleSlider}
+            onChange={(e) => setScaleDraft(Number(e.target.value))}
+            onPointerUp={commitScale}
+            onKeyUp={commitScale}
+            onBlur={commitScale}
+          />
+          <span className={detail}>{scale.toFixed(2)}×</span>
+        </div>
+      </MenuBottomRow>
+    ) : null
 
   // Format — the pinned footer (D-8): persists, dual-wired (native menu on mac, PickerMenu else), inert
   // visually this cycle. Table-only.
@@ -258,8 +297,23 @@ export function ViewSettings({
       <MenuPaneTopRow label="Settings" current="Layout" onBack={onBack} />
     )
 
+  const leafRow = (r: (typeof LEAF_ROWS)[number]): React.JSX.Element => (
+    <MenuItem
+      key={r.id}
+      className={flushTrailing}
+      leading={<Icon name={r.icon} size={16} />}
+      trailing={<Icon name="chevron-right" size={16} />}
+      onClick={() => setLeaf(r.id)}
+    >
+      {r.label}
+    </MenuItem>
+  )
   const mainFrame = (
-    <MenuScrollFrame header={header} footer={formatRow} maxHeight={VIEWSETTINGS_MAX_HEIGHT}>
+    <MenuScrollFrame
+      header={header}
+      footer={view.type === 'gallery' ? scaleRow : formatRow}
+      maxHeight={VIEWSETTINGS_MAX_HEIGHT}
+    >
       {/* The full door carries its own click-to-edit identity; the flat door (SettingsPane → Layout)
           drops it — the TopRow already names the view, so a second title + divider is redundant. */}
       {door === 'full' && (
@@ -270,21 +324,18 @@ export function ViewSettings({
       )}
       {grid}
       {view.type === 'table' &&
-        (door === 'full' ? (
-          LEAF_ROWS.map((r) => (
-            <MenuItem
-              key={r.id}
-              className={flushTrailing}
-              leading={<Icon name={r.icon} size={16} />}
-              trailing={<Icon name="chevron-right" size={16} />}
-              onClick={() => setLeaf(r.id)}
-            >
-              {r.label}
-            </MenuItem>
-          ))
-        ) : (
-          <LayoutToggles source={source} view={view} />
-        ))}
+        (door === 'full' ? LEAF_ROWS.map(leafRow) : <LayoutToggles source={source} view={view} />)}
+      {view.type === 'gallery' && (
+        <>
+          <GalleryOptions source={source} view={view} />
+          {door === 'full' && (
+            <>
+              <MenuSeparator flush />
+              {GALLERY_LEAF_ROWS.map(leafRow)}
+            </>
+          )}
+        </>
+      )}
     </MenuScrollFrame>
   )
 

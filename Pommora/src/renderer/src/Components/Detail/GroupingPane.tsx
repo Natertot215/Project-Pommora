@@ -111,6 +111,7 @@ export function GroupingPane({
   view,
   schema,
   label,
+  subGrouping = true,
   onBack,
 }: {
   source: CollectionNode | SetNode
@@ -118,6 +119,8 @@ export function GroupingPane({
   schema: PropertyDefinition[]
   /** The back-destination breadcrumb — 'Settings' from SettingsPane, 'Views' from ViewSettings. */
   label: string
+  /** Gallery views drop the Sub-Group tier entirely — same pane, no second grouping level. */
+  subGrouping?: boolean
   onBack: () => void
 }): React.JSX.Element {
   const load = useSession((st) => st.load)
@@ -134,7 +137,7 @@ export function GroupingPane({
   const groupable = schema.filter((d) => GROUPABLE_PANE.has(declaredType(d.id, schema) ?? ''))
   const activeDef =
     group.kind === 'property' ? schema.find((d) => d.id === group.property_id) : undefined
-  const subGroup = structural ? view.sub_group : undefined
+  const subGroup = structural && subGrouping ? view.sub_group : undefined
   // The property whose date buckets head bands right now (top-level date grouping, or the date
   // sub-group) — the Separation footing appears only when its column wears a numeric format (D-8).
   const dateHeadingProp =
@@ -297,7 +300,7 @@ export function GroupingPane({
               onPick={(m) => save({ structural_order_mode: m })}
             />
           )}
-          {structural && (
+          {structural && subGrouping && (
             <>
               <SubGroupRow subGroup={subGroup} groupable={groupable} onSave={saveSub} />
               {subGroup && declaredType(subGroup.property_id, schema) === 'datetime' && (

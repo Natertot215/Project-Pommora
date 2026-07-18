@@ -97,7 +97,7 @@ function DatetimeCellPicker({
 
 /** A Collection uses its own schema; a Set inherits its ancestor Collection's (schema lives only on
  *  the Collection). [] when the owning Collection can't be found. */
-function resolveContainerSchema(
+export function resolveContainerSchema(
   tree: NexusTree,
   source: CollectionNode | SetNode,
 ): PropertyDefinition[] {

@@ -3,11 +3,14 @@
 // view round-trips across both builds. `savedView` (zod) is the codec; the exported
 // interfaces are the canonical types consumers use.
 //
-// Two deliberate React-ahead supersets of Swift, documented here (not "ports"):
+// Deliberate React-ahead supersets of Swift, documented here (not "ports"):
 //   - `sort` is the full array (multi-key, priority = array order). Swift's pipeline reads
 //     only the first criterion today; a multi-key array still round-trips its decode.
 //   - `filter.rules` may nest a FilterGroup for mixed AND/OR; Swift's rules are flat. A flat
 //     filter is byte-identical across builds; a nested one is React-ahead until Swift aligns.
+//   - The gallery keys (`card_banner`, `hide_location`, `wrap_titles`, `set_cards`, and the
+//     numeric `card_size` scale factor) are React-ahead; Swift's small/medium/large
+//     `card_size` still decodes, mapped to its factor.
 //
 // Each enum has ONE source: an `as const` array drives both the TS type (indexed access) and
 // the zod codec / runtime membership Set — never re-listed (the AREA_COLORS idiom in types.ts).
@@ -22,8 +25,16 @@ export type ViewType = (typeof VIEW_TYPES)[number]
 const VIEW_FORMATS = ['standard', 'compact'] as const
 export type ViewFormat = (typeof VIEW_FORMATS)[number]
 
+// Legacy card_size enum — decode-only; a stored name maps onto the slider's scale factor.
 const CARD_SIZES = ['small', 'medium', 'large'] as const
-export type CardSize = (typeof CARD_SIZES)[number]
+const LEGACY_CARD_SIZE: Record<(typeof CARD_SIZES)[number], number> = {
+  small: 0.75,
+  medium: 1,
+  large: 1.25,
+}
+
+const CARD_BANNERS = ['cover', 'preview', 'none'] as const
+export type CardBanner = (typeof CARD_BANNERS)[number]
 
 const COLUMN_ALIGNS = ['left', 'center', 'right'] as const
 export type ColumnAlign = (typeof COLUMN_ALIGNS)[number]
@@ -110,8 +121,17 @@ export interface SavedView {
   column_alignments?: Record<string, ColumnAlign>
   column_styles?: Record<string, ColumnStyle>
   collapsed_groups?: string[]
-  card_size?: CardSize
-  show_cover?: boolean
+  /** Gallery card scale — the Layout slider's factor (0.5–1.5). Absent = 1. */
+  card_size?: number
+  /** Gallery card image source — the page banner (`cover`), the captured thumbnail (`preview`),
+   *  or imageless compact cards (`none`). Absent = cover. */
+  card_banner?: CardBanner
+  /** Gallery: hide the card's Set / sub-Set location footing. */
+  hide_location?: boolean
+  /** Gallery: card titles may wrap; off = single-line overflow-scroll. */
+  wrap_titles?: boolean
+  /** Gallery: the leading Set Cards row. Absent = shown. */
+  set_cards?: boolean
   show_banner?: boolean
   hide_page_icons?: boolean
   /** Table Layout "Column Icons" toggle — hide the type-icon in each column header (the title column
@@ -241,8 +261,14 @@ export const savedView = z.looseObject({
   column_alignments: z.record(z.string(), z.enum(COLUMN_ALIGNS)).optional(),
   column_styles: z.record(z.string(), columnStyle).catch({}).optional(),
   collapsed_groups: z.array(z.string()).optional(),
-  card_size: z.enum(CARD_SIZES).optional(),
-  show_cover: z.boolean().optional(),
+  card_size: z
+    .union([z.number(), z.enum(CARD_SIZES).transform((v) => LEGACY_CARD_SIZE[v])])
+    .optional()
+    .catch(undefined),
+  card_banner: z.enum(CARD_BANNERS).optional().catch(undefined),
+  hide_location: z.boolean().optional(),
+  wrap_titles: z.boolean().optional(),
+  set_cards: z.boolean().optional(),
   show_banner: z.boolean().optional(),
   hide_page_icons: z.boolean().optional(),
   hide_column_icons: z.boolean().optional(),
