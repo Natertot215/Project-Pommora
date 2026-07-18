@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { CollectionNode, SetNode } from '@shared/types'
 import type { PropertyDefinition } from '@shared/properties'
 import { DEFAULT_VIEW_ID, type SavedView, type ViewFormat, type ViewType } from '@shared/views'
@@ -24,7 +24,8 @@ import { useSaveView } from '@renderer/Embeds/ViewEmbedScope'
 import { InlineEditHeader } from './InlineEditHeader'
 import { VisibilityList } from './HiddenPane'
 import { LayoutToggles } from './LayoutToggles'
-import { GalleryOptions } from './GalleryOptions'
+import { CardsOptions } from './CardsOptions'
+import * as pc from './pickerControl.css'
 import { GroupingPane } from './GroupingPane'
 import { SortingPane } from './SortingPane'
 import { PaneSlider } from './PaneSlider'
@@ -42,8 +43,17 @@ const TYPE_GLYPH: Record<ViewType, IconName> = {
   calendar: 'calendar-days',
   timeline: 'chart-gantt',
 }
-const IMPLEMENTED: ReadonlySet<ViewType> = new Set(['table', 'gallery'])
-const isMac = navigator.platform.toLowerCase().includes('mac')
+const IMPLEMENTED: ReadonlySet<ViewType> = new Set(['table', 'cards'])
+
+// The cards Scale steps — discrete factors behind the footer's double-chevron dropdown (the block
+// handle menu's Scale idiom). A stored off-grid factor snaps to its nearest step on read.
+const CARD_SCALE_FACTORS: readonly number[] = [1.5, 1.25, 1, 0.75, 0.5]
+const scaleStep = (factor?: number): number => {
+  const target = factor ?? 1
+  return CARD_SCALE_FACTORS.reduce((best, s) =>
+    Math.abs(s - target) < Math.abs(best - target) ? s : best,
+  )
+}
 
 // ── KNOB — ViewSettings' own height ceiling (its own, not the shared MENU_MAX_HEIGHT): the full door
 // stacks the tallest content (title + grid + four leaf rows + the pinned Format), so it earns more
@@ -69,9 +79,9 @@ const LEAF_CURRENT: Record<Exclude<Leaf, 'layout'>, string> = {
   filter: 'Filtering',
   sort: 'Sorting',
 }
-// The gallery's Layout IS its inline options block (K-2), so its full door carries only the
+// The cards view's Layout IS its inline options block (K-2), so its full door carries only the
 // config leaves.
-const GALLERY_LEAF_ROWS = LEAF_ROWS.filter((r) => r.id !== 'layout')
+const CARDS_LEAF_ROWS = LEAF_ROWS.filter((r) => r.id !== 'layout')
 
 /**
  * ViewSettings — the shared per-view editor, both doors (D-1). The full door (a ViewPane row's
@@ -97,9 +107,29 @@ export function ViewSettings({
 }): React.JSX.Element {
   const load = useSession((s) => s.load)
   const [leaf, setLeaf] = useState<Leaf | null>(null)
-  const [formatOpen, setFormatOpen] = useState(false)
-  const [scaleDraft, setScaleDraft] = useState<number | null>(null)
-  const formatRef = useRef<HTMLDivElement>(null)
+  // The Scale dropdown — the block handle menu's idiom: hangs off the row's trailing value, a pick
+  // scrubs live and keeps it open; a document listener owns dismissal (spares the trigger + menu).
+  const [scaleOpen, setScaleOpen] = useState(false)
+  const scaleTriggerRef = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    if (!scaleOpen) return
+    const onDown = (e: PointerEvent): void => {
+      const t = e.target as HTMLElement | null
+      if (scaleTriggerRef.current?.contains(t) || t?.closest?.('[data-scale-menu]')) return
+      setScaleOpen(false)
+    }
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key !== 'Escape') return
+      e.stopPropagation()
+      setScaleOpen(false)
+    }
+    document.addEventListener('pointerdown', onDown, true)
+    document.addEventListener('keydown', onKey, true)
+    return () => {
+      document.removeEventListener('pointerdown', onDown, true)
+      document.removeEventListener('keydown', onKey, true)
+    }
+  }, [scaleOpen])
   const views = source.views ?? []
   const canDelete = views.length > 1 && view.id !== DEFAULT_VIEW_ID
   const format: ViewFormat = view.format ?? 'standard'
@@ -112,7 +142,8 @@ export function ViewSettings({
   const setType = (type: ViewType): void => {
     if (type !== view.type) write({ type })
   }
-  const setFormat = (f: ViewFormat): void => write({ format: f })
+  // Two-option double-chevron = a direct toggle, never a dropdown (the Open In idiom).
+  const toggleFormat = (): void => write({ format: format === 'compact' ? 'standard' : 'compact' })
 
   const openItemMenu = async (): Promise<void> => {
     const action = await window.nexus.viewItemMenu(canDelete)
@@ -132,15 +163,6 @@ export function ViewSettings({
       await window.nexus.views.delete(source.path, source.kind, view.id)
       onClose()
       await load()
-    }
-  }
-
-  const openFormat = async (): Promise<void> => {
-    if (isMac) {
-      const f = await window.nexus.viewFormatMenu(format)
-      if (f) setFormat(f)
-    } else {
-      setFormatOpen(true)
     }
   }
 
@@ -164,7 +186,7 @@ export function ViewSettings({
         view={view}
         schema={schema}
         label="Views"
-        subGrouping={view.type !== 'gallery'}
+        subGrouping={view.type !== 'cards'}
         onBack={() => setLeaf(null)}
       />
     ) : leaf === 'sort' ? (
@@ -196,85 +218,79 @@ export function ViewSettings({
     </div>
   )
 
-  // Scale — the gallery's pinned footer (K-2): the card-size slider. Drafts locally while dragging;
-  // the view write (whole-save + refetch) lands on release, never per-tick.
-  const scale = scaleDraft ?? view.card_size ?? 1
-  const commitScale = (): void => {
-    if (scaleDraft !== null && scaleDraft !== view.card_size) write({ card_size: scaleDraft })
-    setScaleDraft(null)
-  }
+  // Scale — the cards view's pinned footer (K-2): current step + double-chevron popping the discrete
+  // steps (the block handle menu's Scale idiom); a pick writes live and keeps the dropdown open.
+  const currentScale = scaleStep(view.card_size)
   const scaleRow =
-    view.type === 'gallery' ? (
+    view.type === 'cards' ? (
       <MenuBottomRow>
-        <div className={vs.scaleRow}>
-          <span className={footingSymbol}>
-            <Icon name="scaling" size={12} />
-          </span>
+        <MenuItem
+          className={flushTrailing}
+          leading={
+            <span className={footingSymbol}>
+              <Icon name="scaling" size={12} />
+            </span>
+          }
+          trailing={
+            <button
+              ref={scaleTriggerRef}
+              type="button"
+              className={pc.trigger}
+              onClick={() => setScaleOpen((o) => !o)}
+            >
+              <span className={pc.value}>{`${currentScale}x`}</span>
+              <Icon name="chevrons-up-down" size={12} />
+            </button>
+          }
+        >
           <span className={footingLabel}>Scale</span>
-          <input
-            type="range"
-            min={0.5}
-            max={1.5}
-            step={0.05}
-            value={scale}
-            aria-label="Scale"
-            className={vs.scaleSlider}
-            onChange={(e) => setScaleDraft(Number(e.target.value))}
-            onPointerUp={commitScale}
-            onKeyUp={commitScale}
-            onBlur={commitScale}
-          />
-          <span className={detail}>{scale.toFixed(2)}×</span>
-        </div>
+        </MenuItem>
+        {scaleOpen && (
+          <PickerMenu open triggerRef={scaleTriggerRef} solid>
+            <div data-scale-menu>
+              {CARD_SCALE_FACTORS.map((f) => (
+                <MenuItem
+                  key={f}
+                  trailing={
+                    currentScale === f ? (
+                      <Icon name="check" size={12} className={vs.scaleCheck} />
+                    ) : undefined
+                  }
+                  onClick={() => write({ card_size: f })}
+                >
+                  {`${f.toFixed(2)}x`}
+                </MenuItem>
+              ))}
+            </div>
+          </PickerMenu>
+        )}
       </MenuBottomRow>
     ) : null
 
-  // Format — the pinned footer (D-8): persists, dual-wired (native menu on mac, PickerMenu else), inert
-  // visually this cycle. Table-only.
+  // Format — the pinned footer (D-8): persists, inert visually this cycle. Table-only; a two-option
+  // double-chevron, so the click flips it directly.
   const formatRow =
     view.type === 'table' ? (
       <MenuBottomRow>
-        <div ref={formatRef}>
-          <MenuItem
-            className={flushTrailing}
-            leading={
+        <MenuItem
+          className={flushTrailing}
+          leading={
+            <span className={footingSymbol}>
+              <Icon name="layers-2" size={12} />
+            </span>
+          }
+          trailing={
+            <span className={side}>
+              <span className={detail}>{format === 'compact' ? 'Compact' : 'Standard'}</span>
               <span className={footingSymbol}>
-                <Icon name="layers-2" size={12} />
+                <Icon name="chevrons-up-down" size={12} />
               </span>
-            }
-            trailing={
-              <span className={side}>
-                <span className={detail}>{format === 'compact' ? 'Compact' : 'Standard'}</span>
-                <span className={footingSymbol}>
-                  <Icon name="chevrons-up-down" size={12} />
-                </span>
-              </span>
-            }
-            onClick={() => void openFormat()}
-          >
-            <span className={footingLabel}>Format</span>
-          </MenuItem>
-          {formatOpen && (
-            <PickerMenu
-              open={formatOpen}
-              onDismiss={() => setFormatOpen(false)}
-              triggerRef={formatRef}
-            >
-              {(['standard', 'compact'] as ViewFormat[]).map((f) => (
-                <button
-                  key={f}
-                  type="button"
-                  onClick={() => {
-                    setFormat(f)
-                    setFormatOpen(false)
-                  }}
-                >
-                  {f === 'compact' ? 'Compact' : 'Standard'}
-                </button>
-              ))}
-            </PickerMenu>
-          )}
-        </div>
+            </span>
+          }
+          onClick={toggleFormat}
+        >
+          <span className={footingLabel}>Format</span>
+        </MenuItem>
       </MenuBottomRow>
     ) : null
 
@@ -311,7 +327,7 @@ export function ViewSettings({
   const mainFrame = (
     <MenuScrollFrame
       header={header}
-      footer={view.type === 'gallery' ? scaleRow : formatRow}
+      footer={view.type === 'cards' ? scaleRow : formatRow}
       maxHeight={VIEWSETTINGS_MAX_HEIGHT}
     >
       {/* The full door carries its own click-to-edit identity; the flat door (SettingsPane → Layout)
@@ -325,13 +341,13 @@ export function ViewSettings({
       {grid}
       {view.type === 'table' &&
         (door === 'full' ? LEAF_ROWS.map(leafRow) : <LayoutToggles source={source} view={view} />)}
-      {view.type === 'gallery' && (
+      {view.type === 'cards' && (
         <>
-          <GalleryOptions source={source} view={view} />
+          <CardsOptions source={source} view={view} />
           {door === 'full' && (
             <>
               <MenuSeparator flush />
-              {GALLERY_LEAF_ROWS.map(leafRow)}
+              {CARDS_LEAF_ROWS.map(leafRow)}
             </>
           )}
         </>

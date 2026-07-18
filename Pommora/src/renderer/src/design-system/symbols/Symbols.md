@@ -49,9 +49,9 @@ Pommora's React icons come from **Lucide** ([lucide.dev/icons](https://lucide.de
 | `layers` | ViewPane Group · Glass leaf (showcase) |
 | `grip-vertical` / `grip-horizontal` | Drag grips (table rows · editor table columns/rows) |
 | `palette` | Colors leaf (showcase) |
-| `scaling` | Block Scale row (per-tile zoom) · Gallery Scale slider |
-| `image` | Gallery Card Banner row |
-| `wrap-text` | Gallery Wrap Titles row |
+| `scaling` | Block Scale row (per-tile zoom) · Cards Scale row |
+| `image` | Cards Card Banner row |
+| `wrap-text` | Cards Wrap Titles row |
 | `type` | Typography leaf (showcase) |
 | `shapes` | Icons leaf (showcase) |
 | `lock` | View-config locks (Nathan-supplied solid glyph — custom, drawn in `customGlyphs`) |

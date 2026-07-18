@@ -119,7 +119,7 @@ export function GroupingPane({
   schema: PropertyDefinition[]
   /** The back-destination breadcrumb — 'Settings' from SettingsPane, 'Views' from ViewSettings. */
   label: string
-  /** Gallery views drop the Sub-Group tier entirely — same pane, no second grouping level. */
+  /** Cards views drop the Sub-Group tier entirely — same pane, no second grouping level. */
   subGrouping?: boolean
   onBack: () => void
 }): React.JSX.Element {

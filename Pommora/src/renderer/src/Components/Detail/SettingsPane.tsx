@@ -278,7 +278,7 @@ export function SettingsPane(): React.JSX.Element | null {
         view={view}
         schema={schema}
         label="Settings"
-        subGrouping={view.type !== 'gallery'}
+        subGrouping={view.type !== 'cards'}
         onBack={back}
       />
     ) : detailId === 'sort' ? (

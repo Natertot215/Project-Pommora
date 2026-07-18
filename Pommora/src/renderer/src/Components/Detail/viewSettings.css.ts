@@ -43,18 +43,5 @@ export const tile = style({
 /** The selected type — accent border at tint-primary. */
 export const tileSelected = style({ borderColor: tintAt('var(--accent)', TINT_STEPS.primary) })
 
-/** The gallery Scale footer row — footing glyph + label, the slider, and the live value readout. */
-export const scaleRow = style({
-  display: 'flex',
-  alignItems: 'center',
-  gap: 8,
-  width: '100%',
-  padding: '4px 2px',
-})
-
-/** The Scale range input — flexes between the label and the value readout. */
-export const scaleSlider = style({
-  flex: 1,
-  minWidth: 0,
-  accentColor: 'var(--accent)',
-})
+/** The Scale dropdown's current-step check — accent, the block handle menu's idiom. */
+export const scaleCheck = style({ color: 'var(--accent)' })

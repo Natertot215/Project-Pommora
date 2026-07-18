@@ -3,7 +3,7 @@ import type { CollectionNode, SetNode } from '@shared/types'
 import { useSession } from '../../store'
 import { useActiveView } from './useActiveView'
 import { resolveContainerSchema, TableView } from './Table/TableView'
-import { GalleryView } from './Gallery/GalleryView'
+import { CardsView } from './Cards/CardsView'
 
 /**
  * The renderer seam — the ONE `view.type` switch, consumed by both TableView mounts (the
@@ -14,8 +14,8 @@ export function ViewRenderer({ source }: { source: CollectionNode | SetNode }): 
   const tree = useSession((s) => s.tree)
   const schema = useMemo(() => (tree ? resolveContainerSchema(tree, source) : []), [tree, source])
   const { view } = useActiveView(source, schema)
-  return view.type === 'gallery' ? (
-    <GalleryView key={source.id} source={source} />
+  return view.type === 'cards' ? (
+    <CardsView key={source.id} source={source} />
   ) : (
     <TableView key={source.id} source={source} />
   )

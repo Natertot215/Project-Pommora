@@ -8,7 +8,7 @@
 //     only the first criterion today; a multi-key array still round-trips its decode.
 //   - `filter.rules` may nest a FilterGroup for mixed AND/OR; Swift's rules are flat. A flat
 //     filter is byte-identical across builds; a nested one is React-ahead until Swift aligns.
-//   - The gallery keys (`card_banner`, `hide_location`, `wrap_titles`, `set_cards`, and the
+//   - The cards-view keys (`card_banner`, `hide_location`, `wrap_titles`, `set_cards`, and the
 //     numeric `card_size` scale factor) are React-ahead; Swift's small/medium/large
 //     `card_size` still decodes, mapped to its factor.
 //
@@ -121,16 +121,16 @@ export interface SavedView {
   column_alignments?: Record<string, ColumnAlign>
   column_styles?: Record<string, ColumnStyle>
   collapsed_groups?: string[]
-  /** Gallery card scale — the Layout slider's factor (0.5–1.5). Absent = 1. */
+  /** Cards-view card scale — the Scale step's factor (0.5–1.5). Absent = 1. */
   card_size?: number
-  /** Gallery card image source — the page banner (`cover`), the captured thumbnail (`preview`),
-   *  or imageless compact cards (`none`). Absent = cover. */
+  /** Cards-view card image source — the page banner (`cover`), the captured thumbnail
+   *  (`preview`), or imageless compact cards (`none`). Absent = cover. */
   card_banner?: CardBanner
-  /** Gallery: hide the card's Set / sub-Set location footing. */
+  /** Cards view: hide the card's Set / sub-Set location footing. */
   hide_location?: boolean
-  /** Gallery: card titles may wrap; off = single-line overflow-scroll. */
+  /** Cards view: card titles may wrap; off = single-line overflow-scroll. */
   wrap_titles?: boolean
-  /** Gallery: the leading Set Cards row. Absent = shown. */
+  /** Cards view: the leading Set Cards row. Absent = shown. */
   set_cards?: boolean
   show_banner?: boolean
   hide_page_icons?: boolean

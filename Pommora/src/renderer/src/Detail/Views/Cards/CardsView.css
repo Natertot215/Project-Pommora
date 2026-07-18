@@ -1,18 +1,18 @@
-/* GalleryView — the Collection/Set gallery renderer's ONE CSS home. The card chassis (aspect,
-   border, radius, gaps, title-area) starts from NavGallery's values — the title/property area is
-   allowed to diverge as the card design settles. Rides the block-surface inset regime (no views
-   gutter), and the embed zoom law so a view embed scales it as a unit. */
-.gallery-view {
-  --card-min: calc(180px * var(--card-scale, 1)); /* KNOB — column-width floor × the Scale slider */
+/* CardsView — the Collection/Set cards renderer's ONE CSS home. The card chassis (aspect, border,
+   radius, gaps, title-area) starts from NavGallery's values — the title/property area is allowed to
+   diverge as the card design settles. The pane insets live in Detail.css (the `:has(.cards-view)`
+   body rule — the block-surface inset regime, no views gutter); the embed zoom law rides here so a
+   view embed scales the grid as a unit. */
+.cards-view {
+  --card-min: calc(180px * var(--card-scale, 1)); /* KNOB — column-width floor × the Scale factor */
   --card-gap-h: 10px; /* KNOB — inter-card spacing */
   --card-gap-v: 10px;
   --cover-zoom: 1; /* KNOB — cover image zoom; >1 zooms into the top (previews read at 1.25) */
   --thumb-share: 65%; /* KNOB — the image band's share of the card height */
-  padding: 8px var(--surface-inset-right) 28px var(--surface-inset);
   zoom: calc(var(--zoom, 1) * var(--block-zoom, 1));
 }
 
-.gallery-grid {
+.cards-grid {
   /* auto-FIT: cards stretch to fill the width and only step down when a whole new column fits
      (NavGallery's reflow model). */
   display: grid;
@@ -20,7 +20,7 @@
   gap: var(--card-gap-v) var(--card-gap-h);
 }
 
-.gallery-card {
+.page-card {
   aspect-ratio: 125 / 90;
   align-self: start;
   text-align: left;
@@ -31,11 +31,11 @@
 }
 /* Imageless (Card Banner: None) — the grid compacts: cards shed the image band's aspect and sit at
    their natural title height. */
-.gallery-grid.is-compact .gallery-card {
+.cards-grid.is-compact .page-card {
   aspect-ratio: auto;
 }
 
-.gallery-card-body {
+.page-card-body {
   container-type: inline-size;
   display: flex;
   flex-direction: column;
@@ -50,14 +50,14 @@
     transform var(--duration-slow) var(--ease-standard);
 }
 
-.gallery-card-thumb {
+.page-card-thumb {
   position: relative;
   flex: 0 0 var(--thumb-share);
   min-height: 0;
   overflow: hidden;
   background: var(--fill-tertiary);
 }
-.gallery-card-thumb img {
+.page-card-thumb img {
   display: block;
   width: 100%;
   height: 100%;
@@ -67,7 +67,7 @@
   transform-origin: top left;
   -webkit-user-drag: none;
 }
-.gallery-card-ph {
+.page-card-ph {
   position: absolute;
   inset: 0;
   display: flex;
@@ -77,7 +77,7 @@
   background: var(--fill-quaternary);
 }
 
-.gallery-card-text {
+.page-card-text {
   flex: 1;
   min-height: 0;
   display: flex;
@@ -89,11 +89,11 @@
   background: var(--state-muted);
   border-top: 1.5px solid var(--separator-border);
 }
-.gallery-grid.is-compact .gallery-card-text {
+.cards-grid.is-compact .page-card-text {
   border-top: none;
 }
 
-.gallery-card-title {
+.page-card-title {
   display: flex;
   align-items: center;
   gap: 5px;
@@ -102,18 +102,18 @@
   --edge-fade: 14px;
   --scroll-fade: 14px;
 }
-.gallery-card-title.is-wrap {
+.page-card-title.is-wrap {
   display: inline;
 }
-.gallery-card-title.is-wrap .gallery-card-title-icon {
+.page-card-title.is-wrap .page-card-title-icon {
   vertical-align: -2px;
   margin-right: 5px;
 }
-.gallery-card-title-icon {
+.page-card-title-icon {
   flex: 0 0 auto;
   color: var(--label-secondary);
 }
 /* cqi typography — the card body is the query container, so text scales with card width. */
-.gallery-card .gallery-card-title {
+.page-card .page-card-title {
   font-size: clamp(11px, 5.5cqi, 18px);
 }

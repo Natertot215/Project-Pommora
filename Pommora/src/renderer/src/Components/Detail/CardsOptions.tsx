@@ -1,9 +1,9 @@
 import type { CollectionNode, SetNode } from '@shared/types'
-import type { CardBanner, SavedView, ViewFormat } from '@shared/views'
+import type { CardBanner, SavedView } from '@shared/views'
 import { Icon } from '@renderer/design-system/symbols'
 import { Switch } from '@renderer/design-system/components/Switches/Switch'
 import { MenuItem, MenuSeparator } from '../../design-system/components/menu'
-import { flushTrailing } from '../../design-system/components/menu/menu.css'
+import { detail, flushTrailing, side } from '../../design-system/components/menu/menu.css'
 import { cx } from '../../design-system/cx'
 import { useSession } from '../../store'
 import { useSaveView } from '@renderer/Embeds/ViewEmbedScope'
@@ -15,18 +15,15 @@ const BANNERS: PickerChoice<CardBanner>[] = [
   { value: 'preview', label: 'Preview' },
   { value: 'none', label: 'None' },
 ]
-const STYLES: PickerChoice<ViewFormat>[] = [
-  { value: 'standard', label: 'Standard' },
-  { value: 'compact', label: 'Compact' },
-]
 
 /**
- * The gallery view's options — Card Banner (the card image source), Card Style (the property
+ * The cards view's options — Card Banner (the card image source), Card Style (the property
  * layout), and the Hide Location / Wrap Titles / Hide Icons / Set Cards switches. Shared by both
  * Layout surfaces: the ViewSettings full door (under the type grid) and the SettingsPane flat
- * door. All persist per-view through the shared adopt-only writer.
+ * door. All persist per-view through the shared adopt-only writer. Card Style is a two-option
+ * double-chevron, so it flips on click — never a dropdown.
  */
-export function GalleryOptions({
+export function CardsOptions({
   source,
   view,
 }: {
@@ -36,6 +33,7 @@ export function GalleryOptions({
   const load = useSession((st) => st.load)
   const saveView = useSaveView(source, load)
   const write = (patch: Partial<SavedView>): void => void saveView({ ...view, ...patch })
+  const format = view.format ?? 'standard'
 
   return (
     <>
@@ -58,13 +56,12 @@ export function GalleryOptions({
         className={cx(flushTrailing, toggleRow)}
         leading={<Icon name="cards-grid" size={ICON.rootEntry} />}
         trailing={
-          <PickerControl
-            ariaLabel="Card Style"
-            value={view.format ?? 'standard'}
-            options={STYLES}
-            onPick={(v) => write({ format: v })}
-          />
+          <span className={side}>
+            <span className={detail}>{format === 'compact' ? 'Compact' : 'Standard'}</span>
+            <Icon name="chevrons-up-down" size={ICON.rowChevron} />
+          </span>
         }
+        onClick={() => write({ format: format === 'compact' ? 'standard' : 'compact' })}
       >
         Card Style
       </MenuItem>
