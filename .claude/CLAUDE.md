@@ -1,6 +1,6 @@
 ## Project Pommora
 
-Pommora is a personal management app based on Nathan’s frustration with modern productivity apps that excel in one aspect but are absolutely terrible in others — Pommora is Nathan’s “Fine, I’ll do it myself — Thanos.” Pommora’s main leverage is taking the extremely flexible, properties-based categorization of Notion and the inherently agentic-legible, local-first approach used by Obsidian, aiming to create a true local-first, all-in-one productivity and organizational platform. Pommora’s structure is based on relating **Content** ↔ **Content** through *Connections*, with their attributes given through their **Collection’s** schema-based **Properties,** and linking them all together through relationships to **Contexts.** 
+Pommora is a personal management app based on Nathan’s frustration with modern productivity apps that excel in one aspect but are absolutely terrible in others. Pommora’s main leverage is taking the extremely flexible, properties-based categorization of Notion and the inherently agentic-legible, local-first approach used by Obsidian, aiming to create a true local-first, all-in-one productivity and organizational platform. Pommora’s structure is based on relating **Content** ↔ **Content** through *Connections*, with their attributes given through their **Collection’s** schema-based **Properties,** and linking them all together through relationships to **Contexts.** 
 
 **Contexts:** The organization layer — three free-standing tiers that Content relates *to*. None contains or parents another; an entity tags whichever tiers fit.
 
@@ -18,13 +18,15 @@ Pommora is a personal management app based on Nathan’s frustration with modern
 
 **Files are canonical.** Pages are `.md` (YAML frontmatter + body); Contexts, Agenda, and all config are JSON sidecars; an entity's kind comes from its folder's sidecar, not the extension. Foreign keys are preserved on every write, and the SQLite index is a regeneratable accelerator off the read path. Agent-legibility of a user's Nexus, and future cloud-sync capability are core constructs for all development.
 
-### Stack
+### Stack & Build
 
-Pommora is an **Electron** desktop app — a **React + TypeScript** renderer over a Node main process that owns the filesystem. electron-vite · Electron 42 · React 19 · TypeScript 6 · Vite 7 + `@vitejs/plugin-react` 5 (compat pin — newer plugin-react needs Vite 8, which electron-vite doesn't support yet) · Zustand · TanStack Table/Virtual · `react-markdown` + `remark-gfm` · `eemeli/yaml` · `lucide-react` (the curated icon registry — `design-system/symbols`; `@tabler/icons-react` stays installed as a second source to pull from per-icon) · Vitest. Editor: **MarkdownPM** — a CodeMirror 6 build behind a swappable editor seam. The codebase lives at `Pommora/` on the monorepo's main branch.
+Pommora is an **Electron** desktop app — a React + TypeScript renderer over a Node main process that owns the filesystem; the codebase sits at `Pommora/` on the monorepo's main branch. electron-vite · Electron 42 · React 19 · TypeScript 6 · Vite 7 + `@vitejs/plugin-react` 5 (compat pin — newer plugin-react needs Vite 8, unsupported by electron-vite) · Zustand · TanStack Table/Virtual · `react-markdown` + `remark-gfm` · `eemeli/yaml` · `lucide-react` (curated registry `design-system/symbols`; `@tabler/icons-react` is a second per-icon source) · Vitest. Editor: **MarkdownPM**, a CodeMirror 6 build behind a swappable seam. Version numbers are compatibility pins, not endorsements — every library sits behind a thin seam (SQLite → `db.ts`, YAML → `pageFile.ts`, IDs → `ids.ts`, glass → `Surface`) so it's swappable without touching callers.
 
-**No dependency lock-in.** Every library sits behind a thin seam (SQLite behind `db.ts`, YAML behind `pageFile.ts`, IDs behind `ids.ts`, glass behind `Surface`) so it's swappable without touching callers. Version numbers are compatibility pins, not endorsements.
-
-**The Figma Library** (https://www.figma.com/file/fYZ5oiK7stC3diRhaBHl1r) is canonical for design values — mirror changes into the tokens at `/design-system.` The live showcase deploys from `Pommora/` to https://pommora-design-system.vercel.app.
+- **CommonJS main/preload** (package is NOT `type: module`): Electron's `require('electron')` fails on ESM named imports, and CJS keeps the preload sandboxed — **`sandbox: true` + `contextIsolation: true` + `nodeIntegration: false`**.
+- **Launch:** the GUI only starts with `ELECTRON_RUN_AS_NODE` **unset** (this env sets it to 1 → `require('electron')` returns a path string → crash). Use `env -u ELECTRON_RUN_AS_NODE npm run dev` (HMR), or `… ./node_modules/.bin/electron .` after `npm run build`. A worktree's `node_modules` omits the Electron binary — run `./node_modules/.bin/electron --version` once to fetch it. Full notes → [[Build-Gotchas]].
+- **Format + gate:** Biome formats every TS/CSS/JSON write via a PostToolUse hook (single-quote, no semicolons) — never hand-align or run it yourself; an Edit failing on whitespace means Biome reformatted, so re-read and retry. `npm run typecheck` is the *only* type gate (the build strips types unchecked).
+- **On-disk format is TS-native** (tagged PropertyValue, zod-validated), built + tested against a dedicated test nexus at `~/test` (override `TEST_NEXUS_PATH` — it steers tests only, never the running app).
+- **The Figma Library** (https://www.figma.com/file/fYZ5oiK7stC3diRhaBHl1r) is canonical for design values — mirror changes into the `design-system` tokens; live showcase → https://pommora-design-system.vercel.app.
 
 ### Hard Rules
 
@@ -46,20 +48,11 @@ Pommora is an **Electron** desktop app — a **React + TypeScript** renderer ove
 
 ### Locked Decisions
 
-- **CommonJS main/preload** (package is NOT `type: module`) — Electron's `require('electron')` fails on ESM named imports; CJS also lets the preload stay sandboxed. **`sandbox: true` + `contextIsolation: true` + `nodeIntegration: false`.**
 - **Single-window now, multi-window-ready seams** — data is main-owned + Query/store-cached per renderer; the live-refresh bus is a swappable transport; windows identified by serializable refs. No global singleton holding shared mutable client state.
 - **Most recent wins** is the primary philosophy around handling multi-tab, future cross-device, and outside editing conflicts.
-- **TS-native on-disk format** (tagged PropertyValue, zod-validated) — built and tested against a dedicated **test nexus at `~/test`** (override via `TEST_NEXUS_PATH`).
-
-### Run Gotcha (Read Before Launching)
-
-The GUI only launches with `ELECTRON_RUN_AS_NODE` **unset** (this env has it set to 1, which makes Electron run as plain Node → `require('electron')` returns a path string and the app crashes). Launch: `env -u ELECTRON_RUN_AS_NODE npm run dev` (HMR), or `… ./node_modules/.bin/electron .` after `npm run build`. `TEST_NEXUS_PATH` only steers tests, never the running app. Full notes in `Guidelines/Build-Gotchas.md`.
-
-**Worktree Electron binary:** a worktree's `node_modules` is typically installed for the Vitest/Node gate only and **omits the Electron binary**, so the first `dev`/launch dies with `Error: Electron uninstall`. Fix: run `./node_modules/.bin/electron --version` once (downloads the binary), then relaunch.
 
 ### Important Information 
 
-- **Formatting is Biome's** (a PostToolUse hook formats every TS/CSS/JSON write; single-quote, no semicolons): never hand-align or run Biome yourself — an Edit failing on whitespace means Biome reformatted, so re-read and retry. `npm run typecheck` stays the *only* type gate (the build strips types unchecked). 
 - **Connections** are in-line `[[Title]]`, resolved via SQLite, and **aren’t** displayed in any container views *(tables, galleries, lists…)*. **Contexts** are properties resolved via front-matter; content ↔ content relational properties **don’t** exist. 
 - **Swift Origins:** Pommora was first built as a native SwiftUI app — that build was active for around one month and designed and versioned the entire paradigm; React was initially scoped as an alternative contingency. The decision to switch to React mostly came down to frustrations and limitations with SwiftUI, and to Claude's greater competency with TypeScript. The Swift build is archived at `// The Studio // Archive // Pommora` — source, External packages, and `.claude/` docs; its git history lives on the `swift` branch.
 
