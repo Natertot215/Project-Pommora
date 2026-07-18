@@ -173,11 +173,9 @@
   color: var(--label-secondary);
 }
 /* The location footing (E-3): NavCrumbs — the house breadcrumb formula (caption type, per-crumb
-   icons, › separators) — under an inset divider (the text-area padding keeps it off the card edge). */
+   icons, › separators). */
 .page-card-loc {
   color: var(--label-secondary);
-  border-top: 1px solid var(--separator-border);
-  padding-top: 5px; /* KNOB — divider-to-crumbs clearance */
 }
 /* cqi typography — the card body is the query container, so the title scales with card width; the
    location keeps the breadcrumb formula's caption ramp. */

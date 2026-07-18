@@ -3,6 +3,7 @@ import type { CollectionNode, ResolvedGroup, SetNode, ViewRow } from '@shared/ty
 import type { PageFrontmatter } from '@shared/schemas'
 import type { CardBanner, SavedView } from '@shared/views'
 import { defaultEntityIcon, Icon, iconNameOr } from '@renderer/design-system/symbols'
+import { text } from '@renderer/design-system/tokens/typography.css'
 import { OverflowScroll } from '@renderer/design-system/components/OverflowScroll'
 import { Reveal } from '@renderer/design-system/components/Reveal'
 import { cx } from '@renderer/design-system/cx'
@@ -200,7 +201,7 @@ function SetCard({ set }: { set: SetNode }): React.JSX.Element {
           )}
         </div>
         <div className="page-card-text">
-          <OverflowScroll className="page-card-title">
+          <OverflowScroll className={cx('page-card-title', text.footnote.emphasized)}>
             <Icon name={iconName} size={14} className="page-card-title-icon" />
             <span className="page-card-title-text">{set.title}</span>
           </OverflowScroll>
