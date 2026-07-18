@@ -304,10 +304,11 @@ function CardProperties({
 }: Pick<PageCardProps, 'row' | 'view' | 'columns' | 'ctx' | 'labels'>): React.JSX.Element | null {
   if (!ctx || !labels) return null
   const compact = (view.format ?? 'standard') === 'compact'
+  // The area below the title is RESERVED for property management: it renders even valueless, so it
+  // stays the click surface for the value pickers + the Compact empty-space add-picker (G-1).
   const shown = columns.filter(
     (c) => c.kind !== 'title' && !isBlankValue(resolveFieldValue(row, c.id, ctx.schema)),
   )
-  if (shown.length === 0) return null
   const style = (id: string): ColumnStyle => view.column_styles?.[id] ?? {}
   return compact ? (
     <div className="card-props is-flow">

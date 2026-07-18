@@ -10,7 +10,11 @@
   --card-gap-h: 10px; /* KNOB — inter-card spacing */
   --card-gap-v: 10px;
   --cover-zoom: 1; /* KNOB — cover image zoom; >1 zooms into the top (previews read at 1.25) */
-  --thumb-share: 65%; /* KNOB — the image band's share of the card height */
+  --thumb-h: calc(
+    104px *
+    var(--card-scale, 1)
+  ); /* KNOB — page-card image band height (fixed; the card grows below it) */
+  --thumb-share: 65%; /* KNOB — the SET card's image share (set cards keep their fixed aspect) */
   --band-gap: 22px; /* KNOB — vertical rhythm between disclosure bands */
   /* ONE padding source for everything in a card's value flow: the chip tokens' own vars. Chips read
      them natively; the text-shaped values (dates, numbers, links) are re-pointed at the same vars
@@ -80,8 +84,9 @@
   gap: var(--card-gap-v) var(--card-gap-h);
 }
 
+/* A page card sizes to its CONTENT (I-5): the image band is a fixed height, title + properties +
+   footing extend below, and a grid row sizes to its tallest card (shorter cards top-align). */
 .page-card {
-  aspect-ratio: 125 / 90;
   align-self: start;
   text-align: left;
   cursor: default;
@@ -91,11 +96,6 @@
 }
 .page-card.is-dragging {
   opacity: 0.85;
-}
-/* Imageless (Card Banner: None) — the grid compacts: page cards shed the image band's aspect and
-   sit at their natural title height. Set Cards stay banner-bearing by design (F-4). */
-.cards-view.is-compact .page-card {
-  aspect-ratio: auto;
 }
 
 .page-card-body {
@@ -115,10 +115,14 @@
 
 .page-card-thumb {
   position: relative;
-  flex: 0 0 var(--thumb-share);
+  flex: 0 0 var(--thumb-h);
   min-height: 0;
   overflow: hidden;
   background: var(--fill-tertiary);
+}
+/* Set cards keep the fixed aspect, so their image band stays a SHARE of the card height. */
+.set-card .page-card-thumb {
+  flex: 0 0 var(--thumb-share);
 }
 .page-card-thumb img {
   display: block;
@@ -180,12 +184,16 @@
   flex: 0 0 auto;
   color: var(--label-secondary);
 }
-/* ── Properties (C-2/C-3): the card body between title and footing. ── */
+/* ── Properties (C-2/C-3): the card body between title and footing — the RESERVED property zone.
+   It always renders (valueless included) and floors at --props-reserve, so it stays the click
+   surface for the value pickers + the Compact empty-space add-picker. ── */
 .card-props {
   display: flex;
   flex-direction: column;
+  flex: 1 0 auto;
   gap: 3px; /* KNOB — Standard row rhythm */
   min-width: 0;
+  min-height: var(--props-reserve, 14px); /* KNOB — the empty zone's reserved height */
 }
 .card-props.is-flow {
   flex-direction: row;
@@ -193,9 +201,11 @@
   align-items: center;
   gap: 3px 4px; /* KNOB — Compact flow packing */
 }
+/* Standard rows: label left, value pushed to the card's right edge. */
 .card-prop-row {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 6px;
   min-width: 0;
 }
