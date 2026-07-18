@@ -78,35 +78,93 @@ export function PropertyPicker({
 
   return (
     <PickerMenu open={open} onDismiss={onDismiss} triggerRef={triggerRef} solid>
-      {options.length === 0 ? (
-        // An empty option list (a Select/Multi with all options removed) — the spacer keeps the
-        // notch pane's proportions so it doesn't collapse into a degenerate beak. Tune here.
-        <div style={{ minWidth: 96, height: 24 }} />
-      ) : (
-        options.map((o) => {
-          const capsule = def.type === 'status' && (look === 'checkbox' || look === 'capsule')
-          const group = capsule ? statusGroupOf(o.value, def) : undefined
-          return (
-            <PickerOption
-              key={o.value}
-              selected={selected.includes(o.value)}
-              onClick={() => pick(o.value)}
-            >
-              {capsule ? (
-                <StatusCapsule color={o.color} group={group} />
-              ) : contextOptions ? (
-                <ContextChip color={chipColorFor(o.color)} title={o.label} />
-              ) : (
-                <Chip
-                  color={chipColorFor(o.color)}
-                  label={o.label}
-                  shape={chipShapeForType(def.type)}
-                />
-              )}
-            </PickerOption>
-          )
-        })
-      )}
+      <PropertyOptionRows
+        def={def}
+        look={look}
+        contextOptions={contextOptions}
+        options={options}
+        selected={selected}
+        onPick={pick}
+      />
     </PickerMenu>
   )
+}
+
+/** The picker's option rows, menu-less — shared by PropertyPicker's own menu and any surface
+ *  hosting the rows inside another pane (the cards' two-stage add-picker). */
+export function PropertyOptionRows({
+  def,
+  look,
+  contextOptions,
+  options,
+  selected,
+  onPick,
+}: {
+  def: PropertyDefinition
+  look?: ColumnLook
+  contextOptions?: Array<{ value: string; label: string; color?: string }>
+  options: Array<{ value: string; label: string; color?: string }>
+  selected: string[]
+  onPick: (value: string) => void
+}): React.JSX.Element {
+  if (options.length === 0)
+    // An empty option list (a Select/Multi with all options removed) — the spacer keeps the
+    // notch pane's proportions so it doesn't collapse into a degenerate beak. Tune here.
+    return <div style={{ minWidth: 96, height: 24 }} />
+  return (
+    <>
+      {options.map((o) => {
+        const capsule = def.type === 'status' && (look === 'checkbox' || look === 'capsule')
+        const group = capsule ? statusGroupOf(o.value, def) : undefined
+        return (
+          <PickerOption
+            key={o.value}
+            selected={selected.includes(o.value)}
+            onClick={() => onPick(o.value)}
+          >
+            {capsule ? (
+              <StatusCapsule color={o.color} group={group} />
+            ) : contextOptions ? (
+              <ContextChip color={chipColorFor(o.color)} title={o.label} />
+            ) : (
+              <Chip
+                color={chipColorFor(o.color)}
+                label={o.label}
+                shape={chipShapeForType(def.type)}
+              />
+            )}
+          </PickerOption>
+        )
+      })}
+    </>
+  )
+}
+
+/** The two-stage picker's shared option plumbing — options + selection + the per-type commit,
+ *  extracted so a host pane (the cards add-picker) reuses PropertyPicker's exact semantics. */
+export function pickSemantics(
+  def: PropertyDefinition,
+  current: PropertyValue | null,
+  onCommit: (value: PropertyValue | null) => void,
+  onSinglePicked: () => void,
+): {
+  options: Array<{ value: string; label: string; color?: string }>
+  selected: string[]
+  pick: (value: string) => void
+} {
+  const options = optionsOf(def)
+  const multi = def.type === 'multi_select'
+  const selected = selectedValues(current)
+  const pick = (value: string): void => {
+    if (multi) {
+      const next = selected.includes(value)
+        ? selected.filter((v) => v !== value)
+        : [...selected, value]
+      onCommit({ kind: 'multiSelect', value: next })
+      return
+    }
+    onCommit(def.type === 'status' ? { kind: 'status', value } : { kind: 'select', value })
+    onSinglePicked()
+  }
+  return { options, selected, pick }
 }

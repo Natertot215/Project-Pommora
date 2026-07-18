@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type {
   CollectionNode,
   NexusLabels,
@@ -8,7 +8,7 @@ import type {
   ViewRow,
 } from '@shared/types'
 import type { PageFrontmatter } from '@shared/schemas'
-import { isBlankValue } from '@shared/propertyValue'
+import { applyPropertyValue, isBlankValue, type PropertyValue } from '@shared/propertyValue'
 import type { CardBanner, SavedView } from '@shared/views'
 import type { ColumnStyle } from '@shared/columnStyles'
 import { defaultEntityIcon, Icon, iconNameOr } from '@renderer/design-system/symbols'
@@ -33,6 +33,8 @@ import { buildSetIcons, buildSetNames, groupLabel } from '../Table/cellResolve'
 import { buildResolveContext, type ResolveContext } from '../Table/resolveContext'
 import { NavCrumbs } from '../../../Navigation/NavList'
 import type { PathCrumb } from '../../../Navigation/navResolve'
+import type { PropertyDefinition } from '@shared/properties'
+import { ADDABLE_TYPES, CardAddPicker } from './CardAddPicker'
 import './CardsView.css'
 
 // A page's thumbnail file — navKey's `page:<id>` flips its colon to a dash on disk (io/thumbnails).
@@ -55,6 +57,7 @@ export function CardsView({ source }: { source: CollectionNode | SetNode }): Rea
   // fast container swap.
   useEffect(() => {
     let cancelled = false
+    setValueOverride(null)
     void window.nexus.loadValues(source.path).then((v) => {
       if (!cancelled) setValues(v)
     })
@@ -66,6 +69,24 @@ export function CardsView({ source }: { source: CollectionNode | SetNode }): Rea
   const schema = useMemo(() => (tree ? resolveContainerSchema(tree, source) : []), [tree, source])
   const { view } = useActiveView(source, schema)
   const saveView = useSaveView(source, load)
+  const mutate = useSession((s) => s.mutate)
+
+  // Optimistic property patches keyed by page id (the table's pattern): loadValues never re-reads
+  // mid-session, so an add-picker commit re-renders only because this patch feeds the pipeline.
+  const [valueOverride, setValueOverride] = useState<Record<string, PageFrontmatter> | null>(null)
+  const effectiveValues = useMemo(
+    () => (valueOverride ? { ...values, ...valueOverride } : values),
+    [values, valueOverride],
+  )
+  const setProperty = (row: ViewRow, propertyId: string, value: PropertyValue | null): void => {
+    const prior = effectiveValues[row.id]
+    const patched: PageFrontmatter = {
+      ...(prior ?? { id: row.id }),
+      properties: applyPropertyValue(prior?.properties, propertyId, value),
+    }
+    setValueOverride((prev) => ({ ...prev, [row.id]: patched }))
+    void mutate({ op: 'setProperty', path: row.path, propertyId, value })
+  }
 
   // Manual card order — the per-machine viewOrders tiebreaker the table's sorter reads (I-9); the
   // override gives instant feedback on a drop. Two+ effective sort criteria retire the drag, the
@@ -88,9 +109,9 @@ export function CardsView({ source }: { source: CollectionNode | SetNode }): Rea
     sortedOrGrouped || manualOverride ? (manualOverride ?? viewOrders[view.id]) : undefined
 
   const groups = useMemo(() => {
-    const { rows, setTree } = flattenContainer(source, values)
+    const { rows, setTree } = flattenContainer(source, effectiveValues)
     return resolveView({ rows, setTree, view, schema, manualOrder }).groups
-  }, [source, values, view, schema, manualOrder])
+  }, [source, effectiveValues, view, schema, manualOrder])
 
   // A drop reorders within its band; the committed order is the FULL flattened id list across every
   // band, so the one per-view manual order stays coherent (the sorter reads it as a global index map).
@@ -212,6 +233,7 @@ export function CardsView({ source }: { source: CollectionNode | SetNode }): Rea
                       columns={columns}
                       ctx={ctx}
                       labels={labels}
+                      onSetProperty={setProperty}
                       loc={
                         hideLocation
                           ? undefined
@@ -270,7 +292,7 @@ function SetCard({ set }: { set: SetNode }): React.JSX.Element {
           )}
         </div>
         <div className="page-card-text">
-          <OverflowScroll className={cx('page-card-title', text.footnote.emphasized)}>
+          <OverflowScroll className={cx('page-card-title', text.footnote.semibold)}>
             <Icon name={iconName} size={14} className="page-card-title-icon" />
             <span className="page-card-title-text">{set.title}</span>
           </OverflowScroll>
@@ -289,11 +311,13 @@ interface PageCardProps {
   ctx: ResolveContext | null
   labels: NexusLabels | undefined
   loc?: PathCrumb[]
+  onSetProperty: (row: ViewRow, propertyId: string, value: PropertyValue | null) => void
 }
 
 /**
  * The card's property body (C-2/C-3): every visible, non-blank column through the table's own Cell
  * renderer. Standard = labeled rows; Compact = the label-less clamped value flow in property order.
+ * Clicking the zone's EMPTY space opens the add-picker (G-1) — a value click stays the value's own.
  */
 function CardProperties({
   row,
@@ -301,17 +325,24 @@ function CardProperties({
   columns,
   ctx,
   labels,
-}: Pick<PageCardProps, 'row' | 'view' | 'columns' | 'ctx' | 'labels'>): React.JSX.Element | null {
+  onZoneClick,
+}: Pick<PageCardProps, 'row' | 'view' | 'columns' | 'ctx' | 'labels'> & {
+  onZoneClick: (e: React.MouseEvent) => void
+}): React.JSX.Element | null {
   if (!ctx || !labels) return null
   const compact = (view.format ?? 'standard') === 'compact'
   // The area below the title is RESERVED for property management: it renders even valueless, so it
-  // stays the click surface for the value pickers + the Compact empty-space add-picker (G-1).
+  // stays the click surface for the value pickers + the empty-space add-picker (G-1).
   const shown = columns.filter(
     (c) => c.kind !== 'title' && !isBlankValue(resolveFieldValue(row, c.id, ctx.schema)),
   )
   const style = (id: string): ColumnStyle => view.column_styles?.[id] ?? {}
+  const zoneClick = (e: React.MouseEvent): void => {
+    if (e.target === e.currentTarget) onZoneClick(e)
+  }
   return compact ? (
-    <div className="card-props is-flow">
+    // biome-ignore lint/a11y/noStaticElementInteractions: the empty zone is the add-picker surface.
+    <div className="card-props is-flow" onClick={zoneClick}>
       {shown.map((c) => (
         <span key={c.id} className="card-value">
           <Cell row={row} column={c} ctx={ctx} hideIcon={false} style={style(c.id)} />
@@ -319,7 +350,8 @@ function CardProperties({
       ))}
     </div>
   ) : (
-    <div className="card-props">
+    // biome-ignore lint/a11y/noStaticElementInteractions: the empty zone is the add-picker surface.
+    <div className="card-props" onClick={zoneClick}>
       {shown.map((c) => (
         <div key={c.id} className="card-prop-row">
           <span className={cx('card-prop-label', text.caption.standard)}>
@@ -351,10 +383,30 @@ function PageCard({
   labels,
   loc,
   drag,
+  onSetProperty,
 }: PageCardProps & { drag?: DragItem }): React.JSX.Element {
   const select = useSession((s) => s.select)
   const version = useSession((s) => s.thumbVersions[`page:${row.id}`] ?? 0)
   const [failed, setFailed] = useState(false)
+
+  // The add-picker (G-1): the property zone's empty space AND the location row both open it,
+  // anchored to the card's text area. Lists the page's blank, pickable properties.
+  const [addOpen, setAddOpen] = useState(false)
+  const textRef = useRef<HTMLDivElement>(null)
+  const openAdd = (e: React.MouseEvent): void => {
+    e.stopPropagation()
+    if (!drag?.isDragging) setAddOpen(true)
+  }
+  const addable = useMemo(
+    () =>
+      ctx
+        ? ctx.schema.filter(
+            (d) =>
+              ADDABLE_TYPES.has(d.type) && isBlankValue(resolveFieldValue(row, d.id, ctx.schema)),
+          )
+        : [],
+    [ctx, row],
+  )
 
   const cover = typeof row.frontmatter.cover === 'string' ? row.frontmatter.cover : undefined
   const src =
@@ -399,18 +451,38 @@ function PageCard({
             )}
           </div>
         )}
-        <div className="page-card-text">
+        <div className="page-card-text" ref={textRef}>
           {(view.wrap_titles ?? false) ? (
-            <span className="page-card-title is-wrap">{titleBody}</span>
+            <span className={cx('page-card-title is-wrap', text.footnote.emphasized)}>{titleBody}</span>
           ) : (
-            <OverflowScroll className="page-card-title">{titleBody}</OverflowScroll>
+            <OverflowScroll className={cx('page-card-title', text.footnote.emphasized)}>{titleBody}</OverflowScroll>
           )}
-          <CardProperties row={row} view={view} columns={columns} ctx={ctx} labels={labels} />
+          <CardProperties
+            row={row}
+            view={view}
+            columns={columns}
+            ctx={ctx}
+            labels={labels}
+            onZoneClick={openAdd}
+          />
           {loc && loc.length > 0 && (
-            <NavCrumbs path={loc} className="page-card-loc" iconSize={11} />
+            // biome-ignore lint/a11y/noStaticElementInteractions: the location row doubles as the add-picker surface.
+            <div className="page-card-loc-zone" onClick={openAdd}>
+              <NavCrumbs path={loc} className="page-card-loc" iconSize={11} />
+            </div>
           )}
         </div>
       </div>
+      {addOpen && ctx && (
+        <CardAddPicker
+          defs={addable}
+          currentOf={(d) => resolveFieldValue(row, d.id, ctx.schema)}
+          open={addOpen}
+          anchorRef={textRef}
+          onCommit={(d, v) => onSetProperty(row, d.id, v)}
+          onDismiss={() => setAddOpen(false)}
+        />
+      )}
     </div>
   )
 }
