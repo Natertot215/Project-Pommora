@@ -71,11 +71,13 @@ Feature specifications live in `Features/`; root docs (PRD · Handoff · History
 
 Where tokens live, under `Pommora/src/renderer/src/` — consume via the `vars` / `text` import or the emitted `--` vars, never by copying values out.
 
-- **Emitted CSS vars** (`--label-*`, `--fill-*`, `--state-*`, `--separator-border`, `--accent` · `--accent-fill` · `--accent-text`, `--duration-*` · `--ease-*`, `--icon-*`, `--link` · `--connection` · `--code`, `--list-outline-*`) → `design-system/tokens/theme-vars.css.ts`.
+- **Emitted CSS vars** (`--label-*`, `--fill-*`, `--state-*`, `--separator`, `--accent` · `--accent-fill` · `--accent-text`, `--duration-*` · `--ease-*`, `--icon-*`, `--link` · `--connection` · `--code`, `--list-outline-*`) → `design-system/tokens/theme-vars.css.ts`.
 - **The `vars` + `text` objects** (the one import everywhere) → `design-system/tokens/index.ts`.
 - **Authored sources:** color spectrum · label tones · fills · states · separators → `tokens/color.css.ts`; typography + `text.*` styles → `tokens/typography.css.ts`; sizing / spacing → `tokens/size.css.ts`; the chip tint → `tokens/chip.css.ts`; motion (durations + easings) → `tokens/motion.ts`; the tint / opacity system → `tokens/tint.ts`.
 - **Accent** — a runtime `--accent` pointer to a spectrum solid (or the OS accent), not a baked token → `design-system/accent.ts`.
 - **Icons** → `design-system/symbols/` (curated registry `index.tsx`; full Lucide set `AllSymbols.ts`).
-- **Glass materials** → `design-system/materials/`.
+- **Surfaces + glass** → `design-system/materials/` — `GlassSurface` (the app's `Surface`) · `GlassPane` · `GlassControls` · `GlassWindow` · `GlassSegment` · edge-lens.
+- **Components — pickers · menus · panes** (`design-system/components/`): `PickerMenu/`, the `menu/` primitives (`Menu` · `MenuSurface` · `MenuItem`, plus the shared row tones + `AccessoryButton` in `menu.css.ts`), `Popover/`, `Segmented-Controls/`, `NotchedPane.tsx` (the beak), `TextPicker/`, `CalendarPicker/`, `Switches/`, `ProgressBar/`, `OverflowScroll.tsx`, `Reveal.tsx`, `SidePane/`.
+- **Dropdown / pane-open motion** — the Bloom primitive + `--dropdown-origin` (every dropdown + pane mounts to this, never re-derived per surface) → `design-system/animations.css.ts`; app-level dropdowns build on it (`Components/Detail/PaneSlider.tsx`, `Toolbar/ViewDropdown.tsx`, `Components/Detail/SettingsDropdown.tsx`).
 - **Shell geometry** (`--content-inset` · `--surface-inset` · `--gutter` · `--glass-inset` · `--io` · `--toolbar-h` · `--sidebar-width`) → `styles.css` — layout insets, *not* design tokens.
-- **Live showcase** of every token → `design-system/showcase/` (`npm run showcase`).
+
