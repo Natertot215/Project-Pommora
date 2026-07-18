@@ -113,9 +113,9 @@
 #### K — Build Sequence & Options-Pane Spec
 
 - **K-1:** [confirmed] **Visuals before mechanics, on a branch.** All code lands on a `cards-view` branch, created before any code. Build order: (1) wire Cards as a selectable type (ViewPane type grid + the SettingsPane Layout door) with its options pane, (2) get the card visuals right under live driving, (3) only then the mechanical renderer work (grouping, drag, editing). *(Decision: Nathan.)*
-- **K-2:** [confirmed] The cards options render **under the 3×2 view-selection grid** in ViewSettings — in BOTH doors: the full door directly under the grid (with the Group/Sort rows following, K-4), the flat door in the body (the table-toggles slot). *(Decision: Nathan.)*
-- **K-4:** [confirmed] **Full-door structure for cards:** type grid → the K-2 options block (the options are the cards view's Layout — no separate Layout row) → then **Group and Sort leaf rows exactly like tables**, sliding into the cards Grouping variant (same logic, no Sub-Group row) and the Sorting pane. Filter follows the table's current treatment (the leaf is a blank placeholder pending the pane redesign). *(Decision: Nathan — "Group + Sort stay separate like tables; same logic just no sub-groups.")*
-- The cards options block:
+- **K-2:** [confirmed] The cards options live in the **Layout leaf**: the full door shows the table's standard four rows (Layout · Group · Filter · Sort) and cards' **Layout ›** slides into the options block with Scale as its pinned footer; the flat door (Settings · Layout — it IS the Layout surface) shows the options in its body with Scale pinned on the editor. *(Decision: Nathan.)*
+- **K-4:** [confirmed] **Full-door structure for cards matches the table's** — type grid → the four leaf rows. Layout → the K-2 options; Group/Sort → the cards Grouping variant (same logic, no Sub-Group row) and the Sorting pane; Filter follows the table's current treatment (a blank placeholder pending the pane redesign). *(Decision: Nathan — "Group + Sort stay separate like tables; same logic just no sub-groups.")*
+- The cards options block (the Layout leaf's content):
 
   ```
   Card Banner:    (Cover / Preview / None)   ‹picker›
@@ -142,7 +142,7 @@
 - **Property display + editing on cards:** all visible properties via `resolveColumns` (C-5); values render through the shared chip/cell renderers; value click opens the per-kind picker on both layouts; the empty-space two-stage property→value pane (`PaneSlider` + `PropertyPicker`) is Compact-only (G-1/G-2).
 - **Grouping:** flattened location bands (no indent, E-2), property bands replace them (E-6), ungrouped under the container's own heading (E-7), collapse persistence, heading "+" on structural headings only (I-2), heading chrome = collapse + "+" (I-7).
 - **Cards' own Grouping-pane variant** (no Sub-Group row) + the **Location entry** in the Sorting pane driving the flatten mode (E-4, J-3).
-- **LayoutPane (cards content), K-2's row set exactly:** Card Banner picker (B-1) · Card Style toggle (D-5/D-8) · Hide Location (standing switch, grouping-independent, E-3) · Wrap Titles (D-6) · Hide Icons (`hide_page_icons`) · Set Cards (F-1) · the Scale step-dropdown footer (`card_size` → number, D-3/D-4).
+- **The Layout leaf (cards content), K-2's row set exactly:** Card Banner picker (B-1) · Card Style toggle (D-5/D-8) · Hide Location (standing switch, grouping-independent, E-3) · Wrap Titles (D-6) · Hide Icons (`hide_page_icons`) · Set Cards (F-1) · the Scale step-dropdown footer (`card_size` → number, D-3/D-4).
 - **Set Cards:** larger top-row cards — Set banner + icon + title — clicking navigates to the Set (F-1/F-2, I-3).
 - **In-group card drag-reorder** by displacement, retired under multi-key sorts (I-1, I-9).
 - **Renders inside existing view embeds** with no special treatment (A-2).

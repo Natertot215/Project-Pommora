@@ -79,9 +79,6 @@ const LEAF_CURRENT: Record<Exclude<Leaf, 'layout'>, string> = {
   filter: 'Filtering',
   sort: 'Sorting',
 }
-// The cards view's Layout IS its inline options block (K-2), so its full door carries only the
-// config leaves.
-const CARDS_LEAF_ROWS = LEAF_ROWS.filter((r) => r.id !== 'layout')
 
 /**
  * ViewSettings — the shared per-view editor, both doors (D-1). The full door (a ViewPane row's
@@ -166,60 +163,9 @@ export function ViewSettings({
     }
   }
 
-  // Full-door leaves — the detail slot of the leaf slider (below). Layout opens the visibility list
-  // (+ its icon toggles). Only mounted while a leaf is open, so a push measures it before the flip.
-  const leafPane =
-    leaf === 'layout' ? (
-      <VisibilityList
-        source={source}
-        schema={schema}
-        view={view}
-        label="Views"
-        current="Layout"
-        maxHeight={VIEWSETTINGS_MAX_HEIGHT}
-        onBack={() => setLeaf(null)}
-        footer={<LayoutToggles source={source} view={view} />}
-      />
-    ) : leaf === 'group' ? (
-      <GroupingPane
-        source={source}
-        view={view}
-        schema={schema}
-        label="Views"
-        subGrouping={view.type !== 'cards'}
-        onBack={() => setLeaf(null)}
-      />
-    ) : leaf === 'sort' ? (
-      <SortingPane
-        source={source}
-        view={view}
-        schema={schema}
-        label="Views"
-        onBack={() => setLeaf(null)}
-      />
-    ) : leaf ? (
-      <MenuPaneTopRow label="Views" current={LEAF_CURRENT[leaf]} onBack={() => setLeaf(null)} />
-    ) : null
-
-  const title = <InlineEditHeader value={view.name} onCommit={rename} onIconClick={() => {}} />
-  const grid = (
-    <div className={vs.grid}>
-      {TYPE_ORDER.map((t) => (
-        <button
-          key={t}
-          type="button"
-          className={cx(vs.tile, t === view.type && vs.tileSelected)}
-          aria-label={t}
-          onClick={() => IMPLEMENTED.has(t) && setType(t)}
-        >
-          <Icon name={TYPE_GLYPH[t]} size={24} />
-        </button>
-      ))}
-    </div>
-  )
-
-  // Scale — the cards view's pinned footer (K-2): current step + double-chevron popping the discrete
-  // steps (the block handle menu's Scale idiom); a pick writes live and keeps the dropdown open.
+  // Scale — the cards Layout leaf's pinned footer (K-2): current step + double-chevron popping the
+  // discrete steps (the block handle menu's Scale idiom); a pick writes live and keeps the dropdown
+  // open. The flat door pins it on the editor itself (that door IS Settings · Layout).
   const currentScale = scaleStep(view.card_size)
   const scaleRow =
     view.type === 'cards' ? (
@@ -266,6 +212,69 @@ export function ViewSettings({
         )}
       </MenuBottomRow>
     ) : null
+
+  // Full-door leaves — the detail slot of the leaf slider (below). Layout opens the visibility list
+  // (+ its icon toggles) for tables, the cards options for cards. Only mounted while a leaf is open,
+  // so a push measures it before the flip.
+  const leafPane =
+    leaf === 'layout' ? (
+      view.type === 'cards' ? (
+        <MenuScrollFrame
+          header={<MenuPaneTopRow label="Views" current="Layout" onBack={() => setLeaf(null)} />}
+          footer={scaleRow}
+          maxHeight={VIEWSETTINGS_MAX_HEIGHT}
+        >
+          <CardsOptions source={source} view={view} />
+        </MenuScrollFrame>
+      ) : (
+        <VisibilityList
+          source={source}
+          schema={schema}
+          view={view}
+          label="Views"
+          current="Layout"
+          maxHeight={VIEWSETTINGS_MAX_HEIGHT}
+          onBack={() => setLeaf(null)}
+          footer={<LayoutToggles source={source} view={view} />}
+        />
+      )
+    ) : leaf === 'group' ? (
+      <GroupingPane
+        source={source}
+        view={view}
+        schema={schema}
+        label="Views"
+        subGrouping={view.type !== 'cards'}
+        onBack={() => setLeaf(null)}
+      />
+    ) : leaf === 'sort' ? (
+      <SortingPane
+        source={source}
+        view={view}
+        schema={schema}
+        label="Views"
+        onBack={() => setLeaf(null)}
+      />
+    ) : leaf ? (
+      <MenuPaneTopRow label="Views" current={LEAF_CURRENT[leaf]} onBack={() => setLeaf(null)} />
+    ) : null
+
+  const title = <InlineEditHeader value={view.name} onCommit={rename} onIconClick={() => {}} />
+  const grid = (
+    <div className={vs.grid}>
+      {TYPE_ORDER.map((t) => (
+        <button
+          key={t}
+          type="button"
+          className={cx(vs.tile, t === view.type && vs.tileSelected)}
+          aria-label={t}
+          onClick={() => IMPLEMENTED.has(t) && setType(t)}
+        >
+          <Icon name={TYPE_GLYPH[t]} size={24} />
+        </button>
+      ))}
+    </div>
+  )
 
   // Format — the pinned footer (D-8): persists, inert visually this cycle. Table-only; a two-option
   // double-chevron, so the click flips it directly.
@@ -327,7 +336,7 @@ export function ViewSettings({
   const mainFrame = (
     <MenuScrollFrame
       header={header}
-      footer={view.type === 'cards' ? scaleRow : formatRow}
+      footer={view.type === 'cards' ? (door === 'flat' ? scaleRow : null) : formatRow}
       maxHeight={VIEWSETTINGS_MAX_HEIGHT}
     >
       {/* The full door carries its own click-to-edit identity; the flat door (SettingsPane → Layout)
@@ -339,18 +348,12 @@ export function ViewSettings({
         </>
       )}
       {grid}
-      {view.type === 'table' &&
-        (door === 'full' ? LEAF_ROWS.map(leafRow) : <LayoutToggles source={source} view={view} />)}
-      {view.type === 'cards' && (
-        <>
-          <CardsOptions source={source} view={view} />
-          {door === 'full' && (
-            <>
-              <MenuSeparator flush />
-              {CARDS_LEAF_ROWS.map(leafRow)}
-            </>
-          )}
-        </>
+      {door === 'full' ? (
+        LEAF_ROWS.map(leafRow)
+      ) : view.type === 'table' ? (
+        <LayoutToggles source={source} view={view} />
+      ) : (
+        <CardsOptions source={source} view={view} />
       )}
     </MenuScrollFrame>
   )
