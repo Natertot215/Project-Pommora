@@ -2,12 +2,9 @@
 // Add Property ▸ submenu of the card's blank, addable properties. The renderer builds the addable
 // list (already grouped) and routes the chosen action; main maps this model to Electron MenuItems.
 
-export type CardMenuAction =
-  | 'title:newtab'
-  | 'title:rename'
-  | 'title:icon'
-  | 'title:delete'
-  | `add:${string}`
+import { type PageMetaAction, pageMetaMenuItems } from './pageMenu'
+
+export type CardMenuAction = PageMetaAction | `add:${string}`
 
 export interface CardMenuContext {
   /** Blank, addable properties — already ordered by the renderer (pane-kinds first). */
@@ -25,12 +22,7 @@ export interface CardMenuModel {
 /** The pure per-card item model — main maps it to Electron MenuItems. */
 export function cardMenuModel(ctx: CardMenuContext): CardMenuModel {
   return {
-    items: [
-      { label: ctx.alreadyOpen ? 'Open' : 'Open in New Tab', action: 'title:newtab' },
-      { label: 'Rename', action: 'title:rename', separatorBefore: true },
-      { label: 'Change Icon', action: 'title:icon' },
-      { label: 'Delete', action: 'title:delete', separatorBefore: true },
-    ],
+    items: pageMetaMenuItems(ctx.alreadyOpen),
     addProperty:
       ctx.addable.length > 0
         ? ctx.addable.map((d) => ({ label: d.name, action: `add:${d.id}` as const }))

@@ -51,7 +51,8 @@ export function CardValue({
   const dismiss = (): void => setMode(null)
   const commit = (v: PropertyValue | null): void => onCommit(column, v)
 
-  const t = column.kind === 'tier' ? 'context' : declaredType(column.id, ctx.schema)
+  const dt = declaredType(column.id, ctx.schema)
+  const t = column.kind === 'tier' ? 'context' : dt
   const v = resolveFieldValue(row, column.id, ctx.schema)
 
   const onClick = (e: React.MouseEvent): void => {
@@ -91,12 +92,7 @@ export function CardValue({
   const onContextMenu = async (e: React.MouseEvent): Promise<void> => {
     e.preventDefault()
     e.stopPropagation()
-    const menuCtx = cellMenuContextFor(
-      column,
-      declaredType(column.id, ctx.schema),
-      style,
-      !isBlankValue(v),
-    )
+    const menuCtx = cellMenuContextFor(column, dt, style, !isBlankValue(v))
     if (!menuCtx) return
     const action = await window.nexus.cellMenu(menuCtx)
     if (!action) return

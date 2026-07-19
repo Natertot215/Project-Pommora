@@ -1,5 +1,6 @@
 import { styleMenuItems, type StyleMenuItem } from './columnMenu'
 import type { ColumnStyle } from './columnStyles'
+import { type PageMetaAction, pageMetaMenuItems } from './pageMenu'
 import type { PropertyType } from './properties'
 import type { ResolvedColumn } from './types'
 
@@ -16,10 +17,7 @@ export type CellMenuContext =
   | { kind: 'clear-only' }
 
 export type CellMenuAction =
-  | 'title:newtab'
-  | 'title:rename'
-  | 'title:icon'
-  | 'title:delete'
+  | PageMetaAction
   | 'cell:edit'
   | 'cell:rename'
   | 'cell:clear'
@@ -62,15 +60,7 @@ export function cellMenuContextFor(
 export function cellMenuModel(ctx: CellMenuContext): CellMenuModel {
   switch (ctx.kind) {
     case 'title':
-      return {
-        items: [
-          // Stateful (I-1): an already-open page reads "Open" and focuses its tab.
-          { label: ctx.alreadyOpen ? 'Open' : 'Open in New Tab', action: 'title:newtab' },
-          { label: 'Rename', action: 'title:rename', separatorBefore: true },
-          { label: 'Change Icon', action: 'title:icon' },
-          { label: 'Delete', action: 'title:delete', separatorBefore: true },
-        ],
-      }
+      return { items: pageMetaMenuItems(ctx.alreadyOpen) }
     case 'style-only':
       return {
         items: ctx.clearable ? [{ label: 'Clear', action: 'cell:clear' }] : [],
