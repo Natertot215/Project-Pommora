@@ -38,6 +38,11 @@ import { ADDABLE_TYPES, CardAddPicker } from './CardAddPicker'
 import { CardValue } from './CardValue'
 import { bandShowsAdd } from './cardsBand'
 import { reorderIds, resolveManualOrder } from './cardsOrder'
+import { orderAddableDefs } from './cardValueInput'
+import { IconPicker } from '@renderer/Components/IconPicker'
+import { TextPicker } from '@renderer/design-system/components/TextPicker'
+import { isOpenInTabs } from '../../../Tabs/tabsModel'
+import type { PropertyDefinition } from '@shared/properties'
 import './CardsView.css'
 
 // A page's thumbnail file — navKey's `page:<id>` flips its colon to a dash on disk (io/thumbnails).
@@ -539,6 +544,34 @@ function PageCard({
         : [],
     [ctx, row],
   )
+  const mutate = useSession((s) => s.mutate)
+  const [renameOpen, setRenameOpen] = useState(false)
+  const [iconOpen, setIconOpen] = useState(false)
+  const [addPicked, setAddPicked] = useState<PropertyDefinition | null>(null)
+  // The card's native right-click menu (I-6): page meta (Open · Rename · Change Icon · Delete) + an
+  // Add Property ▸ submenu — the add path for cards with no in-body add surface. A value right-click
+  // is caught by CardValue's own menu (it stops propagation), so this handles the empty/title/thumb.
+  const onCardContextMenu = async (e: React.MouseEvent): Promise<void> => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!ctx || drag?.isDragging) return
+    const { tabs, pins } = useSession.getState()
+    const alreadyOpen = isOpenInTabs(tabs, pins, { kind: 'page', id: row.id, path: row.path })
+    const menuAddable = orderAddableDefs(addable).map((d) => ({ id: d.id, name: d.name }))
+    const action = await window.nexus.cardMenu({ addable: menuAddable, alreadyOpen })
+    if (!action) return
+    if (action === 'title:newtab') onOpen(row, true)
+    else if (action === 'title:rename') setRenameOpen(true)
+    else if (action === 'title:icon') setIconOpen(true)
+    else if (action === 'title:delete') void mutate({ op: 'delete', path: row.path, kind: 'page' })
+    else if (action.startsWith('add:')) {
+      const def = addable.find((d) => d.id === action.slice(4))
+      if (def) {
+        setAddPicked(def)
+        setAddOpen(true)
+      }
+    }
+  }
   // The card's filled properties — the property body renders only when non-empty (no reserve gap),
   // and the breadcrumb becomes the add surface when empty (G-1).
   const shown = useMemo(
@@ -582,6 +615,7 @@ function PageCard({
       onClick={(e) => {
         if (!drag?.isDragging) onOpen(row, e.metaKey)
       }}
+      onContextMenu={onCardContextMenu}
     >
       <div className="page-card-body hover-pop">
         {banner !== 'none' && (
@@ -640,8 +674,35 @@ function PageCard({
           currentOf={(d) => resolveFieldValue(row, d.id, ctx.schema)}
           open={addOpen}
           anchorRef={textRef}
+          initialDef={addPicked}
           onCommit={(d, v) => onCommitValue(row, { id: d.id, kind: 'property' }, v)}
-          onDismiss={() => setAddOpen(false)}
+          onDismiss={() => {
+            setAddOpen(false)
+            setAddPicked(null)
+          }}
+        />
+      )}
+      {renameOpen && (
+        <TextPicker
+          open={renameOpen}
+          triggerRef={textRef}
+          value={row.title}
+          onCommit={(name) => {
+            setRenameOpen(false)
+            const t = name.trim()
+            if (t && t !== row.title)
+              void mutate({ op: 'rename', path: row.path, kind: 'page', newName: t })
+          }}
+          onDismiss={() => setRenameOpen(false)}
+        />
+      )}
+      {iconOpen && (
+        <IconPicker
+          open={iconOpen}
+          triggerRef={textRef}
+          value={typeof row.icon === 'string' ? row.icon : undefined}
+          onSelect={(icon) => void mutate({ op: 'setIcon', path: row.path, kind: 'page', icon })}
+          onClose={() => setIconOpen(false)}
         />
       )}
     </div>

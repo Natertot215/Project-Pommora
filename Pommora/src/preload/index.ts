@@ -30,6 +30,7 @@ import type { FormatState } from '@shared/editorMenu'
 import type { TableMenuAction, TableMenuContext } from '@shared/tableMenu'
 import type { CalloutMenuAction } from '@shared/calloutMenu'
 import type { CellMenuAction, CellMenuContext } from '@shared/cellMenu'
+import type { CardMenuAction, CardMenuContext } from '@shared/cardMenu'
 import type { ConnMenuAction } from '@shared/connections'
 import type { TabMenuAction, TabMenuContext } from '@shared/tabMenu'
 import type { NavRowMenuAction, NavRowMenuContext } from '@shared/navRowMenu'
@@ -469,6 +470,9 @@ const api = {
   // Pop a table cell's native right-click menu (title meta / per-type Style / Edit) — same contract.
   cellMenu: (ctx: CellMenuContext): Promise<CellMenuAction | null> =>
     ipcRenderer.invoke('cell-menu', ctx),
+  // Pop a card's native right-click menu (page meta + Add Property ▸) → the chosen action.
+  cardMenu: (ctx: CardMenuContext): Promise<CardMenuAction | null> =>
+    ipcRenderer.invoke('card-menu', ctx),
   tabMenu: (ctx: TabMenuContext): Promise<TabMenuAction | null> =>
     ipcRenderer.invoke('tab-menu', ctx),
   // Pop a NavWindow row/card's native right-click menu (Open · Pin · Favorite · Remove) → the action.

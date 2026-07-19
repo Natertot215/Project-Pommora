@@ -98,6 +98,7 @@ export function CardAddPicker({
   currentOf,
   open,
   anchorRef,
+  initialDef,
   onCommit,
   onDismiss,
 }: {
@@ -105,10 +106,12 @@ export function CardAddPicker({
   currentOf: (def: PropertyDefinition) => PropertyValue | null
   open: boolean
   anchorRef: RefObject<HTMLElement | null>
+  /** Jump straight to this property's value pane (the native Add Property ▸ pick), skipping the list. */
+  initialDef?: PropertyDefinition | null
   onCommit: (def: PropertyDefinition, value: PropertyValue | null) => void
   onDismiss: () => void
 }): React.JSX.Element {
-  const [picked, setPicked] = useState<PropertyDefinition | null>(null)
+  const [picked, setPicked] = useState<PropertyDefinition | null>(initialDef ?? null)
   const dismiss = (): void => {
     setPicked(null)
     onDismiss()
