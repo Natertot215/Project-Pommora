@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { parseEditorValue } from './cardValueInput'
+import type { PropertyDefinition } from '@shared/properties'
+import { orderAddableDefs, parseEditorValue } from './cardValueInput'
 
 describe('parseEditorValue', () => {
   it('number: parses a finite value, trims, clears on empty, rejects garbage', () => {
@@ -20,5 +21,19 @@ describe('parseEditorValue', () => {
 
   it('an unsupported type never commits', () => {
     expect(parseEditorValue('status', 'x')).toBeUndefined()
+  })
+})
+
+describe('orderAddableDefs', () => {
+  it('groups pane-kinds to the top, others to the bottom, preserving order within each', () => {
+    const defs = [
+      { id: 'n', type: 'number', name: 'N' },
+      { id: 's', type: 'status', name: 'S' },
+      { id: 'd', type: 'datetime', name: 'D' },
+      { id: 'm', type: 'multi_select', name: 'M' },
+      { id: 'c', type: 'context', name: 'C' },
+      { id: 'sel', type: 'select', name: 'Sel' },
+    ] as PropertyDefinition[]
+    expect(orderAddableDefs(defs).map((d) => d.id)).toEqual(['s', 'm', 'c', 'sel', 'n', 'd'])
   })
 })

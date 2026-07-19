@@ -13,7 +13,7 @@ import { useSession } from '../../../store'
 import { PropertyOptionRows, pickSemantics } from '../PropertyEditing/PropertyPicker'
 import { PropertyEditor } from '../PropertyEditing/PropertyEditor'
 import { formatDate } from '../PropertyEditing/formatValue'
-import { parseEditorValue } from './cardValueInput'
+import { orderAddableDefs, parseEditorValue } from './cardValueInput'
 
 /** The kinds the add-picker can author. Chip kinds + checkbox commit from the list/pane directly;
  *  date/number/url slide into a value pane mirroring the card value editor. */
@@ -122,7 +122,7 @@ export function CardAddPicker({
             <div style={{ minWidth: 96, height: 24 }} />
           ) : (
             <div>
-              {defs.map((d) => (
+              {orderAddableDefs(defs).map((d) => (
                 <MenuItem
                   key={d.id}
                   className={flushTrailing}
