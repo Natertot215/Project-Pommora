@@ -33,9 +33,9 @@ Adding a value comes from the **two-stage add-picker** (G-1): a property list th
 
 Cards never indent: structural (location) grouping renders a flat disclosure band per top-level Set, its whole subtree's pages rolled up under it; sub-set nesting never indents a card. A property group replaces the location bands with bucket bands. Ungrouped/root pages band under the container's own heading rather than a header-less tail. Band chrome is collapse (persisted) plus a hover **"+"** on structural bands only (inert until the creation-affordance design lands). No sub-grouping and no heading columns apply.
 
-**Sort by Location** (a Sorting-pane switch, not a sort criterion) flattens the structural bands into one headerless, location-ordered list — the sorter still ranks within it. It forces structural resolution (mutually exclusive with a property group, which it overrides), forces the single band open, shows each card's full location footing, and disables drag (the order is computed).
+**Flattening** is **Group By: None** — the `flat` grouping, rendered as one fully headerless list (no bands, force-open). **Sort By: Location** is a Sort By entry (a peer of Title / Modified / the sortable properties, not a rankable criterion — the sorter has no set tree, so it's ordered at the resolve level). Its Order picker is **Location / Custom** — the table's Group-By-Location order reused (`structural_order_mode`), never Ascending/Descending: Location = filesystem order (drag off, computed), Custom = the view's manual order (drag on). The flat, filesystem-ordered list is **Group By: None + Sort By: Location (Order: Location)**, and it shows each card's full location footing.
 
-Each card's **location footing** is a Set / sub-Set breadcrumb governed by a standing **Hide Location** switch, independent of grouping mode. Under structural grouping the band header already names the top-level Set, so the footing drops that leading crumb; in the flattened Sort-by-Location list (no header) it shows the full chain.
+Each card's **location footing** is a Set / sub-Set breadcrumb governed by a standing **Hide Location** switch, independent of grouping mode. Under structural grouping the band header already names the top-level Set, so the footing drops that leading crumb; in a flat (Group By: None) or property list — no location band header — it shows the full chain.
 
 #### II. Set Cards
 
@@ -43,7 +43,7 @@ A **Set Cards** switch adds a leading row of larger cards, one per Set (or per d
 
 #### II. Card Drag & Menus
 
-Cards reorder within their band by displacement (the nav gallery's drag), writing the per-machine manual order the pipeline reads as its lowest-priority sort tiebreaker; two effective sort criteria retire the drag, and the flattened Sort-by-Location mode disables it. Cross-band drops are a follow-up.
+Cards reorder within their band by displacement (the nav gallery's drag), writing the per-machine manual order the pipeline reads as its lowest-priority sort tiebreaker; two effective sort criteria retire the drag, and Sort By: Location on its filesystem Order disables it (the order is computed). Cross-band drops are a follow-up.
 
 A card's **right-click** opens a native menu: Open · Rename · Change Icon · Delete, plus the Add Property ▸ submenu — Rename mounts the shared text picker, Change Icon the icon picker. A value's own right-click menu takes precedence over the card menu.
 
