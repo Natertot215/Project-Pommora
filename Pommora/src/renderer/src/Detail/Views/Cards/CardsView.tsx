@@ -19,6 +19,7 @@ import { type DragItem, SortableZone, useDragItem } from '@renderer/design-syste
 import { cx } from '@renderer/design-system/cx'
 import { assetUrl } from '../../../assetUrl'
 import { useSession } from '../../../store'
+import { findCollectionForSet } from '@renderer/Detail/Scope'
 import { useSaveView } from '@renderer/Embeds/ViewEmbedScope'
 import { resolveColumns } from '../pipeline/columns'
 import { contextOptionsFor as contextOptionsForTier } from '../pipeline/contextOptions'
@@ -49,6 +50,8 @@ const thumbSrc = (nexusId: string, pageId: string, v: number): string =>
  */
 export function CardsView({ source }: { source: CollectionNode | SetNode }): React.JSX.Element {
   const tree = useSession((s) => s.tree)
+  const select = useSession((s) => s.select)
+  const openPreview = useSession((s) => s.openPreview)
   const load = useSession((s) => s.load)
   const nexusId = useSession((s) => s.tree?.nexus.id ?? '')
   const [values, setValues] = useState<Record<string, PageFrontmatter>>({})
@@ -205,6 +208,14 @@ export function CardsView({ source }: { source: CollectionNode | SetNode }): Rea
   const sets = source.sets ?? []
   const showSetCards = (view.set_cards ?? true) && sets.length > 0
   const hideLocation = view.hide_location ?? false
+  // A page card honors the Collection's Open In (like the table's title-click): a page-preview owner
+  // opens the floating preview; ⌘ (or a full-page owner) routes to a tab. Sets always open the set.
+  const owner =
+    source.kind === 'collection' ? source : tree ? findCollectionForSet(tree, source.id) : undefined
+  const openPage = (row: ViewRow, newTab: boolean): void => {
+    if (owner?.openIn === 'page-preview' && !newTab) openPreview({ id: row.id, path: row.path })
+    else void select({ kind: 'page', id: row.id, path: row.path }, { newTab })
+  }
 
   // Band identity (E-7): the ungrouped band wears the container's own heading; structural bands
   // their Set's icon + title; property bands the bucket's option label.
@@ -269,6 +280,7 @@ export function CardsView({ source }: { source: CollectionNode | SetNode }): Rea
                       labels={labels}
                       onCommitValue={commitValue}
                       contextOptionsFor={contextOptionsFor}
+                      onOpen={openPage}
                       loc={locFor(row)}
                     />
                   ))}
@@ -344,6 +356,7 @@ interface PageCardProps {
   loc?: PathCrumb[]
   onCommitValue: (row: ViewRow, column: ResolvedColumn, value: PropertyValue | null) => void
   contextOptionsFor: (column: ResolvedColumn) => ContextOption[] | null
+  onOpen: (row: ViewRow, newTab: boolean) => void
 }
 
 /**
@@ -425,8 +438,8 @@ function PageCard({
   drag,
   onCommitValue,
   contextOptionsFor,
+  onOpen,
 }: PageCardProps & { drag?: DragItem }): React.JSX.Element {
-  const select = useSession((s) => s.select)
   const version = useSession((s) => s.thumbVersions[`page:${row.id}`] ?? 0)
   const [failed, setFailed] = useState(false)
 
@@ -489,8 +502,7 @@ function PageCard({
       {...(drag?.handle ?? { role: 'button', tabIndex: 0 })}
       className={cx('page-card', drag?.isDragging && 'is-dragging')}
       onClick={(e) => {
-        if (!drag?.isDragging)
-          void select({ kind: 'page', id: row.id, path: row.path }, { newTab: e.metaKey })
+        if (!drag?.isDragging) onOpen(row, e.metaKey)
       }}
     >
       <div className="page-card-body hover-pop">
