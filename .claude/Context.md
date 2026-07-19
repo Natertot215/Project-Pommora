@@ -6,7 +6,7 @@ The React rebuild of the Swift paradigm reached its finish line at v0.5.0 — Pa
 
 **v0.6.0 is underway** — the view renderers that only ever existed as names over the finished filter → group → sort pipeline. **Cards** is first: a visuals-first prototype is live on the `cards-view` branch, brainstormed from a ratified Decision Log but deliberately left un-reviewed — a design proof, not the hardened build. The implementation-planning phase is opening now off [[Cards View — Implementation Planning Checklist]]. Table is still the only renderer that ships on `main`; Gallery, List, Calendar, and Timeline are still just names.
 
-The first separable, ready-to-build piece is the **persistent thumbnail cache** — decided during the Cards brainstorm (B-6) but never built. Today the cache evicts covers to a recents∪pins window, so Preview-mode covers vanish over time; the plan retires that window, makes the cache amend-only, and moves cleanup to existence-pruning at nexus-open.
+Two fixes already shipped off that track: the **persistent thumbnail cache** (B-6) now existence-prunes at nexus-open instead of evicting to a recents∪pins window, so Preview covers persist across sessions; and a **MarkdownPM table** cell-edit bug — edits didn't repaint until a reload — is fixed. The prototype audit came back **harden-in-place** (no rebuild-class findings), so the next track is the hardening pass — the audit's fixes plus the quality-gate slate — with Compact styling parked for sign-off.
 
 ### Recent Work
 
@@ -46,8 +46,7 @@ Alongside it, every drag's edge-scroll collapsed onto one shared primitive acros
 
 ### Pending Focuses
 
-- Cards implementation-planning phase — turn the ratified spec + the `cards-view` prototype into the hardened build; the headline open decision is whether to harden the prototype in place or rebuild against the plan. → [[Cards View — Implementation Planning Checklist]].
-- Persistent thumbnail cache (Cards B-6) — decided but unbuilt: retire the recents∪pins eviction window, make the cache amend-only, and existence-prune at nexus-open so Preview covers stop vanishing. Plan landing in `Planning/`.
+- Cards hardening pass — the prototype audit verdict is harden-in-place (no rebuild-class findings): the audit's 2 MED + 3 LOW fixes, then the quality-gate slate (CardsView tests, simplifier, a11y), then the deferred features. Compact styling parked for sign-off. → [[Cards View — Implementation Planning Checklist]].
 - The NavPane toolbar dropdown is still a blank placeholder — what a compact nav dropdown holds versus the fuller NavWindow is an open call before building into it.
 - User Sections CRUD — collections render user sections but there's no way to actually make one (`mutate.ts` has no section ops); its own brainstorm → plan → build. → `Sidebar.md`.
 - The flattened-mode bundle — "None"/flat grouping plus Flatten and Hide Location — is deferred; the `flat` GroupConfig kind stays reserved. → [[Views]].
