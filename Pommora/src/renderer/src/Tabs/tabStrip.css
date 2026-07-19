@@ -112,10 +112,11 @@
 .tab-label {
   flex: 1;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  /* Reserve the ×'s lane so a long title ellipsizes cleanly BEFORE it — no fuzzy fade under the glyph. */
+  /* OverflowScroll owns the rest-ellipsis + hover-scroll + eclipse mask; this class sets the width, the
+     ×'s reserved lane, and the fade widths — the title eclipses on hover-scroll instead of hard-cutting. */
   padding-right: 14px;
+  --edge-fade: 14px;
+  --scroll-fade: 14px;
 }
 
 /* The hover-fade × (J-1: the chip glyph, a plain fade — no melt on glass). It sits in the label's

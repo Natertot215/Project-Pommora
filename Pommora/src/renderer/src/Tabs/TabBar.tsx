@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { Icon } from '@renderer/design-system/symbols'
 import { cx } from '@renderer/design-system/cx'
+import { OverflowScroll } from '@renderer/design-system/components/OverflowScroll'
 import { duration, text } from '@renderer/design-system/tokens'
 import { SortableZone, useDragItem, type DragItem } from '@renderer/design-system/interactions/drag'
 import { suppressNextClick } from '@renderer/design-system/interactions/shared'
@@ -370,7 +371,7 @@ function UnpinnedTab({
         ) : (
           <EntityGlyph item={entry.res} size={14} className={cx('tab-icon', slideClass)} />
         )}
-        <span className={cx('tab-label', slideClass)}>{title}</span>
+        <OverflowScroll className={cx('tab-label', slideClass)}>{title}</OverflowScroll>
       </Fragment>
       {/* The chip ×'s glyph + swallow behavior (J-1) with a plain hover-fade — never the melt
           (glass has no solid fill), never on pinned tabs. */}
