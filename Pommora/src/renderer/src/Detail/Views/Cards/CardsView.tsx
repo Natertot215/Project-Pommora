@@ -37,7 +37,7 @@ import type { PathCrumb } from '../../../Navigation/navResolve'
 import { ADDABLE_TYPES, CardAddPicker } from './CardAddPicker'
 import { CardValue } from './CardValue'
 import { bandShowsAdd } from './cardsBand'
-import { resolveManualOrder } from './cardsOrder'
+import { reorderIds, resolveManualOrder } from './cardsOrder'
 import './CardsView.css'
 
 // A page's thumbnail file — navKey's `page:<id>` flips its colon to a dash on disk (io/thumbnails).
@@ -157,18 +157,22 @@ export function CardsView({ source }: { source: CollectionNode | SetNode }): Rea
     const full: string[] = []
     for (const g of groups) {
       const ids = flattenGroups([g]).map((r) => r.id)
-      if (g.key === bandKey) {
-        const from = ids.indexOf(activeId)
-        const to = ids.indexOf(overId)
-        if (from !== -1 && to !== -1 && from !== to) {
-          const [moved] = ids.splice(from, 1)
-          ids.splice(to, 0, moved)
-        }
-      }
-      full.push(...ids)
+      full.push(...(g.key === bandKey ? reorderIds(ids, activeId, overId) : ids))
     }
     setManualOverride(full)
     void window.nexus.viewOrders.set(view.id, full)
+  }
+  // Set-Card reorder — writes the container's set_order via moveSet (the sidebar's mechanism); the
+  // dragged set stays under the same parent (a pure reorder, not a reparent). No optimistic reorder,
+  // so the fresh order lands on the load() that moveSet triggers.
+  const reorderSets = (activeId: string, overId: string): void => {
+    const order = reorderIds(
+      sets.map((s) => s.id),
+      activeId,
+      overId,
+    )
+    const moved = sets.find((s) => s.id === activeId)
+    if (moved) void mutate({ op: 'moveSet', path: moved.path, newParentPath: source.path, order })
   }
 
   const setNames = useMemo(() => buildSetNames(source), [source])
@@ -254,9 +258,16 @@ export function CardsView({ source }: { source: CollectionNode | SetNode }): Rea
     >
       {showSetCards && (
         <div className="set-cards-row">
-          {sets.map((s) => (
-            <SetCard key={s.id} set={s} />
-          ))}
+          <SortableZone
+            items={sets.map((s) => s.id)}
+            layout="grid"
+            onReorder={reorderSets}
+            getItemLabel={(id) => sets.find((s) => s.id === id)?.title ?? id}
+          >
+            {sets.map((s) => (
+              <DraggableSetCard key={s.id} set={s} />
+            ))}
+          </SortableZone>
         </div>
       )}
       {groups.map((g) => {
@@ -351,20 +362,31 @@ function flattenGroups(groups: ResolvedGroup[]): ViewRow[] {
   return out
 }
 
+/** Wires a Set Card into the set-cards-row's SortableZone (F-1 reorder → moveSet). */
+function DraggableSetCard({ set }: { set: SetNode }): React.JSX.Element {
+  const drag = useDragItem(set.id)
+  return <SetCard set={set} drag={drag} />
+}
+
 /** A Set Card (F-1/I-3): banner-only image (placeholder when unset) + icon + title; clicking
- *  navigates to the Set. Rides the page card's chassis at the larger set-row size. */
-function SetCard({ set }: { set: SetNode }): React.JSX.Element {
+ *  navigates to the Set (guarded so a reorder-drop doesn't navigate). Rides the page card's chassis
+ *  at the larger set-row size. */
+function SetCard({ set, drag }: { set: SetNode; drag?: DragItem }): React.JSX.Element {
   const select = useSession((s) => s.select)
   const [failed, setFailed] = useState(false)
   const src = set.banner ? assetUrl(set.banner) : undefined
   const iconName = iconNameOr(set.icon, defaultEntityIcon('set'))
   return (
-    <button
-      type="button"
-      className="set-card"
-      onClick={(e) =>
-        void select({ kind: 'set', id: set.id, path: set.path }, { newTab: e.metaKey })
-      }
+    // biome-ignore lint/a11y/noStaticElementInteractions: the drag handle supplies the interaction role.
+    <div
+      ref={drag?.setNodeRef}
+      style={drag?.style}
+      {...(drag?.handle ?? { role: 'button', tabIndex: 0 })}
+      className={cx('set-card', drag?.isDragging && 'is-dragging')}
+      onClick={(e) => {
+        if (!drag?.isDragging)
+          void select({ kind: 'set', id: set.id, path: set.path }, { newTab: e.metaKey })
+      }}
     >
       <div className="page-card-body hover-pop">
         <div className="page-card-thumb">
@@ -383,7 +405,7 @@ function SetCard({ set }: { set: SetNode }): React.JSX.Element {
           </OverflowScroll>
         </div>
       </div>
-    </button>
+    </div>
   )
 }
 

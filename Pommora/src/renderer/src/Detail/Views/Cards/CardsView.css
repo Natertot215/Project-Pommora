@@ -44,6 +44,9 @@
   background: none;
   padding: 0;
 }
+.set-card.is-dragging {
+  opacity: 0.85;
+}
 
 /* ── Disclosure bands: heading (twisty + glyph + title) over the band's card grid. ── */
 .cards-band + .cards-band {
