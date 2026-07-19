@@ -12,7 +12,7 @@ Two fixes shipped off that track earlier this run: the **persistent thumbnail ca
 
 #### Cards View — complete + hardened (07-19)
 
-The first v0.6.0 renderer. A ratified Decision Log drove a visuals-first prototype, then a ratified plan (V4) was executed inline into the complete renderer: the seam both the container and embed mounts share, a draggable Set Cards row, flattened disclosure bands, a breadcrumb/empty-space add surface, Sort-by-Location flatten, per-value interaction reusing the table's cell leaves, a grouped two-stage add-picker, and a native right-click card menu. A live pass caught the real blocker — the whole card is a drag handle and the drag engine pointer-captures on pointerdown, which was stealing every inner click — fixed by stopping pointerdown on the interactive zones. Gates green (1719 tests); the native menus + Compact styling await my manual sign-off before merge. → [[Cards]] · [[Cards View — Decision Log]].
+The first v0.6.0 renderer. A ratified Decision Log drove a visuals-first prototype, then a ratified plan (V4) was executed inline into the complete renderer: the seam both the container and embed mounts share, a draggable Set Cards row, flattened disclosure bands, a breadcrumb/empty-space add surface, Sort-by-Location flatten, per-value interaction reusing the table's cell leaves, a grouped two-stage add-picker, and a native right-click card menu. A live pass caught the real blocker — the whole card is a drag handle and the drag engine pointer-captures on pointerdown, which was stealing every inner click — fixed by stopping pointerdown on the interactive zones. Gates green (1719 tests); the native menus + Compact styling await my manual sign-off before merge. → [[CardView]] · [[Cards View — Decision Log]].
 
 #### Unified Subfield + Scan-Promote (07-17)
 
@@ -46,7 +46,7 @@ Alongside it, every drag's edge-scroll collapsed onto one shared primitive acros
 
 ### Pending Focuses
 
-- Cards UIX sign-off + merge — the renderer is complete + hardened on `cards-view` (1719 tests green); what's left is my manual pass on Compact styling, the native card menu (Rename/Change Icon/Add Property), and the compact/breadcrumb add-flow feel — none CDP-drivable — then merge to `main`, plus the a11y pass (the `noStaticElementInteractions` stubs → roles/keyboard) and the optional Set-Card-drag optimistic reorder. → [[Cards]].
+- Cards UIX sign-off + merge — the renderer is complete + hardened on `cards-view` (1719 tests green); what's left is my manual pass on Compact styling, the native card menu (Rename/Change Icon/Add Property), and the compact/breadcrumb add-flow feel — none CDP-drivable — then merge to `main`, plus the a11y pass (the `noStaticElementInteractions` stubs → roles/keyboard) and the optional Set-Card-drag optimistic reorder. → [[CardView]].
 - The NavPane toolbar dropdown is still a blank placeholder — what a compact nav dropdown holds versus the fuller NavWindow is an open call before building into it.
 - User Sections CRUD — collections render user sections but there's no way to actually make one (`mutate.ts` has no section ops); its own brainstorm → plan → build. → `Sidebar.md`.
 - The flattened-mode bundle — "None"/flat grouping plus Flatten and Hide Location — is deferred; the `flat` GroupConfig kind stays reserved. → [[Views]].
@@ -78,4 +78,4 @@ Alongside it, every drag's edge-scroll collapsed onto one shared primitive acros
 - Blockquotes inside of codeblocks are unstable and need proper debugging.
 - Block-math drag corrupts the doc: a multi-line `$$…$$` span with a blank line inside parses as two halves with orphaned `$$`, and block-dragging it corrupts the document (`blockModel.ts`, test-pinned but unguarded).
 - A single-word bullet that wraps drops the word below the marker — only the `line-height` cap made it in so far. → [[MarkdownPM]].
-- The Set-Card drag flashes — the reorder fires its write with no optimistic update, so a drop snaps back then jumps once the write reloads (ratified v1-acceptable; fix is an optimistic `sets` override, the page-card path's shape). → [[Cards]].
+- The Set-Card drag flashes — the reorder fires its write with no optimistic update, so a drop snaps back then jumps once the write reloads (ratified v1-acceptable; fix is an optimistic `sets` override, the page-card path's shape). → [[CardView]].

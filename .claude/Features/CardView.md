@@ -1,4 +1,4 @@
-### Cards
+## CardView
 
 The Cards renderer draws a [Collection's](Collections.md) (or a depth-1 Set's) Pages as a resizable card grid, over the same pure pipeline that feeds the [Table](TableView.md) — columns → filter → group → sort. It's the first of the non-Table renderers; a Collection or Set switches to it from the ViewSettings type grid, and it renders identically inside a [view embed](SurfacePM.md).
 
