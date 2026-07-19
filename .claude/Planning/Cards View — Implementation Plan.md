@@ -1,6 +1,6 @@
 ## Cards View — Implementation Plan (V3)
 
-> **Status:** V3 — two adversarial review rounds folded (round 1: scope boundary + Sort-by-Location; round 2: flatten-mode gaps + fold-drift). Round-3 confirmation pending. Realizes the ratified [[Cards View — Decision Log]] + the [[Cards View — Implementation Planning Checklist]]. Executed inline against the `cards-view` branch.
+> **Status:** V4 — **RATIFIED** (review-certified). Three adversarial rounds run, every finding verified at code and folded: round 1 (scope boundary + Sort-by-Location respec), round 2 (flatten-mode gaps — force-open, drag-off, force-structural; inert heading-"+"; icon fixes), round 3 (the `locFor` flatten footing + a citation). Round 3 confirmed all prior folds landed and the loop converged — 1 MED + 1 LOW, both clean folds, no plan-breakers. Ready to execute. Realizes the ratified [[Cards View — Decision Log]] + the [[Cards View — Implementation Planning Checklist]]; executed inline against the `cards-view` branch.
 
 **Goal:** Take the visuals-first Cards prototype to a hardened, complete renderer — the ratified deferred features built, the audit's residual fixes closed, the full quality-gate slate run.
 
@@ -41,14 +41,15 @@ Open-In in cards (`6ddc57b8`); tab-strip scroll (pre-existing); tab-label overfl
 
 **Task 3.1 — Native right-click "Add Property" menu on the card.** `main/index.ts` (`cards:addPropertyMenu`, mirroring `nexus:iconMenu`/`titleMenu`/`cell-menu` `:1918-2032`), `preload/index.ts` bridge, `CardsView.tsx` (`onContextMenu` → invoke → route). Descriptor-in / action-out `{ok}` envelope; separate from the in-app picker; include card Rename/Change Icon/Delete. Test the pure descriptor. Gate + restart smoke.
 
-**Task 3.2 — Retire the `viewFormatMenu` orphan (J-6).** Delete `src/main/viewFormatMenu.ts` + its `main/index.ts` handler (`:164`) + `preload` bridge (`:147`); grep-confirm no renderer caller. **Keep the `ViewFormat` type** (`views.ts:147`, load-bearing for cards Standard/Compact). Gate.
+**Task 3.2 — Retire the `viewFormatMenu` orphan (J-6).** Delete `src/main/viewFormatMenu.ts` + the `view-format-menu` handler (`main/index.ts:1899-1902`) + its import (`:164`) + the now-orphaned `import type { ViewFormat }` (`:167`, if only the handler used it — grep-confirm) + the `preload` bridge (`:147`); grep-confirm no renderer caller. **Keep the `ViewFormat` type** in `views.ts:147` (load-bearing for cards Standard/Compact). Gate.
 
 ### Phase 4 — Sort-by-Location (a resolve MODE — E-4)
 
 **Task 4.1 —** a computed location order, not a criterion:
 - **State:** a new persisted `SavedView` boolean, **named `location_flatten`** (NOT `flatten` — collides with `flattenStructural`/`flattenGroups`/`flattenContainer`), `.optional()` in `shared/views.ts` (a boolean isn't the D-4 enum-drop landmine, but keep the sibling discipline).
 - **Resolve — forces structural.** `resolveGroups` routes to `property()` when `view.group` is a resolvable property group (`group.ts:435`), which would flatten *property-sort* order and violate E-4. So `location_flatten` **forces structural resolution (bypasses `view.group`)** to preserve filesystem order. Compose (don't mutate `structuralFlat`): a thin wrapper concatenates its per-set bands' items into one `UNGROUPED` group when on.
-- **Render — headerless + force-open.** Suppress the band-head in flatten mode; **and force `Reveal open`** — the composed band keys `UNGROUPED`, which is *also* the container heading band's key (`group.ts:238`, `types.ts:518`), so a collapsed-`_ungrouped` state from structural mode would otherwise hide every card with no head to toggle (round-2 #1).
+- **Render — headerless + force-open.** Suppress the band-head in flatten mode; **and force `Reveal open`** — the composed band keys `UNGROUPED` (`structuralFlat`'s tail, `group.ts:307`; same constant as the container heading band `:238`), so a collapsed-`_ungrouped` state from structural mode would otherwise hide every card with no head to toggle (round-2 #1).
+- **Footing — full chain in flatten.** `locFor` (`CardsView.tsx:188`) slices the top-level set off the breadcrumb *because the band head shows it* (`:180-181`). With the head suppressed, gate the slice on `structural && !location_flatten` so flatten mode shows the **full** chain — else a page directly under a top set gets no footing at all, contradicting E-3 ("the footing matters most" in the flattened list). (Round-3 #1 — the third band-bounded invariant the headerless transform touches.)
 - **Drag — DISABLED in flatten mode.** Location order is computed; a cross-location drop is a `movePage` (the deferred cross-group Prospect), and `manualOrder` is a within-band tiebreaker (`sort.ts:174`) that would silently snap a cross-location drag back (round-2 #2). So disable `SortableZone` when `location_flatten` is on — don't wire it into the drag gate.
 - **Pane:** a mode **toggle** row (not a `sortTargets` criterion). Reconcile the None/Order/preview UI (`SortingPane.tsx:249-306`); flatten + a property group are **mutually exclusive** in the UI (flatten wins). Watch-item: the "Sort By: None" summary reads oddly while flatten is on — cosmetic.
 - Files: `shared/views.ts`, `pipeline/resolveView.ts` (+ wrapper in `group.ts`), `SortingPane.tsx`, `CardsView.tsx`. Tests: the flatten wrapper (`group.test.ts`) + codec. Gate.
@@ -87,8 +88,8 @@ In-gallery band-order authoring / band drag · native band-header menu · inline
 - **Compact styling** — the sign-off gate (Task 7.1).
 - *(Resolved: Decision B → mint/type-switch. Location-flatten coexistence → flatten forces structural, mutually exclusive with property grouping.)*
 
-### Self-Review (V3)
+### Self-Review (V4)
 
 - **Round-2 folds:** collapse collision → force-open in flatten (#1); cross-location drag → disabled in flatten (#2); heading-"+" → visual+gating only, create routing deferred (#3); compose coexistence → flatten forces structural (#4); dropped the TYPE_GLYPH relocation (#5); widened legacy icon to `tablecells` (#6); `resolveManualOrder` signature takes `sortedOrGrouped` (#7); lift the private `cellMenuContextFor` (#8); `flatten`→`location_flatten` rename; Set-Card `!isDragging` guard.
-- **Coverage:** every ratified Core has a task (heading-"+" visual now included); every deferred item explicitly parked; no plan↔log contradiction. Set-Card drag feasibility verified (`moveSet`/`set_order`).
-- **Round-3 confirmation pending;** if clean → ratify.
+- **Round-3 folds (final):** the `locFor` flatten-footing guard (return the full chain in flatten mode — Task 4.1), and the Task 3.2 handler citation. Round 3 confirmed all eight round-2 folds landed correctly, found no plan-breakers, and verified coverage → **ratified**.
+- **Coverage:** every ratified Core has a task (heading-"+" visual included); every deferred item explicitly parked; no plan↔log contradiction. Set-Card drag feasibility verified (`moveSet`/`set_order`).
