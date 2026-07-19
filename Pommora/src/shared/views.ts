@@ -132,6 +132,9 @@ export interface SavedView {
   wrap_titles?: boolean
   /** Cards view: the leading Set Cards row. Absent = shown. */
   set_cards?: boolean
+  /** Cards view: Sort by Location — flatten the structural bands into one headerless, location-ordered
+   *  list (E-4). Forces structural resolution; mutually exclusive with a property group (this wins). */
+  location_flatten?: boolean
   show_banner?: boolean
   hide_page_icons?: boolean
   /** Table Layout "Column Icons" toggle — hide the type-icon in each column header (the title column
@@ -269,6 +272,7 @@ export const savedView = z.looseObject({
   hide_location: z.boolean().optional(),
   wrap_titles: z.boolean().optional(),
   set_cards: z.boolean().optional(),
+  location_flatten: z.boolean().optional(),
   show_banner: z.boolean().optional(),
   hide_page_icons: z.boolean().optional(),
   hide_column_icons: z.boolean().optional(),

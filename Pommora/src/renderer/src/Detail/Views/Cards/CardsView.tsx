@@ -193,11 +193,14 @@ export function CardsView({ source }: { source: CollectionNode | SetNode }): Rea
   // drops that leading crumb and starts at the next set down — the band already shows it (E-3).
   // Property/flat grouping keeps the full chain (the band is a bucket, not a location).
   const structural = useMemo(() => groupsStructurally(view.group, schema), [view.group, schema])
+  const flatten = view.location_flatten ?? false
   const locFor = (row: ViewRow): PathCrumb[] | undefined => {
     if (hideLocation || !row.parentSetId) return undefined
     const chain = setChains.get(row.parentSetId)
     if (!chain) return undefined
-    return structural ? chain.slice(1) : chain
+    // Flatten (Sort by Location) suppresses the band head, so show the FULL chain — else a page under
+    // a top set gets no footing (E-3); structural-with-heads drops the leading crumb the head shows.
+    return structural && !flatten ? chain.slice(1) : chain
   }
 
   // Band collapse — seeded from the view, persisted through the shared writer (the table's model).
@@ -258,45 +261,53 @@ export function CardsView({ source }: { source: CollectionNode | SetNode }): Rea
       )}
       {groups.map((g) => {
         const rows = flattenGroups([g])
-        const isCollapsed = collapsed.has(g.key)
+        // Flatten (Sort by Location) is one headerless, force-open band — a stale _ungrouped collapse
+        // from structural mode would otherwise hide every card with no head to toggle.
+        const isCollapsed = !flatten && collapsed.has(g.key)
         const glyph = bandGlyph(g)
         return (
           <section key={g.key} className="cards-band">
-            <div className="cards-band-head">
-              <button
-                type="button"
-                className="cards-band-toggle"
-                onClick={() => toggleCollapse(g.key)}
-              >
-                <Icon
-                  name="chevron-right"
-                  size={13}
-                  className={cx('cards-band-twisty', !isCollapsed && 'open')}
-                />
-                {glyph && <Icon name={glyph} size={14} className="cards-band-glyph" />}
-                <span className={cx('cards-band-title', text.body.emphasized)}>{bandLabel(g)}</span>
-              </button>
-              {/* Hover-revealed add on structural bands only (I-2). Inert (visual + gating) — the
-                  create-page routing is Nathan's creation-affordance design, deferred; matches the
-                  table's stub. */}
-              {bandShowsAdd(g.kind) ? (
+            {!flatten && (
+              <div className="cards-band-head">
                 <button
                   type="button"
-                  className="cards-band-add"
-                  tabIndex={-1}
-                  onPointerDown={(e) => e.stopPropagation()}
-                  aria-label="New page in group"
+                  className="cards-band-toggle"
+                  onClick={() => toggleCollapse(g.key)}
                 >
-                  <Icon name="plus" size={13} />
+                  <Icon
+                    name="chevron-right"
+                    size={13}
+                    className={cx('cards-band-twisty', !isCollapsed && 'open')}
+                  />
+                  {glyph && <Icon name={glyph} size={14} className="cards-band-glyph" />}
+                  <span className={cx('cards-band-title', text.body.emphasized)}>
+                    {bandLabel(g)}
+                  </span>
                 </button>
-              ) : null}
-            </div>
+                {/* Hover-revealed add on structural bands only (I-2). Inert (visual + gating) — the
+                  create-page routing is Nathan's creation-affordance design, deferred; matches the
+                  table's stub. */}
+                {bandShowsAdd(g.kind) ? (
+                  <button
+                    type="button"
+                    className="cards-band-add"
+                    tabIndex={-1}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    aria-label="New page in group"
+                  >
+                    <Icon name="plus" size={13} />
+                  </button>
+                ) : null}
+              </div>
+            )}
             <Reveal open={!isCollapsed} fill>
               <div className="cards-grid">
                 <SortableZone
                   items={rows.map((r) => r.id)}
                   layout="grid"
-                  disabled={sortKeys >= 2}
+                  // Flatten (Sort by Location) is a computed order — a cross-location drop would be a
+                  // movePage (deferred) and manualOrder would snap it back, so drag is off in flatten.
+                  disabled={sortKeys >= 2 || flatten}
                   onReorder={(a, b) => reorderInBand(g.key, a, b)}
                   getItemLabel={(id) => rows.find((r) => r.id === id)?.title ?? id}
                 >

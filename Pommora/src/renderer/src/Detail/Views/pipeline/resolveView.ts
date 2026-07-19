@@ -25,6 +25,9 @@ export function resolveView(input: {
   flattenStructural?: boolean
 }): { columns: ResolvedColumn[]; groups: ResolvedGroup[] } {
   const { rows, setTree, view, schema, manualOrder, flattenStructural } = input
+  // Sort by Location (E-4) is a cards resolve mode — gate on flattenStructural so the field never
+  // flattens a table even if it's set.
+  const locationFlatten = (flattenStructural && view.location_flatten) ?? false
   const columns = resolveColumns(view, schema)
   const filtered = applyFilter(rows, view.filter, schema, setTree)
   const sorter = makeSorter(view.sort, schema, manualOrder)
@@ -44,6 +47,7 @@ export function resolveView(input: {
       view.ungrouped_placement ?? 'bottom',
       structuralGrouping ? view.sub_group : undefined,
       flattenStructural,
+      locationFlatten,
     ),
     locationOrdered ? undefined : view.group_order,
   )

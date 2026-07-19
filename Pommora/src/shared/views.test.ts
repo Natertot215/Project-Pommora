@@ -219,6 +219,10 @@ describe('card_size codec', () => {
     expect(savedView.parse({ ...base, card_size: 1e400 }).card_size).toBeUndefined()
     expect(savedView.parse({ ...base, card_size: Number.NaN }).card_size).toBeUndefined()
   })
+  it('round-trips the location_flatten (Sort by Location) flag', () => {
+    expect(savedView.parse({ ...base, location_flatten: true }).location_flatten).toBe(true)
+    expect(savedView.parse(base).location_flatten).toBeUndefined()
+  })
 })
 
 describe('mint seam', () => {

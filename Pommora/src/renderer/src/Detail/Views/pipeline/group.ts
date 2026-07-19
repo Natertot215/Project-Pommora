@@ -313,6 +313,21 @@ function structuralFlat(
   )
 }
 
+/** Sort by Location (E-4): resolve structurally-flat, then concatenate every band's items — set
+ *  bands in tree order plus the root tail per `placement` — into ONE headerless, force-open
+ *  UNGROUPED band. Location order without the bands; the sorter still ranks within. */
+function locationFlat(
+  rows: ViewRow[],
+  setTree: SetTreeNode[],
+  sorter: Sorter | null,
+  placement: EmptyPlacement,
+): ResolvedGroup[] {
+  const bands = structuralFlat(rows, setTree, sorter, new Set(), placement)
+  return [
+    { key: UNGROUPED, kind: 'ungrouped', items: bands.flatMap((g) => g.items), isCollapsed: false },
+  ]
+}
+
 /** Composite collapse key for a sub-group region — set ids are ULIDs, never containing `/`, so
  *  one set's collapse never bleeds into its twin bucket in another set (D-11a). */
 export const subGroupKey = (setId: string, bucket: string): string => `${setId}/${bucket}`
@@ -429,8 +444,12 @@ export function resolveGroups(
   placement: EmptyPlacement = 'bottom',
   subGroup?: SubGroupConfig,
   flattenStructural = false,
+  locationFlatten = false,
 ): ResolvedGroup[] {
   const collapsedSet = new Set(collapsed)
+  // Sort by Location (E-4) forces structural resolution and flattens every band into one — it wins
+  // over a property group (mutually exclusive) and over collapse state (force-open).
+  if (locationFlatten) return locationFlat(rows, setTree, sorter, placement)
   if (group?.kind === 'flat') return flat(rows, sorter, collapsedSet)
   if (!groupsStructurally(group, schema))
     return property(rows, group as PropertyGroup, schema, sorter, collapsedSet, placement)

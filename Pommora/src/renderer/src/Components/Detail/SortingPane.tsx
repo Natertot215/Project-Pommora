@@ -12,6 +12,8 @@ import { Icon, asRenderableIcon, type IconName } from '@renderer/design-system/s
 import { MenuItem, MenuPaneTopRow, MenuSeparator } from '../../design-system/components/menu'
 import { flushTrailing } from '../../design-system/components/menu/menu.css'
 import { Reveal } from '../../design-system/components/Reveal'
+import { Switch } from '@renderer/design-system/components/Switches/Switch'
+import { switchScale, toggleRow } from './settingsPane.css'
 import { useSaveView } from '@renderer/Embeds/ViewEmbedScope'
 import { declaredType } from '../../Detail/Views/pipeline/value'
 import { cx } from '../../design-system/cx'
@@ -208,6 +210,26 @@ export function SortingPane({
   return (
     <>
       <MenuPaneTopRow label={label} current="Sorting" onBack={onBack} />
+      {view.type === 'cards' && (
+        <>
+          <MenuItem
+            className={cx(flushTrailing, toggleRow)}
+            leading={<Icon name="folder-open" size={14} />}
+            trailing={
+              <span className={switchScale}>
+                <Switch
+                  checked={view.location_flatten ?? false}
+                  onChange={(next) => void saveView({ ...view, location_flatten: next })}
+                  ariaLabel="Sort by Location"
+                />
+              </span>
+            }
+          >
+            Sort by Location
+          </MenuItem>
+          <MenuSeparator flush />
+        </>
+      )}
       <MenuItem
         className={flushTrailing}
         leading={<Icon name="arrow-up-down" size={14} />}

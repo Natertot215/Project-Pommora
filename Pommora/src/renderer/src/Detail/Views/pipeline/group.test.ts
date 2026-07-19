@@ -126,6 +126,54 @@ describe('flattenContainer + structural grouping', () => {
     expect(itemIds(groups[0])).toEqual(['p_sub', 'p_a']) // a sub-set page ordered before the top set's own
   })
 
+  it('locationFlatten (Sort by Location): concatenates every band into one force-open headerless band', () => {
+    const sub = set('sub', [page('p_sub')])
+    const setA = set('setA', [page('p_a')], [sub])
+    const setB = set('setB', [page('p_b')])
+    const col = collection([setA, setB], [page('p_root')])
+    const { rows, setTree } = flattenContainer(col, {})
+    const groups = resolveGroups(
+      rows,
+      { kind: 'structural' },
+      [],
+      setTree,
+      null,
+      ['_ungrouped'], // a stale collapse from structural mode must NOT hide the flattened band
+      'bottom',
+      undefined,
+      true, // flattenStructural
+      true, // locationFlatten
+    )
+    expect(groups.map((g) => [g.key, g.kind])).toEqual([['_ungrouped', 'ungrouped']])
+    // location order: setA's subtree (p_a, p_sub), then setB (p_b), then the root tail (bottom)
+    expect(itemIds(groups[0])).toEqual(['p_a', 'p_sub', 'p_b', 'p_root'])
+    expect(groups[0].isCollapsed).toBe(false) // force-open despite the stale _ungrouped collapse
+  })
+
+  it('locationFlatten wins over a property group (mutually exclusive)', () => {
+    const col = collection([set('setA', [page('p_a')])], [page('p_root')])
+    const { rows, setTree } = flattenContainer(col, {})
+    const groups = resolveGroups(
+      rows,
+      {
+        kind: 'property',
+        property_id: 'x',
+        order_mode: 'configured',
+        empty_placement: 'bottom',
+        hide_empty_groups: false,
+      },
+      statusSchema,
+      setTree,
+      null,
+      [],
+      'bottom',
+      undefined,
+      false,
+      true, // locationFlatten forces flat regardless of the property group
+    )
+    expect(groups.map((g) => g.kind)).toEqual(['ungrouped'])
+  })
+
   it('groups a Set container identically — Sub-Sets become top groups, own pages band (shared path)', () => {
     const container = set(
       'setC',
