@@ -20,8 +20,11 @@ export function resolveView(input: {
   /** Per-machine manual row order (viewOrders cache) — the lowest-priority sort tiebreaker (D-5/D-6).
    *  Pass it only when the view is sorted or grouped; an unsorted, ungrouped view uses page_order. */
   manualOrder?: string[]
+  /** Cards flatten each top-level set's subtree into one band (E-2), so structural grouping resolves
+   *  flat — one group per top set, its whole subtree in items — and a manual reorder spans the band. */
+  flattenStructural?: boolean
 }): { columns: ResolvedColumn[]; groups: ResolvedGroup[] } {
-  const { rows, setTree, view, schema, manualOrder } = input
+  const { rows, setTree, view, schema, manualOrder, flattenStructural } = input
   const columns = resolveColumns(view, schema)
   const filtered = applyFilter(rows, view.filter, schema, setTree)
   const sorter = makeSorter(view.sort, schema, manualOrder)
@@ -40,6 +43,7 @@ export function resolveView(input: {
       view.collapsed_groups,
       view.ungrouped_placement ?? 'bottom',
       structuralGrouping ? view.sub_group : undefined,
+      flattenStructural,
     ),
     locationOrdered ? undefined : view.group_order,
   )

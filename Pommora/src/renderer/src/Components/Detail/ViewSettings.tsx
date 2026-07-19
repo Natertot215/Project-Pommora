@@ -49,11 +49,11 @@ const IMPLEMENTED: ReadonlySet<ViewType> = new Set(['table', 'cards'])
 const SCALE_MIN = 0.5
 const SCALE_MAX = 1.5
 
-// Live scrub: while the Scale knob drags, push the factor straight onto the mounted cards views'
-// CSS var — the grid reflows in real time with no per-tick view saves and no React churn. The
-// committed write re-renders with the same value, so React's own inline var simply reasserts it.
-const scrubCardScale = (v: number): void => {
-  for (const el of document.querySelectorAll<HTMLElement>('.cards-view'))
+// Live scrub: while the Scale knob drags, push the factor straight onto the configured view's mounted
+// cards root(s) — scoped by data-view-id so a sibling cards view on the same surface isn't dragged
+// along (its own card_size never changed, so React wouldn't reassert it). No per-tick save, no churn.
+const scrubCardScale = (v: number, viewId: string): void => {
+  for (const el of document.querySelectorAll<HTMLElement>(`.cards-view[data-view-id="${viewId}"]`))
     el.style.setProperty('--card-scale', String(v))
 }
 
@@ -180,7 +180,7 @@ export function ViewSettings({
             max={SCALE_MAX}
             step={0.05}
             ariaLabel="Scale"
-            onInput={scrubCardScale}
+            onInput={(v) => scrubCardScale(v, view.id)}
             onCommit={(v) => write({ card_size: v })}
             format={(v) => `${v.toFixed(2)}x`}
             readoutClassName={detail}

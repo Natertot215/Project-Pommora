@@ -279,6 +279,40 @@ function structural(
   )
 }
 
+/** Cards variant (E-2: cards never indent): each TOP-LEVEL set is ONE flat band — its whole subtree's
+ *  pages roll into a single sorted items list with no nested children, so a manual reorder spans the
+ *  whole band instead of snapping back within a sub-set. Loose root pages stay the ungrouped tail. */
+function structuralFlat(
+  rows: ViewRow[],
+  setTree: SetTreeNode[],
+  sorter: Sorter | null,
+  collapsed: Set<string>,
+  placement: EmptyPlacement,
+): ResolvedGroup[] {
+  const byParent = groupRows(rows, (r) => r.parentSetId)
+  const rootRows = byParent.get(undefined) ?? []
+  const groups: ResolvedGroup[] = setTree.map((node) => ({
+    key: node.id,
+    kind: 'structural-set',
+    items: applySort(
+      subtreeIds(node).flatMap((id) => byParent.get(id) ?? []),
+      sorter,
+    ),
+    isCollapsed: collapsed.has(node.id),
+  }))
+  if (rootRows.length === 0) return groups
+  return placeTail(
+    groups,
+    {
+      key: UNGROUPED,
+      kind: 'ungrouped',
+      items: applySort(rootRows, sorter),
+      isCollapsed: collapsed.has(UNGROUPED),
+    },
+    placement,
+  )
+}
+
 /** Composite collapse key for a sub-group region — set ids are ULIDs, never containing `/`, so
  *  one set's collapse never bleeds into its twin bucket in another set (D-11a). */
 export const subGroupKey = (setId: string, bucket: string): string => `${setId}/${bucket}`
@@ -394,11 +428,14 @@ export function resolveGroups(
   collapsed: string[] = [],
   placement: EmptyPlacement = 'bottom',
   subGroup?: SubGroupConfig,
+  flattenStructural = false,
 ): ResolvedGroup[] {
   const collapsedSet = new Set(collapsed)
   if (group?.kind === 'flat') return flat(rows, sorter, collapsedSet)
   if (!groupsStructurally(group, schema))
     return property(rows, group as PropertyGroup, schema, sorter, collapsedSet, placement)
+  // Cards flatten each top-level set's subtree into one band (E-2), so their manual order spans it.
+  if (flattenStructural) return structuralFlat(rows, setTree, sorter, collapsedSet, placement)
   const t = subGroup ? declaredType(subGroup.property_id, schema) : undefined
   if (subGroup && t !== undefined && GROUPABLE.has(t))
     return structuralSubGrouped(rows, setTree, subGroup, schema, sorter, collapsedSet, placement)

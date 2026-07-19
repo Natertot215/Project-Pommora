@@ -133,7 +133,7 @@ export function CardsView({ source }: { source: CollectionNode | SetNode }): Rea
 
   const groups = useMemo(() => {
     const { rows, setTree } = flattenContainer(source, effectiveValues)
-    return resolveView({ rows, setTree, view, schema, manualOrder }).groups
+    return resolveView({ rows, setTree, view, schema, manualOrder, flattenStructural: true }).groups
   }, [source, effectiveValues, view, schema, manualOrder])
 
   // A drop reorders within its band; the committed order is the FULL flattened id list across every
@@ -223,6 +223,7 @@ export function CardsView({ source }: { source: CollectionNode | SetNode }): Rea
   return (
     <div
       className={cx('cards-view', banner === 'none' && 'is-compact')}
+      data-view-id={view.id}
       style={{ '--card-scale': view.card_size ?? 1 } as React.CSSProperties}
     >
       {showSetCards && (
