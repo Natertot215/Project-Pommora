@@ -161,10 +161,8 @@ import {
 } from './viewEmbedMenu'
 import { popViewItemMenu, type ViewItemMenuAction } from './viewItemMenu'
 import { popViewRowMenu, type ViewRowMenuAction } from './viewRowMenu'
-import { popViewFormatMenu } from './viewFormatMenu'
 import type { ViewButton, ViewStyle } from '@shared/types'
 import { VIEW_SCALE_DEFAULT } from '@shared/types'
-import type { ViewFormat } from '@shared/views'
 import { installEditorContextMenu, setFormatState, setCalloutGrip } from './editorMenu'
 import type { FormatState } from '@shared/editorMenu'
 import { isValidLink, normalizeLinkUrl } from '@shared/links'
@@ -1894,13 +1892,6 @@ ipcMain.handle(
     return popViewRowMenu(win, { canDelete: canDelete === true })
   },
 )
-
-// The ViewSettings Format control's native menu (Standard / Compact).
-ipcMain.handle('view-format-menu', async (e, current: unknown): Promise<ViewFormat | null> => {
-  const win = BrowserWindow.fromWebContents(e.sender)
-  if (!win) return null
-  return popViewFormatMenu(win, current === 'compact' ? 'compact' : 'standard')
-})
 
 // The icon picker's right-click Favorite menu — resolves 'toggle' to the renderer, which owns the
 // favoriteIcons write. Native (not a hand-rolled popover) so it matches every other right-click menu.

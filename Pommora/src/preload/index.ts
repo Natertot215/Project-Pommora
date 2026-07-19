@@ -143,9 +143,6 @@ const api = {
     canDelete: boolean,
   ): Promise<'view:rename' | 'view:edit-icon' | 'view:delete' | null> =>
     ipcRenderer.invoke('view-row-menu', canDelete),
-  // The ViewSettings Format native menu (Standard / Compact).
-  viewFormatMenu: (current: 'standard' | 'compact'): Promise<'standard' | 'compact' | null> =>
-    ipcRenderer.invoke('view-format-menu', current),
   // The icon picker's right-click Favorite/Remove menu — resolves 'toggle' on click, null on dismiss.
   iconFavoriteMenu: (favorited: boolean): Promise<'toggle' | null> =>
     ipcRenderer.invoke('icon-favorite-menu', favorited),
