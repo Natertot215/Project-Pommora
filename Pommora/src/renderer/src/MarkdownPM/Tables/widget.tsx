@@ -335,7 +335,35 @@ const widgetField = StateField.define<DecorationSet>({
     if (toggled) return next
     // Mount-time load applies the whole saved set at once → one full rebuild (fires once per page, not per toggle).
     if (tr.effects.some((e) => e.is(setHeadingColsEffect))) return buildWidgetDecorations(tr.state)
-    if (tr.annotation(tableSelfEdit)) return deco.map(tr.changes)
+    // A cell commit edits one table's source. Map the widgets forward (keeps the focused cell editor
+    // mounted), then rebuild THAT table's widget from the new doc so its model reflects the edit. Remapping
+    // alone reuses the old widget instance, which CM keeps without re-rendering — leaving the static cells
+    // (most visibly the just-edited cell once it demotes on navigation) drawing pre-edit text.
+    if (tr.annotation(tableSelfEdit)) {
+      let next = deco.map(tr.changes)
+      const regions = tableRegions(docString(tr.state.doc))
+      for (const cur = next.iter(); cur.value; cur.next()) {
+        const w = cur.value.spec.widget
+        if (!(w instanceof TableWidget)) continue
+        const region = regions[w.tableIndex]
+        if (!region) continue
+        const text = tr.state.doc.sliceString(region.from, region.to)
+        if (text === w.text) continue
+        next = next.update({
+          filterFrom: cur.from,
+          filterTo: cur.to,
+          filter: () => false,
+          add: [
+            Decoration.replace({
+              widget: new TableWidget(text, modelFromRegion(region), w.tableIndex, w.headingColumn),
+              block: true,
+            }).range(cur.from, cur.to),
+          ],
+        })
+        break
+      }
+      return next
+    }
     if (!tr.docChanged) return deco
     return editAffectsTables(deco, tr) ? buildWidgetDecorations(tr.state) : deco.map(tr.changes)
   },
