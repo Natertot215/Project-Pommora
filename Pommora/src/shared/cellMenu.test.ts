@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { cellMenuModel } from './cellMenu'
+import { cellMenuContextFor, cellMenuModel } from './cellMenu'
+import type { ResolvedColumn } from './types'
 
 describe('cellMenuModel', () => {
   it('title: stateful Open lead + Rename + Change Icon + separator-gated Delete', () => {
@@ -60,5 +61,62 @@ describe('cellMenuModel', () => {
   it('link (an empty url cell): Edit alone — Rename/Remove are no-ops with no value', () => {
     const m = cellMenuModel({ kind: 'link', filled: false })
     expect(m.items.map((i) => [i.label, i.action])).toEqual([['Edit', 'cell:edit']])
+  })
+})
+
+describe('cellMenuContextFor', () => {
+  const prop = (id = 'p'): ResolvedColumn => ({ id, kind: 'property' })
+
+  it('a title column → the page-meta title menu', () => {
+    expect(cellMenuContextFor({ id: 'title', kind: 'title' }, 'title', {}, true)).toEqual({
+      kind: 'title',
+    })
+  })
+
+  it('a tier column → clear-only when filled, no menu when empty', () => {
+    const tier: ResolvedColumn = { id: 'tier1', kind: 'tier' }
+    expect(cellMenuContextFor(tier, 'tier', {}, true)).toEqual({ kind: 'clear-only' })
+    expect(cellMenuContextFor(tier, 'tier', {}, false)).toBeNull()
+  })
+
+  it('url → link (carrying filled); file → style-edit with the column style', () => {
+    expect(cellMenuContextFor(prop(), 'url', {}, true)).toEqual({ kind: 'link', filled: true })
+    expect(cellMenuContextFor(prop(), 'file', {}, false)).toEqual({
+      kind: 'style-edit',
+      type: 'file',
+      current: {},
+    })
+  })
+
+  it('status/datetime → style-only, Clear gated on filled', () => {
+    expect(cellMenuContextFor(prop(), 'status', {}, true)).toEqual({
+      kind: 'style-only',
+      type: 'status',
+      current: {},
+      clearable: true,
+    })
+    expect(cellMenuContextFor(prop(), 'status', {}, false)).toEqual({
+      kind: 'style-only',
+      type: 'status',
+      current: {},
+      clearable: false,
+    })
+  })
+
+  it('checkbox/number/last_edited_time → style-only with no Clear', () => {
+    expect(cellMenuContextFor(prop(), 'number', {}, true)).toEqual({
+      kind: 'style-only',
+      type: 'number',
+      current: {},
+    })
+  })
+
+  it('select/multi/context → clear-only when filled, no menu when empty', () => {
+    expect(cellMenuContextFor(prop(), 'select', {}, true)).toEqual({ kind: 'clear-only' })
+    expect(cellMenuContextFor(prop(), 'multi_select', {}, false)).toBeNull()
+  })
+
+  it('an unsupported/undefined type → no menu', () => {
+    expect(cellMenuContextFor(prop(), undefined, {}, true)).toBeNull()
   })
 })

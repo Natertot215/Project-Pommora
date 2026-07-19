@@ -1,6 +1,7 @@
 import { styleMenuItems, type StyleMenuItem } from './columnMenu'
 import type { ColumnStyle } from './columnStyles'
 import type { PropertyType } from './properties'
+import type { ResolvedColumn } from './types'
 
 /** The table-cell right-click menu (A-13: right-click always opens a menu, never acts).
  *  Title cells get the page meta menu; style-bearing cells get their COLUMN's Style radios;
@@ -28,6 +29,33 @@ export interface CellMenuModel {
   items: Array<{ label: string; action: CellMenuAction; separatorBefore?: boolean }>
   /** Rendered as a `Style ▸` submenu ahead of `items` when present. */
   style?: StyleMenuItem[]
+}
+
+/** The right-click menu context for a value cell (A-13): title = page meta; url/file = the column's
+ *  Style radios + Edit; status/datetime (picker-based) = Style + Clear; the inline-clearable style
+ *  types (checkbox/number/last_edited_time) = Style alone; tier and select/multi/context = Clear
+ *  alone. Clear is offered ONLY on a `filled` cell — a clear-only cell with no value has no menu at
+ *  all, and a styleable one drops just its Clear. Anything else has no menu (null). Portable across
+ *  the container views (Table cells, Cards values). */
+export function cellMenuContextFor(
+  col: ResolvedColumn,
+  type: PropertyType | 'title' | 'tier' | undefined,
+  style: ColumnStyle,
+  filled: boolean,
+): CellMenuContext | null {
+  if (col.kind === 'title') return { kind: 'title' }
+  if (col.kind === 'tier') return filled ? { kind: 'clear-only' } : null
+  if (type === 'url') return { kind: 'link', filled }
+  if (type === 'file') return { kind: 'style-edit', type: 'file', current: style }
+  if (type === 'status' || type === 'datetime')
+    return { kind: 'style-only', type, current: style, clearable: filled }
+  if (type === 'checkbox' || type === 'number' || type === 'last_edited_time') {
+    return { kind: 'style-only', type, current: style }
+  }
+  if (type === 'select' || type === 'multi_select' || type === 'context') {
+    return filled ? { kind: 'clear-only' } : null
+  }
+  return null
 }
 
 /** The pure per-kind item model — main maps it to Electron MenuItems. */

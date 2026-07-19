@@ -114,6 +114,17 @@ export function CardsView({ source }: { source: CollectionNode | SetNode }): Rea
     if (!level || !tree) return null
     return contextOptionsForTier(level, tree)
   }
+  // One card-value Style key — persists per-key into the view's column_styles (the table's writer
+  // minus its live override, so a style change flashes through a load() round-trip: v1-acceptable).
+  const setColumnStyle = (colId: string, key: keyof ColumnStyle & string, value: string): void => {
+    void saveView({
+      ...view,
+      column_styles: {
+        ...view.column_styles,
+        [colId]: { ...view.column_styles?.[colId], [key]: value },
+      },
+    })
+  }
 
   // Manual card order — the per-machine viewOrders tiebreaker the table's sorter reads (I-9); the
   // override gives instant feedback on a drop. Two+ effective sort criteria retire the drag, the
@@ -279,6 +290,7 @@ export function CardsView({ source }: { source: CollectionNode | SetNode }): Rea
                       ctx={ctx}
                       labels={labels}
                       onCommitValue={commitValue}
+                      onStyle={setColumnStyle}
                       contextOptionsFor={contextOptionsFor}
                       onOpen={openPage}
                       loc={locFor(row)}
@@ -355,6 +367,7 @@ interface PageCardProps {
   labels: NexusLabels | undefined
   loc?: PathCrumb[]
   onCommitValue: (row: ViewRow, column: ResolvedColumn, value: PropertyValue | null) => void
+  onStyle: (colId: string, key: keyof ColumnStyle & string, value: string) => void
   contextOptionsFor: (column: ResolvedColumn) => ContextOption[] | null
   onOpen: (row: ViewRow, newTab: boolean) => void
 }
@@ -373,10 +386,11 @@ function CardProperties({
   shown,
   onZoneClick,
   onCommitValue,
+  onStyle,
   contextOptionsFor,
 }: Pick<
   PageCardProps,
-  'row' | 'view' | 'ctx' | 'labels' | 'onCommitValue' | 'contextOptionsFor'
+  'row' | 'view' | 'ctx' | 'labels' | 'onCommitValue' | 'onStyle' | 'contextOptionsFor'
 > & {
   shown: ResolvedColumn[]
   onZoneClick: (e: React.MouseEvent) => void
@@ -395,6 +409,7 @@ function CardProperties({
       style={style(c.id)}
       contextOptions={contextOptionsFor(c)}
       onCommit={(col, v) => onCommitValue(row, col, v)}
+      onStyle={onStyle}
     />
   )
   return compact ? (
@@ -437,6 +452,7 @@ function PageCard({
   loc,
   drag,
   onCommitValue,
+  onStyle,
   contextOptionsFor,
   onOpen,
 }: PageCardProps & { drag?: DragItem }): React.JSX.Element {
@@ -542,6 +558,7 @@ function PageCard({
               labels={labels}
               shown={shown}
               onCommitValue={onCommitValue}
+              onStyle={onStyle}
               contextOptionsFor={contextOptionsFor}
               onZoneClick={openAdd}
             />

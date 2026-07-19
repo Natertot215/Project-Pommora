@@ -8,14 +8,10 @@ import type {
   SetNode,
   ViewRow,
 } from '@shared/types'
-import {
-  type PropertyDefinition,
-  type PropertyType,
-  RESERVED_PROPERTY_ID,
-} from '@shared/properties'
+import { type PropertyDefinition, RESERVED_PROPERTY_ID } from '@shared/properties'
 import type { PageFrontmatter } from '@shared/schemas'
 import type { ColumnStyle } from '@shared/columnStyles'
-import type { CellMenuContext } from '@shared/cellMenu'
+import { cellMenuContextFor } from '@shared/cellMenu'
 import { parseStyleAction } from '@shared/columnMenu'
 import { type ColumnAlign, type SavedView, mintDefaultView } from '@shared/views'
 import { applyPropertyValue, isBlankValue, type PropertyValue } from '@shared/propertyValue'
@@ -123,32 +119,6 @@ export function pickView(
 
 const sameIds = (a: string[], b: string[]): boolean =>
   a.length === b.length && a.every((x, i) => x === b[i])
-
-/** The right-click menu context for a cell (A-13): title = page meta; url/file = the column's Style
- *  radios + Edit; status/datetime (picker-based) = Style + Clear; the inline-clearable style types
- *  (checkbox/number/last_edited_time) = Style alone; tier and select/multi/context = Clear alone.
- *  Clear is offered ONLY on a `filled` cell — a clear-only cell with no value has no menu at all, and
- *  a styleable one drops just its Clear. Anything else has no menu (null). */
-function cellMenuContextFor(
-  col: ResolvedColumn,
-  type: PropertyType | 'title' | 'tier' | undefined,
-  style: ColumnStyle,
-  filled: boolean,
-): CellMenuContext | null {
-  if (col.kind === 'title') return { kind: 'title' }
-  if (col.kind === 'tier') return filled ? { kind: 'clear-only' } : null
-  if (type === 'url') return { kind: 'link', filled }
-  if (type === 'file') return { kind: 'style-edit', type: 'file', current: style }
-  if (type === 'status' || type === 'datetime')
-    return { kind: 'style-only', type, current: style, clearable: filled }
-  if (type === 'checkbox' || type === 'number' || type === 'last_edited_time') {
-    return { kind: 'style-only', type, current: style }
-  }
-  if (type === 'select' || type === 'multi_select' || type === 'context') {
-    return filled ? { kind: 'clear-only' } : null
-  }
-  return null
-}
 
 export function TableView({ source }: { source: CollectionNode | SetNode }): React.JSX.Element {
   const tree = useSession((s) => s.tree)

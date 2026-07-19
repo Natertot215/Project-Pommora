@@ -1,8 +1,10 @@
 import { useRef, useState } from 'react'
 import type { ResolvedColumn, ViewRow } from '@shared/types'
-import type { PropertyValue } from '@shared/propertyValue'
+import { isBlankValue, type PropertyValue } from '@shared/propertyValue'
 import { isValidLink, normalizeLinkUrl } from '@shared/links'
 import type { ColumnStyle } from '@shared/columnStyles'
+import { cellMenuContextFor } from '@shared/cellMenu'
+import { parseStyleAction } from '@shared/columnMenu'
 import { PickerMenu } from '@renderer/design-system/components/PickerMenu/PickerMenu'
 import { CalendarPicker } from '@renderer/design-system/components/CalendarPicker/CalendarPicker'
 import { useSession } from '../../../store'
@@ -33,6 +35,7 @@ export function CardValue({
   style,
   contextOptions,
   onCommit,
+  onStyle,
 }: {
   row: ViewRow
   column: ResolvedColumn
@@ -40,6 +43,7 @@ export function CardValue({
   style: ColumnStyle
   contextOptions: ContextOption[] | null
   onCommit: (column: ResolvedColumn, value: PropertyValue | null) => void
+  onStyle: (colId: string, key: keyof ColumnStyle & string, value: string) => void
 }): React.JSX.Element {
   const anchorRef = useRef<HTMLSpanElement>(null)
   const [mode, setMode] = useState<null | 'picker' | 'editor' | 'datetime'>(null)
@@ -81,6 +85,28 @@ export function CardValue({
     // file: each chip opens its own file (Cell's file branch stops propagation) — no dispatch here.
   }
 
+  // Right-click a value → its native menu (A-13/I-6: always a menu, never an action), the shared
+  // per-kind matrix (Clear · Style · Edit). stopPropagation keeps it off the card-level menu.
+  const onContextMenu = async (e: React.MouseEvent): Promise<void> => {
+    e.preventDefault()
+    e.stopPropagation()
+    const menuCtx = cellMenuContextFor(
+      column,
+      declaredType(column.id, ctx.schema),
+      style,
+      !isBlankValue(v),
+    )
+    if (!menuCtx) return
+    const action = await window.nexus.cellMenu(menuCtx)
+    if (!action) return
+    if (action === 'cell:clear') commit(null)
+    else if (action === 'cell:edit' || action === 'cell:rename') setMode('editor')
+    else if (action.startsWith('style:')) {
+      const parsed = parseStyleAction(action)
+      if (parsed) onStyle(column.id, parsed.key, parsed.value)
+    }
+  }
+
   const editorInitial = (): string => {
     if (v.kind === 'number') return String(v.value)
     if (v.kind === 'url') return parseLink(v.value).url
@@ -103,7 +129,7 @@ export function CardValue({
   const editing = mode === 'editor'
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: the value is the click surface for its picker.
-    <span ref={anchorRef} className="card-value" onClick={onClick}>
+    <span ref={anchorRef} className="card-value" onClick={onClick} onContextMenu={onContextMenu}>
       {editing ? (
         <PropertyEditor
           initial={editorInitial()}
