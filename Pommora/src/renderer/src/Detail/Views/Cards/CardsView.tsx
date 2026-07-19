@@ -219,6 +219,10 @@ export function CardsView({ source }: { source: CollectionNode | SetNode }): Rea
   // biome-ignore lint/correctness/useExhaustiveDependencies: re-seed only on a view switch.
   useEffect(() => {
     setCollapsed(new Set(view.collapsed_groups ?? []))
+    // Two cards views on one container share this instance (keyed by source.id), so the [source.path]
+    // reset above never fires on a cards→cards switch — drop the drag override here too, or view B
+    // renders in view A's manual order (the table resets manualOverride on its own [view.id] effect).
+    setManualOverride(null)
   }, [view.id])
   const toggleCollapse = (key: string): void => {
     const next = new Set(collapsed)
@@ -532,7 +536,8 @@ function PageCard({
   const textRef = useRef<HTMLDivElement>(null)
   const openAdd = (e: React.MouseEvent): void => {
     e.stopPropagation()
-    if (!drag?.isDragging) setAddOpen(true)
+    // Nothing addable → don't pop a dead-end empty picker (the native menu already omits its submenu).
+    if (!drag?.isDragging && addable.length > 0) setAddOpen(true)
   }
   const addable = useMemo(
     () =>
