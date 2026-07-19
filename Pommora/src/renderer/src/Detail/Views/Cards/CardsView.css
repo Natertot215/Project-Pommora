@@ -55,11 +55,34 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  border: none;
-  background: none;
   padding: 0 0 8px; /* KNOB — heading-to-cards clearance */
   color: var(--label-primary);
+}
+.cards-band-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  border: none;
+  background: none;
+  padding: 0;
+  color: inherit;
   cursor: default;
+}
+/* Hover-revealed structural-band add (I-2) — inert stub, the table's .group-add treatment. */
+.cards-band-add {
+  display: inline-flex;
+  align-items: center;
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--label-secondary);
+  cursor: default;
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-standard);
+}
+.cards-band-head:hover .cards-band-add {
+  opacity: 1;
 }
 .cards-band-twisty {
   color: var(--label-secondary);

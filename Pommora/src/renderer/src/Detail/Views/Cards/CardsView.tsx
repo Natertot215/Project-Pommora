@@ -36,6 +36,7 @@ import { NavCrumbs } from '../../../Navigation/NavList'
 import type { PathCrumb } from '../../../Navigation/navResolve'
 import { ADDABLE_TYPES, CardAddPicker } from './CardAddPicker'
 import { CardValue } from './CardValue'
+import { bandShowsAdd } from './cardsBand'
 import { resolveManualOrder } from './cardsOrder'
 import './CardsView.css'
 
@@ -261,15 +262,35 @@ export function CardsView({ source }: { source: CollectionNode | SetNode }): Rea
         const glyph = bandGlyph(g)
         return (
           <section key={g.key} className="cards-band">
-            <button type="button" className="cards-band-head" onClick={() => toggleCollapse(g.key)}>
-              <Icon
-                name="chevron-right"
-                size={13}
-                className={cx('cards-band-twisty', !isCollapsed && 'open')}
-              />
-              {glyph && <Icon name={glyph} size={14} className="cards-band-glyph" />}
-              <span className={cx('cards-band-title', text.body.emphasized)}>{bandLabel(g)}</span>
-            </button>
+            <div className="cards-band-head">
+              <button
+                type="button"
+                className="cards-band-toggle"
+                onClick={() => toggleCollapse(g.key)}
+              >
+                <Icon
+                  name="chevron-right"
+                  size={13}
+                  className={cx('cards-band-twisty', !isCollapsed && 'open')}
+                />
+                {glyph && <Icon name={glyph} size={14} className="cards-band-glyph" />}
+                <span className={cx('cards-band-title', text.body.emphasized)}>{bandLabel(g)}</span>
+              </button>
+              {/* Hover-revealed add on structural bands only (I-2). Inert (visual + gating) — the
+                  create-page routing is Nathan's creation-affordance design, deferred; matches the
+                  table's stub. */}
+              {bandShowsAdd(g.kind) ? (
+                <button
+                  type="button"
+                  className="cards-band-add"
+                  tabIndex={-1}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  aria-label="New page in group"
+                >
+                  <Icon name="plus" size={13} />
+                </button>
+              ) : null}
+            </div>
             <Reveal open={!isCollapsed} fill>
               <div className="cards-grid">
                 <SortableZone
