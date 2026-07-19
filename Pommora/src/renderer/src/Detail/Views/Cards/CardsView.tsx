@@ -36,6 +36,7 @@ import { NavCrumbs } from '../../../Navigation/NavList'
 import type { PathCrumb } from '../../../Navigation/navResolve'
 import { ADDABLE_TYPES, CardAddPicker } from './CardAddPicker'
 import { CardValue } from './CardValue'
+import { resolveManualOrder } from './cardsOrder'
 import './CardsView.css'
 
 // A page's thumbnail file — navKey's `page:<id>` flips its colon to a dash on disk (io/thumbnails).
@@ -131,8 +132,7 @@ export function CardsView({ source }: { source: CollectionNode | SetNode }): Rea
   }, [source.path])
   const sortKeys = useMemo(() => resolvedSortCount(view.sort, schema), [view.sort, schema])
   const sortedOrGrouped = sortKeys > 0 || view.group != null
-  const manualOrder =
-    sortedOrGrouped || manualOverride ? (manualOverride ?? viewOrders[view.id]) : undefined
+  const manualOrder = resolveManualOrder(sortedOrGrouped, manualOverride, viewOrders[view.id])
 
   const groups = useMemo(() => {
     const { rows, setTree } = flattenContainer(source, effectiveValues)
