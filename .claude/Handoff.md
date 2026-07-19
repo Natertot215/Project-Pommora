@@ -3,74 +3,62 @@
 > ⚡ **Cornerstone — carry into every handoff, unchanged (Nathan's voice).**
 > *"You do NOT guess — you LOOK, and you ASK. Open the file and read the code before you assert anything; ask me when you're unsure. A plan built on an unverified claim is a liability, not progress — treat every doc, every `file:line`, every 'it works like X' as a hypothesis until you've read the code that proves it. Honesty over confidence; confidence is earned through evidence."*
 
-### Session Summary — v0.5.0 shipped + docs restructured, then the Cards view prototype
+### Session Summary — Cards view: prototype → ratified plan → executed + hardened
 
 **Session ID:** 1968ae09-ee23-4a88-9c0d-3a665384fd8e
-**Dates:** 07-14-2026 → 07-18-2026
+**Dates:** 07-14-2026 → 07-19-2026
 **Model:** Opus 4.8 (1M)
-**Compactions:** 8
+**Compactions:** 9
 **Connectors:** none
 **Commands:** /compact · /code-review · /handoff
-**Agents:** build-breaking-agent (review) · code-simplifier (simplify/cleanup) · Explore (grounding) · general-purpose (simplify)
-**Skills:** studio-brainstorm · superpowers:writing-plans · coderabbit:code-review · handoff · context
+**Agents:** build-breaking-agent (review ×2) · code-simplifier (×2) · Explore (grounding) · general-purpose
+**Skills:** studio-brainstorm · superpowers:writing-plans · superpowers:systematic-debugging · coderabbit:code-review · handoff · project-context
 
-**What Started:** This long-running session (same ID since 07-14) had already brainstormed, ratified, and shipped **Multi-Tab Nexus**, then **Page Previews**, then **Unified Subfield + Scan-Promote** — all green, CDP-verified against the real Nexus, recorded in `History.md`. It resumed post-compaction on the live UIX tail of the Subfield work, then turned to a directive to restructure the project docs and stand up the new Handoff/Context split.
+**What Started:** This long-running session (same ID since 07-14) shipped Multi-Tab Nexus, Page Previews, and Unified Subfield + Scan-Promote to **v0.5.0**, restructured the project docs, then brainstormed + ratified the **Cards view** and built it visuals-first as a prototype. It resumed post-compaction on the ratified [[Cards View — Implementation Plan]] (V4) with one directive: execute all 8 phases inline on `cards-view`, hardening the prototype into the complete renderer. Nathan then went to bed mid-run with a standing brief — do it as perfectly as possible without hand-rolling, commit the intentional doc reorg, live-test the value interaction on the real Ideas nexus, and report at the end.
 
-**What Happened Along the Way:** First the UIX batch, all CDP-verified: the New Tab `+` now rides flush against the swallowing inspector cluster via one shared `--toolbar-swallow` magnitude — Nathan's "make the compression shared" instinct, proven right (float-over for the trio vs stop-at-edge for the tab-bar are *different* behaviors, not a DRY violation); the list-row pin-hover was DRY'd onto the gallery's mechanism through a shared `NavPinButton`, rest-state dimmed to `--label-tertiary`. Then the doc pass: `History.md` reframed as a **Completion Timeline (Descending)** with the `Locked`/`Ratified` decision-registry framing stripped and the four densest entries trimmed of identifier-dumps (Nathan: keep detail, but "shouldn't describe functions like the docs do"); `Framework.md`'s lost 07-04 → 07-17 milestones filled in, **SurfacePM moved into the completed arc** where it shipped, and the roadmap re-baselined off **v0.5.0**; `CLAUDE.md`'s scattered stack/electron/build facts consolidated into one **Stack & Build** section, the design-token rule enhanced, and a verified **Design-System Map** code-pointer added (tokens → `theme-vars.css.ts`/`tokens/*`, components, surfaces, the Bloom pane-open primitive). A code-simplifier pass over the last 10 commits came back clean — the recent work was already lean. Then the session's main event, the **Cards view**: brainstormed from 14 upfront decisions through a 3-round adversarial review into a ratified [[Cards View — Decision Log]] — first mis-named "Gallery," corrected to **Cards** (gallery stays a separate reserved ViewType) — then built **visuals-first on the `cards-view` branch** as a deliberately un-reviewed prototype: the renderer seam (both ViewSettings doors + `ViewEmbedBlock`), the Set Cards row, flattened disclosure bands, the breadcrumb-as-add-input, in-band drag, per-value interaction (`CardValue`, reusing the PropertyEditing leaves), the two-stage add-picker, and a DRY design-system `Slider`; a view-save double-walk and a hover-pop jitter got fixed en route.
+**What Happened Along the Way:** Executed the plan phase-by-phase, each green + committed with explicit paths: P1 hardening, P2 value interaction (right-click value menu reusing the lifted `cellMenuContextFor`, add-picker panes for date/number/url/checkbox, inert heading-"+", property-picker grouping per Nathan's mid-flight spec — pane-kinds on top), P6 per-type icon, P4 Sort-by-Location flatten, P5 Set-Card drag via `moveSet`, P3 native card menu + `viewFormatMenu` retirement. Two plan claims proved softer than written and were folded honestly rather than manufactured: the `card_size` non-finite guard was already enforced by **Zod 4's `z.number()`** (shipped as an invariant test), and the manual-order "read gap" matched the table verbatim (extracted `resolveManualOrder`, kept the gate). Mid-execution Nathan live-reported the real blocker — clicking a card value/breadcrumb did nothing. Root-caused via CDP against real Ideas: the whole card is a drag handle and the drag engine **pointer-captures on pointerdown** (`engine.tsx:387`), retargeting every inner click to `.page-card`, so it opened the page instead of the picker. Fixed by stopping pointerdown on the interactive zones (containers only on their own empty space, so the title still drags); **verified live** — the Status picker opens. Closed with a code-simplifier pass (single-sourced the page-meta menu into `@shared/pageMenu.ts`) and a build-breaker pass that caught **F1** — `manualOverride` leaking across a cards→cards view switch (the reset sat in the `[source.path]` effect, not `[view.id]`, and two cards views share the instance) — folded, plus F3 (empty add-picker guard).
 
-**What It Ended With:** The v0.5.0 work + doc restructuring are committed + pushed to `main` through `d0a0bb60` (v0.5.0 = rebuild-complete baseline; Page Previews + Subfield unification closed the React rebuild of the Swift paradigm). The **Cards prototype** is on the `cards-view` branch (commits `dd6f6d1b` → `b530d097`), gates green at the last full run (1681 tests, typecheck clean) — but it's a **visuals-first proof, not the hardened build**, and **nothing covers CardsView itself**. The carry-forward deliverable is [[Cards View — Implementation Planning Checklist]] (`83107b7b`) — pre-work, don't-forgets, quality gates, open decisions — written to feed the proper implementation-planning phase. One dangling uncommitted cards tweak sits in the tree: `slider.css.ts`'s `--slider-knob-scale` default 1→0.75.
+**What It Ended With:** The Cards view is complete + hardened on `cards-view` (**HEAD `b7e6df1b`**): all 8 phases shipped, the critical pointer-capture bug fixed + live-verified, the build-breaker's MED blocker folded, the [[Cards]] feature doc written + Views.md reconciled, the intentional doc reorg committed. Gates green — typecheck clean, **1719 tests**, build exits 0. The persistent thumbnail cache (B-6) had shipped earlier this session (`81ab02d7`). VERIFIED live: value-click → picker (screenshot). ASSUMED (built + model-tested, not live-driven): the native card menu (Rename/Change Icon/Add Property), Compact styling, and the add-flow click-through — CDP can't drive OS-level menus or the settings-pane toggles.
 
-**Next Session:** (1) Decide the `cards-view` prototype's fate — harden in place or rebuild against the plan — then run the implementation-planning phase off the checklist. (2) The prototype still owes its code-simplifier + build-breaking + post-functional UIX pass (held off to avoid churning files mid-live-drive). (3) **The persistent thumbnail cache (B-6) is decided but NOT built** — Preview covers still evict, so Preview mode reads as done but is half-true until the amend-only cache lands.
-
-**Lessons Learned**
-
-- **Shared magnitude beats a per-surface transform.** The `+` and the trio ride ONE `--toolbar-swallow` var on `.app-toolbar`; the tab-bar reads it as `margin-right`, the cluster as a `translateX`. Float-over vs stop-at-edge are two behaviors off one number, not duplication.
-
-- **CDP clip math breaks under non-integer dpr (1.7 here).** `Page.captureScreenshot` clip + `scale:2` misframes; measure rects and trust the DOM, or crop the full-frame PNG with PIL. Non-integer dpr is the tell.
-
-- **History is a changelog, not a spec.** Strip `Locked`/`Ratified` framing; describe the arc + decisions, leave function mechanics to the feature docs. Trim identifier-dumps (var/key names, gating conditions, hard test counts).
+**Next Session:** (1) Nathan's UIX sign-off on Compact (Phase 7), the native card menu, and the add-flow feel — then merge `cards-view` → main. (2) The a11y pass — replace the cards' `biome-ignore noStaticElementInteractions` stubs with roles/keyboard. (3) Optional F2 — the Set-Card drag flashes (no optimistic reorder, ratified v1); add an optimistic `sets` override if the snap bugs him.
 
 **Session Pointers**
 
-- **Cards carry-forward:** [[Cards View — Implementation Planning Checklist]] + [[Cards View — Decision Log]] live in `Planning/`; the renderer is `Detail/Views/Cards/` (CardsView · CardValue · CardAddPicker · CardsView.css), mounted through the `ViewRenderer` seam that both `ContainerView` and `ViewEmbedBlock` consume.
-- **The `+` ride:** `--toolbar-swallow` is defined on `.app-toolbar` (`Toolbar/toolbar.css`); `--trio-w` is published there by `Toolbar.tsx` (`el.closest('.app-toolbar')`); `Tabs/tabBar.css` reads it as the tab-bar's `margin-right`.
-- **Shared pin toggle:** `NavPinButton` lives in `Navigation/NavList.tsx`, consumed by `NavRow` + `NavGallery`'s `GalleryCard`; hover-reveal CSS in `navList.css` / `navGallery.css`, dimmed via `--label-tertiary`.
-- **The Design-System Map** (bottom of `CLAUDE.md`) points at every token + component source; shell geometry (`--content-inset`, `--io`…) is in `styles.css`, deliberately flagged as *not* a design token.
+- **Cards renderer:** `Detail/Views/Cards/` — CardsView · CardValue · CardAddPicker · `cardsOrder.ts` · `cardValueInput.ts` · `cardsBand.ts` (the pure seams are unit-tested). The shared menu model lives in `@shared/cellMenu.ts` (`cellMenuContextFor`, lifted from TableView) + `@shared/cardMenu.ts` + `@shared/pageMenu.ts` (the single-sourced page-meta block).
+- **Sort-by-Location:** `location_flatten` field (`shared/views.ts`) → `locationFlat` wrapper (`pipeline/group.ts`) → gated on `flattenStructural` in `resolveView.ts` so it can't touch a table; the SortingPane switch is cards-gated.
+- **CDP live-drive harness:** scratchpad `cdp.mjs` (Node's global `WebSocket` → `:9222`, `Runtime.evaluate` + `Input.dispatchMouseEvent` + `Page.captureScreenshot`); launch an isolated instance via `--user-data-dir=<scratch>` with a seeded `pommora.json` pointing `lastNexusPath` at the real nexus (no single-instance lock, so it coexists with the dev app).
+- **Docs:** [[Cards]] is the new feature doc; [[Views]] reconciled to Table+Cards drawing.
 
 **Landmines**
 
-- **Persistent thumbnail cache (B-6) — decided but NOT built.** Preview-mode covers evict on the recents∪pins window (`evictThumbs`); the fix retires the window-pruning, makes the cache amend-only, and moves cleanup to existence-pruning at the nexus-open hook. Real main-process work — Preview mode is half-true until it lands.
-- **The `cards-view` branch is a visuals-first prototype, un-reviewed** — not the hardened build; a full quality-gate slate (CardsView tests, simplifier, build-breaker, UIX, a11y) is still owed. See the checklist.
-- **`FrameworkPM.md` is an ongoing mirror-script bug** (Nathan: "don't worry") — it reappears untracked in `.claude/`; never commit it.
-- **CDP editor writes autosave to Nathan's REAL Nexus** — drive the editor only on a throwaway page, never an existing file.
-- **Non-integer dpr breaks CDP screenshot clips** (see Lessons) — full-frame + PIL crop is the reliable path.
+- **`FrameworkPM.md` mirror-script bug** (Nathan: "don't worry") — reappears untracked in `.claude/`; never commit it.
+- **CDP-driving the cards pickers commits to real frontmatter** (same class as the editor-autosave rule in `Context.md`) — revert what you set, or point the isolated instance at `~/Test`.
 
 **User Feedback**
 
-- **"The most minimal fix possible"** — don't gold-plate a working solution; lock it and move to the next.
-- **Docs:** History keeps detail but must not read like the feature docs — strip framing, trim excess, keep decisions. Framework past stays brief.
-- **Always commit doc changes** (even a parallel session's or Nathan's own uncommitted edits), explicit-path staged — never `git add -A`.
-- The **Thanos line** removed from `CLAUDE.md` was left out with the grammar fixed; restore only if he flags it accidental.
+- **"do it as perfectly as possible while not handrolling anything you dont have to"** — reuse over reinvent drove the whole run (the `cellMenuContextFor` lift, IconPicker/TextPicker reuse, the `.group-add` pattern, the Switch row).
+- **"commit the doc deletions + changes (those are intentional)"** — the parallel doc reorg was authorized; committed it (Design→DesignPM, Deployment→Resources).
+- **"test... my live nexus in Ideas... apply them across a row so you can compare... read them instead of senduserfile — i cannot see senduserfile on mobile, only read."** — live-verify on real data; Read screenshots yourself, never SendUserFile on mobile.
+- **Property-picker order:** pane-kinds (status/select/multi-select/context) to the top, the simpler kinds below, property order within each group; the native Add-Property menu reads the same.
 
 **Uncertain**
 
-- `Compactions: 8` is best-effort across this multi-day session; may be off.
-- Whether the `cards-view` prototype gets hardened in place or rebuilt against the plan — the checklist's headline open decision, Nathan's call.
-- A `.claude/Context.md` now exists untracked (a context-skill run or a parallel session's doc reorg — unconfirmed which); a docs reorg is also in flight in the tree (`Design.md → DesignPM.md`, `Deployment.md → Resources/`), left untouched.
+- The native card menu (Rename/Change Icon/Add Property), Compact styling, and the compact/breadcrumb add-flow feel are built + model-tested but **not live-verified** — CDP can't drive OS menus or the settings toggles. Nathan's manual pass is the confirmation.
+- `Pommora/scripts/make-icon.mjs` deletion sits uncommitted in the tree (parallel session, not a doc) — left untouched.
+- `Compactions: 9` is best-effort across this multi-day session.
 
 ---
 
 ### Recent Sessions
 
-- 07-14 → 16 · `nav-gallery-pins` · Navigation surface + NavPane/NavWindow redesign + gallery, then Multi-Tab Nexus (warm toolbar tabs) shipped end-to-end.
+- 07-14 → 16 · `nav-gallery-pins` · Navigation surface + NavPane/NavWindow redesign + gallery, then Multi-Tab Nexus shipped end-to-end.
 - 07-16 → 17 · `main` · Page Previews (floating tabbed mini-app) + Unified Subfield + Scan-Promote shipped; closed the rebuild at v0.5.0.
 - 07-10 → 13 · `surfacepm` · SurfacePM block surfaces shipped + merged.
-- 07-14 · `main` · app-wide auto-scroll primitive; Tables · PropertiesV2 · Multi-View · Icon Picker · Sidebar Ribbon in the runup.
 
 ### Working Notes
 
 - **Gates:** `env -u ELECTRON_RUN_AS_NODE npm run typecheck` (the ONLY type gate) + `npx vitest run` + `… npm run build`; read the summary line, never a piped exit code (`set -o pipefail`). Biome auto-formats on write — never run it, never hand-align.
-- **Isolated live runs:** back up `~/Library/Application Support/pommora-react/pommora.json`, point `lastNexusPath` at `~/Test`, launch the built app with `--remote-debugging-port`, restore byte-identical after. (The dev-loop + CDP + staging gotchas themselves live in `Context.md`.)
+- **Cards CDP live-drive:** the reusable harness (`cdp.mjs` + isolated `--user-data-dir` on the real nexus) is in this session's scratchpad; native menus + settings-pane toggles are NOT drivable — verify those by hand.
 
 ### Rules
 

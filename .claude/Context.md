@@ -4,15 +4,15 @@
 
 The React rebuild of the Swift paradigm reached its finish line at v0.5.0 — Page Previews and the Subfield unification pulled React past where the SwiftUI build ever got. That's the baseline the roadmap counts forward from, not a target still to hit, and it's mostly my own live drive from here.
 
-**v0.6.0 is underway** — the view renderers that only ever existed as names over the finished filter → group → sort pipeline. **Cards** is first: a visuals-first prototype is live on the `cards-view` branch, brainstormed from a ratified Decision Log but deliberately left un-reviewed — a design proof, not the hardened build. The implementation-planning phase is opening now off [[Cards View — Implementation Planning Checklist]]. Table is still the only renderer that ships on `main`; Gallery, List, Calendar, and Timeline are still just names.
+**v0.6.0 is underway** — the view renderers that only ever existed as names over the finished filter → group → sort pipeline. **Cards** is first, and it's now complete + hardened on the `cards-view` branch: the ratified plan (V4) was executed inline across all eight phases — value interaction, a grouped two-stage add-picker, Sort-by-Location flatten, Set-Card drag, the native card menu, per-type icons — plus the one real blocker a live pass surfaced (inner clicks were being stolen by the card's own drag handle). Gates are green (1719 tests); what's left is my own UIX sign-off — Compact styling, the native menus, and the add-flow feel, none of which CDP could drive — then merge to `main`. Table still ships alone there; Gallery, List, Calendar, and Timeline are still just names.
 
-Two fixes already shipped off that track: the **persistent thumbnail cache** (B-6) now existence-prunes at nexus-open instead of evicting to a recents∪pins window, so Preview covers persist across sessions; and a **MarkdownPM table** cell-edit bug — edits didn't repaint until a reload — is fixed. The prototype audit came back **harden-in-place** (no rebuild-class findings), so the next track is the hardening pass — the audit's fixes plus the quality-gate slate — with Compact styling parked for sign-off.
+Two fixes shipped off that track earlier this run: the **persistent thumbnail cache** (B-6) now existence-prunes at nexus-open instead of evicting to a recents∪pins window, so Preview covers persist across sessions; and a **MarkdownPM table** cell-edit bug — edits didn't repaint until a reload — is fixed.
 
 ### Recent Work
 
-#### Cards View — prototype (07-18)
+#### Cards View — complete + hardened (07-19)
 
-The first v0.6.0 renderer, built visuals-first on `cards-view`. A ratified Decision Log drove a live, un-reviewed prototype: the renderer seam both the container and embed mounts share, a Set Cards row, flattened disclosure bands, a breadcrumb that doubles as the add-property input, in-band drag, per-value interaction reusing the table's cell leaves, and a two-stage add-picker. It's a design proof rather than the hardened build — no CardsView tests exist and the quality-gate slate is still owed. → [[Cards View — Decision Log]] · [[Cards View — Implementation Planning Checklist]].
+The first v0.6.0 renderer. A ratified Decision Log drove a visuals-first prototype, then a ratified plan (V4) was executed inline into the complete renderer: the seam both the container and embed mounts share, a draggable Set Cards row, flattened disclosure bands, a breadcrumb/empty-space add surface, Sort-by-Location flatten, per-value interaction reusing the table's cell leaves, a grouped two-stage add-picker, and a native right-click card menu. A live pass caught the real blocker — the whole card is a drag handle and the drag engine pointer-captures on pointerdown, which was stealing every inner click — fixed by stopping pointerdown on the interactive zones. Gates green (1719 tests); the native menus + Compact styling await my manual sign-off before merge. → [[Cards]] · [[Cards View — Decision Log]].
 
 #### Unified Subfield + Scan-Promote (07-17)
 
@@ -46,7 +46,7 @@ Alongside it, every drag's edge-scroll collapsed onto one shared primitive acros
 
 ### Pending Focuses
 
-- Cards hardening pass — the prototype audit verdict is harden-in-place (no rebuild-class findings): the audit's 2 MED + 3 LOW fixes, then the quality-gate slate (CardsView tests, simplifier, a11y), then the deferred features. Compact styling parked for sign-off. → [[Cards View — Implementation Planning Checklist]].
+- Cards UIX sign-off + merge — the renderer is complete + hardened on `cards-view` (1719 tests green); what's left is my manual pass on Compact styling, the native card menu (Rename/Change Icon/Add Property), and the compact/breadcrumb add-flow feel — none CDP-drivable — then merge to `main`, plus the a11y pass (the `noStaticElementInteractions` stubs → roles/keyboard) and the optional Set-Card-drag optimistic reorder. → [[Cards]].
 - The NavPane toolbar dropdown is still a blank placeholder — what a compact nav dropdown holds versus the fuller NavWindow is an open call before building into it.
 - User Sections CRUD — collections render user sections but there's no way to actually make one (`mutate.ts` has no section ops); its own brainstorm → plan → build. → `Sidebar.md`.
 - The flattened-mode bundle — "None"/flat grouping plus Flatten and Hide Location — is deferred; the `flat` GroupConfig kind stays reserved. → [[Views]].
@@ -67,6 +67,8 @@ Alongside it, every drag's edge-scroll collapsed onto one shared primitive acros
 - HMR only goes so far: CSS and React Fast-Refresh work, but CM6 extension code needs ⌘R, `src/main` and preload need a full dev-process restart, a vanilla-extract `*.css.ts` can serve stale (a plain restart heals it, ⌘R never does), and a component's focus-effect / handler / attribute change often gets skipped by Fast-Refresh.
 - CDP has two quirks that keep biting: synthetic clicks work on tabs/rows/buttons but never fire PickerMenu items (drive those via `el.click()` in `Runtime.evaluate`), and a non-integer dpr (1.7 on this machine) throws off screenshot clip math — crop the full-frame PNG with PIL instead.
 - Where the recent code lives: Multi-Tab under `Tabs/` (`tabsModel.ts` pure with its own tests, `warmCache.ts` for the session LRU, every tab-bar visual knob in `tabBar.css`'s `.tab-bar` block); `select` is the single nav entry point; the New Tab `+` rides a shared `--toolbar-swallow` var on `.app-toolbar`; and the pin toggle shared between list rows and gallery cards is `NavPinButton` in `NavList.tsx`.
+- A whole-surface drag handle steals its own children's clicks: the drag engine `setPointerCapture`s on pointerdown, retargeting the derived click to the drag node, so any interactive descendant (a value picker, an add surface) has to stop pointerdown — a container only on its own empty space, so the title still drags. Two smaller ones from the same run: Zod 4's `z.number()` already rejects Infinity/NaN where Zod 3 didn't (a `.catch` codec defaults them for free), and native Electron menus are OS-level — CDP can't screenshot or drive them, so their pure models get unit-tested and the popup needs a human.
+- The Cards renderer lives in `Detail/Views/Cards/` with its pure seams unit-tested (`cardsOrder`, `cardValueInput`, `cardsBand`); the cell/card right-click model is single-sourced in `@shared/cellMenu.ts` + `@shared/cardMenu.ts` + `@shared/pageMenu.ts`; Sort-by-Location is the `location_flatten` field → `locationFlat` in `pipeline/group.ts`, gated on cards' `flattenStructural` so it can't touch a table.
 
 ### Fix Log
 
@@ -76,3 +78,4 @@ Alongside it, every drag's edge-scroll collapsed onto one shared primitive acros
 - Blockquotes inside of codeblocks are unstable and need proper debugging.
 - Block-math drag corrupts the doc: a multi-line `$$…$$` span with a blank line inside parses as two halves with orphaned `$$`, and block-dragging it corrupts the document (`blockModel.ts`, test-pinned but unguarded).
 - A single-word bullet that wraps drops the word below the marker — only the `line-height` cap made it in so far. → [[MarkdownPM]].
+- The Set-Card drag flashes — the reorder fires its write with no optimistic update, so a drop snaps back then jumps once the write reloads (ratified v1-acceptable; fix is an optimistic `sets` override, the page-card path's shape). → [[Cards]].
