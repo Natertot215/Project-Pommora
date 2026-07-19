@@ -29,6 +29,7 @@ import { CardsOptions } from './CardsOptions'
 import { GroupingPane } from './GroupingPane'
 import { SortingPane } from './SortingPane'
 import { PaneSlider } from './PaneSlider'
+import { iconForTypeSwitch } from './viewIcon'
 import { cx } from '../../design-system/cx'
 import * as vs from './viewSettings.css'
 
@@ -116,7 +117,11 @@ export function ViewSettings({
     if (name && name !== view.name) write({ name })
   }
   const setType = (type: ViewType): void => {
-    if (type !== view.type) write({ type })
+    if (type === view.type) return
+    // Re-icon to the new type's glyph only when the view still wears the old default (Decision B);
+    // a custom icon is preserved.
+    const icon = iconForTypeSwitch(view.icon, view.type, type, TYPE_GLYPH)
+    write(icon ? { type, icon } : { type })
   }
   // Two-option double-chevron = a direct toggle, never a dropdown (the Open In idiom).
   const toggleFormat = (): void => write({ format: format === 'compact' ? 'standard' : 'compact' })
