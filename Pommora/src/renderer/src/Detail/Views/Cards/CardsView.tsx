@@ -411,6 +411,14 @@ function SetCard({ set, drag }: { set: SetNode; drag?: DragItem }): React.JSX.El
 
 type ContextOption = { value: string; label: string; color?: string }
 
+// The whole card is a drag handle (the engine pointer-captures on pointerdown, which would steal an
+// inner element's click). An interactive zone stops pointerdown so its click survives; a container
+// zone stops only when the pointer starts on its OWN empty space (children like the title still drag).
+const stopDrag = (e: React.PointerEvent): void => e.stopPropagation()
+const stopDragSelf = (e: React.PointerEvent): void => {
+  if (e.target === e.currentTarget) e.stopPropagation()
+}
+
 interface PageCardProps {
   row: ViewRow
   view: SavedView
@@ -468,14 +476,14 @@ function CardProperties({
   )
   return compact ? (
     // biome-ignore lint/a11y/noStaticElementInteractions: the flow's empty space adds a property.
-    <div className="card-props is-flow" onClick={zoneClick}>
+    <div className="card-props is-flow" onClick={zoneClick} onPointerDown={stopDragSelf}>
       {shown.map((c) => (
         <span key={c.id}>{value(c)}</span>
       ))}
     </div>
   ) : (
     // biome-ignore lint/a11y/noStaticElementInteractions: the flow's empty space adds a property.
-    <div className="card-props" onClick={zoneClick}>
+    <div className="card-props" onClick={zoneClick} onPointerDown={stopDragSelf}>
       {shown.map((c) => (
         <div key={c.id} className="card-prop-row">
           <span className={cx('card-prop-label', text.caption.standard)}>
@@ -594,6 +602,7 @@ function PageCard({
           onClick={(e) => {
             if (e.target === e.currentTarget) openAdd(e)
           }}
+          onPointerDown={stopDragSelf}
         >
           {(view.wrap_titles ?? false) ? (
             <span className={cx('page-card-title is-wrap', text.footnote.emphasized)}>
@@ -619,7 +628,7 @@ function PageCard({
           )}
           {crumbs.length > 0 && (
             // biome-ignore lint/a11y/noStaticElementInteractions: the breadcrumb is ALWAYS an add-property input (G-1) — NavCrumbs is non-navigable here.
-            <div className="page-card-loc-zone" onClick={openAdd}>
+            <div className="page-card-loc-zone" onClick={openAdd} onPointerDown={stopDrag}>
               <NavCrumbs path={crumbs} className="page-card-loc" iconSize={11} />
             </div>
           )}

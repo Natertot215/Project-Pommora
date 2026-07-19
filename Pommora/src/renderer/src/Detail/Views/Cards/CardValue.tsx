@@ -122,7 +122,16 @@ export function CardValue({
   const editing = mode === 'editor'
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: the value is the click surface for its picker.
-    <span ref={anchorRef} className="card-value" onClick={onClick} onContextMenu={onContextMenu}>
+    <span
+      ref={anchorRef}
+      className="card-value"
+      onClick={onClick}
+      onContextMenu={onContextMenu}
+      // The card is a whole-surface drag handle (it pointer-captures on pointerdown, which would steal
+      // this value's click). Stopping pointerdown keeps the value clickable; the card still drags from
+      // its thumb/title.
+      onPointerDown={(e) => e.stopPropagation()}
+    >
       {editing ? (
         <PropertyEditor
           initial={editorInitial()}
