@@ -2,7 +2,14 @@ import { describe, it, expect } from 'vitest'
 import fixture from '@shared/__fixtures__/collection-with-status.json'
 import registry from '@shared/__fixtures__/registry.json'
 import type { CollectionNode, PageNode } from '@shared/types'
-import { savedView, mintDefaultView, DEFAULT_VIEW_ID, type SavedView } from '@shared/views'
+import {
+  savedView,
+  mintDefaultView,
+  DEFAULT_VIEW_ID,
+  LOCATION_SORT,
+  type SavedView,
+} from '@shared/views'
+import type { SetNode } from '@shared/types'
 import { propertyDefinition, type PropertyDefinition } from '@shared/properties'
 import type { PageFrontmatter } from '@shared/schemas'
 import { flattenContainer } from './group'
@@ -16,6 +23,59 @@ const collection = (pages: PageNode[]): CollectionNode => ({
   path: 'Col',
   sets: [],
   pages,
+})
+
+describe('resolveView — Sort By: Location (cards)', () => {
+  const setNode = (id: string, pages: PageNode[]): SetNode => ({
+    kind: 'set',
+    id,
+    title: id,
+    path: id,
+    pages,
+    sets: [],
+  })
+  const withSets: CollectionNode = {
+    kind: 'collection',
+    id: 'c',
+    title: 'C',
+    path: 'C',
+    sets: [setNode('sA', [page('p_a')])],
+    pages: [page('p_root')],
+  }
+  const cardsView = (patch: Partial<SavedView>): SavedView =>
+    savedView.parse({
+      id: 'v',
+      name: 'V',
+      type: 'cards',
+      property_order: [],
+      hidden_properties: [],
+      ...patch,
+    })
+
+  it('Group: None + Sort By: Location (Location order) → one flat band in filesystem order', () => {
+    const { rows, setTree } = flattenContainer(withSets, {})
+    const view = cardsView({
+      group: { kind: 'flat' },
+      sort: [{ property_id: LOCATION_SORT, direction: 'ascending' }],
+      structural_order_mode: 'location',
+    })
+    const { groups } = resolveView({ rows, setTree, view, schema: [], flattenStructural: true })
+    expect(groups.map((g) => g.kind)).toEqual(['ungrouped'])
+    expect(groups[0].items.map((r) => r.id)).toEqual(['p_a', 'p_root']) // set page, then the root tail
+  })
+
+  it('the reserved location primary contributes nothing to a table (no flattenStructural)', () => {
+    const { rows, setTree } = flattenContainer(withSets, {})
+    const view = cardsView({
+      group: { kind: 'flat' },
+      sort: [{ property_id: LOCATION_SORT, direction: 'ascending' }],
+      structural_order_mode: 'location',
+    })
+    // Without flattenStructural the location flatten never engages — flat() yields one band, but the
+    // pipeline never routes through the structural walk (the table can't be flattened by this field).
+    const { groups } = resolveView({ rows, setTree, view, schema: [] })
+    expect(groups.map((g) => g.kind)).toEqual(['ungrouped'])
+  })
 })
 
 describe('resolveView — full pipeline over the fixture', () => {

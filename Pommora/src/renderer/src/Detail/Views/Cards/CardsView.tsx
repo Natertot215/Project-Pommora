@@ -9,7 +9,7 @@ import type {
 } from '@shared/types'
 import type { PageFrontmatter } from '@shared/schemas'
 import { applyPropertyValue, isBlankValue, type PropertyValue } from '@shared/propertyValue'
-import type { CardBanner, SavedView } from '@shared/views'
+import { type CardBanner, LOCATION_SORT, type SavedView } from '@shared/views'
 import type { ColumnStyle } from '@shared/columnStyles'
 import { defaultEntityIcon, Icon, iconNameOr } from '@renderer/design-system/symbols'
 import { text } from '@renderer/design-system/tokens/typography.css'
@@ -202,14 +202,19 @@ export function CardsView({ source }: { source: CollectionNode | SetNode }): Rea
   // drops that leading crumb and starts at the next set down — the band already shows it (E-3).
   // Property/flat grouping keeps the full chain (the band is a bucket, not a location).
   const structural = useMemo(() => groupsStructurally(view.group, schema), [view.group, schema])
-  const flatten = view.location_flatten ?? false
+  // Group By: None → a single headerless band (E-4 flatten). Sort By: Location on its Location order is
+  // a computed filesystem order (drag off); Custom falls to the manual order (drag on).
+  const flatMode = view.group?.kind === 'flat'
+  const locationFsOrder =
+    view.sort?.[0]?.property_id === LOCATION_SORT &&
+    (view.structural_order_mode ?? 'location') === 'location'
   const locFor = (row: ViewRow): PathCrumb[] | undefined => {
     if (hideLocation || !row.parentSetId) return undefined
     const chain = setChains.get(row.parentSetId)
     if (!chain) return undefined
-    // Flatten (Sort by Location) suppresses the band head, so show the FULL chain — else a page under
-    // a top set gets no footing (E-3); structural-with-heads drops the leading crumb the head shows.
-    return structural && !flatten ? chain.slice(1) : chain
+    // A structural band head names its top-level set, so the footing drops that crumb; flat/property
+    // grouping has no such head (structural is false), so the full chain shows (E-3).
+    return structural ? chain.slice(1) : chain
   }
 
   // Band collapse — seeded from the view, persisted through the shared writer (the table's model).
@@ -281,13 +286,13 @@ export function CardsView({ source }: { source: CollectionNode | SetNode }): Rea
       )}
       {groups.map((g) => {
         const rows = flattenGroups([g])
-        // Flatten (Sort by Location) is one headerless, force-open band — a stale _ungrouped collapse
-        // from structural mode would otherwise hide every card with no head to toggle.
-        const isCollapsed = !flatten && collapsed.has(g.key)
+        // Group By: None is one headerless, force-open band — a stale collapse from another grouping
+        // would otherwise hide every card with no head to toggle.
+        const isCollapsed = !flatMode && collapsed.has(g.key)
         const glyph = bandGlyph(g)
         return (
           <section key={g.key} className="cards-band">
-            {!flatten && (
+            {!flatMode && (
               <div className="cards-band-head">
                 <button
                   type="button"
@@ -325,9 +330,9 @@ export function CardsView({ source }: { source: CollectionNode | SetNode }): Rea
                 <SortableZone
                   items={rows.map((r) => r.id)}
                   layout="grid"
-                  // Flatten (Sort by Location) is a computed order — a cross-location drop would be a
-                  // movePage (deferred) and manualOrder would snap it back, so drag is off in flatten.
-                  disabled={sortKeys >= 2 || flatten}
+                  // Sort By: Location on its filesystem order is computed — a drop can't reorder it
+                  // (that's a movePage, deferred), so drag is off; the Custom order keeps drag on.
+                  disabled={sortKeys >= 2 || locationFsOrder}
                   onReorder={(a, b) => reorderInBand(g.key, a, b)}
                   getItemLabel={(id) => rows.find((r) => r.id === id)?.title ?? id}
                 >

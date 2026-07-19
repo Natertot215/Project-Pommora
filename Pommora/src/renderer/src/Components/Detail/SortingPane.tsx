@@ -7,13 +7,11 @@ import { useState } from 'react'
 import type { CollectionNode, SetNode } from '@shared/types'
 import type { PropertyDefinition } from '@shared/properties'
 import { RESERVED_PROPERTY_ID } from '@shared/properties'
-import type { SavedView, SortCriterion } from '@shared/views'
+import { LOCATION_SORT, type SavedView, type SortCriterion } from '@shared/views'
 import { Icon, asRenderableIcon, type IconName } from '@renderer/design-system/symbols'
 import { MenuItem, MenuPaneTopRow, MenuSeparator } from '../../design-system/components/menu'
 import { flushTrailing } from '../../design-system/components/menu/menu.css'
 import { Reveal } from '../../design-system/components/Reveal'
-import { Switch } from '@renderer/design-system/components/Switches/Switch'
-import { switchScale, toggleRow } from './settingsPane.css'
 import { useSaveView } from '@renderer/Embeds/ViewEmbedScope'
 import { declaredType } from '../../Detail/Views/pipeline/value'
 import { cx } from '../../design-system/cx'
@@ -158,8 +156,11 @@ export function SortingPane({
   const targets = sortTargets(schema)
   const targetById = new Map(targets.map((t) => [t.id, t]))
   // A dead criterion (deleted def) renders by its raw id (D-6) — the pane never silently drops
-  // config it didn't write; None clears it like any other.
-  const nameOf = (c: SortCriterion): string => targetById.get(c.property_id)?.label ?? c.property_id
+  // config it didn't write; None clears it like any other. Location is the reserved cards sort.
+  const nameOf = (c: SortCriterion): string =>
+    c.property_id === LOCATION_SORT
+      ? 'Location'
+      : (targetById.get(c.property_id)?.label ?? c.property_id)
 
   const pickPrimary = (id: string | null): void => {
     setSortByOpen(false)
@@ -169,7 +170,11 @@ export function SortingPane({
     }
     if (primary?.property_id === id) return
     const fresh: SortCriterion = { property_id: id, direction: 'ascending' }
-    save(sub && sub.property_id !== id ? [fresh, sub] : [fresh])
+    const next = sub && sub.property_id !== id ? [fresh, sub] : [fresh]
+    // Picking Location seeds its Order at Location (filesystem) — the flatten's default (E-4).
+    if (id === LOCATION_SORT)
+      void saveView({ ...view, sort: next, structural_order_mode: 'location' })
+    else save(next)
   }
 
   const pickSub = (id: string | null): void => {
@@ -210,26 +215,6 @@ export function SortingPane({
   return (
     <>
       <MenuPaneTopRow label={label} current="Sorting" onBack={onBack} />
-      {view.type === 'cards' && (
-        <>
-          <MenuItem
-            className={cx(flushTrailing, toggleRow)}
-            leading={<Icon name="folder-open" size={14} />}
-            trailing={
-              <span className={switchScale}>
-                <Switch
-                  checked={view.location_flatten ?? false}
-                  onChange={(next) => void saveView({ ...view, location_flatten: next })}
-                  ariaLabel="Sort by Location"
-                />
-              </span>
-            }
-          >
-            Sort by Location
-          </MenuItem>
-          <MenuSeparator flush />
-        </>
-      )}
       <MenuItem
         className={flushTrailing}
         leading={<Icon name="arrow-up-down" size={14} />}
@@ -252,6 +237,17 @@ export function SortingPane({
           >
             None
           </MenuItem>
+          {view.type === 'cards' && (
+            <MenuItem
+              leading={<Icon name="folder" size={13} />}
+              trailing={
+                primary?.property_id === LOCATION_SORT ? <Icon name="check" size={12} /> : undefined
+              }
+              onClick={() => pickPrimary(LOCATION_SORT)}
+            >
+              Location
+            </MenuItem>
+          )}
           {targets
             .filter((t) => t.id !== sub?.property_id)
             .map((t) => (
@@ -270,22 +266,38 @@ export function SortingPane({
       </Reveal>
       {!sortByOpen && primary && (
         <>
-          <ValueRow<OrderChoice>
-            tier={sub ? 'sub' : 'primary'}
-            icon="arrow-down-up"
-            label="Order"
-            value={finiteDef && primary.order ? 'custom' : primary.direction}
-            options={
-              finiteDef ? CUSTOM_OPTION_DIRECTIONS : directionOptions(primary.property_id, schema)
-            }
-            onPick={(v) =>
-              savePrimary(
-                v === 'custom'
-                  ? { ...primary, order: seededOrder() }
-                  : { property_id: primary.property_id, direction: v },
-              )
-            }
-          />
+          {primary.property_id === LOCATION_SORT ? (
+            // The location sort ranks by the filesystem (Location) or the view's manual order (Custom) —
+            // the table's Group-By-Location Order, reused (structural_order_mode). Not Asc/Desc.
+            <ValueRow<'location' | 'custom'>
+              tier={sub ? 'sub' : 'primary'}
+              icon="folder"
+              label="Order"
+              value={view.structural_order_mode ?? 'location'}
+              options={[
+                { value: 'location', label: 'Location' },
+                { value: 'custom', label: 'Custom' },
+              ]}
+              onPick={(v) => void saveView({ ...view, structural_order_mode: v })}
+            />
+          ) : (
+            <ValueRow<OrderChoice>
+              tier={sub ? 'sub' : 'primary'}
+              icon="arrow-down-up"
+              label="Order"
+              value={finiteDef && primary.order ? 'custom' : primary.direction}
+              options={
+                finiteDef ? CUSTOM_OPTION_DIRECTIONS : directionOptions(primary.property_id, schema)
+              }
+              onPick={(v) =>
+                savePrimary(
+                  v === 'custom'
+                    ? { ...primary, order: seededOrder() }
+                    : { property_id: primary.property_id, direction: v },
+                )
+              }
+            />
+          )}
           <ValueRow
             icon="arrow-up-down"
             label="Sub-Sort"

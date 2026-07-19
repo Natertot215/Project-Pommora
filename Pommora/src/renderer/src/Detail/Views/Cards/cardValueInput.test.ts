@@ -25,15 +25,15 @@ describe('parseEditorValue', () => {
 })
 
 describe('orderAddableDefs', () => {
-  it('groups pane-kinds to the top, others to the bottom, preserving order within each', () => {
+  it('sinks the chevron-less checkbox to the bottom; every pane (chevron) kind stays on top in property order', () => {
     const defs = [
       { id: 'n', type: 'number', name: 'N' },
+      { id: 'chk', type: 'checkbox', name: 'Chk' },
       { id: 's', type: 'status', name: 'S' },
       { id: 'd', type: 'datetime', name: 'D' },
-      { id: 'm', type: 'multi_select', name: 'M' },
-      { id: 'c', type: 'context', name: 'C' },
-      { id: 'sel', type: 'select', name: 'Sel' },
+      { id: 'u', type: 'url', name: 'U' },
     ] as PropertyDefinition[]
-    expect(orderAddableDefs(defs).map((d) => d.id)).toEqual(['s', 'm', 'c', 'sel', 'n', 'd'])
+    // number/status/datetime/url all open a value pane (chevron) → top, property order kept; checkbox last.
+    expect(orderAddableDefs(defs).map((d) => d.id)).toEqual(['n', 's', 'd', 'u', 'chk'])
   })
 })

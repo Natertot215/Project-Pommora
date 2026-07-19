@@ -149,8 +149,13 @@ export function GroupingPane({
 
   // E-3 preservation is free: structural_order_mode / sub_group are view-level, so switching the
   // one group slot never touches them — flip back to Location and they're still in force.
-  const pickGroupBy = (target: 'location' | PropertyDefinition): void => {
+  const pickGroupBy = (target: 'location' | 'none' | PropertyDefinition): void => {
     setGroupByOpen(false)
+    if (target === 'none') {
+      // Group By: None = the flat GroupConfig (cards render it as one headerless band).
+      if (group.kind !== 'flat') saveGroup({ kind: 'flat' })
+      return
+    }
     if (target === 'location') {
       // Keyed on the RAW kind: a dead-property config renders structurally but still sits on disk,
       // and picking Location must heal it.
@@ -233,7 +238,11 @@ export function GroupingPane({
         leading={<Icon name="layers" size={14} />}
         trailing={
           <span className={gp.groupByValue}>
-            {structural ? 'Location' : (activeDef?.name ?? 'Location')}
+            {group.kind === 'flat'
+              ? 'None'
+              : structural
+                ? 'Location'
+                : (activeDef?.name ?? 'Location')}
             <Icon name="chevrons-up-down" size={12} />
           </span>
         }
@@ -243,6 +252,15 @@ export function GroupingPane({
       </MenuItem>
       <Reveal open={groupByOpen}>
         <div>
+          {view.type === 'cards' && (
+            <MenuItem
+              leading={<Icon name="circle-off" size={13} />}
+              trailing={group.kind === 'flat' ? <Icon name="check" size={12} /> : undefined}
+              onClick={() => pickGroupBy('none')}
+            >
+              None
+            </MenuItem>
+          )}
           <MenuItem
             leading={<Icon name="folder" size={13} />}
             trailing={structural ? <Icon name="check" size={12} /> : undefined}
