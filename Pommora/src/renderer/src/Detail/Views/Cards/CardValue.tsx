@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import type { ResolvedColumn, ViewRow } from '@shared/types'
 import { isBlankValue, type PropertyValue } from '@shared/propertyValue'
-import { isValidLink, normalizeLinkUrl } from '@shared/links'
+import { isValidLink } from '@shared/links'
 import type { ColumnStyle } from '@shared/columnStyles'
 import { cellMenuContextFor } from '@shared/cellMenu'
 import { parseStyleAction } from '@shared/columnMenu'
@@ -10,7 +10,8 @@ import { CalendarPicker } from '@renderer/design-system/components/CalendarPicke
 import { useSession } from '../../../store'
 import { declaredType, resolveFieldValue } from '../pipeline/value'
 import { Cell } from '../Table/Cell'
-import { parseLink, serializeLink } from '../Table/linkValue'
+import { parseLink } from '../Table/linkValue'
+import { parseEditorValue } from './cardValueInput'
 import type { ResolveContext } from '../Table/resolveContext'
 import { PropertyPicker } from '../PropertyEditing/PropertyPicker'
 import { PropertyEditor } from '../PropertyEditing/PropertyEditor'
@@ -114,16 +115,8 @@ export function CardValue({
   }
   const commitEditor = (raw: string): void => {
     setMode(null)
-    const trimmed = raw.trim()
-    if (t === 'number') {
-      if (trimmed === '') return commit(null)
-      const n = Number.parseFloat(trimmed)
-      if (!Number.isNaN(n)) commit({ kind: 'number', value: n })
-    } else if (t === 'url') {
-      if (trimmed === '') return commit(null)
-      if (isValidLink(trimmed))
-        commit({ kind: 'url', value: serializeLink({ url: normalizeLinkUrl(trimmed) }) })
-    }
+    const parsed = parseEditorValue(t, raw)
+    if (parsed !== undefined) commit(parsed)
   }
 
   const editing = mode === 'editor'
