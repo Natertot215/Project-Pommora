@@ -14,6 +14,8 @@ import { PropertyOptionRows, pickSemantics } from '../PropertyEditing/PropertyPi
 import { PropertyEditor } from '../PropertyEditing/PropertyEditor'
 import { formatDate } from '../PropertyEditing/formatValue'
 import { orderAddableDefs, parseEditorValue } from './cardValueInput'
+import { compactRow } from './cardAddPicker.css'
+import { cx } from '@renderer/design-system/cx'
 
 /** The kinds the add-picker can author. Chip kinds + checkbox commit from the list/pane directly;
  *  date/number/url slide into a value pane mirroring the card value editor. */
@@ -128,7 +130,7 @@ export function CardAddPicker({
               {orderAddableDefs(defs).map((d) => (
                 <MenuItem
                   key={d.id}
-                  className={flushTrailing}
+                  className={cx(flushTrailing, compactRow)}
                   leading={
                     <Icon name={propertyTypeIconName(d.type) ?? 'square-dashed'} size={14} />
                   }
@@ -161,8 +163,8 @@ export function CardAddPicker({
             </div>
           )
         }
-        minWidth={170}
-        minHeight={120}
+        minWidth={155}
+        minHeight={0}
       />
     </PickerMenu>
   )
