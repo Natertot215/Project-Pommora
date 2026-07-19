@@ -28,6 +28,7 @@ import {
   type PreviewTab,
 } from './PagePreview/previewTabs'
 import { navKey, recordRecent, removeRecentByKey, RECENTS_CAP } from './Navigation/navRecents'
+import { existingNavKeys } from './Navigation/treeNavKeys'
 import { byOrder, cleanPinTarget, pinFor, reorderTo } from './Navigation/navPins'
 import {
   activeUnpinnedTab,
@@ -714,12 +715,15 @@ export const useSession = create<SessionState>((set, get) => {
             }
             set({ pins: [] })
             await get().loadPins()
-            get().evictThumbs() // prune thumbnails outside the fresh recents∪pins set
             set({ agendaSnapshot: null })
             // The tab set — loaded ONCE per nexus (an empty activeTabId marks never-seeded; the adopt
             // path clears it). A mutation refetch must NOT re-read the sidecar: its debounced write
             // trails the in-memory set, so a re-read would roll the tabs backward.
             if (get().activeTabId === '') {
+              // Existence-prune the thumbnail cache — once per nexus-open, NOT on every mutation
+              // refetch (which also calls load()). Orphans of entities deleted mid-session wait for
+              // the next open; harmless, since a lingering thumbnail just isn't shown.
+              get().evictThumbs()
               // The previews sidecar loads on the same once-per-nexus trigger; the stored `open`
               // pointer is a record, never an auto-summon (H-10).
               const previews = await window.nexus.previews?.load().catch(() => null)
@@ -1197,8 +1201,16 @@ export const useSession = create<SessionState>((set, get) => {
         thumbVersions: { ...s.thumbVersions, [key]: (s.thumbVersions[key] ?? 0) + 1 },
       })),
     evictThumbs: () => {
-      const live = [...get().recents.map(navKey), ...get().pins.map(navKey)]
-      dropCapturedOutside(new Set(live)) // the capture gate's markers die with the files they vouch for
+      const tree = get().tree
+      if (!tree) return
+      // Existence ∪ recents ∪ pins: the tree is the live set, but its fs walk reads a subtree as empty
+      // on a transient error — so recents/pins backstop a just-visited cover against a false-empty read.
+      const live = [
+        ...existingNavKeys(tree),
+        ...get().recents.map(navKey),
+        ...get().pins.map(navKey),
+      ]
+      dropCapturedOutside(new Set(live)) // markers drop only for entities in neither the tree nor recents
       void window.nexus.capture.evict(live)
     },
     addFavorite: (target) => {

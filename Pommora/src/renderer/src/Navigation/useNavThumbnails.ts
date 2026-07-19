@@ -40,8 +40,9 @@ async function imagesReady(pane: Element): Promise<void> {
 const captured = new Map<string, unknown>()
 let capturedNexus: string | null = null
 
-/** Forget markers whose thumbnail files are being evicted (keys outside the live recents∪pins set) —
- *  a marker outliving its file would block the re-shoot forever, leaving a permanent placeholder. */
+/** Forget markers for entities no longer in the live set (their thumbnails are being evicted as
+ *  orphans) — a marker outliving its file would block the re-shoot forever, leaving a permanent
+ *  placeholder. */
 export function dropCapturedOutside(live: ReadonlySet<string>): void {
   for (const key of captured.keys()) if (!live.has(key)) captured.delete(key)
 }
