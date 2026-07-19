@@ -207,6 +207,20 @@ describe('SavedView format', () => {
   })
 })
 
+describe('card_size codec', () => {
+  const base = { id: 'view_c', name: 'C', type: 'table', property_order: [], hidden_properties: [] }
+  it('round-trips a finite scale factor', () => {
+    expect(savedView.parse({ ...base, card_size: 0.75 }).card_size).toBe(0.75)
+  })
+  it('maps a legacy size name to its factor', () => {
+    expect(savedView.parse({ ...base, card_size: 'large' }).card_size).toBe(1.25)
+  })
+  it('drops a non-finite card_size instead of persisting Infinity/NaN', () => {
+    expect(savedView.parse({ ...base, card_size: 1e400 }).card_size).toBeUndefined()
+    expect(savedView.parse({ ...base, card_size: Number.NaN }).card_size).toBeUndefined()
+  })
+})
+
 describe('mint seam', () => {
   const schema = [{ id: 'prop_a' }, { id: 'prop_b' }] as never[]
   it('mintNewView is title-only: schema ids and all three tiers hidden', () => {
