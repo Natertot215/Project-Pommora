@@ -30,6 +30,8 @@ export function useOptionReorder(
   onRowPointerDown: (value: string, e: ReactPointerEvent) => void
   dragging: string | null
   lineTop: number | null
+  /** The floating drag-chip coords (DragGhost) — null until the gesture activates. */
+  ghost: { x: number; y: number } | null
 } {
   const container = useRef<HTMLElement | null>(null)
   const rows = useRef(new Map<string, HTMLElement>())
@@ -39,6 +41,7 @@ export function useOptionReorder(
   onReorderRef.current = onReorder
   const g = useRef<Gesture | null>(null)
   const [dragging, setDragging] = useState<string | null>(null)
+  const [ghost, setGhost] = useState<{ x: number; y: number } | null>(null)
   const [lineTop, setLineTop] = useState<number | null>(null)
 
   const containerRef = (el: HTMLDivElement | null): void => {
@@ -107,6 +110,7 @@ export function useOptionReorder(
     snapshot.current = null
     snapshotDirty.current = false
     setDragging(null)
+    setGhost(null)
     setLineTop(null)
   }
 
@@ -124,6 +128,7 @@ export function useOptionReorder(
       snapshot.current = takeSnapshot()
       snapshotDirty.current = false
     }
+    setGhost({ x: e.clientX + 12, y: e.clientY + 8 })
     const { index, top } = locate(e.clientY)
     s.index = index
     setLineTop(top)
@@ -162,5 +167,5 @@ export function useOptionReorder(
     window.addEventListener('keydown', handlers.key, { capture: true })
   }
 
-  return { containerRef, registerRow, onRowPointerDown, dragging, lineTop }
+  return { containerRef, registerRow, onRowPointerDown, dragging, lineTop, ghost }
 }

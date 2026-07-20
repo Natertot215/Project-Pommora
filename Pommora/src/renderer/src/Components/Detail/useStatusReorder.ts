@@ -38,6 +38,8 @@ export function useStatusReorder(
   onRowPointerDown: (value: string, e: ReactPointerEvent) => void
   dragging: string | null
   drop: { groupId: string; top: number } | null
+  /** The floating drag-chip coords (DragGhost) — null until the gesture activates. */
+  ghost: { x: number; y: number } | null
 } {
   const groupEls = useRef(new Map<string, HTMLElement>())
   const rows = useRef(new Map<string, HTMLElement>())
@@ -47,6 +49,7 @@ export function useStatusReorder(
   onMoveRef.current = onMove
   const g = useRef<Gesture | null>(null)
   const [dragging, setDragging] = useState<string | null>(null)
+  const [ghost, setGhost] = useState<{ x: number; y: number } | null>(null)
   const [drop, setDrop] = useState<{ groupId: string; top: number } | null>(null)
 
   const registerGroup = (groupId: string, el: HTMLElement | null): void => {
@@ -130,6 +133,7 @@ export function useStatusReorder(
     snapshot.current = null
     snapshotDirty.current = false
     setDragging(null)
+    setGhost(null)
     setDrop(null)
   }
 
@@ -146,6 +150,7 @@ export function useStatusReorder(
       snapshot.current = takeSnapshot()
       snapshotDirty.current = false
     }
+    setGhost({ x: e.clientX + 12, y: e.clientY + 8 })
     const hit = locate(e.clientY)
     if (!hit) return
     s.toGroupId = hit.groupId
@@ -198,5 +203,5 @@ export function useStatusReorder(
     window.addEventListener('keydown', handlers.key, { capture: true })
   }
 
-  return { registerGroup, registerRow, onRowPointerDown, dragging, drop }
+  return { registerGroup, registerRow, onRowPointerDown, dragging, drop, ghost }
 }

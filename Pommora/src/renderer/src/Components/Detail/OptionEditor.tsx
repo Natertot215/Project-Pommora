@@ -15,6 +15,7 @@ import { cx } from '@renderer/design-system/cx'
 import { Chip, chipShapeForType } from '../Chip'
 import { EditableInput } from '../EditableInput'
 import { ColorPicker } from './ColorPicker'
+import { DragGhost } from './DragGhost'
 import { useOptionReorder } from './useOptionReorder'
 import * as s from './settingsPane.css'
 
@@ -84,6 +85,11 @@ export function OptionEditor({
         </button>
       </div>
       <div className={s.optionList} ref={reorder.containerRef}>
+        <DragGhost
+          x={reorder.ghost?.x ?? null}
+          y={reorder.ghost?.y ?? null}
+          label={reorder.dragging ? (options.find((o) => o.value === reorder.dragging)?.label ?? reorder.dragging) : null}
+        />
         {options.map((o) => {
           const isColoring = coloring === o.value
           return (

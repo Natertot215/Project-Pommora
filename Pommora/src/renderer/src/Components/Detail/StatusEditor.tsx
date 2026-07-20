@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { DragGhost } from './DragGhost'
 import { Icon } from '@renderer/design-system/symbols'
 import { chipPill, chipColor } from '@renderer/design-system/tokens'
 import { chipColorFor } from '@renderer/design-system/tokens/colorMap'
@@ -77,8 +78,17 @@ export function StatusEditor({
     onSetGroups(recolorStatusOption(groups, value, color))
   }
 
+  const draggedLabel = (): string | null => {
+    if (!reorder.dragging) return null
+    for (const g of groups) {
+      const hit = g.options.find((o) => o.value === reorder.dragging)
+      if (hit) return hit.label
+    }
+    return reorder.dragging
+  }
   return (
     <div className={s.statusGroups}>
+      <DragGhost x={reorder.ghost?.x ?? null} y={reorder.ghost?.y ?? null} label={draggedLabel()} />
       {groups.map((g) => (
         <div key={g.id} className={s.statusGroup}>
           <div className={s.optionsRow}>

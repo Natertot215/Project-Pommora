@@ -30,6 +30,8 @@ export function useGroupingListDrag({
   draggingId: string | null
   line: { y: number } | null
   nestTarget: string | null
+  /** The floating drag-chip coords (DragGhost) — null until the gesture activates. */
+  ghost: { x: number; y: number } | null
 } {
   const container = useRef<HTMLDivElement | null>(null)
   const els = useRef(new Map<string, HTMLElement>())
@@ -47,6 +49,7 @@ export function useGroupingListDrag({
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const [line, setLine] = useState<{ y: number } | null>(null)
   const [nestTarget, setNestTarget] = useState<string | null>(null)
+  const [ghost, setGhost] = useState<{ x: number; y: number } | null>(null)
 
   const reset = (): void => {
     gesture.current = { kind: 'idle' }
@@ -55,6 +58,7 @@ export function useGroupingListDrag({
     setDraggingId(null)
     setLine(null)
     setNestTarget(null)
+    setGhost(null)
   }
   const detach = (): void => {
     window.removeEventListener('pointermove', onMove)
@@ -80,6 +84,7 @@ export function useGroupingListDrag({
       gesture.current = { ...g, kind: 'active' }
       setDraggingId(g.id)
     }
+    setGhost({ x: e.clientX + 12, y: e.clientY + 8 })
     const idx = index.current
     if (!idx) return
     let slot = bandSlot(
@@ -142,6 +147,7 @@ export function useGroupingListDrag({
     draggingId,
     line,
     nestTarget,
+    ghost,
   }
 }
 

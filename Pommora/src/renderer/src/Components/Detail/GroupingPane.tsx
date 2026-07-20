@@ -33,6 +33,7 @@ import {
   footingSymbol,
 } from '../../design-system/components/menu/menu.css'
 import { Reveal } from '../../design-system/components/Reveal'
+import { DragGhost } from './DragGhost'
 import { useSaveView } from '@renderer/Embeds/ViewEmbedScope'
 import { declaredType } from '../../Detail/Views/pipeline/value'
 import { bucketOrder, groupsStructurally } from '../../Detail/Views/pipeline/group'
@@ -493,6 +494,11 @@ export function CustomList({
         ]
       })}
       {dnd.line && <div className={gp.dropLine} style={{ top: dnd.line.y }} />}
+      <DragGhost
+        x={dnd.ghost?.x ?? null}
+        y={dnd.ghost?.y ?? null}
+        label={dnd.draggingId ? (byValue.get(dnd.draggingId)?.label ?? dnd.draggingId) : null}
+      />
     </div>
   )
 }
@@ -724,10 +730,28 @@ function LocationHierarchy({
     )
   }
 
+  const ghostLabel = (): string | null => {
+    const id = dnd.draggingId
+    if (!id) return null
+    if (id.startsWith('sub:')) {
+      const value = id.split(':').slice(2).join(':')
+      return subChips.find((o) => o.value === value)?.label ?? value
+    }
+    const bySet = (sets: SetNode[]): string | null => {
+      for (const s of sets) {
+        if (s.id === id) return s.title
+        const hit = bySet(s.sets ?? [])
+        if (hit) return hit
+      }
+      return null
+    }
+    return bySet(source.sets ?? [])
+  }
   return (
     <div ref={dnd.containerRef} style={{ position: 'relative' }}>
       {(source.sets ?? []).map(renderSet)}
       {dnd.line && <div className={gp.dropLine} style={{ top: dnd.line.y }} />}
+      <DragGhost x={dnd.ghost?.x ?? null} y={dnd.ghost?.y ?? null} label={ghostLabel()} />
     </div>
   )
 }

@@ -22,7 +22,9 @@ export const surface = style({
   minWidth: '225px',
 })
 
-// Dropdown row titles read at label-control — one source for every dropdown surface (the `item`
-// primitive is shared with the sidebar, which keeps its own label-primary title outside a surface).
-// The picker-menu option is set to control to match this.
-globalStyle(`${surface} .${titleText}`, { color: c.label.control })
+// Dropdown row titles read at label-PRIMARY — the ratified surface tone, load-bearing for the
+// settings panes' hierarchy: assigned rows read primary, and the unassigned/secondary and control
+// row overrides (settingsPane's 0-3-0 scopes) assume they're stepping DOWN from it. The sidebar
+// keeps its own title tone outside a surface, and the picker-menu OPTION is deliberately control —
+// a separate surface, not this global.
+globalStyle(`${surface} .${titleText}`, { color: c.label.primary })
