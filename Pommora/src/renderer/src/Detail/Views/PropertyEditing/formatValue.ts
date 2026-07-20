@@ -6,9 +6,8 @@ import type { DateFormat, TimeFormat, WeekdayFormat } from '@shared/columnStyles
 import type { DateGranularity, DateSeparator } from '@shared/views'
 import type { NumberConfig } from '@shared/properties'
 
-// Intl formatter construction is one of the pricier per-cell operations, and Cell formats these on the
-// shared, non-virtualized card grid — so cache the formatters by their options tuple instead of building
-// a fresh one per format() call. en-US is pinned everywhere, so the key is the options alone.
+// Intl formatter construction is pricey and the card grid formats per-cell — cache by options tuple
+// instead of rebuilding per format() call. en-US is pinned everywhere, so the key is the options alone.
 const numFmtCache = new Map<string, Intl.NumberFormat>()
 const dateFmtCache = new Map<string, Intl.DateTimeFormat>()
 function numFmt(opts: Intl.NumberFormatOptions): Intl.NumberFormat {

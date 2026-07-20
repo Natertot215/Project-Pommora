@@ -49,8 +49,8 @@ export function CardValue({
   onCommit: (column: ResolvedColumn, value: PropertyValue | null) => void
   onStyle: (colId: string, key: keyof ColumnStyle & string, value: string) => void
   onHide: (colId: string) => void
-  /** True at a large-enough card scale (D-1). Gates ONLY the multi-select hover-× — on a small chip the
-   *  × zone overlaps the whole chip and steals the picker click, dropping one value; select/context keep
+  /** True at a large-enough card scale. Gates ONLY the multi-select hover-× — on a small chip the ×
+   *  zone overlaps the whole chip and steals the picker click, dropping one value; select/context keep
    *  their × always (it clears the whole value, an expected affordance). */
   allowInlineRemove: boolean
 }): React.JSX.Element {
@@ -64,9 +64,8 @@ export function CardValue({
   const t = column.kind === 'tier' ? 'context' : dt
   const v = resolveFieldValue(row, column.id, ctx.schema)
   const schemaDef = ctx.schema.find((d) => d.id === column.id)
-  // The kinds a click on a blank value can fill in place — status/select/multi/context open the picker,
-  // datetime the calendar, number/url the editor. A checkbox draws its own box; file/last-edited have no
-  // fill path, so those get no "Empty" affordance (it would be a dead click).
+  // Kinds a click on a blank value fills in place (picker / calendar / editor). A checkbox draws its own
+  // box; file/last-edited have no fill path — no "Empty" affordance for them (it would be a dead click).
   const canFillBlank =
     t === 'status' ||
     t === 'select' ||
@@ -182,19 +181,15 @@ export function CardValue({
           ctx={ctx}
           hideIcon={false}
           style={style}
-          // The hover-× rides every pill EXCEPT a multi-select's below the scale floor: there a stray
-          // click on the × zone drops just ONE of several values (silent partial loss). A select/context
-          // × clears the whole value — an expected affordance — so it always stays.
+          // Drop the hover-× only on a small multi-select chip (see allowInlineRemove).
           {...(t !== 'multi_select' || allowInlineRemove
             ? { remove: (next: PropertyValue | null) => commit(next) }
             : {})}
         />
       )}
-      {/* The pickers mount persistently and ride a dynamic `open` (the table's pattern), so a dismiss
-          flips open→false on a surviving instance and its Bloom-out plays — a conditional mount would
-          tear the instance out in one commit, skipping the exit animation. The datetime calendar is
-          gated on the column TYPE (a static per-cell fact, not `open`), so a non-datetime value never
-          allocates it and datetime cells keep the persistent instance. */}
+      {/* Pickers mount persistently and ride a dynamic `open` (the table's pattern) so a dismiss plays
+          the Bloom-out — a conditional mount would tear the instance out and skip the exit anim. The
+          calendar is gated on the column TYPE, so non-datetime cells never allocate it. */}
       {t === 'datetime' && (
         <PickerMenu solid open={mode === 'datetime'} onDismiss={dismiss} triggerRef={anchorRef}>
           <CalendarPicker

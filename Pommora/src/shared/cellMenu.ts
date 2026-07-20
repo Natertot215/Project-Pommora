@@ -83,9 +83,12 @@ export function cellMenuModel(ctx: CellMenuContext): CellMenuModel {
     model.items = [
       ...model.items,
       {
+        // Only self-separate from SIBLING items — main/cellMenu already inserts the Style▸↔items
+        // divider once Remove lands in items, so keying on `model.style` too would double the separator
+        // for a style-only cell with no base item (checkbox/number/last_edited).
         label: 'Remove',
         action: 'cell:hide',
-        separatorBefore: model.items.length > 0 || !!model.style,
+        separatorBefore: model.items.length > 0,
       },
     ]
   }

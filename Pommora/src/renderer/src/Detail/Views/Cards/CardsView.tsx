@@ -133,11 +133,9 @@ export function CardsView({ source }: { source: CollectionNode | SetNode }): Rea
       },
     })
   }
-  // Adding a property from a card reveals it in the view (the shared eye-unhide patch: place in order
-  // + clear the hidden flag) — otherwise the allowlist keeps an unplaced property hidden and the value
-  // the user just set never shows. A multi-select fills onCommit per toggle, so dedup a reveal already
-  // in flight: the view is stale until the first saveView's refetch lands, so without this each toggle
-  // re-fires a full-nexus walk.
+  // Adding a property from a card reveals it (place in order + clear the hidden flag), else the allowlist
+  // keeps it hidden and the value the user just set never shows. Dedup a reveal already in flight — a
+  // multi-select fills per toggle, and the view is stale until the first refetch, so each would re-walk.
   const revealingRef = useRef<Set<string>>(new Set())
   const revealProperty = (id: string): void => {
     if (revealingRef.current.has(id)) return
@@ -500,8 +498,8 @@ function CardProperties({
 }): React.JSX.Element | null {
   if (!ctx || !labels) return null
   const compact = isCompact(view)
-  // The inline chip-× is kept only at a large-enough card scale (D-1): below it the × zone overlaps a
-  // short chip and steals the picker click, deleting the value. Below the floor a click always picks.
+  // Keep the inline chip-× only at a large-enough card scale: below it the × zone overlaps a short chip
+  // and steals the picker click, deleting the value.
   const allowInlineRemove = (view.card_size ?? 1) >= 0.8
   const style = (id: string): ColumnStyle => view.column_styles?.[id] ?? {}
   const zoneClick = (e: React.MouseEvent): void => {
@@ -542,11 +540,10 @@ function CardProperties({
   )
 }
 
-// One card into its band's SortableZone — the drag shell rides the card root (NavGallery's
-// DraggableCard split: the engine owns the root's transform; hover-pop lives on the body inside).
-// Memoized (the table's DataRow idiom): every prop arrives identity-stable, so a card bails on a parent
-// re-render that leaves its inputs untouched — chiefly a band collapse, which repaints its header, not
-// every card. The drag hook lives inside; the dragging band still repaints per frame via its Zone.
+// One card into its band's SortableZone — the drag shell rides the card root (NavGallery's DraggableCard
+// split: the engine owns the root's transform; hover-pop lives on the body inside). Memoized (the table's
+// DataRow idiom) so a card bails on a parent re-render its inputs didn't touch; the drag hook lives inside,
+// so the dragging band still repaints per frame via its Zone.
 const PageCard = memo(function PageCard({
   row,
   view,
@@ -596,8 +593,7 @@ const PageCard = memo(function PageCard({
   )
   // The add menu is everything NOT currently shown: the Visibility hidden list (hidden tiers + hidden/
   // unaccounted props) plus any schema prop that's revealed-but-blank (compact drops it, so it stays
-  // addable to re-fill). A blank addable-type prop is a `pane` entry (set a value); a tier/context, a
-  // hidden-but-filled prop, or a checkbox (draws its own box) is reveal-only.
+  // addable to re-fill). Each row's pane vs reveal-only split is computed below (see AddEntry).
   const addable = useMemo<AddEntry[]>(() => {
     if (!ctx || !labels) return []
     const shownIds = new Set(shown.map((c) => c.id))

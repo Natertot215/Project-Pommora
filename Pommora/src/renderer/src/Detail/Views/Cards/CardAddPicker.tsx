@@ -54,9 +54,9 @@ function ValuePane({
           value={current?.kind === 'datetime' ? current.value : null}
           timeFormat={useSession.getState().tree?.timeFormat}
           formatDateValue={(k) => formatDate(k, 'full', 'none')}
-          // Stay open on change (mirrors the card value's datetime edit) so the day AND the time can be
-          // set — the outside-click dismiss commits the pending via CalendarPicker's unmount flush.
-          // onDone() here would close the pane on the first date click (the Compact add-path bug).
+          // Stay open on change (mirrors the card value's datetime edit) so day AND time can both be set
+          // — the outside-click dismiss commits the pending via CalendarPicker's unmount flush. onDone()
+          // here would close the pane on the first date click.
           onChange={(iso) => onCommit(iso ? { kind: 'datetime', value: iso } : null)}
         />
       </>

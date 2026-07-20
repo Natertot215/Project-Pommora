@@ -8,9 +8,8 @@ export interface ContextOption {
   color?: string
 }
 
-// The card grid calls this per tier/context value per render (eagerly, not just for an open picker),
-// so return a STABLE array per (tree, level) instead of mapping the tier list every call — keyed on the
-// tree object, so a tree push naturally invalidates it. Without this it allocates N fresh arrays a frame.
+// The card grid calls this per tier/context value per render, so cache a STABLE array per (tree, level)
+// instead of remapping every call — keyed on the tree object, so a tree push naturally invalidates it.
 const tierOptionsCache = new WeakMap<NexusTree, Map<number, ContextOption[]>>()
 
 /** A tier level's pickable contexts — id/title(/color) off the live tree, memoized per tree. */

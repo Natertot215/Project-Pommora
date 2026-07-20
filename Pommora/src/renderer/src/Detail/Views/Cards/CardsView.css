@@ -234,7 +234,7 @@
   padding-inline: var(--chip-pad-x, 6px);
 }
 /* The Switch checkbox-look is natively 54×24 — scale it to the card's density so it sits near chip
-   height in the flow instead of towering over the chips (D-2). */
+   height in the flow instead of towering over the chips. */
 .card-value .cell-switch {
   zoom: var(--switch-zoom);
 }

@@ -3,11 +3,10 @@ import type { PropertyDefinition, PropertyType } from '@shared/properties'
 import type { PropertyValue } from '@shared/propertyValue'
 import { serializeLink } from '../Table/linkValue'
 
-/** One row of the card add-property menu: something NOT currently shown that can be added back. A
- *  `pane` entry (a blank addable-type prop) drills into a value pane to set a value; a `revealOnly`
- *  entry (a hidden tier/context, a hidden-but-filled prop, or a checkbox) just unhides on pick — its
- *  value is already on disk or it draws its own control once visible. `def` is the schema definition
- *  for a real property, null for a reserved tier/Modified id (which carries no schema entry). */
+/** One row of the card add-property menu (something NOT currently shown). A `pane` entry (a blank
+ *  addable-type prop) drills into a value pane to set a value; a `revealOnly` entry (a hidden
+ *  tier/context, a filled prop, or a checkbox) just unhides on pick. `def` is null for a reserved
+ *  tier/Modified id, which carries no schema entry. */
 export type AddEntry = {
   id: string
   name: string
