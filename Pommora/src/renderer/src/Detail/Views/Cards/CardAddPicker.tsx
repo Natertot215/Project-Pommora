@@ -1,4 +1,4 @@
-import { type CSSProperties, type RefObject, useState } from 'react'
+import { type CSSProperties, type RefObject, useEffect, useState } from 'react'
 import type { PropertyDefinition } from '@shared/properties'
 import type { PropertyValue } from '@shared/propertyValue'
 import { isValidLink } from '@shared/links'
@@ -8,15 +8,21 @@ import { MenuItem, MenuPaneTopRow } from '@renderer/design-system/components/men
 import { flushTrailing } from '@renderer/design-system/components/menu/menu.css'
 import { PaneSlider } from '@renderer/Components/Detail/PaneSlider'
 import { propertyTypeIconName } from '@renderer/Components/Detail/PropertyTypes'
-import { PropertyOptionRows, pickSemantics } from '../PropertyEditing/PropertyPicker'
+import {
+  PropertyOptionRows,
+  pickSemantics,
+  syntheticContextDef,
+} from '../PropertyEditing/PropertyPicker'
+import type { ContextOption } from '../pipeline/contextOptions'
 import { PropertyEditor } from '../PropertyEditing/PropertyEditor'
 import { DatetimeValuePicker } from '../PropertyEditing/DatetimeValuePicker'
 import { type AddEntry, orderAddableEntries, parseEditorValue } from './cardValueInput'
 import { compactRow } from './cardAddPicker.css'
 import { cx } from '@renderer/design-system/cx'
 
-/** The kinds the add-picker can author. Chip kinds + checkbox commit from the list/pane directly;
- *  date/number/url slide into a value pane mirroring the card value editor. */
+/** The kinds whose BLANK entries drill into a value pane. Checkbox is deliberately excluded from the
+ *  pane split (its box on the card is the toggle — an add-list pick just reveals it); tiers/contexts
+ *  pane via contextOptions rather than this set. */
 export const ADDABLE_TYPES: ReadonlySet<string> = new Set([
   'select',
   'status',
@@ -32,12 +38,15 @@ export const ADDABLE_TYPES: ReadonlySet<string> = new Set([
 function ValuePane({
   def,
   current,
+  contextOptions,
   onCommit,
   onDone,
   onBack,
 }: {
   def: PropertyDefinition
   current: PropertyValue | null
+  /** Tier/context entries: the pickable contexts — flips pickSemantics into context mode. */
+  contextOptions?: ContextOption[] | null
   onCommit: (value: PropertyValue | null) => void
   onDone: () => void
   onBack: () => void
@@ -63,8 +72,10 @@ function ValuePane({
           numeric={def.type === 'number'}
           validate={def.type === 'url' ? isValidLink : undefined}
           onCommit={(raw) => {
+            // Empty input in the ADD flow means "never mind" — committing null would still fire the
+            // reveal and surface a blank property the user never asked for. Skip both, just close.
             const parsed = parseEditorValue(def.type, raw)
-            if (parsed !== undefined) onCommit(parsed)
+            if (parsed !== undefined && parsed !== null) onCommit(parsed)
             onDone()
           }}
           onCancel={onBack}
@@ -72,7 +83,13 @@ function ValuePane({
       </>
     )
   }
-  const { options, selected, pick } = pickSemantics(def, current, onCommit, onDone)
+  const { options, selected, pick } = pickSemantics(
+    def,
+    current,
+    onCommit,
+    onDone,
+    contextOptions ?? undefined,
+  )
   return (
     <>
       {topRow}
@@ -90,6 +107,7 @@ function ValuePane({
 export function CardAddPicker({
   entries,
   currentOf,
+  contextOptionsOf,
   open,
   anchorRef,
   initialEntry,
@@ -99,6 +117,8 @@ export function CardAddPicker({
 }: {
   entries: AddEntry[]
   currentOf: (entry: AddEntry) => PropertyValue | null
+  /** The pickable contexts for a tier/context entry (null for every other kind). */
+  contextOptionsOf: (entry: AddEntry) => ContextOption[] | null
   open: boolean
   anchorRef: RefObject<HTMLElement | null>
   /** Jump straight to this entry's value pane (the native Add Property ▸ pick on a pane entry). */
@@ -108,6 +128,11 @@ export function CardAddPicker({
   onDismiss: () => void
 }): React.JSX.Element {
   const [picked, setPicked] = useState<AddEntry | null>(initialEntry ?? null)
+  // The picker mounts persistently (so the Bloom-out plays); each OPEN re-seeds the pane from
+  // initialEntry — the native Add Property ▸ jump — instead of relying on a fresh mount's initializer.
+  useEffect(() => {
+    if (open) setPicked(initialEntry ?? null)
+  }, [open, initialEntry])
   const dismiss = (): void => {
     setPicked(null)
     onDismiss()
@@ -151,11 +176,12 @@ export function CardAddPicker({
           )
         }
         detail={
-          picked?.def && (
+          picked && (
             <div>
               <ValuePane
-                def={picked.def}
+                def={picked.def ?? syntheticContextDef(picked.id)}
                 current={currentOf(picked)}
+                contextOptions={contextOptionsOf(picked)}
                 onCommit={(v) => onCommit(picked, v)}
                 onDone={dismiss}
                 onBack={() => setPicked(null)}

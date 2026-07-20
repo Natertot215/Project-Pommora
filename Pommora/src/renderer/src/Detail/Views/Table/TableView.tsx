@@ -670,7 +670,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
       e.stopPropagation()
       const v = resolveFieldValue(row, col.id, schema)
       const current = v.kind === 'status' || v.kind === 'select' ? v.value : undefined
-      if (current === undefined) {
+      if (!current) {
         // An EMPTY checkbox-look cell never cycles (a blind write) — it opens the picker to assign.
         setEditing({ rowId: row.id, colId: col.id, mode: 'picker' })
         return

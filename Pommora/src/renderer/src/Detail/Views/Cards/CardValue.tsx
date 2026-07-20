@@ -5,18 +5,14 @@ import { isValidLink } from '@shared/links'
 import type { ColumnStyle } from '@shared/columnStyles'
 import { cellMenuContextFor } from '@shared/cellMenu'
 import { parseStyleAction } from '@shared/columnMenu'
-import { PickerMenu } from '@renderer/design-system/components/PickerMenu/PickerMenu'
 import { cx } from '@renderer/design-system/cx'
 import { text } from '@renderer/design-system/tokens/typography.css'
 import { declaredType, resolveFieldValue } from '../pipeline/value'
-import type { ContextOption } from '../pipeline/contextOptions'
 import { Cell } from '../Table/Cell'
 import { parseLink, urlClickTarget, urlValueFromEdit, urlValueFromRename } from '../Table/linkValue'
 import { parseEditorValue } from './cardValueInput'
 import type { ResolveContext } from '../Table/resolveContext'
-import { PropertyPicker, syntheticContextDef } from '../PropertyEditing/PropertyPicker'
 import { PropertyEditor } from '../PropertyEditing/PropertyEditor'
-import { DatetimeValuePicker } from '../PropertyEditing/DatetimeValuePicker'
 import { numberDivisor } from '../PropertyEditing/formatValue'
 import { nextCycleValue } from '../PropertyEditing/statusCycle'
 
@@ -34,28 +30,30 @@ export function CardValue({
   column,
   ctx,
   style,
-  contextOptions,
   onCommit,
   onStyle,
   onHide,
+  onOpenPicker,
   allowInlineRemove,
 }: {
   row: ViewRow
   column: ResolvedColumn
   ctx: ResolveContext
   style: ColumnStyle
-  contextOptions: ContextOption[] | null
   onCommit: (column: ResolvedColumn, value: PropertyValue | null) => void
   onStyle: (colId: string, key: keyof ColumnStyle & string, value: string) => void
   onHide: (colId: string) => void
-  /** True at a large-enough card scale. Gates ONLY the multi-select hover-× — on a small chip the ×
-   *  zone overlaps the whole chip and steals the picker click, dropping one value; select/context keep
-   *  their × always (it clears the whole value, an expected affordance). */
+  /** Open this value's portal picker at the GRID-LEVEL host (CardPickerHost) — the picker outlives
+   *  this card's remounts. kind 'picker' = the option picker; 'datetime' = the calendar. */
+  onOpenPicker: (column: ResolvedColumn, kind: 'picker' | 'datetime', anchor: HTMLElement, clickX?: number) => void
+  /** False only when the EMBED zoom shrinks chips (≤0.8 effective — chips don't scale with
+   *  card_size). Gates ONLY the multi-select hover-×; select keeps its × always (clears the whole
+   *  value) and context keeps its × always (removes that ONE context). The × itself is inert until
+   *  hover-revealed (ChipRemoveButton), so an un-hovered click opens the picker at every size. */
   allowInlineRemove: boolean
 }): React.JSX.Element {
   const anchorRef = useRef<HTMLSpanElement>(null)
-  const [mode, setMode] = useState<null | 'picker' | 'editor' | 'rename' | 'datetime'>(null)
-  const [clickX, setClickX] = useState<number>()
+  const [mode, setMode] = useState<null | 'editor' | 'rename'>(null)
   const dismiss = (): void => setMode(null)
   const commit = (v: PropertyValue | null): void => onCommit(column, v)
 
@@ -81,10 +79,13 @@ export function CardValue({
     // backdrop) bubbles back through its trigger — this span — and would re-open what the pick/outside
     // click just dismissed. Swallow it here (the stopPropagation above still keeps it off the card).
     if (!e.currentTarget.contains(e.target as Node)) return
-    setClickX(e.clientX) // the value picker drops from the click point, not the value's fixed centre
+    // The portal pickers open at the grid-level host, anchored here, dropping from the click point.
+    const openPicker = (kind: 'picker' | 'datetime'): void => {
+      if (anchorRef.current) onOpenPicker(column, kind, anchorRef.current, e.clientX)
+    }
     if (t === 'status' && style.look === 'checkbox') {
       const current = v.kind === 'status' || v.kind === 'select' ? v.value : undefined
-      if (current === undefined) return setMode('picker') // empty never cycles blind — assign
+      if (!current) return openPicker('picker') // empty ('' included) never cycles blind — assign
       const next = nextCycleValue(current, schemaDef)
       if (next !== null) commit({ kind: 'status', value: next })
     } else if (t === 'checkbox') {
@@ -97,7 +98,7 @@ export function CardValue({
       t === 'context' ||
       t === 'datetime'
     ) {
-      setMode(t === 'datetime' ? 'datetime' : 'picker')
+      openPicker(t === 'datetime' ? 'datetime' : 'picker')
     } else if (t === 'number') {
       setMode('editor')
     } else if (t === 'url') {
@@ -114,6 +115,9 @@ export function CardValue({
   const onContextMenu = async (e: React.MouseEvent): Promise<void> => {
     e.preventDefault()
     e.stopPropagation()
+    // Portal events bubble the component tree: a right-click inside an open picker (backdrop/layer)
+    // arrives here too — swallow it, never pop a mis-targeted menu (the onClick guard's twin).
+    if (!e.currentTarget.contains(e.target as Node)) return
     const barCapable = dt === 'number' && numberDivisor(schemaDef) !== undefined
     const menuCtx = cellMenuContextFor(column, dt, style, !isBlankValue(v), true, barCapable)
     if (!menuCtx) return
@@ -187,28 +191,6 @@ export function CardValue({
             : {})}
         />
       )}
-      {/* Pickers mount persistently and ride a dynamic `open` (the table's pattern) so a dismiss plays
-          the Bloom-out — a conditional mount would tear the instance out and skip the exit anim. The
-          calendar is gated on the column TYPE, so non-datetime cells never allocate it. */}
-      {t === 'datetime' && (
-        <PickerMenu solid open={mode === 'datetime'} onDismiss={dismiss} triggerRef={anchorRef}>
-          <DatetimeValuePicker value={v} dateFormat={style.date_format} onCommit={commit} />
-        </PickerMenu>
-      )}
-      <PropertyPicker
-        def={schemaDef ?? syntheticContextDef(column.id)}
-        current={v}
-        open={mode === 'picker'}
-        triggerRef={anchorRef}
-        anchorX={clickX}
-        look={style.look}
-        {...(contextOptions ? { contextOptions } : {})}
-        onCommit={(nv) => {
-          commit(nv)
-          if (t !== 'multi_select' && t !== 'context') dismiss()
-        }}
-        onDismiss={dismiss}
-      />
     </span>
   )
 }

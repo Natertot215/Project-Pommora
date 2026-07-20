@@ -81,15 +81,21 @@ export function ChipLabel({
 
 /** The hover-revealed remove × shared by every removable chip surface (Chip, ContextChip, future
  *  chip splits) — the glyph in the chip's text color, the label's tail blurring beneath it.
- *  Swallows pointerdown/click so a remove never arms the row drag or opens the cell's picker. */
+ *  INERT until revealed: the zone is always hoverable (that's what reveals it), but a click only
+ *  removes once the × is actually visible — a fast un-hovered click falls through to the chip
+ *  (opening its picker) instead of silently deleting a value on a short chip. */
+const revealed = (el: Element): boolean => Number.parseFloat(getComputedStyle(el).opacity) > 0.5
 export function ChipRemoveButton({ onRemove }: { onRemove: () => void }): React.JSX.Element {
   return (
     <button
       type="button"
       className={chipRemove}
       aria-label="Remove"
-      onPointerDown={(e) => e.stopPropagation()}
+      onPointerDown={(e) => {
+        if (revealed(e.currentTarget)) e.stopPropagation()
+      }}
       onClick={(e) => {
+        if (!revealed(e.currentTarget)) return // un-revealed: bubble through — the chip handles it
         e.stopPropagation()
         onRemove()
       }}

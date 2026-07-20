@@ -1941,23 +1941,33 @@ ipcMain.handle('nexus:pickImage', async (e): Promise<string | null> => {
   return win ? pickImageDataUrl(win) : null
 })
 
-// Pop a native macOS Change / Remove menu for an existing banner (mirrors Swift's .contextMenu).
-// Resolves the chosen action, or null if the menu is dismissed.
+// Pop a native macOS banner menu (mirrors Swift's .contextMenu): Change/Remove for an existing
+// image, a single Add item when `add`. The noun follows the surface's vocabulary (Banner by
+// default; the cards' Cover-mode thumb passes "Cover"). Resolves the action, null on dismissal —
+// Add resolves 'change' (both routes open the image picker).
 ipcMain.handle(
   'nexus:bannerMenu',
-  async (e, opts?: { noRemove?: boolean }): Promise<'change' | 'remove' | null> => {
+  async (
+    e,
+    opts?: { noRemove?: boolean; noun?: string; add?: boolean },
+  ): Promise<'change' | 'remove' | null> => {
     const win = BrowserWindow.fromWebContents(e.sender)
     if (!win) return null
+    const noun = opts?.noun ?? 'Banner'
     return await new Promise<'change' | 'remove' | null>((resolve) => {
       let acted = false
       const choose = (action: 'change' | 'remove'): void => {
         acted = true
         resolve(action)
       }
-      const menu = Menu.buildFromTemplate([
-        { label: 'Change Banner', click: () => choose('change') },
-        ...(opts?.noRemove ? [] : [{ label: 'Remove Banner', click: () => choose('remove') }]),
-      ])
+      const menu = Menu.buildFromTemplate(
+        opts?.add
+          ? [{ label: `Add ${noun}`, click: () => choose('change') }]
+          : [
+              { label: `Change ${noun}`, click: () => choose('change') },
+              ...(opts?.noRemove ? [] : [{ label: `Remove ${noun}`, click: () => choose('remove') }]),
+            ],
+      )
       menu.popup({
         window: win,
         callback: () => {

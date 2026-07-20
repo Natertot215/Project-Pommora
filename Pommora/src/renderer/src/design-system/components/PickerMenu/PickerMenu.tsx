@@ -21,6 +21,15 @@ const VIEWPORT_MARGIN = 8 // keep the pane this far from the viewport edges
 // trigger's drag-handle ancestor and pointer-capture — which retargets the click to that handle and
 // steals it. Stopping it here immunizes every consumer, not only triggers that stop pointerdown themselves.
 const stopPointerBubble = (e: { stopPropagation: () => void }): void => e.stopPropagation()
+// Right-clicks over an open picker die here: portal contextmenu bubbles the COMPONENT tree into the
+// owner's native-menu handlers, popping a mis-targeted menu over the still-open picker.
+const stopContextBubble = (e: {
+  stopPropagation: () => void
+  preventDefault: () => void
+}): void => {
+  e.stopPropagation()
+  e.preventDefault()
+}
 
 // Uses the `dropdown` token (snappier, symmetric Bloom — same keyframes as the menu Bloom, shared with
 // AutocompletePanel). The beaked shell is the shared NotchedPane; this stays the picker-flavoured skin.
@@ -92,6 +101,19 @@ export function PickerMenu({
   const selfManaged = open !== undefined
   const { mounted, closing: exitClosing } = useExitPresence(open ?? true)
   const closing = selfManaged ? exitClosing : closingProp
+  // The Bloom law's enforcement: a picker unmounted while open/exiting skips its Bloom-out. Every
+  // consumer must mount persistently and drive `open` — this screams in dev when one doesn't.
+  const liveRef = useRef(false)
+  liveRef.current = selfManaged ? (open ?? false) || exitClosing : closingProp
+  useEffect(
+    () => () => {
+      if (import.meta.env.DEV && liveRef.current)
+        console.error(
+          '[PickerMenu] unmounted while open/exiting — Bloom-out skipped. Mount persistently and ride `open`.',
+        )
+    },
+    [],
+  )
   const paneRef = useRef<HTMLDivElement>(null)
   const markerRef = useRef<HTMLSpanElement>(null)
   const [pos, setPos] = useState<{
@@ -243,6 +265,7 @@ export function PickerMenu({
               className={s.backdrop}
               data-picker-portal
               onPointerDown={stopPointerBubble}
+              onContextMenu={stopContextBubble}
               onClick={onDismiss}
             />
           ) : null}
@@ -254,6 +277,7 @@ export function PickerMenu({
             // trigger's drag-handle ancestor and pointer-capture — stealing the click. Stop it here so any
             // consumer's picker is safe, not just ones whose trigger happens to stop pointerdown itself.
             onPointerDown={stopPointerBubble}
+            onContextMenu={stopContextBubble}
             style={{
               // Vertical panes anchor by `top`; sideways panes by `bottom` (aiming the side beak).
               ...(pos?.top !== undefined ? { top: `${pos.top}px` } : null),

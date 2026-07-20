@@ -32,17 +32,23 @@ import { resolveView } from '../pipeline/resolveView'
 import { useActiveView } from '../useActiveView'
 import { columnLabel, TIER_LEVEL_BY_ID } from '../Table/columnLabel'
 import { resolveContainerSchema } from '../Table/TableView'
+import { styleFor } from '../Table/columnStyles'
 import { writeTierValue } from '../tierWrite'
 import { buildSetIcons, buildSetNames } from '../Table/cellResolve'
 import { GroupBand, resolveBandHead } from '../GroupBand'
 import { buildResolveContext, type ResolveContext } from '../Table/resolveContext'
 import { NavCrumbs } from '../../../Navigation/NavList'
 import type { PathCrumb } from '../../../Navigation/navResolve'
-import { ADDABLE_TYPES, CardAddPicker } from './CardAddPicker'
+import { AddPickerRequest, CardPickerHost, ValuePickerRequest } from './CardPickerHost'
 import { CardValue } from './CardValue'
 import { bandShowsAdd } from './cardsBand'
 import { reorderIds } from './cardsOrder'
-import { type AddEntry, orderAddableEntries } from './cardValueInput'
+import {
+  type AddEntry,
+  addEntriesFor,
+  orderAddableEntries,
+  shownColumnsFor,
+} from './cardValueInput'
 import { hiddenListIds, hideShown, unhide } from '@renderer/Components/Detail/hiddenPaneModel'
 import { IconPicker } from '@renderer/Components/IconPicker'
 import { TextPicker } from '@renderer/design-system/components/TextPicker'
@@ -277,6 +283,13 @@ export function CardsView({ source }: { source: CollectionNode | SetNode }): Rea
   // a ref carries the live closures, the memo wrapper never changes reference. So a card bails on a
   // parent re-render that leaves its own inputs untouched — chiefly a band collapse in a large
   // container, which then repaints its header, not every card.
+  const openValuePicker = (req: ValuePickerRequest): void => setValuePicker(req)
+  const openAddPicker = (req: AddPickerRequest): void => setAddPicker(req)
+  // Re-pull the value batch (a cover write lands in page frontmatter, which loadValues never re-reads
+  // mid-session — without this the card's thumb waits for a container reopen).
+  const refreshValues = (): void => {
+    void window.nexus.loadValues(source.path).then((v) => setValues(v))
+  }
   const handlersRef = useRef({
     commitValue,
     setColumnStyle,
@@ -284,6 +297,9 @@ export function CardsView({ source }: { source: CollectionNode | SetNode }): Rea
     openPage,
     revealProperty,
     hideProperty,
+    openValuePicker,
+    openAddPicker,
+    refreshValues,
   })
   handlersRef.current = {
     commitValue,
@@ -292,6 +308,9 @@ export function CardsView({ source }: { source: CollectionNode | SetNode }): Rea
     openPage,
     revealProperty,
     hideProperty,
+    openValuePicker,
+    openAddPicker,
+    refreshValues,
   }
   const cardApi = useMemo(
     () => ({
@@ -303,6 +322,9 @@ export function CardsView({ source }: { source: CollectionNode | SetNode }): Rea
       onOpen: (row: ViewRow, newTab: boolean) => handlersRef.current.openPage(row, newTab),
       onReveal: (id: string) => handlersRef.current.revealProperty(id),
       onHide: (id: string) => handlersRef.current.hideProperty(id),
+      onOpenValuePicker: (req: ValuePickerRequest) => handlersRef.current.openValuePicker(req),
+      onOpenAddPicker: (req: AddPickerRequest) => handlersRef.current.openAddPicker(req),
+      onRefreshValues: () => handlersRef.current.refreshValues(),
     }),
     [],
   )
@@ -321,8 +343,35 @@ export function CardsView({ source }: { source: CollectionNode | SetNode }): Rea
     return m
   }, [groups, setChains, structural, hideLocation])
 
+  // The grid-level picker requests — ONE host owns the portal pickers so card remounts (regroup,
+  // re-sort, collapse) can never tear an open picker out mid-flight (CardPickerHost).
+  const [valuePicker, setValuePicker] = useState<ValuePickerRequest | null>(null)
+  const [addPicker, setAddPicker] = useState<AddPickerRequest | null>(null)
+  const rowById = useMemo(() => {
+    const m = new Map<string, ViewRow>()
+    for (const r of flattenGroups(groups)) m.set(r.id, r)
+    return m
+  }, [groups])
+
+  // The grid's EFFECTIVE zoom (embed zoom × block-zoom; 1 full-screen) — chips scale with it, not with
+  // card_size, so the ×-drop gate keys on it. Measured off computed style; RO catches block-zoom steps.
+  const rootRef = useRef<HTMLDivElement>(null)
+  const [effectiveZoom, setEffectiveZoom] = useState(1)
+  useEffect(() => {
+    const el = rootRef.current
+    if (!el) return
+    const measure = (): void => {
+      setEffectiveZoom(Number.parseFloat(getComputedStyle(el).zoom) || 1)
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
   return (
     <div
+      ref={rootRef}
       className={cx('cards-view', banner === 'none' && 'is-compact')}
       data-view-id={view.id}
       style={{ '--card-scale': view.card_size ?? 1 } as React.CSSProperties}
@@ -380,10 +429,13 @@ export function CardsView({ source }: { source: CollectionNode | SetNode }): Rea
                     loc={locByRow.get(row.id)}
                     onCommitValue={cardApi.onCommitValue}
                     onStyle={cardApi.onStyle}
-                    contextOptionsFor={cardApi.contextOptionsFor}
                     onOpen={cardApi.onOpen}
                     onReveal={cardApi.onReveal}
                     onHide={cardApi.onHide}
+                    onOpenValuePicker={cardApi.onOpenValuePicker}
+                    onOpenAddPicker={cardApi.onOpenAddPicker}
+                    onRefreshValues={cardApi.onRefreshValues}
+                    allowInlineRemove={effectiveZoom >= 0.8}
                   />
                 ))}
               </SortableZone>
@@ -391,6 +443,22 @@ export function CardsView({ source }: { source: CollectionNode | SetNode }): Rea
           </GroupBand>
         )
       })}
+      {ctx && (
+        <CardPickerHost
+          value={valuePicker}
+          add={addPicker}
+          rowById={rowById}
+          view={view}
+          ctx={ctx}
+          labels={labels}
+          columns={columns}
+          commitValue={commitValue}
+          contextOptionsFor={contextOptionsFor}
+          onReveal={revealProperty}
+          onDismissValue={() => setValuePicker(null)}
+          onDismissAdd={() => setAddPicker(null)}
+        />
+      )}
     </div>
   )
 }
@@ -474,10 +542,14 @@ interface PageCardProps {
   loc?: PathCrumb[]
   onCommitValue: (row: ViewRow, column: ResolvedColumn, value: PropertyValue | null) => void
   onStyle: (colId: string, key: keyof ColumnStyle & string, value: string) => void
-  contextOptionsFor: (column: ResolvedColumn) => ContextOption[] | null
   onOpen: (row: ViewRow, newTab: boolean) => void
   onReveal: (id: string) => void
   onHide: (id: string) => void
+  onOpenValuePicker: (req: ValuePickerRequest) => void
+  onOpenAddPicker: (req: AddPickerRequest) => void
+  onRefreshValues: () => void
+  /** False only when the embed zoom shrinks chips (≤0.8 effective) — drops multi-select's inline ×. */
+  allowInlineRemove: boolean
 }
 
 /**
@@ -496,20 +568,28 @@ function CardProperties({
   onCommitValue,
   onStyle,
   onHide,
-  contextOptionsFor,
+  onOpenValuePicker,
+  allowInlineRemove,
 }: Pick<
   PageCardProps,
-  'row' | 'view' | 'ctx' | 'labels' | 'onCommitValue' | 'onStyle' | 'onHide' | 'contextOptionsFor'
+  | 'row'
+  | 'view'
+  | 'ctx'
+  | 'labels'
+  | 'onCommitValue'
+  | 'onStyle'
+  | 'onHide'
+  | 'onOpenValuePicker'
+  | 'allowInlineRemove'
 > & {
   shown: ResolvedColumn[]
   onZoneClick: (e: React.MouseEvent) => void
 }): React.JSX.Element | null {
   if (!ctx || !labels) return null
   const compact = isCompact(view)
-  // Keep the inline chip-× only at a large-enough card scale: below it the × zone overlaps a short chip
-  // and steals the picker click, deleting the value.
-  const allowInlineRemove = (view.card_size ?? 1) >= 0.8
-  const style = (id: string): ColumnStyle => view.column_styles?.[id] ?? {}
+  // The RESOLVED style (type defaults under the saved entry) — the table's shared resolver, so the
+  // Style menu's checked radio reflects what actually renders (a raw entry leaves defaults unchecked).
+  const style = (id: string): ColumnStyle => styleFor(id, ctx.schema, view)
   const zoneClick = (e: React.MouseEvent): void => {
     if (e.target === e.currentTarget) onZoneClick(e)
   }
@@ -519,10 +599,12 @@ function CardProperties({
       column={c}
       ctx={ctx}
       style={style(c.id)}
-      contextOptions={contextOptionsFor(c)}
       onCommit={(col, v) => onCommitValue(row, col, v)}
       onStyle={onStyle}
       onHide={onHide}
+      onOpenPicker={(column, kind, anchor, clickX) =>
+        onOpenValuePicker({ rowId: row.id, column, kind, anchor, clickX })
+      }
       allowInlineRemove={allowInlineRemove}
     />
   )
@@ -563,23 +645,28 @@ const PageCard = memo(function PageCard({
   loc,
   onCommitValue,
   onStyle,
-  contextOptionsFor,
   onOpen,
   onReveal,
   onHide,
+  onOpenValuePicker,
+  onOpenAddPicker,
+  onRefreshValues,
+  allowInlineRemove,
 }: PageCardProps): React.JSX.Element {
   const drag = useDragItem(row.id)
   const version = useSession((s) => s.thumbVersions[`page:${row.id}`] ?? 0)
   const [failed, setFailed] = useState(false)
+  // A broken image latches `failed` — a cover change must retry the NEW src, not keep the placeholder.
+  const lastSrc = useRef<string | undefined>(undefined)
 
-  // The add-picker: the property zone's empty space AND the location row both open it,
-  // anchored to the card's text area. Lists the page's blank, pickable properties.
-  const [addOpen, setAddOpen] = useState(false)
+  // The add-picker opens at the GRID-LEVEL host (CardPickerHost), anchored to this card's text area —
+  // the property zone's empty space AND the location row both open it.
   const textRef = useRef<HTMLDivElement>(null)
   const openAdd = (e: React.MouseEvent): void => {
     e.stopPropagation()
     // Nothing addable → don't pop a dead-end empty picker (the native menu already omits its submenu).
-    if (!drag?.isDragging && addable.length > 0) setAddOpen(true)
+    if (!drag?.isDragging && addable.length > 0 && textRef.current)
+      onOpenAddPicker({ rowId: row.id, anchor: textRef.current, initialEntry: null })
   }
   // What shows is the view's VISIBLE property set (`columns` already honors hidden_properties).
   // Standard keeps a blank one as a labeled, fillable row (add = make it visible); Compact's
@@ -587,40 +674,18 @@ const PageCard = memo(function PageCard({
   // renders its own (unchecked) box and is the on-card toggle, so it stays.
   const compactLayout = isCompact(view)
   const shown = useMemo(
-    () =>
-      ctx
-        ? columns.filter(
-            (c) =>
-              c.kind !== 'title' &&
-              (!compactLayout ||
-                !isBlankValue(resolveFieldValue(row, c.id, ctx.schema)) ||
-                ctx.schema.find((d) => d.id === c.id)?.type === 'checkbox'),
-          )
-        : [],
+    () => (ctx ? shownColumnsFor(row, columns, ctx, compactLayout) : []),
     [ctx, columns, row, compactLayout],
   )
-  // The add menu is everything NOT currently shown: the Visibility hidden list (hidden tiers + hidden/
-  // unaccounted props) plus any schema prop that's revealed-but-blank (compact drops it, so it stays
-  // addable to re-fill). Each row's pane vs reveal-only split is computed below (see AddEntry).
-  const addable = useMemo<AddEntry[]>(() => {
-    if (!ctx || !labels) return []
-    const shownIds = new Set(shown.map((c) => c.id))
-    const bySchema = new Map(ctx.schema.map((d) => [d.id, d]))
-    const ids = [...new Set([...hiddenListIds(view, ctx.schema), ...ctx.schema.map((d) => d.id)])]
-    return ids
-      .filter((id) => !shownIds.has(id))
-      .map((id) => {
-        const def = bySchema.get(id) ?? null
-        const type = def?.type ?? 'context'
-        const blank = isBlankValue(resolveFieldValue(row, id, ctx.schema))
-        const revealOnly = !def || !ADDABLE_TYPES.has(type) || type === 'checkbox' || !blank
-        return { id, name: columnLabel(id, ctx.schema, labels), type, def, revealOnly }
-      })
-  }, [ctx, view, row, labels, shown])
+  // The add menu (addEntriesFor): everything NOT currently shown — the native menu lists it, and the
+  // grid-level host recomputes the same entries when its picker opens for this row.
+  const addable = useMemo<AddEntry[]>(
+    () => (ctx && labels ? addEntriesFor(row, view, ctx, labels, columns) : []),
+    [ctx, view, row, labels, columns],
+  )
   const mutate = useSession((s) => s.mutate)
   const [renameOpen, setRenameOpen] = useState(false)
   const [iconOpen, setIconOpen] = useState(false)
-  const [addPicked, setAddPicked] = useState<AddEntry | null>(null)
   // The card's native right-click menu: page meta (Open · Rename · Change Icon · Delete) + an
   // Add Property ▸ submenu — the add path for cards with no in-body add surface. A value right-click
   // is caught by CardValue's own menu (it stops propagation), so this handles the empty/title/thumb.
@@ -643,22 +708,42 @@ const PageCard = memo(function PageCard({
       // A reveal-only entry (tier/context, hidden-filled, checkbox) just unhides; a pane entry opens
       // the value pane to set a value.
       if (entry.revealOnly) onReveal(entry.id)
-      else {
-        setAddPicked(entry)
-        setAddOpen(true)
-      }
+      else if (textRef.current)
+        onOpenAddPicker({ rowId: row.id, anchor: textRef.current, initialEntry: entry })
     }
   }
   const hasProps = shown.length > 0
   const crumbs = loc ?? []
 
   const cover = typeof row.frontmatter.cover === 'string' ? row.frontmatter.cover : undefined
+  // Right-click the image band → the page-banner menu (the PageHeader flow), worded for the view's
+  // display config: Cover mode says Cover, Preview says Banner (it edits the page banner either way —
+  // the one settable image; a Preview thumb itself is a capture, not a pickable file).
+  const onThumbContextMenu = async (e: React.MouseEvent): Promise<void> => {
+    e.preventDefault()
+    e.stopPropagation()
+    const noun = banner === 'cover' ? 'Cover' : 'Banner'
+    const action = await window.nexus.bannerMenu(cover ? { noun } : { noun, add: true })
+    if (!action) return
+    if (action === 'remove') {
+      if (await mutate({ op: 'setBanner', path: row.path, kind: 'page', dataUrl: null }))
+        onRefreshValues()
+      return
+    }
+    const dataUrl = await window.nexus.pickImage()
+    if (dataUrl && (await mutate({ op: 'setBanner', path: row.path, kind: 'page', dataUrl })))
+      onRefreshValues()
+  }
   const src =
     banner === 'cover'
       ? cover && assetUrl(cover)
       : banner === 'preview'
         ? thumbSrc(nexusId, row.id, version)
         : undefined
+  if (src !== lastSrc.current) {
+    lastSrc.current = src
+    if (failed) setFailed(false)
+  }
   const iconName = iconNameOr(row.icon, defaultEntityIcon('page'))
   const titleBody = (
     <>
@@ -696,7 +781,8 @@ const PageCard = memo(function PageCard({
     >
       <div className="page-card-body hover-pop">
         {banner !== 'none' && (
-          <div className="page-card-thumb">
+          // biome-ignore lint/a11y/noStaticElementInteractions: right-click surface for the banner menu.
+          <div className="page-card-thumb" onContextMenu={(e) => void onThumbContextMenu(e)}>
             {src && !failed ? (
               <img src={src} alt="" onError={() => setFailed(true)} />
             ) : (
@@ -732,7 +818,8 @@ const PageCard = memo(function PageCard({
               onCommitValue={onCommitValue}
               onStyle={onStyle}
               onHide={onHide}
-              contextOptionsFor={contextOptionsFor}
+              onOpenValuePicker={onOpenValuePicker}
+              allowInlineRemove={allowInlineRemove}
               onZoneClick={openAdd}
             />
           )}
@@ -744,47 +831,27 @@ const PageCard = memo(function PageCard({
           )}
         </div>
       </div>
-      {addOpen && ctx && (
-        <CardAddPicker
-          entries={addable}
-          currentOf={(e) => resolveFieldValue(row, e.id, ctx.schema)}
-          open={addOpen}
-          anchorRef={textRef}
-          initialEntry={addPicked}
-          onCommit={(e, v) => {
-            onReveal(e.id)
-            onCommitValue(row, { id: e.id, kind: 'property' }, v)
-          }}
-          onReveal={(e) => onReveal(e.id)}
-          onDismiss={() => {
-            setAddOpen(false)
-            setAddPicked(null)
-          }}
-        />
-      )}
-      {renameOpen && (
-        <TextPicker
-          open={renameOpen}
-          triggerRef={textRef}
-          value={row.title}
-          onCommit={(name) => {
-            setRenameOpen(false)
-            const t = name.trim()
-            if (t && t !== row.title)
-              void mutate({ op: 'rename', path: row.path, kind: 'page', newName: t })
-          }}
-          onDismiss={() => setRenameOpen(false)}
-        />
-      )}
-      {iconOpen && (
-        <IconPicker
-          open={iconOpen}
-          triggerRef={textRef}
-          value={typeof row.icon === 'string' ? row.icon : undefined}
-          onSelect={(icon) => void mutate({ op: 'setIcon', path: row.path, kind: 'page', icon })}
-          onClose={() => setIconOpen(false)}
-        />
-      )}
+      {/* Persistent mounts riding `open` — the Bloom-out plays on dismiss (conditional mounts tear
+          the instance out mid-exit). The add-picker lives at the grid-level host, not here. */}
+      <TextPicker
+        open={renameOpen}
+        triggerRef={textRef}
+        value={row.title}
+        onCommit={(name) => {
+          setRenameOpen(false)
+          const t = name.trim()
+          if (t && t !== row.title)
+            void mutate({ op: 'rename', path: row.path, kind: 'page', newName: t })
+        }}
+        onDismiss={() => setRenameOpen(false)}
+      />
+      <IconPicker
+        open={iconOpen}
+        triggerRef={textRef}
+        value={typeof row.icon === 'string' ? row.icon : undefined}
+        onSelect={(icon) => void mutate({ op: 'setIcon', path: row.path, kind: 'page', icon })}
+        onClose={() => setIconOpen(false)}
+      />
     </div>
   )
 })

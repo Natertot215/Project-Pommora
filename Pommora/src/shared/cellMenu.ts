@@ -57,7 +57,8 @@ export function cellMenuContextFor(
   const base = baseCellMenu(col, type, style, filled, barCapable)
   // Cards let any non-title cell drop its property (hideable): a cell that would otherwise have no menu
   // (an empty picker, a file) still gets a bare Remove; every other cell gets Remove appended below.
-  if (base === null) return hideable ? { kind: 'remove-only' } : null
+  // remove-only must CARRY the hideable flag — the model appends Remove only when it sees it.
+  if (base === null) return hideable ? { kind: 'remove-only', hideable: true } : null
   return hideable ? { ...base, hideable: true } : base
 }
 

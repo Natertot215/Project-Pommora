@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cellMenuContextFor, cellMenuModel } from './cellMenu'
+import { type CellMenuContext, cellMenuContextFor, cellMenuModel } from './cellMenu'
 import type { ResolvedColumn } from './types'
 
 describe('cellMenuModel', () => {
@@ -168,8 +168,14 @@ describe('cellMenuContextFor', () => {
       kind: 'clear-only',
       hideable: true,
     })
-    // Empty select would be null (no menu) — but hideable still needs a Remove, so it's remove-only.
-    expect(cellMenuContextFor(prop(), 'select', {}, false, true)).toEqual({ kind: 'remove-only' })
-    expect(cellMenuContextFor(prop(), undefined, {}, true, true)).toEqual({ kind: 'remove-only' })
+    // Empty select would be null (no menu) — but hideable still needs a Remove: remove-only MUST carry
+    // the hideable flag, or the model appends nothing and the menu never pops (the composition seam).
+    const ctx = cellMenuContextFor(prop(), 'select', {}, false, true)
+    expect(ctx).toEqual({ kind: 'remove-only', hideable: true })
+    expect(cellMenuModel(ctx as CellMenuContext).items.map((i) => i.action)).toEqual(['cell:hide'])
+    expect(cellMenuContextFor(prop(), undefined, {}, true, true)).toEqual({
+      kind: 'remove-only',
+      hideable: true,
+    })
   })
 })
