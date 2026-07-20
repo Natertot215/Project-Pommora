@@ -4,15 +4,13 @@ import type { PropertyValue } from '@shared/propertyValue'
 import { isValidLink } from '@shared/links'
 import { Icon } from '@renderer/design-system/symbols'
 import { PickerMenu } from '@renderer/design-system/components/PickerMenu/PickerMenu'
-import { CalendarPicker } from '@renderer/design-system/components/CalendarPicker/CalendarPicker'
 import { MenuItem, MenuPaneTopRow } from '@renderer/design-system/components/menu'
 import { flushTrailing } from '@renderer/design-system/components/menu/menu.css'
 import { PaneSlider } from '@renderer/Components/Detail/PaneSlider'
 import { propertyTypeIconName } from '@renderer/Components/Detail/PropertyTypes'
-import { useSession } from '../../../store'
 import { PropertyOptionRows, pickSemantics } from '../PropertyEditing/PropertyPicker'
 import { PropertyEditor } from '../PropertyEditing/PropertyEditor'
-import { formatDate } from '../PropertyEditing/formatValue'
+import { DatetimeValuePicker } from '../PropertyEditing/DatetimeValuePicker'
 import { type AddEntry, orderAddableEntries, parseEditorValue } from './cardValueInput'
 import { compactRow } from './cardAddPicker.css'
 import { cx } from '@renderer/design-system/cx'
@@ -46,19 +44,13 @@ function ValuePane({
 }): React.JSX.Element {
   const topRow = <MenuPaneTopRow label="Properties" current={def.name} onBack={onBack} />
   if (def.type === 'datetime') {
+    // Stay open on change (mirrors the card value's datetime edit) so day AND time can both be set —
+    // the outside-click dismiss commits the pending via CalendarPicker's unmount flush; routing onDone
+    // through onCommit here would close the pane on the first date click.
     return (
       <>
         {topRow}
-        <CalendarPicker
-          range={false}
-          value={current?.kind === 'datetime' ? current.value : null}
-          timeFormat={useSession.getState().tree?.timeFormat}
-          formatDateValue={(k) => formatDate(k, 'full', 'none')}
-          // Stay open on change (mirrors the card value's datetime edit) so day AND time can both be set
-          // — the outside-click dismiss commits the pending via CalendarPicker's unmount flush. onDone()
-          // here would close the pane on the first date click.
-          onChange={(iso) => onCommit(iso ? { kind: 'datetime', value: iso } : null)}
-        />
+        <DatetimeValuePicker value={current} onCommit={onCommit} />
       </>
     )
   }

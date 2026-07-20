@@ -22,7 +22,8 @@ import { contextOptionsFor as contextOptionsForTier } from '../pipeline/contextO
 import { declaredType, resolveFieldValue } from '../pipeline/value'
 import { resolvedSortCount, resolveManualOrder } from '../pipeline/sort'
 import { PropertyEditor } from '../PropertyEditing/PropertyEditor'
-import { PropertyPicker } from '../PropertyEditing/PropertyPicker'
+import { PropertyPicker, syntheticContextDef } from '../PropertyEditing/PropertyPicker'
+import { DatetimeValuePicker } from '../PropertyEditing/DatetimeValuePicker'
 import { nextCycleValue } from '../PropertyEditing/statusCycle'
 import { useSession } from '../../../store'
 import { findCollectionForSet } from '../../Scope'
@@ -31,6 +32,7 @@ import { useActiveView } from '../useActiveView'
 import { useSaveView } from '@renderer/Embeds/ViewEmbedScope'
 import type { SetTreeNode } from '../pipeline/group'
 import { buildResolveContext, type ResolveContext } from './resolveContext'
+import { writeTierValue } from '../tierWrite'
 import { buildSetIcons, buildSetNames, buildSetPaths } from './cellResolve'
 import { BandDnd, type BandDrop } from './bandDnd'
 import {
@@ -56,10 +58,9 @@ import { cx } from '@renderer/design-system/cx'
 import { text } from '@renderer/design-system/tokens'
 import { IconPicker } from '@renderer/Components/IconPicker'
 import { Icon } from '@renderer/design-system/symbols'
-import { CalendarPicker } from '@renderer/design-system/components/CalendarPicker/CalendarPicker'
 import { PickerMenu } from '@renderer/design-system/components/PickerMenu/PickerMenu'
 import { TextPicker } from '@renderer/design-system/components/TextPicker'
-import { condensedDate, formatDate, numberDivisor } from '../PropertyEditing/formatValue'
+import { numberDivisor } from '../PropertyEditing/formatValue'
 import { ACTIVATION } from '@renderer/design-system/interactions/shared'
 import { TableRowDnd, useTableRowDrag } from './tableDnd'
 import { solidColorCss } from './solidColor'
@@ -621,10 +622,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // A reserved tier column writes the BARE frontmatter array (`tier1/2/3`) through its own op;
   // a user context prop writes through setProperty like every other property value.
   const commitTierValue = (row: ViewRow, colId: string, ids: string[]): void => {
-    const tier = TIER_LEVEL_BY_ID[colId]
-    const patched = { ...row.frontmatter, [`tier${tier}`]: ids } as PageFrontmatter
-    setValueOverride((prev) => ({ ...prev, [row.id]: patched }))
-    void mutate({ op: 'setTier', path: row.path, tier, contextIds: ids })
+    writeTierValue(row, colId, ids, row.frontmatter, setValueOverride, mutate)
   }
   // A chip's hover × commits whatever remains after that chip (Phase 3): the picker's exact
   // routing — a reserved tier column through setTier, everything else through setProperty.
@@ -808,22 +806,12 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     const dismiss = (): void => setEditing(null)
     if (col.kind === 'property' && declaredType(col.id, schema) === 'datetime') {
       const v = resolveFieldValue(row, col.id, schema)
-      const rawFmt = colStyle(col.id).date_format ?? 'full'
-      const dateFmt = rawFmt === 'relative' ? 'short' : rawFmt
       return (
         <DatetimeCellPicker key={key} open={open} triggerRef={triggerElRef} onDismiss={dismiss}>
-          <CalendarPicker
-            range={false}
-            value={v.kind === 'datetime' ? v.value : null}
-            timeFormat={tree?.timeFormat}
-            formatDateValue={(k, condensed) =>
-              condensed
-                ? condensedDate(k, dateFmt, condensed.withYear)
-                : formatDate(k, dateFmt, 'none')
-            }
-            onChange={(iso) =>
-              commitCellValue(row, col.id, iso ? { kind: 'datetime', value: iso } : null)
-            }
+          <DatetimeValuePicker
+            value={v}
+            dateFormat={colStyle(col.id).date_format}
+            onCommit={(nv) => commitCellValue(row, col.id, nv)}
           />
         </DatetimeCellPicker>
       )
@@ -833,7 +821,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     // whose options come from `contextOptions` anyway.
     const def =
       schema.find((d) => d.id === col.id) ??
-      (contextOptions ? { id: col.id, name: '', type: 'context' as const } : undefined)
+      (contextOptions ? syntheticContextDef(col.id) : undefined)
     if (!def) return null
     return (
       <PropertyPicker
@@ -920,7 +908,10 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     // the rename popover can't read `e.currentTarget` then (it anchors the TextPicker off this cell).
     const cellEl = e.currentTarget as HTMLElement
     const filled = !isBlankValue(resolveFieldValue(row, col.id, schema))
-    const ctx = cellMenuContextFor(col, declaredType(col.id, schema), colStyle(col.id), filled)
+    const dt = declaredType(col.id, schema)
+    const barCapable =
+      dt === 'number' && numberDivisor(schema.find((d) => d.id === col.id)) !== undefined
+    const ctx = cellMenuContextFor(col, dt, colStyle(col.id), filled, false, barCapable)
     if (!ctx) return
     if (ctx.kind === 'title') {
       const { tabs, pins } = useSession.getState()

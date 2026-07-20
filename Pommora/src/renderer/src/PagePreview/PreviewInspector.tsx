@@ -8,7 +8,6 @@ import { cx } from '@renderer/design-system/cx'
 import { asRenderableIcon, defaultEntityIcon, Icon } from '@renderer/design-system/symbols'
 import { propertyTypeIconName } from '../Components/Detail/PropertyTypes'
 import { text } from '@renderer/design-system/tokens'
-import { CalendarPicker } from '@renderer/design-system/components/CalendarPicker/CalendarPicker'
 import { PickerMenu, PickerOption } from '@renderer/design-system/components/PickerMenu'
 import { MenuItem } from '@renderer/design-system/components/menu'
 import { iconOption } from '../Components/Detail/pickerControl.css'
@@ -17,8 +16,8 @@ import { buildContextsById, type ResolveContext } from '../Detail/Views/Table/re
 import { contextOptionsFor } from '../Detail/Views/pipeline/contextOptions'
 import { TIER_LEVEL_BY_ID } from '../Detail/Views/Table/columnLabel'
 import { PropertyEditor } from '../Detail/Views/PropertyEditing/PropertyEditor'
-import { PropertyPicker } from '../Detail/Views/PropertyEditing/PropertyPicker'
-import { formatDate } from '../Detail/Views/PropertyEditing/formatValue'
+import { PropertyPicker, syntheticContextDef } from '../Detail/Views/PropertyEditing/PropertyPicker'
+import { DatetimeValuePicker } from '../Detail/Views/PropertyEditing/DatetimeValuePicker'
 import { resolveFieldValue } from '../Detail/Views/pipeline/value'
 import { isValidLink } from '@shared/links'
 import { RESERVED_PROPERTY_ID } from '@shared/properties'
@@ -144,9 +143,7 @@ export function PreviewInspector({ target }: { target: PreviewTarget }): React.J
   const editingDef =
     editing &&
     (schema.find((d) => d.id === editing.id) ??
-      (TIER_LEVEL_BY_ID[editing.id]
-        ? { id: editing.id, name: '', type: 'context' as const }
-        : undefined))
+      (TIER_LEVEL_BY_ID[editing.id] ? syntheticContextDef(editing.id) : undefined))
   const TIER_ENTITY: Record<string, 'area' | 'topic' | 'project'> = {
     [RESERVED_PROPERTY_ID.tier1]: 'area',
     [RESERVED_PROPERTY_ID.tier2]: 'topic',
@@ -335,17 +332,9 @@ export function PreviewInspector({ target }: { target: PreviewTarget }): React.J
       )}
       {editing?.mode === 'date' && (
         <PickerMenu solid open onDismiss={closeEditing} triggerRef={triggerRef}>
-          <CalendarPicker
-            range={false}
-            value={(() => {
-              const v = resolveFieldValue(row, editing.id, schema)
-              return v.kind === 'datetime' ? v.value : null
-            })()}
-            timeFormat={tree?.timeFormat}
-            formatDateValue={(k) => formatDate(k, 'full', 'none')}
-            onChange={(iso) => {
-              commitValue(editing.id, iso ? { kind: 'datetime', value: iso } : null)
-            }}
+          <DatetimeValuePicker
+            value={resolveFieldValue(row, editing.id, schema)}
+            onCommit={(v) => commitValue(editing.id, v)}
           />
         </PickerMenu>
       )}

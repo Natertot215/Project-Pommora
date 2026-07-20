@@ -25,6 +25,18 @@ const selectedValues = (current: PropertyValue | null): string[] => {
   return []
 }
 
+/** Multi-select toggle: drop the value when it's already selected, else append it. */
+export const toggleValue = (selected: string[], value: string): string[] =>
+  selected.includes(value) ? selected.filter((v) => v !== value) : [...selected, value]
+
+/** The minimal def a context-only column with no schema entry (a reserved tier) feeds the picker —
+ *  its real options arrive through `contextOptions`, so the name goes unused. */
+export const syntheticContextDef = (id: string): PropertyDefinition => ({
+  id,
+  name: '',
+  type: 'context',
+})
+
 /**
  * The value dropdown every container view's status/select/multi cells share (F-2: PickerMenu for
  * values, native menus for meta). Table-agnostic and stateless: props in, `onCommit(PropertyValue)`
@@ -62,23 +74,13 @@ export function PropertyPicker({
   onCommit: (value: PropertyValue | null) => void
   onDismiss: () => void
 }): React.JSX.Element | null {
-  const options = contextOptions ?? optionsOf(def)
-  const multi = def.type === 'multi_select' || contextOptions !== undefined
-  const selected = selectedValues(current)
-
-  const pick = (value: string): void => {
-    if (multi) {
-      const next = selected.includes(value)
-        ? selected.filter((v) => v !== value)
-        : [...selected, value]
-      onCommit(
-        contextOptions ? { kind: 'context', value: next } : { kind: 'multiSelect', value: next },
-      )
-      return
-    }
-    onCommit(def.type === 'status' ? { kind: 'status', value } : { kind: 'select', value })
-    onDismiss()
-  }
+  const { options, selected, pick } = pickSemantics(
+    def,
+    current,
+    onCommit,
+    onDismiss,
+    contextOptions,
+  )
 
   return (
     <PickerMenu
@@ -151,27 +153,30 @@ export function PropertyOptionRows({
   )
 }
 
-/** The two-stage picker's shared option plumbing — options + selection + the per-type commit,
- *  extracted so a host pane (the cards add-picker) reuses PropertyPicker's exact semantics. */
+/** The picker's shared option plumbing — options + selection + the per-type commit, extracted so
+ *  both PropertyPicker's own menu and a host pane (the cards add-picker) run the exact same semantics.
+ *  A `contextOptions` list swaps the options source and makes the pick toggle+commit `context` (the
+ *  reserved tiers + user context props); without it, def-driven select/status/multi. */
 export function pickSemantics(
   def: PropertyDefinition,
   current: PropertyValue | null,
   onCommit: (value: PropertyValue | null) => void,
   onSinglePicked: () => void,
+  contextOptions?: Array<{ value: string; label: string; color?: string }>,
 ): {
   options: Array<{ value: string; label: string; color?: string }>
   selected: string[]
   pick: (value: string) => void
 } {
-  const options = optionsOf(def)
-  const multi = def.type === 'multi_select'
+  const options = contextOptions ?? optionsOf(def)
+  const multi = def.type === 'multi_select' || contextOptions !== undefined
   const selected = selectedValues(current)
   const pick = (value: string): void => {
     if (multi) {
-      const next = selected.includes(value)
-        ? selected.filter((v) => v !== value)
-        : [...selected, value]
-      onCommit({ kind: 'multiSelect', value: next })
+      const next = toggleValue(selected, value)
+      onCommit(
+        contextOptions ? { kind: 'context', value: next } : { kind: 'multiSelect', value: next },
+      )
       return
     }
     onCommit(def.type === 'status' ? { kind: 'status', value } : { kind: 'select', value })

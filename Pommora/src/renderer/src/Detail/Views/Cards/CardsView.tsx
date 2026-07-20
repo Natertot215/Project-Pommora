@@ -32,6 +32,7 @@ import { resolveView } from '../pipeline/resolveView'
 import { useActiveView } from '../useActiveView'
 import { columnLabel, TIER_LEVEL_BY_ID } from '../Table/columnLabel'
 import { resolveContainerSchema } from '../Table/TableView'
+import { writeTierValue } from '../tierWrite'
 import { buildSetIcons, buildSetNames } from '../Table/cellResolve'
 import { GroupBand, resolveBandHead } from '../GroupBand'
 import { buildResolveContext, type ResolveContext } from '../Table/resolveContext'
@@ -105,11 +106,15 @@ export function CardsView({ source }: { source: CollectionNode | SetNode }): Rea
   // `tierN` frontmatter array through setTier; everything else is a property write.
   const commitValue = (row: ViewRow, column: ResolvedColumn, value: PropertyValue | null): void => {
     if (column.kind === 'tier') {
-      const tier = TIER_LEVEL_BY_ID[column.id]
       const ids = value?.kind === 'context' ? value.value : []
-      const prior = effectiveValues[row.id] ?? { id: row.id }
-      setValueOverride((prev) => ({ ...prev, [row.id]: { ...prior, [`tier${tier}`]: ids } }))
-      void mutate({ op: 'setTier', path: row.path, tier, contextIds: ids })
+      writeTierValue(
+        row,
+        column.id,
+        ids,
+        effectiveValues[row.id] ?? { id: row.id },
+        setValueOverride,
+        mutate,
+      )
       return
     }
     setProperty(row, column.id, value)

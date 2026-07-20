@@ -238,6 +238,17 @@
 .card-value .cell-switch {
   zoom: var(--switch-zoom);
 }
+/* A number's Bar look takes the FULL row width so the ProgressBar renders full (its track is width:100%,
+   which would otherwise collapse to a sliver in the shrink-to-fit value): in Compact it breaks onto its
+   own line, in Standard it fills the value area beside the label. The bar itself spans that width. */
+.card-props.is-flow > span:has(.cell-bar) {
+  flex-basis: 100%;
+}
+.card-value:has(.cell-bar) {
+  flex: 1;
+  width: 100%;
+  overflow: visible;
+}
 /* A visible-but-empty property row's placeholder (Standard) — a "--" fill-me affordance in the label's
    own emphasized tone (it reads as the row's empty half); the whole .card-value stays the click target. */
 .card-value-empty {

@@ -34,6 +34,9 @@ export interface ColumnMenuContext {
 export interface StyleMenuContext {
   type: PropertyType
   current: ColumnStyle
+  /** Number only: whether the value can render a bar (percent, or fraction + a denominator). Gates the
+   *  'Bar' look out when there's no max to fill against — otherwise picking it silently shows text. */
+  barCapable?: boolean
 }
 
 /** One Style submenu row — a radio keyed by the ColumnStyle field it sets. `separatorBefore`
@@ -72,7 +75,9 @@ export function styleMenuItems(ctx: StyleMenuContext): StyleMenuItem[] {
     case 'file':
       return [look('Filename', 'filename'), look('Full Path', 'path')]
     case 'number':
-      return [look('Number', 'number'), look('Bar', 'bar')]
+      return ctx.barCapable
+        ? [look('Number', 'number'), look('Bar', 'bar')]
+        : [look('Number', 'number')]
     case 'datetime':
     case 'last_edited_time': {
       const date = row('date_format', current.date_format)

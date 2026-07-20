@@ -6,19 +6,18 @@ import type { ColumnStyle } from '@shared/columnStyles'
 import { cellMenuContextFor } from '@shared/cellMenu'
 import { parseStyleAction } from '@shared/columnMenu'
 import { PickerMenu } from '@renderer/design-system/components/PickerMenu/PickerMenu'
-import { CalendarPicker } from '@renderer/design-system/components/CalendarPicker/CalendarPicker'
 import { cx } from '@renderer/design-system/cx'
 import { text } from '@renderer/design-system/tokens/typography.css'
-import { useSession } from '../../../store'
 import { declaredType, resolveFieldValue } from '../pipeline/value'
 import type { ContextOption } from '../pipeline/contextOptions'
 import { Cell } from '../Table/Cell'
 import { parseLink, urlClickTarget, urlValueFromEdit, urlValueFromRename } from '../Table/linkValue'
 import { parseEditorValue } from './cardValueInput'
 import type { ResolveContext } from '../Table/resolveContext'
-import { PropertyPicker } from '../PropertyEditing/PropertyPicker'
+import { PropertyPicker, syntheticContextDef } from '../PropertyEditing/PropertyPicker'
 import { PropertyEditor } from '../PropertyEditing/PropertyEditor'
-import { formatDate } from '../PropertyEditing/formatValue'
+import { DatetimeValuePicker } from '../PropertyEditing/DatetimeValuePicker'
+import { numberDivisor } from '../PropertyEditing/formatValue'
 import { nextCycleValue } from '../PropertyEditing/statusCycle'
 
 /**
@@ -115,7 +114,8 @@ export function CardValue({
   const onContextMenu = async (e: React.MouseEvent): Promise<void> => {
     e.preventDefault()
     e.stopPropagation()
-    const menuCtx = cellMenuContextFor(column, dt, style, !isBlankValue(v), true)
+    const barCapable = dt === 'number' && numberDivisor(schemaDef) !== undefined
+    const menuCtx = cellMenuContextFor(column, dt, style, !isBlankValue(v), true, barCapable)
     if (!menuCtx) return
     const action = await window.nexus.cellMenu(menuCtx)
     if (!action) return
@@ -192,23 +192,11 @@ export function CardValue({
           calendar is gated on the column TYPE, so non-datetime cells never allocate it. */}
       {t === 'datetime' && (
         <PickerMenu solid open={mode === 'datetime'} onDismiss={dismiss} triggerRef={anchorRef}>
-          <CalendarPicker
-            range={false}
-            value={v.kind === 'datetime' ? v.value : null}
-            timeFormat={useSession.getState().tree?.timeFormat}
-            formatDateValue={(k) =>
-              formatDate(
-                k,
-                style.date_format === 'relative' ? 'short' : (style.date_format ?? 'full'),
-                'none',
-              )
-            }
-            onChange={(iso) => commit(iso ? { kind: 'datetime', value: iso } : null)}
-          />
+          <DatetimeValuePicker value={v} dateFormat={style.date_format} onCommit={commit} />
         </PickerMenu>
       )}
       <PropertyPicker
-        def={schemaDef ?? { id: column.id, name: '', type: 'context' as const }}
+        def={schemaDef ?? syntheticContextDef(column.id)}
         current={v}
         open={mode === 'picker'}
         triggerRef={anchorRef}

@@ -19,7 +19,12 @@ describe('cellMenuModel', () => {
   })
 
   it('style-only: the per-type Style radios, no plain items', () => {
-    const m = cellMenuModel({ kind: 'style-only', type: 'number', current: { look: 'bar' } })
+    const m = cellMenuModel({
+      kind: 'style-only',
+      type: 'number',
+      current: { look: 'bar' },
+      barCapable: true,
+    })
     expect(m.items).toEqual([])
     expect(m.style?.map((r) => r.label)).toEqual(['Number', 'Bar'])
   })
@@ -137,6 +142,15 @@ describe('cellMenuContextFor', () => {
       kind: 'style-only',
       type: 'number',
       current: {},
+    })
+  })
+
+  it('number carries barCapable only when a bar can render (gates the Bar look)', () => {
+    expect(cellMenuContextFor(prop(), 'number', {}, true, false, true)).toEqual({
+      kind: 'style-only',
+      type: 'number',
+      current: {},
+      barCapable: true,
     })
   })
 

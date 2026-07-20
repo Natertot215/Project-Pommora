@@ -13,7 +13,13 @@ import type { ResolvedColumn } from './types'
  *  bare case for a cell that would otherwise have no menu (an empty picker, a file). */
 type CellMenuKind =
   | { kind: 'title'; alreadyOpen?: boolean }
-  | { kind: 'style-only'; type: PropertyType; current: ColumnStyle; clearable?: boolean }
+  | {
+      kind: 'style-only'
+      type: PropertyType
+      current: ColumnStyle
+      clearable?: boolean
+      barCapable?: boolean
+    }
   | { kind: 'style-edit'; type: 'url' | 'file'; current: ColumnStyle }
   | { kind: 'link'; filled: boolean }
   | { kind: 'clear-only' }
@@ -46,8 +52,9 @@ export function cellMenuContextFor(
   style: ColumnStyle,
   filled: boolean,
   hideable = false,
+  barCapable = false,
 ): CellMenuContext | null {
-  const base = baseCellMenu(col, type, style, filled)
+  const base = baseCellMenu(col, type, style, filled, barCapable)
   // Cards let any non-title cell drop its property (hideable): a cell that would otherwise have no menu
   // (an empty picker, a file) still gets a bare Remove; every other cell gets Remove appended below.
   if (base === null) return hideable ? { kind: 'remove-only' } : null
@@ -59,6 +66,7 @@ function baseCellMenu(
   type: PropertyType | 'title' | 'tier' | undefined,
   style: ColumnStyle,
   filled: boolean,
+  barCapable: boolean,
 ): CellMenuKind | null {
   if (col.kind === 'title') return { kind: 'title' }
   if (col.kind === 'tier') return filled ? { kind: 'clear-only' } : null
@@ -67,7 +75,12 @@ function baseCellMenu(
   if (type === 'status' || type === 'datetime')
     return { kind: 'style-only', type, current: style, clearable: filled }
   if (type === 'checkbox' || type === 'number' || type === 'last_edited_time') {
-    return { kind: 'style-only', type, current: style }
+    return {
+      kind: 'style-only',
+      type,
+      current: style,
+      ...(type === 'number' && barCapable ? { barCapable: true } : {}),
+    }
   }
   if (type === 'select' || type === 'multi_select' || type === 'context') {
     return filled ? { kind: 'clear-only' } : null
@@ -102,7 +115,7 @@ function baseCellMenuModel(ctx: CellMenuContext): CellMenuModel {
     case 'style-only':
       return {
         items: ctx.clearable ? [{ label: 'Clear', action: 'cell:clear' }] : [],
-        style: styleMenuItems({ type: ctx.type, current: ctx.current }),
+        style: styleMenuItems({ type: ctx.type, current: ctx.current, barCapable: ctx.barCapable }),
       }
     case 'style-edit':
       return {

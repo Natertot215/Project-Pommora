@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { parseStyleAction, styleMenuItems, type StyleMenuContext } from './columnMenu'
 
-const items = (type: StyleMenuContext['type'], current: StyleMenuContext['current'] = {}) =>
-  styleMenuItems({ type, current })
+const items = (
+  type: StyleMenuContext['type'],
+  current: StyleMenuContext['current'] = {},
+  barCapable = false,
+) => styleMenuItems({ type, current, barCapable })
 
 describe('styleMenuItems', () => {
   it('status offers the three looks, current checked', () => {
@@ -28,12 +31,14 @@ describe('styleMenuItems', () => {
     ])
   })
 
-  it('number offers the Number/Bar look radios', () => {
-    const rows = items('number', { look: 'bar' })
+  it('number offers Bar only when bar-capable; plain numbers get Number alone', () => {
+    const rows = items('number', { look: 'bar' }, true)
     expect(rows.map((r) => [r.label, r.key, r.value, r.checked])).toEqual([
       ['Number', 'look', 'number', false],
       ['Bar', 'look', 'bar', true],
     ])
+    // No max to fill against → Bar is gated out (picking it would silently show text).
+    expect(items('number', { look: 'number' }).map((r) => r.label)).toEqual(['Number'])
   })
 
   it('datetime lists dates, then weekdays, then times — each group behind a separator', () => {
