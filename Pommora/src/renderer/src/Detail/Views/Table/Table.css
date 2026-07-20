@@ -63,7 +63,7 @@
 
 /* — Header — */
 .table-head {
-  /* weight/size come from the text.body.semibold alias on each .col-header — no raw font-weight here
+  /* weight/size come from the text.callout.semibold alias on each .col-header — no raw font-weight here
      (§G: typography via aliases only). */
   background: var(--heading-fill);
   color: var(--heading-text);

@@ -166,6 +166,9 @@ export const chipRemove = style({
   transition: 'opacity var(--duration-fast) var(--ease-standard)',
   selectors: {
     '&:hover': { opacity: 1 },
+    // On a Context chip (neutral fill), inherit reads the mostly-neutral text mix — paint the × in the
+    // context's own saturated color instead, so it reads as part of the colored chip.
+    [`${chipContext} &`]: { color: 'var(--chip-accent)' },
   },
 })
 
@@ -238,7 +241,13 @@ export const chipLabelBlur = style({
  *  the fill (ContextChip's neutral quaternary) must override `--chip-fill` alongside it. */
 const chipTint = (base: string): ReturnType<typeof tint> & { vars: Record<string, string> } => ({
   ...tint(base),
-  vars: { '--chip-fill': tintAt(base, TINT_STEPS.primary) },
+  vars: {
+    '--chip-fill': tintAt(base, TINT_STEPS.primary),
+    // The chip's saturated identity color, for surfaces that want the color itself rather than tint's
+    // mostly-neutral text mix — the ContextChip's × paints in it (see chipRemove) so the remove reads
+    // as the context's color over the neutral fill instead of a colorless glyph.
+    '--chip-accent': base,
+  },
 })
 
 export const chipColor = styleVariants({

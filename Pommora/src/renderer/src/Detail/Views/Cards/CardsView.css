@@ -30,7 +30,20 @@
 }
 .cards-view.is-compact {
   --band-gap: 14px; /* KNOB — the tightened band rhythm under imageless cards */
-  --card-body-min: 0; /* imageless cards have no image to balance — they sit at natural title height */
+  /* Imageless cards reserve a bottom area of the title + TWO property-value rows (the location toggle is
+     excluded) — so they read as cards, and the first two properties fill the reserve before the card
+     grows. = body padding + title row + title-gap + the flow row-gap + 2 property rows. */
+  --card-row-h: 17px; /* KNOB — a compact property-value row (chip height × --chip-zoom) */
+  --card-foot-h: calc(
+    1.5px +
+    5px +
+    14px
+  ); /* the breadcrumb footing (divider + clearance + caption line) */
+  --card-body-min: calc(16px + 18px + 4px + 3px + 2 * var(--card-row-h));
+}
+/* With the breadcrumb footing present, add its height so the 2-row reserve still sits ABOVE it. */
+.cards-view.is-compact .page-card-text:has(.page-card-loc-zone) {
+  min-height: calc(var(--card-body-min) + var(--card-foot-h));
 }
 
 /* ── The Set Cards row (F-1): larger cards at a FIXED size — set-scale tracks (no stretch, unlike
@@ -88,7 +101,6 @@
 }
 
 .page-card-body {
-  container-type: inline-size;
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -260,20 +272,12 @@
 .page-card-loc {
   color: var(--label-secondary);
 }
-/* cqi typography — the card body is the query container, so the title scales with card width; the
-   location keeps the breadcrumb formula's caption ramp. */
-.page-card .page-card-title,
-.set-card .page-card-title {
-  font-size: clamp(11px, 5.5cqi, 18px);
-}
-
-/* The location footing zone. With properties above (card-props only renders when filled) it seats
-   under an inset hairline; standalone it's the add surface for a property-less card. */
+/* The breadcrumb is ALWAYS the card's footing — pinned to the bottom (margin-top:auto) with a divider
+   above it. ONE unconditional rule: the divider no longer depends on properties sitting above it. */
 .page-card-loc-zone {
   display: flex;
   min-width: 0;
-}
-.card-props + .page-card-loc-zone {
+  margin-top: auto;
   border-top: 1.5px solid var(--separator-border);
   padding-top: 5px; /* KNOB — divider-to-crumbs clearance */
 }

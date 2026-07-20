@@ -53,6 +53,9 @@ import './CardsView.css'
 const thumbSrc = (nexusId: string, pageId: string, v: number): string =>
   `nexus-asset://nexus/.nexus/assets/${nexusId}/thumbnails/page-${pageId}.jpg?v=${v}`
 
+// ONE source for every card/set title's type — the body ramp, semibold.
+const cardTitleType = text.body.semibold
+
 /**
  * The Cards renderer — the container's Pages as a resizable card grid over the same pipeline the
  * table reads: the Set Cards row on top, then a flattened disclosure band per resolved group (cards
@@ -442,7 +445,7 @@ function SetCard({ set, drag }: { set: SetNode; drag?: DragItem }): React.JSX.El
           )}
         </div>
         <div className="page-card-text">
-          <OverflowScroll className={cx('page-card-title', text.footnote.semibold)}>
+          <OverflowScroll className={cx('page-card-title', cardTitleType)}>
             <Icon name={iconName} className="page-card-title-icon" />
             <span className="page-card-title-text">{set.title}</span>
           </OverflowScroll>
@@ -713,11 +716,9 @@ const PageCard = memo(function PageCard({
           onPointerDown={stopDragSelf}
         >
           {(view.wrap_titles ?? false) ? (
-            <span className={cx('page-card-title is-wrap', text.footnote.emphasized)}>
-              {titleBody}
-            </span>
+            <span className={cx('page-card-title is-wrap', cardTitleType)}>{titleBody}</span>
           ) : (
-            <OverflowScroll className={cx('page-card-title', text.footnote.emphasized)}>
+            <OverflowScroll className={cx('page-card-title', cardTitleType)}>
               {titleBody}
             </OverflowScroll>
           )}
