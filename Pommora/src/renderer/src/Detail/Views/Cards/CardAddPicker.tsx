@@ -1,4 +1,4 @@
-import { type RefObject, useState } from 'react'
+import { type CSSProperties, type RefObject, useState } from 'react'
 import type { PropertyDefinition } from '@shared/properties'
 import type { PropertyValue } from '@shared/propertyValue'
 import { isValidLink } from '@shared/links'
@@ -13,7 +13,7 @@ import { useSession } from '../../../store'
 import { PropertyOptionRows, pickSemantics } from '../PropertyEditing/PropertyPicker'
 import { PropertyEditor } from '../PropertyEditing/PropertyEditor'
 import { formatDate } from '../PropertyEditing/formatValue'
-import { orderAddableDefs, parseEditorValue } from './cardValueInput'
+import { type AddEntry, orderAddableEntries, parseEditorValue } from './cardValueInput'
 import { compactRow } from './cardAddPicker.css'
 import { cx } from '@renderer/design-system/cx'
 
@@ -54,10 +54,10 @@ function ValuePane({
           value={current?.kind === 'datetime' ? current.value : null}
           timeFormat={useSession.getState().tree?.timeFormat}
           formatDateValue={(k) => formatDate(k, 'full', 'none')}
-          onChange={(iso) => {
-            onCommit(iso ? { kind: 'datetime', value: iso } : null)
-            onDone()
-          }}
+          // Stay open on change (mirrors the card value's datetime edit) so the day AND the time can be
+          // set — the outside-click dismiss commits the pending via CalendarPicker's unmount flush.
+          // onDone() here would close the pane on the first date click (the Compact add-path bug).
+          onChange={(iso) => onCommit(iso ? { kind: 'datetime', value: iso } : null)}
         />
       </>
     )
@@ -90,71 +90,79 @@ function ValuePane({
 }
 
 /**
- * The card's two-stage add-picker (G-1): the reserved property zone's empty space opens a property
- * list (the page's blank, pickable properties) that slides into the picked property's value pane —
- * one PickerMenu hosting a PaneSlider, the SurfacePM multi-pane idiom. A checkbox commits straight
- * from the list; multi toggles stay open; single picks commit and dismiss.
+ * The card's two-stage add-property menu: the list is everything NOT currently shown (hidden props,
+ * tiers, and blank addable props). A pane entry (a blank addable-type prop) slides into a value pane
+ * to set a value; a reveal-only entry (a hidden tier/context, a hidden-but-filled prop, a checkbox)
+ * just unhides on pick. One PickerMenu hosting a PaneSlider, the SurfacePM multi-pane idiom.
  */
 export function CardAddPicker({
-  defs,
+  entries,
   currentOf,
   open,
   anchorRef,
-  initialDef,
+  initialEntry,
   onCommit,
+  onReveal,
   onDismiss,
 }: {
-  defs: PropertyDefinition[]
-  currentOf: (def: PropertyDefinition) => PropertyValue | null
+  entries: AddEntry[]
+  currentOf: (entry: AddEntry) => PropertyValue | null
   open: boolean
   anchorRef: RefObject<HTMLElement | null>
-  /** Jump straight to this property's value pane (the native Add Property ▸ pick), skipping the list. */
-  initialDef?: PropertyDefinition | null
-  onCommit: (def: PropertyDefinition, value: PropertyValue | null) => void
+  /** Jump straight to this entry's value pane (the native Add Property ▸ pick on a pane entry). */
+  initialEntry?: AddEntry | null
+  onCommit: (entry: AddEntry, value: PropertyValue | null) => void
+  onReveal: (entry: AddEntry) => void
   onDismiss: () => void
 }): React.JSX.Element {
-  const [picked, setPicked] = useState<PropertyDefinition | null>(initialDef ?? null)
+  const [picked, setPicked] = useState<AddEntry | null>(initialEntry ?? null)
   const dismiss = (): void => {
     setPicked(null)
     onDismiss()
   }
   return (
-    <PickerMenu open={open} onDismiss={dismiss} triggerRef={anchorRef} solid>
+    <PickerMenu
+      open={open}
+      onDismiss={dismiss}
+      triggerRef={anchorRef}
+      solid
+      // Tighten the "Properties" pane header for the add-picker's compact density (the shared
+      // --top-row-block rhythm knob — paddingBlock + separator gap).
+      style={{ '--top-row-block': '0px' } as CSSProperties}
+    >
       <PaneSlider
         open={picked !== null}
         root={
-          defs.length === 0 ? (
+          entries.length === 0 ? (
             <div style={{ minWidth: 96, height: 24 }} />
           ) : (
             <div>
-              {orderAddableDefs(defs).map((d) => (
+              {orderAddableEntries(entries).map((e) => (
                 <MenuItem
-                  key={d.id}
+                  key={e.id}
                   className={cx(flushTrailing, compactRow)}
                   leading={
-                    <Icon name={propertyTypeIconName(d.type) ?? 'square-dashed'} size={14} />
+                    <Icon name={propertyTypeIconName(e.type) ?? 'square-dashed'} size={14} />
                   }
-                  trailing={
-                    d.type === 'checkbox' ? undefined : <Icon name="chevron-right" size={14} />
-                  }
+                  trailing={e.revealOnly ? undefined : <Icon name="chevron-right" size={14} />}
                   onClick={() => {
-                    if (d.type === 'checkbox') {
-                      onCommit(d, { kind: 'checkbox', value: true })
+                    if (e.revealOnly) {
+                      onReveal(e)
                       dismiss()
-                    } else setPicked(d)
+                    } else setPicked(e)
                   }}
                 >
-                  {d.name}
+                  {e.name}
                 </MenuItem>
               ))}
             </div>
           )
         }
         detail={
-          picked && (
+          picked?.def && (
             <div>
               <ValuePane
-                def={picked}
+                def={picked.def}
                 current={currentOf(picked)}
                 onCommit={(v) => onCommit(picked, v)}
                 onDone={dismiss}
@@ -163,7 +171,7 @@ export function CardAddPicker({
             </div>
           )
         }
-        minWidth={155}
+        minWidth={120}
         minHeight={0}
       />
     </PickerMenu>

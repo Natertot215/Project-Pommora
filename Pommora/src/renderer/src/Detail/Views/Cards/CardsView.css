@@ -15,16 +15,22 @@
     var(--card-scale, 1)
   ); /* KNOB — page-card image band height (fixed; the card grows below it) */
   --thumb-share: 65%; /* KNOB — the SET card's image share (set cards keep their fixed aspect) */
+  /* KNOB — the body-area's reserved floor (0.54 ≈ the old 35:65 body:image split). An empty card keeps
+     that image:body proportion instead of collapsing to the title; a content-heavy card still grows
+     past it (no aspect clip). */
+  --card-body-min: calc(var(--thumb-h) * 0.54);
   --band-gap: 22px; /* KNOB — vertical rhythm between disclosure bands */
   /* ONE padding source for everything in a card's value flow: the chip tokens' own vars. Chips read
      them natively; the text-shaped values (dates, numbers, links) are re-pointed at the same vars
      below — so C-3's tight packing is a single knob pair. */
   --chip-zoom: 0.85; /* KNOB — chip density on cards (the chip tokens' global zoom var) */
   --chip-pad-x: 4px; /* KNOB — horizontal padding of chips AND text values (tight, C-3) */
+  --switch-zoom: 0.75; /* KNOB — the Switch checkbox-look's card scale (its native 54×24 towers over chips raw) */
   zoom: calc(var(--zoom, 1) * var(--block-zoom, 1));
 }
 .cards-view.is-compact {
   --band-gap: 14px; /* KNOB — the tightened band rhythm under imageless cards */
+  --card-body-min: 0; /* imageless cards have no image to balance — they sit at natural title height */
 }
 
 /* ── The Set Cards row (F-1): larger cards at a FIXED size — set-scale tracks (no stretch, unlike
@@ -48,57 +54,14 @@
   opacity: 0.85;
 }
 
-/* ── Disclosure bands: heading (twisty + glyph + title) over the band's card grid. ── */
-.cards-band + .cards-band {
+/* ── Disclosure bands (shared GroupBand chrome): the heading over the band's card grid. The chrome +
+   glyph resolve identically to the table's (GroupBand); cards scopes only the inter-band rhythm and the
+   heading-to-cards clearance. ── */
+.cards-view .group-band + .group-band {
   margin-top: var(--band-gap);
 }
-/* The table's group-header treatment: title at label-primary (semibold via the ramp class in TSX),
-   glyphs at the shared label-secondary icon tone. */
-.cards-band-head {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0 0 8px; /* KNOB — heading-to-cards clearance */
-  color: var(--label-primary);
-}
-.cards-band-toggle {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  border: none;
-  background: none;
-  padding: 0;
-  color: inherit;
-  cursor: default;
-}
-/* Hover-revealed structural-band add (I-2) — inert stub, the table's .group-add treatment. */
-.cards-band-add {
-  display: inline-flex;
-  align-items: center;
-  border: none;
-  background: none;
-  padding: 0;
-  color: var(--label-secondary);
-  cursor: default;
-  opacity: 0;
-  transition: opacity var(--duration-fast) var(--ease-standard);
-}
-.cards-band-head:hover .cards-band-add {
-  opacity: 1;
-}
-.cards-band-twisty {
-  color: var(--label-secondary);
-  transition: transform var(--duration-base) var(--ease-standard);
-}
-.cards-band-twisty.open {
-  transform: rotate(90deg);
-}
-.cards-band-glyph {
-  color: var(--label-secondary);
-}
-.cards-band-title {
-  min-width: 0;
+.cards-view .group-band-row {
+  padding-bottom: 8px; /* KNOB — heading-to-cards clearance */
 }
 
 .cards-grid {
@@ -172,7 +135,7 @@
 
 .page-card-text {
   flex: 1;
-  min-height: 0;
+  min-height: var(--card-body-min);
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
@@ -198,6 +161,10 @@
 .page-card-title {
   gap: 5px;
   color: var(--label-primary);
+  /* overflow-y:hidden (truncateHoverScroll) clips at the padding box; descenders sit at the content
+     edge and get sliced when the line-box rounds tight at zoom. A hair of vertical padding pushes the
+     clip past them without touching the horizontal truncation fade. */
+  padding-block: 1px;
 }
 .page-card-title.is-wrap {
   display: inline;
@@ -224,6 +191,14 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 3px 4px; /* KNOB — Compact flow packing */
+}
+/* Each compact value is a bare <span> wrapper; make it a flex centerer so every property type — text,
+   chips, AND the fixed checkbox box — shares one vertical band. Without this the box (no text, so its
+   baseline is its bottom edge) rides high on the line baseline while text/chips sit correctly. */
+.card-props.is-flow > span {
+  display: flex;
+  align-items: center;
+  min-width: 0;
 }
 /* Standard rows: label left, value pushed to the card's right edge. */
 .card-prop-row {
@@ -252,6 +227,22 @@
 .card-value .cell-text-scroll,
 .card-value .cell-control {
   padding: 0 var(--chip-pad-x, 6px);
+}
+/* A checkbox/switch is a fixed-size control (internal padding would distort it), so its OUTER value cell
+   takes the chip-pad-x — it then sits at the same horizontal rhythm as the padded text/chip values. */
+.card-value:has(.cell-checkbox, .cell-switch) {
+  padding-inline: var(--chip-pad-x, 6px);
+}
+/* The Switch checkbox-look is natively 54×24 — scale it to the card's density so it sits near chip
+   height in the flow instead of towering over the chips (D-2). */
+.card-value .cell-switch {
+  zoom: var(--switch-zoom);
+}
+/* A visible-but-empty property row's placeholder (Standard) — a "--" fill-me affordance in the label's
+   own emphasized tone (it reads as the row's empty half); the whole .card-value stays the click target. */
+.card-value-empty {
+  padding: 0 var(--chip-pad-x, 6px);
+  color: var(--label-secondary);
 }
 
 /* The location footing (E-3): NavCrumbs — the house breadcrumb formula (caption type, per-crumb

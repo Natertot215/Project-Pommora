@@ -237,10 +237,16 @@ describe('mint seam', () => {
       RESERVED_PROPERTY_ID.tier3,
     ])
   })
-  it('mintDefaultView stays all-shown with the table glyph', () => {
+  it('mintDefaultView mints title-only (every prop + tier hidden) with the table glyph', () => {
     const v = mintDefaultView(schema)
-    expect(v.hidden_properties).toEqual([])
-    expect(v.property_order).toEqual([RESERVED_PROPERTY_ID.title, 'prop_a', 'prop_b'])
+    expect(v.hidden_properties).toEqual([
+      'prop_a',
+      'prop_b',
+      RESERVED_PROPERTY_ID.tier1,
+      RESERVED_PROPERTY_ID.tier2,
+      RESERVED_PROPERTY_ID.tier3,
+    ])
+    expect(v.property_order).toEqual([RESERVED_PROPERTY_ID.title])
     expect(v.icon).toBe('table')
   })
 })

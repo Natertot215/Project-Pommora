@@ -49,7 +49,7 @@ A card's **right-click** opens a native menu: Open · Rename · Change Icon · D
 
 #### II. Surfaces & Insets
 
-Cards live in the ViewSettings type grid (activated alongside Table) and carry their options in the Layout leaf: the Card Banner picker, the Hide Location / Wrap Titles / Hide Icons / Set Cards switches, with Style (the two-option flip toggle) and Scale pinned in the footing. The grouping and sorting leaves reuse the shared panes. A view switched to a type inherits the new type's default glyph only when it still wore the old default. Cards ride the block-surface inset regime (no view gutter), chosen by a pane-body rule so the view itself never pads.
+Cards live in the ViewSettings type grid (activated alongside Table) and carry their options in the Layout leaf: the Card Banner picker, the Hide Location / Wrap Titles / Hide Icons / Set Cards switches, with Style (the two-option flip toggle) and Scale pinned in the footing. The grouping and sorting leaves reuse the shared panes. A view switched to a type inherits the new type's default glyph only when it still wore the old default. Cards ride the block-surface inset regime: in a full-page pane a pane-body rule supplies the surface inset so the view itself never pads, while an embedded cards view (a view tile on a block surface) runs the tight inter-tile lane directly on its grid — the whole-page surface inset composes that same lane onto a floating-sidebar clearance a tile has already gotten, so a tile needs only the bare lane rather than sitting flush to the edge.
 
 ### Pending
 

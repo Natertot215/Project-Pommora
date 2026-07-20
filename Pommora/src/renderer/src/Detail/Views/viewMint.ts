@@ -2,9 +2,9 @@
 // On landing a view-bearing container whose views[] is empty, `ensureContainerView` mints once (an
 // in-flight map keyed by container id guards a re-select from double-firing). Every other view writer
 // routes through `saveViewAdopting` — a sentinel-holding write awaits the in-flight mint and saves
-// against the real id, never minting its own. Store-free: the mint/adopt paths' refetch (load)
-// re-hydrates the activeViews slice from disk, so no writer here needs the store; ordinary saves
-// are confirmed by the live watcher's push alone.
+// against the real id, never minting its own. Store-free: every save's refetch (load) re-hydrates the
+// tree + activeViews slice from disk, so no writer here needs the store — the watcher echo-suppresses
+// the app's own writes, so that load is the sole confirm the shown view reflects the change.
 import type { CollectionNode, SetNode } from '@shared/types'
 import type { PropertyDefinition } from '@shared/properties'
 import { DEFAULT_VIEW_ID, mintDefaultView, type SavedView } from '@shared/views'
@@ -37,26 +37,32 @@ export function ensureContainerView(
 }
 
 /** The ONE view writer every surface calls. A sentinel-holding write adopts the in-flight mint's real
- *  id (never mints its own); a real id saves directly. On a sentinel save it also adopts the id as the
- *  active view so the writer's edits stay on the view the user sees (that refetch re-hydrates the
- *  activeViews slice — the one state the watcher push doesn't carry). An ordinary save skips the
- *  immediate refetch entirely: the sidecar write trips the live watcher, whose stabilized
- *  `nexus:changed` push is the single canonical confirm — an explicit load() here was a second
- *  full walk on every view write (and a visible double repaint on the glass chrome). */
+ *  id (never mints its own); a real id saves directly. A sentinel save also adopts the id as the active
+ *  view so the writer's edits stay on the view the user sees. A successful save then refetches — the
+ *  sidecar write is echo-suppressed at the watcher (a self-write never trips its push), so the explicit
+ *  load() is the sole confirm that re-hydrates the shown view for surfaces without their own optimistic
+ *  view state (the cards' format/grouping/banner, every settings pane). A caller that ALREADY shows the
+ *  change through a live override (the table's width/order/collapse; a band collapse) passes
+ *  `skipRefetch` to avoid a redundant full-nexus walk. A mint always refetches (it adopts a new view). */
 export async function saveViewAdopting(
   source: CollectionNode | SetNode,
   view: SavedView,
   refetch: () => Promise<void>,
+  opts?: { skipRefetch?: boolean },
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  const wasSentinel = view.id === DEFAULT_VIEW_ID
   let toSave = view
-  if (view.id === DEFAULT_VIEW_ID) {
+  if (wasSentinel) {
     const minted = await pendingViewMint(source.id)?.catch(() => undefined)
     if (minted) toSave = { ...view, id: minted }
   }
   const res = await window.nexus.views.save(source.path, source.kind, toSave)
-  if (res.ok && toSave.id === DEFAULT_VIEW_ID) {
-    await window.nexus.activeViews.set(source.id, res.id)
-    await refetch()
+  if (res.ok) {
+    // A sentinel save adopts its real id (freshly minted, or the in-flight entry-mint's) as the active
+    // view so the writer's edits stay on the view they see — keyed off the ORIGINAL id, since toSave.id
+    // has already been swapped to the minted id by here.
+    if (wasSentinel) await window.nexus.activeViews.set(source.id, res.id)
+    if (wasSentinel || !opts?.skipRefetch) await refetch()
   }
   return res
 }

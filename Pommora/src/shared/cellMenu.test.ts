@@ -48,19 +48,39 @@ describe('cellMenuModel', () => {
     expect(m.style?.map((r) => r.label)).toEqual(['Title', 'Full Link'])
   })
 
-  it('link (a filled url cell): Edit + Rename + Remove, no Style (its look is per-property)', () => {
+  it('link (a filled url cell): Edit + Rename + Clear, no Style (its look is per-property)', () => {
     const m = cellMenuModel({ kind: 'link', filled: true })
     expect(m.items.map((i) => [i.label, i.action])).toEqual([
       ['Edit', 'cell:edit'],
       ['Rename', 'cell:rename'],
-      ['Remove', 'cell:clear'],
+      ['Clear', 'cell:clear'],
     ])
     expect(m.style).toBeUndefined()
   })
 
-  it('link (an empty url cell): Edit alone — Rename/Remove are no-ops with no value', () => {
+  it('link (an empty url cell): Edit alone — Rename/Clear are no-ops with no value', () => {
     const m = cellMenuModel({ kind: 'link', filled: false })
     expect(m.items.map((i) => [i.label, i.action])).toEqual([['Edit', 'cell:edit']])
+  })
+
+  it('hideable (cards) appends a separated Remove after the base items', () => {
+    const m = cellMenuModel({ kind: 'clear-only', hideable: true })
+    expect(m.items.map((i) => [i.label, i.action])).toEqual([
+      ['Clear', 'cell:clear'],
+      ['Remove', 'cell:hide'],
+    ])
+    expect(m.items.find((i) => i.action === 'cell:hide')?.separatorBefore).toBe(true)
+  })
+
+  it('remove-only (a hideable cell with no other menu): Remove alone, no separator', () => {
+    const m = cellMenuModel({ kind: 'remove-only', hideable: true })
+    expect(m.items.map((i) => [i.label, i.action])).toEqual([['Remove', 'cell:hide']])
+    expect(m.items[0].separatorBefore).toBe(false)
+  })
+
+  it('a hideable title never gets Remove — the title can never be dropped', () => {
+    const m = cellMenuModel({ kind: 'title', hideable: true })
+    expect(m.items.some((i) => i.action === 'cell:hide')).toBe(false)
   })
 })
 
@@ -118,5 +138,15 @@ describe('cellMenuContextFor', () => {
 
   it('an unsupported/undefined type → no menu', () => {
     expect(cellMenuContextFor(prop(), undefined, {}, true)).toBeNull()
+  })
+
+  it('hideable (cards): a filled cell carries hideable; a menu-less cell becomes remove-only', () => {
+    expect(cellMenuContextFor(prop(), 'select', {}, true, true)).toEqual({
+      kind: 'clear-only',
+      hideable: true,
+    })
+    // Empty select would be null (no menu) — but hideable still needs a Remove, so it's remove-only.
+    expect(cellMenuContextFor(prop(), 'select', {}, false, true)).toEqual({ kind: 'remove-only' })
+    expect(cellMenuContextFor(prop(), undefined, {}, true, true)).toEqual({ kind: 'remove-only' })
   })
 })

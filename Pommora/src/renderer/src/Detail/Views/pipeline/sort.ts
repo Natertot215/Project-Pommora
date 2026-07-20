@@ -202,3 +202,15 @@ export function makeSorter(
     return decorated.map((d) => d.row)
   }
 }
+
+/** The per-view manual order fed to the sorter (shared by Table and Cards): an active drag override
+ *  always wins; otherwise the persisted per-machine order applies only when the view is sorted or
+ *  grouped — on a plain view viewOrders is not a primary order. */
+export function resolveManualOrder(
+  sortedOrGrouped: boolean,
+  manualOverride: string[] | null,
+  viewOrder: string[] | undefined,
+): string[] | undefined {
+  if (!sortedOrGrouped && !manualOverride) return undefined
+  return manualOverride ?? viewOrder
+}

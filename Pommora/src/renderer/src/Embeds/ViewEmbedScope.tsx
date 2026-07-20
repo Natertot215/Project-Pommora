@@ -32,13 +32,17 @@ export const useViewEmbedScope = (): ViewEmbedScopeValue | null => useContext(Ct
 export function useSaveView(
   source: CollectionNode | SetNode,
   refetch: () => Promise<void>,
-): (view: SavedView) => Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+): (
+  view: SavedView,
+  opts?: { skipRefetch?: boolean },
+) => Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   const scope = useViewEmbedScope()
   if (scope) {
+    // An embed re-renders off its own tile payload — persistConfig updates it in place, no refetch path.
     return (view) => {
       scope.persistConfig(view)
       return Promise.resolve({ ok: true as const, id: view.id })
     }
   }
-  return (view) => saveViewAdopting(source, view, refetch)
+  return (view, opts) => saveViewAdopting(source, view, refetch, opts)
 }

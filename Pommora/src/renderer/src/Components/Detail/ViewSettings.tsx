@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { CollectionNode, SetNode } from '@shared/types'
 import type { PropertyDefinition } from '@shared/properties'
-import { DEFAULT_VIEW_ID, type SavedView, type ViewFormat, type ViewType } from '@shared/views'
+import { DEFAULT_VIEW_ID, isCompact, type SavedView, type ViewType } from '@shared/views'
 import { Icon, type IconName } from '@renderer/design-system/symbols'
 import {
   MenuItem,
@@ -109,7 +109,6 @@ export function ViewSettings({
   const [leaf, setLeaf] = useState<Leaf | null>(null)
   const views = source.views ?? []
   const canDelete = views.length > 1 && view.id !== DEFAULT_VIEW_ID
-  const format: ViewFormat = view.format ?? 'standard'
 
   const saveView = useSaveView(source, load)
   const write = (patch: Partial<SavedView>): void => void saveView({ ...view, ...patch })
@@ -124,7 +123,7 @@ export function ViewSettings({
     write(icon ? { type, icon } : { type })
   }
   // Two-option double-chevron = a direct toggle, never a dropdown (the Open In idiom).
-  const toggleFormat = (): void => write({ format: format === 'compact' ? 'standard' : 'compact' })
+  const toggleFormat = (): void => write({ format: isCompact(view) ? 'standard' : 'compact' })
 
   const openItemMenu = async (): Promise<void> => {
     const action = await window.nexus.viewItemMenu(canDelete)
@@ -147,31 +146,36 @@ export function ViewSettings({
     }
   }
 
-  // The cards footing (K-2): Style (a two-option double-chevron — flips on click, D-8) over Scale
-  // (the ProgressBar-logic slider with the glass knob). Pinned on the editor in both doors, the
-  // Format slot.
+  // The format double-chevron (D-8): the two-option Compact ⇄ Standard toggle, rendered as the cards
+  // footing ("Style", cards-grid glyph) and the table footer ("Format", layers-2 glyph) — one control.
+  const formatToggle = (glyph: IconName, label: string): React.JSX.Element => (
+    <MenuItem
+      className={flushTrailing}
+      leading={
+        <span className={footingSymbol}>
+          <Icon name={glyph} size={12} />
+        </span>
+      }
+      trailing={
+        <span className={side}>
+          <span className={detail}>{isCompact(view) ? 'Compact' : 'Standard'}</span>
+          <span className={footingSymbol}>
+            <Icon name="chevrons-up-down" size={12} />
+          </span>
+        </span>
+      }
+      onClick={toggleFormat}
+    >
+      <span className={footingLabel}>{label}</span>
+    </MenuItem>
+  )
+
+  // The cards footing (K-2): Style over Scale (the ProgressBar-logic slider with the glass knob).
+  // Pinned on the editor in both doors, the Format slot.
   const cardsFooting =
     view.type === 'cards' ? (
       <MenuBottomRow>
-        <MenuItem
-          className={flushTrailing}
-          leading={
-            <span className={footingSymbol}>
-              <Icon name="cards-grid" size={12} />
-            </span>
-          }
-          trailing={
-            <span className={side}>
-              <span className={detail}>{format === 'compact' ? 'Compact' : 'Standard'}</span>
-              <span className={footingSymbol}>
-                <Icon name="chevrons-up-down" size={12} />
-              </span>
-            </span>
-          }
-          onClick={toggleFormat}
-        >
-          <span className={footingLabel}>Style</span>
-        </MenuItem>
+        {formatToggle('cards-grid', 'Style')}
         <div className={cx(item, flushTrailing, vs.scaleRow)}>
           <span className={side}>
             <span className={footingSymbol}>
@@ -256,31 +260,10 @@ export function ViewSettings({
     </div>
   )
 
-  // Format — the pinned footer (D-8): persists, inert visually this cycle. Table-only; a two-option
-  // double-chevron, so the click flips it directly.
+  // Format — the pinned footer (D-8): persists, inert visually this cycle. Table-only.
   const formatRow =
     view.type === 'table' ? (
-      <MenuBottomRow>
-        <MenuItem
-          className={flushTrailing}
-          leading={
-            <span className={footingSymbol}>
-              <Icon name="layers-2" size={12} />
-            </span>
-          }
-          trailing={
-            <span className={side}>
-              <span className={detail}>{format === 'compact' ? 'Compact' : 'Standard'}</span>
-              <span className={footingSymbol}>
-                <Icon name="chevrons-up-down" size={12} />
-              </span>
-            </span>
-          }
-          onClick={toggleFormat}
-        >
-          <span className={footingLabel}>Format</span>
-        </MenuItem>
-      </MenuBottomRow>
+      <MenuBottomRow>{formatToggle('layers-2', 'Format')}</MenuBottomRow>
     ) : null
 
   const header =

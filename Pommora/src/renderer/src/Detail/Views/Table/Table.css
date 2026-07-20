@@ -389,44 +389,31 @@
   cursor: grabbing;
 }
 
-/* — Group section header — a full-width band off the column grid (so the disclosure row is independent
-   of the columns); the chevron floats left into the gutter. */
-.group-header-row {
-  /* text weight comes from the text.body.emphasized alias on GroupHeader's span — no raw font-weight. */
-  color: var(--text);
-  /* Base density only — NOT the per-block Scale. The band is a grid child of .table-grid, so it already
-     inherits the grid's compound zoom (base × --block-zoom); re-applying --block-zoom here would scale it
-     twice (--block-zoom²) and shrink group headers out of proportion with the rows. */
+/* — Group section band — the shared disclosure head (twisty + glyph + hover "+") over the group's rows,
+   a full-width band off the column grid. The chrome lives on .group-band-* (GroupBand.css); the table
+   scopes the section rhythm (the row), the sticky pin (the head), and the gutter chevron. */
+.table-view .group-band-row {
+  /* Base density only — the row re-applies base --zoom to match the data-row scale. It never wraps the
+     rows (the Reveal is its sibling), so they keep the grid's compound zoom; re-adding --block-zoom
+     would square it. Zoom rides the row, the sticky pin the head — kept apart so zoom never distorts
+     the sticky offset. */
   zoom: var(--zoom);
   padding-top: var(--group-gap-top); /* inter-section gap */
   padding-bottom: var(
     --cell-padding-y
-  ); /* matches data-cell vertical padding — gap before the first row */
+  ); /* matches the data-cell vertical padding — head-to-row gap */
 }
-/* A sub-group bucket header reads as a row, not a section — its gap collapses to the row rhythm. */
-.group-header-row.sub-band {
+/* A sub-group bucket band reads as a row, not a section — its gap collapses to the row rhythm. */
+.table-view .group-band.sub-band .group-band-row {
   padding-top: var(--subband-gap-top);
 }
-.group-header {
-  /* Sticky-left so the disclosure label + its chevron hold the gutter when the columns scroll horizontally
-     — the group stays legible instead of sliding off. Also the containing block for the chevron's absolute
-     float (sticky is a positioned value), so the chevron rides along. left:0 = the grid's content start
-     (the scrollport's padding edge); at rest it sits at its flow position, only pinning once scrolled. */
+.table-view .group-band-head {
+  /* Sticky-left so the disclosure label + its chevron hold the gutter when the columns scroll — the
+     group stays legible instead of sliding off. Also the containing block for the chevron's absolute
+     float. left:0 = the grid's content start; at rest it sits in flow, only pinning once scrolled. */
   position: sticky;
   left: 0;
   display: inline-flex;
-  align-items: center;
-  gap: var(--cell-icon-gap);
-}
-.group-name {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--cell-icon-gap);
-}
-/* The Set/folder + date glyphs read at the shared icon tone (--label-secondary), like page + sidebar
-   icons; the group name text stays --text. Direct child only, so a chip glyph (checkbox) keeps its own. */
-.group-name > svg {
-  color: var(--label-secondary);
 }
 /* — Band drag (Phase 2) — the glyph is the drag surface; the picked-up band mutes in place and the
    shared drop line marks the slot (BandDnd's .band-dnd wrapper is its positioning context). A
@@ -434,20 +421,15 @@
 .band-dnd {
   position: relative;
 }
-.band-glyph {
-  display: inline-flex;
-  align-items: center;
-  min-width: 0;
-}
-.group-header.band-dragging {
+.group-band-head.band-dragging {
   opacity: var(--drag-muted);
 }
-.group-header.band-nest-target {
+.group-band-head.band-nest-target {
   background: var(--selected);
   border-radius: 6px;
   outline: 4px solid var(--selected);
 }
-/* The band's inline rename input — the sidebar row's recipe on the header's own type scale. */
+/* The band's inline rename input — the sidebar row's recipe on the head's own type scale. */
 .band-title-input {
   min-width: 120px;
   font: inherit;
@@ -469,20 +451,10 @@
   pointer-events: none;
   z-index: 1000;
 }
-.group-twisty,
-.group-add {
-  display: inline-flex;
-  align-items: center;
-  border: none;
-  background: none;
-  padding: 0;
-  color: var(--text-dim);
-  cursor: default;
-}
-.group-twisty {
+/* The chevron floats into the views gutter, one --gutter left of the head content (which starts flush
+   on the grid — groupIndent has no cell-padding-x base), landing in the grip lane. */
+.table-view .group-band-twisty {
   position: absolute;
-  /* In the views gutter, one --gutter left of the header content — which now starts flush on the grid
-     (groupIndent has no cell-padding-x base), so the chevron lands in the grip lane. */
   left: calc(-1 * var(--gutter));
   width: var(
     --gutter
@@ -491,11 +463,4 @@
   transform: translateY(-50%);
   justify-content: center;
   cursor: pointer;
-}
-.group-add {
-  opacity: 0;
-  transition: opacity var(--duration-fast) var(--ease-standard);
-}
-.group-header-row:hover .group-add {
-  opacity: 1;
 }

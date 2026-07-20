@@ -12,9 +12,10 @@ export type PickerChoice<T extends string> = {
 export const labelOf = <T extends string>(opts: PickerChoice<T>[], v: T): string =>
   opts.find((o) => o.value === v)?.label ?? opts[0].label
 
-/** A bare value + double-chevron trigger that pops a centered PickerMenu of radio options — the shared
- *  control for the property editors' Format / Style rows. The caller owns the surrounding row (label,
- *  glyph); this owns only the trigger + its menu. */
+/** A bare value + double-chevron trigger — the shared control for the property editors' Format / Style
+ *  rows. Two options toggle in place (design rule: a dual-option is a toggleable double-chevron, never a
+ *  dropdown); three+ pop a centered PickerMenu of radio options. The caller owns the surrounding row
+ *  (label, glyph); this owns only the trigger + its menu. */
 export function PickerControl<T extends string>({
   ariaLabel,
   value,
@@ -31,18 +32,27 @@ export function PickerControl<T extends string>({
 }): React.JSX.Element {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLButtonElement>(null)
+  const isToggle = options.length === 2
+  const trigger = (
+    <button
+      ref={ref}
+      type="button"
+      className={s.trigger}
+      aria-label={ariaLabel}
+      onClick={
+        isToggle
+          ? () => onPick((options.find((o) => o.value !== value) ?? options[0]).value)
+          : () => setOpen(true)
+      }
+    >
+      <span className={s.value}>{labelOf(options, value)}</span>
+      <Icon name="chevrons-up-down" size={12} />
+    </button>
+  )
+  if (isToggle) return trigger
   return (
     <>
-      <button
-        ref={ref}
-        type="button"
-        className={s.trigger}
-        aria-label={ariaLabel}
-        onClick={() => setOpen(true)}
-      >
-        <span className={s.value}>{labelOf(options, value)}</span>
-        <Icon name="chevrons-up-down" size={12} />
-      </button>
+      {trigger}
       <PickerMenu
         open={open}
         onDismiss={() => setOpen(false)}

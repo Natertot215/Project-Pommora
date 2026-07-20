@@ -38,6 +38,7 @@ export function PropertyPicker({
   current,
   open,
   triggerRef,
+  anchorX,
   look,
   contextOptions,
   onCommit,
@@ -49,6 +50,9 @@ export function PropertyPicker({
   open: boolean
   /** The cell the picker hangs off — measured for placement, so it escapes the table's clip. */
   triggerRef: RefObject<HTMLElement | null>
+  /** Click x (viewport px). When set, the pane centres on the click point instead of the trigger's
+   *  fixed centre (the card value gesture). Omitted → the default right-anchored dropdown. */
+  anchorX?: number
   /** The column's resolved look — a status column on a glyph look (checkbox/capsule) renders
    *  its OPTIONS as capsule chips too (Nathan); pill columns keep labeled pills. */
   look?: ColumnLook
@@ -77,7 +81,14 @@ export function PropertyPicker({
   }
 
   return (
-    <PickerMenu open={open} onDismiss={onDismiss} triggerRef={triggerRef} solid>
+    <PickerMenu
+      open={open}
+      onDismiss={onDismiss}
+      triggerRef={triggerRef}
+      solid
+      center={anchorX !== undefined}
+      anchorX={anchorX}
+    >
       <PropertyOptionRows
         def={def}
         look={look}

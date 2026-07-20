@@ -25,6 +25,10 @@ export type ViewType = (typeof VIEW_TYPES)[number]
 const VIEW_FORMATS = ['standard', 'compact'] as const
 export type ViewFormat = (typeof VIEW_FORMATS)[number]
 
+/** A view's format defaults to Standard; the one place that default resolves. */
+export const isCompact = (view: { format?: ViewFormat }): boolean =>
+  (view.format ?? 'standard') === 'compact'
+
 // Legacy card_size enum — decode-only; a stored name maps onto the slider's scale factor.
 const CARD_SIZES = ['small', 'medium', 'large'] as const
 const LEGACY_CARD_SIZE: Record<(typeof CARD_SIZES)[number], number> = {
@@ -333,13 +337,14 @@ function mintVisibility(
   }
 }
 
-/** Mint the seeded/entry-minted default Table view (all user props visible, no sort, no
- *  `_modified_at` column). Carries the sentinel id until first save. */
+/** Mint the seeded/entry-minted default Table view — title-only, every user prop AND the default-on
+ *  tiers (contexts) hidden, routed through the same per-type visibility seam as a `+`-created view, so
+ *  a view always starts clean and the user reveals what they want. No sort, no `_modified_at` column.
+ *  Carries the sentinel id until first save. */
 export function mintDefaultView(schema: PropertyDefinition[]): SavedView {
   return {
     ...mintBase('Table'),
-    property_order: [RESERVED_PROPERTY_ID.title, ...schema.map((d) => d.id)],
-    hidden_properties: [],
+    ...mintVisibility('table', schema),
   }
 }
 

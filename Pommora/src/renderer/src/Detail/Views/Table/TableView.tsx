@@ -15,12 +15,12 @@ import { cellMenuContextFor } from '@shared/cellMenu'
 import { parseStyleAction } from '@shared/columnMenu'
 import { type ColumnAlign, type SavedView, mintDefaultView } from '@shared/views'
 import { applyPropertyValue, isBlankValue, type PropertyValue } from '@shared/propertyValue'
-import { isValidLink, normalizeLinkUrl } from '@shared/links'
+import { isValidLink } from '@shared/links'
 import { flattenContainer, groupsStructurally } from '../pipeline/group'
 import { resolveView } from '../pipeline/resolveView'
 import { contextOptionsFor as contextOptionsForTier } from '../pipeline/contextOptions'
 import { declaredType, resolveFieldValue } from '../pipeline/value'
-import { resolvedSortCount } from '../pipeline/sort'
+import { resolvedSortCount, resolveManualOrder } from '../pipeline/sort'
 import { PropertyEditor } from '../PropertyEditing/PropertyEditor'
 import { PropertyPicker } from '../PropertyEditing/PropertyPicker'
 import { nextCycleValue } from '../PropertyEditing/statusCycle'
@@ -31,7 +31,7 @@ import { useActiveView } from '../useActiveView'
 import { useSaveView } from '@renderer/Embeds/ViewEmbedScope'
 import type { SetTreeNode } from '../pipeline/group'
 import { buildResolveContext, type ResolveContext } from './resolveContext'
-import { buildSetIcons, buildSetNames, buildSetPaths, groupLabel } from './cellResolve'
+import { buildSetIcons, buildSetNames, buildSetPaths } from './cellResolve'
 import { BandDnd, type BandDrop } from './bandDnd'
 import {
   allStructuralIds,
@@ -43,7 +43,8 @@ import {
 import { nextOrder } from '@renderer/Sidebar/sidebarDndModel'
 import { Cell } from './Cell'
 import { PropertyTypeIcon } from '@renderer/Components/Detail/PropertyTypes'
-import { GroupHeader } from './GroupHeader'
+import { TableGroupBand } from './TableGroupBand'
+import { resolveBandHead } from '../GroupBand'
 import { columnLabel, TIER_LEVEL_BY_ID } from './columnLabel'
 import { clampWidth, widthFor } from './columnWidths'
 import { alignFor } from './columnAlign'
@@ -59,11 +60,10 @@ import { CalendarPicker } from '@renderer/design-system/components/CalendarPicke
 import { PickerMenu } from '@renderer/design-system/components/PickerMenu/PickerMenu'
 import { TextPicker } from '@renderer/design-system/components/TextPicker'
 import { condensedDate, formatDate, numberDivisor } from '../PropertyEditing/formatValue'
-import { Reveal } from '@renderer/design-system/components/Reveal'
 import { ACTIVATION } from '@renderer/design-system/interactions/shared'
 import { TableRowDnd, useTableRowDrag } from './tableDnd'
 import { solidColorCss } from './solidColor'
-import { parseLink, serializeLink } from './linkValue'
+import { parseLink, urlClickTarget, urlValueFromEdit, urlValueFromRename } from './linkValue'
 
 // ── TUNABLE ── how far past a column's edge the dragged column's centre must travel before the slot
 // flips (the sticky zone around the current slot). Larger = more deliberate / harder to leave a slot;
@@ -268,8 +268,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // retire row drag or flip the manual-order gates.
   const sortKeys = useMemo(() => resolvedSortCount(liveView.sort, schema), [liveView.sort, schema])
   const sortedOrGrouped = sortKeys > 0 || liveView.group != null
-  const manualOrder =
-    sortedOrGrouped || manualOverride ? (manualOverride ?? viewOrders[view.id]) : undefined
+  const manualOrder = resolveManualOrder(sortedOrGrouped, manualOverride, viewOrders[view.id])
   // The grouped property + whether a cross-group drop can reassign it (D-4): status/select/checkbox map
   // a group key straight to a value; a date bucket doesn't, so date grouping isn't reassignable.
   // The property lives in TWO homes: top-level property grouping, or the view-level sub-group
@@ -347,7 +346,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
       return undefined
     }
     const g = find(groups)
-    return g && ctx ? groupLabel(g, liveView, ctx, setNames) : id
+    return g && ctx ? resolveBandHead(g, liveView, ctx, setNames, setIcons, source).label : id
   }
   // The band drop router (already classified by BandDnd): structural reorder → the view-level
   // group_order (merged over the FULL tree so collapsed siblings survive) · property reorder →
@@ -463,11 +462,14 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
 
   // Persist the saved view + every live override (order + collapse) + a patch, so no one mutation
   // clobbers another's unsaved state — the exact Swift reorder/resize data-loss H-2 guards against.
-  const persistView = (patch: Partial<SavedView>): void => {
-    // Adopt-only (G-1): if this fires while the entry-mint is still in flight, it awaits the minted id
-    // and saves against it — never mints a rival default from its own sentinel.
+  // Adopt-only (G-1): if this fires while the entry-mint is still in flight, it awaits the minted id and
+  // saves against it — never mints a rival default from its own sentinel. skipRefetch defaults true:
+  // order/width/align/collapse/style all show through a live override, so a refetch would only repaint
+  // redundantly. A patch with NO optimistic layer (hide_column_icons) passes false so it actually reflects.
+  const persistView = (patch: Partial<SavedView>, skipRefetch = true): void => {
     void saveView(
       mergeOverrides(liveView, widthOverride, alignOverride, collapsed, patch, styleOverride),
+      { skipRefetch },
     )
   }
   const toggleCollapse = (key: string): void => {
@@ -586,7 +588,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     })
     if (action === 'column:hide') hideColumn(id)
     else if (action === 'column:toggle-icons')
-      persistView({ hide_column_icons: !(liveView.hide_column_icons ?? true) })
+      persistView({ hide_column_icons: !(liveView.hide_column_icons ?? true) }, false)
     else if (action?.startsWith('align:'))
       setColumnAlign(id, action.slice('align:'.length) as ColumnAlign)
     else if (action?.startsWith('style:')) {
@@ -704,7 +706,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
       e.stopPropagation()
       // Filled → open the link (matching the rendered <a>); empty → the inline field to type one in.
       const v = resolveFieldValue(row, col.id, schema)
-      const url = v.kind === 'url' ? parseLink(v.value).url : ''
+      const url = urlClickTarget(v.kind === 'url' ? v.value : undefined)
       if (url) void window.nexus.openExternal(url)
       else setEditing({ rowId: row.id, colId: col.id, mode: 'editor' })
     }
@@ -735,15 +737,10 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
       const n = Number.parseFloat(trimmed)
       if (!Number.isNaN(n)) commitCellValue(row, col.id, { kind: 'number', value: n })
     } else if (t === 'url') {
-      if (trimmed === '') return commitCellValue(row, col.id, null)
-      // Edit rewrites only the URL; a rename-set alias rides along (parsed from the current value).
+      // Edit rewrites the URL but rides the current alias along (urlValueFromEdit); empty clears.
       const cur = resolveFieldValue(row, col.id, schema)
-      const alias = cur.kind === 'url' ? parseLink(cur.value).alias : undefined
-      if (isValidLink(trimmed))
-        commitCellValue(row, col.id, {
-          kind: 'url',
-          value: serializeLink({ url: normalizeLinkUrl(trimmed), alias }),
-        })
+      const next = urlValueFromEdit(trimmed, cur.kind === 'url' ? cur.value : undefined)
+      if (next !== undefined) commitCellValue(row, col.id, next)
     } else if (t === 'file') {
       const v = resolveFieldValue(row, col.id, schema)
       const refs = v.kind === 'file' ? v.value : []
@@ -902,10 +899,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
         value={parseLink(raw).alias ?? ''}
         accent={solidColorCss(linkDef?.link_color)}
         onCommit={(alias) => {
-          commitCellValue(row, col.id, {
-            kind: 'url',
-            value: serializeLink({ url: parseLink(raw).url, alias: alias.trim() || undefined }),
-          })
+          commitCellValue(row, col.id, urlValueFromRename(alias, raw))
           setEditing(null)
         }}
         onDismiss={() => setEditing(null)}
@@ -1299,40 +1293,36 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     ]
     // Ungrouped root band: no header, no disclosure — its rows sit flush in the grid.
     if (g.kind === 'ungrouped') return members
-    // Headered group: the header stays put; its members live in a Reveal so collapse/expand animates the
+    // Headered group: the head stays put; its members live in a Reveal so collapse/expand animates the
     // rows (grid-rows 0fr↔1fr) on the same --disclosure motion as the chevron, and collapsed rows leave
     // the DOM. Each row keeps its own grid reading the inherited --cols, so wrapping never breaks the
     // column alignment (A-2).
     return [
-      <div
-        key={`gh-${g.key}`}
-        className={cx('group-header-row', g.bucket !== undefined && 'sub-band')}
-        style={{ paddingLeft: groupIndent(depth) }}
+      <TableGroupBand
+        key={`gb-${g.key}`}
+        group={g}
+        view={liveView}
+        ctx={ctx}
+        setNames={setNames}
+        setIcons={setIcons}
+        source={source}
+        setPath={g.kind === 'structural-set' ? setPaths.get(g.key) : undefined}
+        // Only a Collection's direct-child Sets open (the sidebar's selectable rule) — deeper sub-Sets
+        // are expand-only organizing folders.
+        onOpen={
+          g.kind === 'structural-set' &&
+          source.kind === 'collection' &&
+          depth === 0 &&
+          setPaths.has(g.key)
+            ? () => void select({ kind: 'set', id: g.key, path: setPaths.get(g.key) as string })
+            : undefined
+        }
+        collapsed={isCollapsed}
+        onToggle={() => toggleCollapse(g.key)}
+        indent={groupIndent(depth)}
       >
-        <GroupHeader
-          group={g}
-          view={liveView}
-          ctx={ctx}
-          setNames={setNames}
-          setIcons={setIcons}
-          setPath={g.kind === 'structural-set' ? setPaths.get(g.key) : undefined}
-          // Only a Collection's direct-child Sets open (the sidebar's selectable rule) — deeper
-          // sub-Sets are expand-only organizing folders.
-          onOpen={
-            g.kind === 'structural-set' &&
-            source.kind === 'collection' &&
-            depth === 0 &&
-            setPaths.has(g.key)
-              ? () => void select({ kind: 'set', id: g.key, path: setPaths.get(g.key) as string })
-              : undefined
-          }
-          collapsed={isCollapsed}
-          onToggle={() => toggleCollapse(g.key)}
-        />
-      </div>,
-      <Reveal key={`rv-${g.key}`} open={!isCollapsed}>
         {members}
-      </Reveal>,
+      </TableGroupBand>,
     ]
   }
 
@@ -1401,7 +1391,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
                 column's right divider (Table.css). Empty but load-bearing; don't remove. */}
               <div className="cell-filler" aria-hidden="true" />
             </div>
-            {/* Rows (E-3) — the drop-line DnD (tableDnd) wraps the whole grid; group-header rows aren't
+            {/* Rows (E-3) — the drop-line DnD (tableDnd) wraps the whole grid; band heads aren't row
               drag items. */}
             {groups.flatMap((g) => renderRows(g, 0, true))}
           </div>

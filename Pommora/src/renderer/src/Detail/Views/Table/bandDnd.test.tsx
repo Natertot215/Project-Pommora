@@ -13,7 +13,7 @@ import {
 } from '@renderer/testing/pointerHarness'
 import type { Band } from './bandDndModel'
 import { BandDnd, useBandDrag, type BandDrop } from './bandDnd'
-import { GroupHeader } from './GroupHeader'
+import { TableGroupBand } from './TableGroupBand'
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
 stubPointerCapture()
@@ -146,19 +146,23 @@ describe('band drag gesture', () => {
     await act(async () => {
       root.render(
         <BandDnd bands={BANDS} labelFor={(id) => id} onDrop={dropSpy}>
-          <GroupHeader
+          <TableGroupBand
             group={group}
             view={view}
             ctx={{ schema: [] } as never}
             setNames={new Map([['A', 'A']])}
             setIcons={new Map()}
+            source={{ kind: 'collection', title: 'Col' } as never}
             collapsed={false}
             onToggle={toggleSpy}
-          />
+            indent="0px"
+          >
+            {null}
+          </TableGroupBand>
         </BandDnd>,
       )
     })
-    const twisty = host.querySelector('.group-twisty') as HTMLElement
+    const twisty = host.querySelector('.group-band-twisty') as HTMLElement
     await act(async () => {
       firePointer(twisty, 'pointerdown', { x: 5, y: 5 })
     })

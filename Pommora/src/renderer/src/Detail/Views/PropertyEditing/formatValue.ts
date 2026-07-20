@@ -6,6 +6,24 @@ import type { DateFormat, TimeFormat, WeekdayFormat } from '@shared/columnStyles
 import type { DateGranularity, DateSeparator } from '@shared/views'
 import type { NumberConfig } from '@shared/properties'
 
+// Intl formatter construction is one of the pricier per-cell operations, and Cell formats these on the
+// shared, non-virtualized card grid — so cache the formatters by their options tuple instead of building
+// a fresh one per format() call. en-US is pinned everywhere, so the key is the options alone.
+const numFmtCache = new Map<string, Intl.NumberFormat>()
+const dateFmtCache = new Map<string, Intl.DateTimeFormat>()
+function numFmt(opts: Intl.NumberFormatOptions): Intl.NumberFormat {
+  const key = JSON.stringify(opts)
+  let f = numFmtCache.get(key)
+  if (!f) numFmtCache.set(key, (f = new Intl.NumberFormat('en-US', opts)))
+  return f
+}
+function dateFmt(opts: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
+  const key = JSON.stringify(opts)
+  let f = dateFmtCache.get(key)
+  if (!f) dateFmtCache.set(key, (f = new Intl.DateTimeFormat('en-US', opts)))
+  return f
+}
+
 function ordinal(day: number): string {
   if (day % 100 >= 11 && day % 100 <= 13) return `${day}th`
   switch (day % 10) {
@@ -24,8 +42,8 @@ const pad = (n: number): string => String(n).padStart(2, '0')
 
 function clockOf(date: Date, timeFormat: TimeFormat): string {
   return timeFormat === 'twelveHour'
-    ? date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-    : date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
+    ? dateFmt({ hour: 'numeric', minute: '2-digit' }).format(date)
+    : dateFmt({ hour: '2-digit', minute: '2-digit', hour12: false }).format(date)
 }
 
 // ── Relative thresholds (Nathan-tunable) ──
@@ -80,7 +98,7 @@ export function formatDate(
   if (Number.isNaN(date.getTime())) return iso
   if (dateFormat === 'relative') return formatRelative(date, hasTime, timeFormat, now)
 
-  const month = date.toLocaleDateString('en-US', { month: 'long' })
+  const month = dateFmt({ month: 'long' }).format(date)
   const day = ordinal(date.getDate())
   let out: string
   switch (dateFormat) {
@@ -99,7 +117,7 @@ export function formatDate(
   }
 
   if ((dateFormat === 'short' || dateFormat === 'full') && weekday !== 'none') {
-    out = `${date.toLocaleDateString('en-US', { weekday: weekday === 'long' ? 'long' : 'short' })}, ${out}`
+    out = `${dateFmt({ weekday: weekday === 'long' ? 'long' : 'short' }).format(date)}, ${out}`
   }
   if (hasTime && timeFormat !== 'none') out += ` ${clockOf(date, timeFormat)}`
   return out
@@ -180,14 +198,14 @@ function formatScalar(n: number, cfg: NumberConfig | undefined): string {
   const useGrouping = cfg?.number_separators !== false
   const digits = fractionDigits(cfg?.number_decimals)
   if (cfg?.number_family === 'currency') {
-    return new Intl.NumberFormat('en-US', {
+    return numFmt({
       style: 'currency',
       currency: cfg.number_currency ?? 'USD',
       useGrouping,
       ...digits,
     }).format(n)
   }
-  const num = new Intl.NumberFormat('en-US', { useGrouping, ...digits }).format(n)
+  const num = numFmt({ useGrouping, ...digits }).format(n)
   return cfg?.number_family === 'percent' ? `${num}%` : num
 }
 

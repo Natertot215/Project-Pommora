@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { PropertyDefinition } from '@shared/properties'
-import { orderAddableDefs, parseEditorValue } from './cardValueInput'
+import { type AddEntry, orderAddableEntries, parseEditorValue } from './cardValueInput'
 
 describe('parseEditorValue', () => {
   it('number: parses a finite value, trims, clears on empty, rejects garbage', () => {
@@ -24,16 +23,15 @@ describe('parseEditorValue', () => {
   })
 })
 
-describe('orderAddableDefs', () => {
-  it('sinks the chevron-less checkbox to the bottom; every pane (chevron) kind stays on top in property order', () => {
-    const defs = [
-      { id: 'n', type: 'number', name: 'N' },
-      { id: 'chk', type: 'checkbox', name: 'Chk' },
-      { id: 's', type: 'status', name: 'S' },
-      { id: 'd', type: 'datetime', name: 'D' },
-      { id: 'u', type: 'url', name: 'U' },
-    ] as PropertyDefinition[]
-    // number/status/datetime/url all open a value pane (chevron) → top, property order kept; checkbox last.
-    expect(orderAddableDefs(defs).map((d) => d.id)).toEqual(['n', 's', 'd', 'u', 'chk'])
+describe('orderAddableEntries', () => {
+  it('sinks reveal-only entries to the bottom; pane entries stay on top in order', () => {
+    const entries: AddEntry[] = [
+      { id: 'n', name: 'N', type: 'number', def: null, revealOnly: false },
+      { id: 'chk', name: 'Chk', type: 'checkbox', def: null, revealOnly: true },
+      { id: 's', name: 'S', type: 'status', def: null, revealOnly: false },
+      { id: 'area', name: 'Areas', type: 'context', def: null, revealOnly: true },
+      { id: 'u', name: 'U', type: 'url', def: null, revealOnly: false },
+    ]
+    expect(orderAddableEntries(entries).map((e) => e.id)).toEqual(['n', 's', 'u', 'chk', 'area'])
   })
 })

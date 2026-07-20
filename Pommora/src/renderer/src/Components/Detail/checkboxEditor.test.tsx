@@ -79,11 +79,11 @@ describe('CheckboxEditor', () => {
     expect(buttonFor('Checkbox style').textContent).toContain('Switch')
   })
 
-  it('emits the picked look from the Style row', async () => {
+  it('toggles the look from the Style row (dual-option control)', async () => {
     const onSetStyle = vi.fn()
     await mount({ look: 'checkbox', onSetStyle })
+    // Checkbox/Switch is two options → a toggle: one click flips 'checkbox' to 'switch'.
     await act(async () => buttonFor('Checkbox style').click())
-    await act(async () => buttonFor('Switch').click())
     expect(onSetStyle).toHaveBeenCalledWith('switch')
   })
 

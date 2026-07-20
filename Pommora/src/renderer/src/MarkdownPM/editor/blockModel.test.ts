@@ -149,4 +149,17 @@ describe('blockAt', () => {
       { from: 32, kind: 'paragraph' },
     ])
   })
+
+  // A code/table block on the FIRST line looks its previous line up off the top edge — that neighbour
+  // lookup must not crash the editor's initial parse.
+  it('a doc starting with a code fence does not crash and starts a code block at 0', () => {
+    const doc = '```js\nconst x = 1\n```\npara'
+    expect(() => blockStarts(doc)).not.toThrow()
+    expect(blockStarts(doc)[0]).toEqual({ from: 0, kind: 'code' })
+  })
+  it('a doc starting with a table does not crash and starts a table block at 0', () => {
+    const doc = '| a | b |\n| - | - |\n| 1 | 2 |\npara'
+    expect(() => blockStarts(doc)).not.toThrow()
+    expect(blockStarts(doc)[0]).toEqual({ from: 0, kind: 'table' })
+  })
 })

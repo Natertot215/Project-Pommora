@@ -97,13 +97,13 @@ describe('resolveView — full pipeline over the fixture', () => {
     const { columns, groups } = resolveView({ rows, setTree, view, schema })
 
     expect(columns[0].id).toBe('prop_status')
+    // prop_when is in the schema but in neither list → the allowlist keeps it off the table
     expect(columns.map((c) => c.id)).toEqual([
       'prop_status',
       '_title',
       '_tier3',
       '_tier2',
       '_tier1',
-      'prop_when',
     ])
     // manual order ['in_progress','opt_open','not_started','done'] — done empty → an empty band; no-value tail last
     expect(groups.map((g) => g.key)).toEqual([
@@ -312,7 +312,7 @@ describe('resolveView — group_order', () => {
 })
 
 describe('mintDefaultView', () => {
-  it('mints a Table view: sentinel id, Title-first, all user props, structural, no sort or _modified_at', () => {
+  it('mints a Table view: sentinel id, title-only, structural, no sort or _modified_at', () => {
     const schema: PropertyDefinition[] = [
       { id: 'prop_x', name: 'X', type: 'select' },
       { id: 'prop_y', name: 'Y', type: 'number' },
@@ -321,7 +321,9 @@ describe('mintDefaultView', () => {
     expect(v.id).toBe(DEFAULT_VIEW_ID)
     expect(v.id).toBe('view_default')
     expect(v.type).toBe('table')
-    expect(v.property_order).toEqual(['_title', 'prop_x', 'prop_y'])
+    expect(v.property_order).toEqual(['_title'])
+    expect(v.hidden_properties).toContain('prop_x')
+    expect(v.hidden_properties).toContain('_tier1')
     expect(v.group).toEqual({ kind: 'structural' })
     expect(v.sort).toBeUndefined()
     expect(v.property_order).not.toContain('_modified_at')

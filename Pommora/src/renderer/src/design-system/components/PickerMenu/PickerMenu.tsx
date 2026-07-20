@@ -17,6 +17,11 @@ import * as s from './pickerMenu.css'
 const GAP = 6 // trigger → pane
 const VIEWPORT_MARGIN = 8 // keep the pane this far from the viewport edges
 
+// A pointerdown inside the body-portalled picker must not bubble (React events cross portals) to a
+// trigger's drag-handle ancestor and pointer-capture — which retargets the click to that handle and
+// steals it. Stopping it here immunizes every consumer, not only triggers that stop pointerdown themselves.
+const stopPointerBubble = (e: { stopPropagation: () => void }): void => e.stopPropagation()
+
 // Uses the `dropdown` token (snappier, symmetric Bloom — same keyframes as the menu Bloom, shared with
 // AutocompletePanel). The beaked shell is the shared NotchedPane; this stays the picker-flavoured skin.
 //
@@ -43,6 +48,7 @@ export function PickerMenu({
   notchCurve = 0.225,
   direction = 'down',
   center = false,
+  anchorX,
   bareSurface = false,
   accentOutline = false,
   contentClassName,
@@ -69,6 +75,9 @@ export function PickerMenu({
   /** Centred mode — the pane straddles the trigger centre with a centred beak (the TextPicker rename
    *  field), instead of the default right-anchored dropdown. */
   center?: boolean
+  /** Horizontal anchor override (viewport px). The pane straddles THIS x instead of the trigger's
+   *  centre, so a value picker can drop from the click point rather than a fixed spot on the trigger. */
+  anchorX?: number
   /** Drop the default surface gutter entirely — `contentClassName` is the ONLY surface class, so a
    *  bespoke body (the icon picker) owns 100% of its padding/layout with no `surface` collision. */
   bareSurface?: boolean
@@ -111,7 +120,7 @@ export function PickerMenu({
     if (!trigger) return
     const measure = (): void => {
       const t = trigger.getBoundingClientRect()
-      const c = t.left + t.width / 2
+      const c = anchorX ?? t.left + t.width / 2
       // Collision test against the measured pane, then flip so the pane fits: any blocked side → down,
       // and down itself → up only when there's no room below (down is the preferred resting direction).
       const ph = paneRef.current?.offsetHeight ?? 0
@@ -162,7 +171,7 @@ export function PickerMenu({
       window.removeEventListener('scroll', measure, true)
       window.removeEventListener('resize', measure)
     }
-  }, [selfManaged, mounted, reserve, triggerRef, closing, center, direction])
+  }, [selfManaged, mounted, reserve, triggerRef, closing, center, direction, anchorX])
 
   // Outside clicks dismiss via the backdrop below the pane (rendered in the portal). Escape is handled
   // here since the backdrop only catches pointers.
@@ -204,7 +213,10 @@ export function PickerMenu({
       notchInsetBottom={pos?.notchInsetBottom}
       notchSide={notchSide}
       accentOutline={accentOutline}
-      style={style}
+      // Through the Bloom-out the pane still paints but must not ACT: its content goes pointer-inert so a
+      // stray click can't re-fire an option mid-close. The layer below stays interactive (it swallows the
+      // click) so it can't fall through to whatever sits behind — a card's nav/drag surface.
+      style={closing ? { ...style, pointerEvents: 'none' } : style}
     >
       {children}
     </NotchedPane>
@@ -227,12 +239,21 @@ export function PickerMenu({
       {createPortal(
         <>
           {onDismiss && !closing ? (
-            <div className={s.backdrop} data-picker-portal onClick={onDismiss} />
+            <div
+              className={s.backdrop}
+              data-picker-portal
+              onPointerDown={stopPointerBubble}
+              onClick={onDismiss}
+            />
           ) : null}
           <div
             ref={paneRef}
             className={s.layer}
             data-picker-portal
+            // React events cross portals, so a pointerdown on the pane (an option/row) would bubble to a
+            // trigger's drag-handle ancestor and pointer-capture — stealing the click. Stop it here so any
+            // consumer's picker is safe, not just ones whose trigger happens to stop pointerdown itself.
+            onPointerDown={stopPointerBubble}
             style={{
               // Vertical panes anchor by `top`; sideways panes by `bottom` (aiming the side beak).
               ...(pos?.top !== undefined ? { top: `${pos.top}px` } : null),
@@ -244,7 +265,8 @@ export function PickerMenu({
                   : null),
               ...(pos ? null : { top: '0' }),
               visibility: pos ? undefined : 'hidden',
-              pointerEvents: closing ? 'none' : undefined,
+              // The layer stays interactive through the close (its content is pointer-inert above) so it
+              // catches a click over the fading pane's footprint instead of leaking it to the page beneath.
             }}
           >
             {pane}

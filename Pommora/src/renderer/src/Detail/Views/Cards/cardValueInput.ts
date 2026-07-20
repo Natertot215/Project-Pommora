@@ -1,21 +1,26 @@
 import { isValidLink, normalizeLinkUrl } from '@shared/links'
-import type { PropertyDefinition } from '@shared/properties'
+import type { PropertyDefinition, PropertyType } from '@shared/properties'
 import type { PropertyValue } from '@shared/propertyValue'
 import { serializeLink } from '../Table/linkValue'
 
-/** Kinds that commit straight from the list with no drill-in value pane (no chevron). Only the
- *  checkbox is instant today; every other addable kind opens a pane and shows a chevron. */
-const NO_PANE_KINDS: ReadonlySet<string> = new Set(['checkbox'])
+/** One row of the card add-property menu: something NOT currently shown that can be added back. A
+ *  `pane` entry (a blank addable-type prop) drills into a value pane to set a value; a `revealOnly`
+ *  entry (a hidden tier/context, a hidden-but-filled prop, or a checkbox) just unhides on pick — its
+ *  value is already on disk or it draws its own control once visible. `def` is the schema definition
+ *  for a real property, null for a reserved tier/Modified id (which carries no schema entry). */
+export type AddEntry = {
+  id: string
+  name: string
+  type: PropertyType
+  def: PropertyDefinition | null
+  revealOnly: boolean
+}
 
-/** Property-picker list order: every pane-bearing kind (the ones that show a `>` chevron) sorts to
- *  the top and the instant, chevron-less kinds sink to the bottom, property order preserved WITHIN
- *  each group (a stable partition). Shared by the in-app add-picker and the native Add-Property menu
- *  so both read the same. */
-export function orderAddableDefs(defs: PropertyDefinition[]): PropertyDefinition[] {
-  return [
-    ...defs.filter((d) => !NO_PANE_KINDS.has(d.type)),
-    ...defs.filter((d) => NO_PANE_KINDS.has(d.type)),
-  ]
+/** Menu order: the pane-bearing entries (a `>` chevron) sort to the top, reveal-only entries below,
+ *  order preserved WITHIN each group. Shared by the in-app add-picker and the native Add-Property
+ *  menu so both read the same. */
+export function orderAddableEntries(entries: AddEntry[]): AddEntry[] {
+  return [...entries.filter((e) => !e.revealOnly), ...entries.filter((e) => e.revealOnly)]
 }
 
 /** Parse a text-editor string for a number/url property into its committable value. `null` clears

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import type {
   CollectionNode,
   NexusLabels,
@@ -9,12 +9,11 @@ import type {
 } from '@shared/types'
 import type { PageFrontmatter } from '@shared/schemas'
 import { applyPropertyValue, isBlankValue, type PropertyValue } from '@shared/propertyValue'
-import { type CardBanner, LOCATION_SORT, type SavedView } from '@shared/views'
+import { type CardBanner, isCompact, LOCATION_SORT, type SavedView } from '@shared/views'
 import type { ColumnStyle } from '@shared/columnStyles'
 import { defaultEntityIcon, Icon, iconNameOr } from '@renderer/design-system/symbols'
 import { text } from '@renderer/design-system/tokens/typography.css'
 import { OverflowScroll } from '@renderer/design-system/components/OverflowScroll'
-import { Reveal } from '@renderer/design-system/components/Reveal'
 import { type DragItem, SortableZone, useDragItem } from '@renderer/design-system/interactions/drag'
 import { cx } from '@renderer/design-system/cx'
 import { assetUrl } from '../../../assetUrl'
@@ -22,27 +21,31 @@ import { useSession } from '../../../store'
 import { findCollectionForSet } from '@renderer/Detail/Scope'
 import { useSaveView } from '@renderer/Embeds/ViewEmbedScope'
 import { resolveColumns } from '../pipeline/columns'
-import { contextOptionsFor as contextOptionsForTier } from '../pipeline/contextOptions'
+import {
+  contextOptionsFor as contextOptionsForTier,
+  type ContextOption,
+} from '../pipeline/contextOptions'
 import { flattenContainer, groupsStructurally } from '../pipeline/group'
-import { resolvedSortCount } from '../pipeline/sort'
+import { resolvedSortCount, resolveManualOrder } from '../pipeline/sort'
 import { resolveFieldValue } from '../pipeline/value'
 import { resolveView } from '../pipeline/resolveView'
 import { useActiveView } from '../useActiveView'
 import { columnLabel, TIER_LEVEL_BY_ID } from '../Table/columnLabel'
 import { resolveContainerSchema } from '../Table/TableView'
-import { buildSetIcons, buildSetNames, groupLabel } from '../Table/cellResolve'
+import { buildSetIcons, buildSetNames } from '../Table/cellResolve'
+import { GroupBand, resolveBandHead } from '../GroupBand'
 import { buildResolveContext, type ResolveContext } from '../Table/resolveContext'
 import { NavCrumbs } from '../../../Navigation/NavList'
 import type { PathCrumb } from '../../../Navigation/navResolve'
 import { ADDABLE_TYPES, CardAddPicker } from './CardAddPicker'
 import { CardValue } from './CardValue'
 import { bandShowsAdd } from './cardsBand'
-import { reorderIds, resolveManualOrder } from './cardsOrder'
-import { orderAddableDefs } from './cardValueInput'
+import { reorderIds } from './cardsOrder'
+import { type AddEntry, orderAddableEntries } from './cardValueInput'
+import { hiddenListIds, hideShown, unhide } from '@renderer/Components/Detail/hiddenPaneModel'
 import { IconPicker } from '@renderer/Components/IconPicker'
 import { TextPicker } from '@renderer/design-system/components/TextPicker'
 import { isOpenInTabs } from '../../../Tabs/tabsModel'
-import type { PropertyDefinition } from '@shared/properties'
 import './CardsView.css'
 
 // A page's thumbnail file — navKey's `page:<id>` flips its colon to a dash on disk (io/thumbnails).
@@ -53,7 +56,8 @@ const thumbSrc = (nexusId: string, pageId: string, v: number): string =>
  * The Cards renderer — the container's Pages as a resizable card grid over the same pipeline the
  * table reads: the Set Cards row on top, then a flattened disclosure band per resolved group (cards
  * never indent — descendants roll up under their top-level band; ungrouped pages band under the
- * container's own heading). Properties on cards and card drag arrive with the mechanics pass.
+ * container's own heading). Each card renders its visible properties as interactive values and
+ * reorders within its band by drag.
  */
 export function CardsView({ source }: { source: CollectionNode | SetNode }): React.JSX.Element {
   const tree = useSession((s) => s.tree)
@@ -110,8 +114,6 @@ export function CardsView({ source }: { source: CollectionNode | SetNode }): Rea
     }
     setProperty(row, column.id, value)
   }
-  // A context column's pickable list — reserved tiers read their fixed level, a user context prop
-  // its target tier; null for anything else (the table's contextOptionsFor).
   const contextOptionsFor = (column: ResolvedColumn): ContextOption[] | null => {
     const level =
       column.kind === 'tier'
@@ -131,8 +133,26 @@ export function CardsView({ source }: { source: CollectionNode | SetNode }): Rea
       },
     })
   }
+  // Adding a property from a card reveals it in the view (the shared eye-unhide patch: place in order
+  // + clear the hidden flag) — otherwise the allowlist keeps an unplaced property hidden and the value
+  // the user just set never shows. A multi-select fills onCommit per toggle, so dedup a reveal already
+  // in flight: the view is stale until the first saveView's refetch lands, so without this each toggle
+  // re-fires a full-nexus walk.
+  const revealingRef = useRef<Set<string>>(new Set())
+  const revealProperty = (id: string): void => {
+    if (revealingRef.current.has(id)) return
+    if (view.property_order.includes(id) && !view.hidden_properties.includes(id)) return
+    revealingRef.current.add(id)
+    void saveView({ ...view, ...unhide(view, id) }).finally(() => revealingRef.current.delete(id))
+  }
+  // Right-click ▸ Remove on a card value — drop the property from this view (its property_order slot
+  // stays as a remembered spot, so a later reveal restores it in place). The inverse of revealProperty.
+  const hideProperty = (id: string): void => {
+    if (view.hidden_properties.includes(id)) return
+    void saveView({ ...view, ...hideShown(view, id) })
+  }
 
-  // Manual card order — the per-machine viewOrders tiebreaker the table's sorter reads (I-9); the
+  // Manual card order — the per-machine viewOrders tiebreaker the table's sorter reads; the
   // override gives instant feedback on a drop. Two+ effective sort criteria retire the drag, the
   // table's law.
   const [viewOrders, setViewOrders] = useState<Record<string, string[]>>({})
@@ -149,7 +169,15 @@ export function CardsView({ source }: { source: CollectionNode | SetNode }): Rea
   }, [source.path])
   const sortKeys = useMemo(() => resolvedSortCount(view.sort, schema), [view.sort, schema])
   const sortedOrGrouped = sortKeys > 0 || view.group != null
-  const manualOrder = resolveManualOrder(sortedOrGrouped, manualOverride, viewOrders[view.id])
+  // Sort By: Location on its Location order is a computed filesystem order (drag off); Custom falls to
+  // the manual order (drag on). In Location order the per-machine manual order must NOT feed the sorter,
+  // or a prior Custom drag persists as the shown order and filesystem order never appears.
+  const locationFsOrder =
+    view.sort?.[0]?.property_id === LOCATION_SORT &&
+    (view.structural_order_mode ?? 'location') === 'location'
+  const manualOrder = locationFsOrder
+    ? undefined
+    : resolveManualOrder(sortedOrGrouped, manualOverride, viewOrders[view.id])
 
   const groups = useMemo(() => {
     const { rows, setTree } = flattenContainer(source, effectiveValues)
@@ -199,23 +227,11 @@ export function CardsView({ source }: { source: CollectionNode | SetNode }): Rea
     return m
   }, [source])
   // Under location (structural) grouping the band header IS the top-level set, so the breadcrumb
-  // drops that leading crumb and starts at the next set down — the band already shows it (E-3).
+  // drops that leading crumb and starts at the next set down — the band already shows it.
   // Property/flat grouping keeps the full chain (the band is a bucket, not a location).
   const structural = useMemo(() => groupsStructurally(view.group, schema), [view.group, schema])
-  // Group By: None → a single headerless band (E-4 flatten). Sort By: Location on its Location order is
-  // a computed filesystem order (drag off); Custom falls to the manual order (drag on).
+  // Group By: None → a single headerless, flattened band.
   const flatMode = view.group?.kind === 'flat'
-  const locationFsOrder =
-    view.sort?.[0]?.property_id === LOCATION_SORT &&
-    (view.structural_order_mode ?? 'location') === 'location'
-  const locFor = (row: ViewRow): PathCrumb[] | undefined => {
-    if (hideLocation || !row.parentSetId) return undefined
-    const chain = setChains.get(row.parentSetId)
-    if (!chain) return undefined
-    // A structural band head names its top-level set, so the footing drops that crumb; flat/property
-    // grouping has no such head (structural is false), so the full chain shows (E-3).
-    return structural ? chain.slice(1) : chain
-  }
 
   // Band collapse — seeded from the view, persisted through the shared writer (the table's model).
   const [collapsed, setCollapsed] = useState<Set<string>>(
@@ -234,7 +250,8 @@ export function CardsView({ source }: { source: CollectionNode | SetNode }): Rea
     if (next.has(key)) next.delete(key)
     else next.add(key)
     setCollapsed(next)
-    void saveView({ ...view, collapsed_groups: [...next] })
+    // The local `collapsed` state already shows the toggle — skip the refetch's redundant full walk.
+    void saveView({ ...view, collapsed_groups: [...next] }, { skipRefetch: true })
   }
 
   const banner: CardBanner = view.card_banner ?? 'cover'
@@ -250,19 +267,53 @@ export function CardsView({ source }: { source: CollectionNode | SetNode }): Rea
     else void select({ kind: 'page', id: row.id, path: row.path }, { newTab })
   }
 
-  // Band identity (E-7): the ungrouped band wears the container's own heading; structural bands
-  // their Set's icon + title; property bands the bucket's option label.
-  const bandLabel = (g: ResolvedGroup): string =>
-    g.kind === 'ungrouped' ? source.title : ctx ? groupLabel(g, view, ctx, setNames) : g.key
-  const bandGlyph = (g: ResolvedGroup): string | undefined =>
-    g.kind === 'structural-set'
-      ? iconNameOr(setIcons.get(g.key), defaultEntityIcon('set'))
-      : g.kind === 'ungrouped'
-        ? iconNameOr(
-            source.icon,
-            defaultEntityIcon(source.kind === 'collection' ? 'collection' : 'set'),
-          )
-        : undefined
+  // Card handlers handed to memoized cards as ONE identity-stable object (the table's cellApi idiom):
+  // a ref carries the live closures, the memo wrapper never changes reference. So a card bails on a
+  // parent re-render that leaves its own inputs untouched — chiefly a band collapse in a large
+  // container, which then repaints its header, not every card.
+  const handlersRef = useRef({
+    commitValue,
+    setColumnStyle,
+    contextOptionsFor,
+    openPage,
+    revealProperty,
+    hideProperty,
+  })
+  handlersRef.current = {
+    commitValue,
+    setColumnStyle,
+    contextOptionsFor,
+    openPage,
+    revealProperty,
+    hideProperty,
+  }
+  const cardApi = useMemo(
+    () => ({
+      onCommitValue: (row: ViewRow, column: ResolvedColumn, value: PropertyValue | null) =>
+        handlersRef.current.commitValue(row, column, value),
+      onStyle: (colId: string, key: keyof ColumnStyle & string, value: string) =>
+        handlersRef.current.setColumnStyle(colId, key, value),
+      contextOptionsFor: (column: ResolvedColumn) => handlersRef.current.contextOptionsFor(column),
+      onOpen: (row: ViewRow, newTab: boolean) => handlersRef.current.openPage(row, newTab),
+      onReveal: (id: string) => handlersRef.current.revealProperty(id),
+      onHide: (id: string) => handlersRef.current.hideProperty(id),
+    }),
+    [],
+  )
+  // Per-card location trail, resolved ONCE per grouping/location change. Under structural grouping the
+  // band header IS the top-level set, so the trail drops that leading crumb; property/flat keeps the full
+  // chain. Built as a map (not called inline) — chain.slice allocates, and a fresh array per render would
+  // defeat each card's memo.
+  const locByRow = useMemo(() => {
+    const m = new Map<string, PathCrumb[]>()
+    if (hideLocation) return m
+    for (const r of flattenGroups(groups)) {
+      if (!r.parentSetId) continue
+      const chain = setChains.get(r.parentSetId)
+      if (chain) m.set(r.id, structural ? chain.slice(1) : chain)
+    }
+    return m
+  }, [groups, setChains, structural, hideLocation])
 
   return (
     <div
@@ -289,81 +340,56 @@ export function CardsView({ source }: { source: CollectionNode | SetNode }): Rea
         // Group By: None is one headerless, force-open band — a stale collapse from another grouping
         // would otherwise hide every card with no head to toggle.
         const isCollapsed = !flatMode && collapsed.has(g.key)
-        const glyph = bandGlyph(g)
+        const head = ctx ? resolveBandHead(g, view, ctx, setNames, setIcons, source) : null
         return (
-          <section key={g.key} className="cards-band">
-            {!flatMode && (
-              <div className="cards-band-head">
-                <button
-                  type="button"
-                  className="cards-band-toggle"
-                  onClick={() => toggleCollapse(g.key)}
-                >
-                  <Icon
-                    name="chevron-right"
-                    size={13}
-                    className={cx('cards-band-twisty', !isCollapsed && 'open')}
+          <GroupBand
+            key={g.key}
+            glyph={head?.glyph}
+            collapsed={isCollapsed}
+            onToggle={() => toggleCollapse(g.key)}
+            showAdd={bandShowsAdd(g.kind)}
+            headless={flatMode}
+            fill
+          >
+            <div className="cards-grid">
+              <SortableZone
+                items={rows.map((r) => r.id)}
+                layout="grid"
+                // Sort By: Location on its filesystem order is computed — a drop can't reorder it
+                // (that's a movePage, deferred), so drag is off; the Custom order keeps drag on.
+                disabled={sortKeys >= 2 || locationFsOrder}
+                onReorder={(a, b) => reorderInBand(g.key, a, b)}
+                getItemLabel={(id) => rows.find((r) => r.id === id)?.title ?? id}
+              >
+                {rows.map((row) => (
+                  <PageCard
+                    key={row.id}
+                    row={row}
+                    view={view}
+                    banner={banner}
+                    nexusId={nexusId}
+                    columns={columns}
+                    ctx={ctx}
+                    labels={labels}
+                    loc={locByRow.get(row.id)}
+                    onCommitValue={cardApi.onCommitValue}
+                    onStyle={cardApi.onStyle}
+                    contextOptionsFor={cardApi.contextOptionsFor}
+                    onOpen={cardApi.onOpen}
+                    onReveal={cardApi.onReveal}
+                    onHide={cardApi.onHide}
                   />
-                  {glyph && <Icon name={glyph} size={14} className="cards-band-glyph" />}
-                  <span className={cx('cards-band-title', text.body.emphasized)}>
-                    {bandLabel(g)}
-                  </span>
-                </button>
-                {/* Hover-revealed add on structural bands only (I-2). Inert (visual + gating) — the
-                  create-page routing is Nathan's creation-affordance design, deferred; matches the
-                  table's stub. */}
-                {bandShowsAdd(g.kind) ? (
-                  <button
-                    type="button"
-                    className="cards-band-add"
-                    tabIndex={-1}
-                    onPointerDown={(e) => e.stopPropagation()}
-                    aria-label="New page in group"
-                  >
-                    <Icon name="plus" size={13} />
-                  </button>
-                ) : null}
-              </div>
-            )}
-            <Reveal open={!isCollapsed} fill>
-              <div className="cards-grid">
-                <SortableZone
-                  items={rows.map((r) => r.id)}
-                  layout="grid"
-                  // Sort By: Location on its filesystem order is computed — a drop can't reorder it
-                  // (that's a movePage, deferred), so drag is off; the Custom order keeps drag on.
-                  disabled={sortKeys >= 2 || locationFsOrder}
-                  onReorder={(a, b) => reorderInBand(g.key, a, b)}
-                  getItemLabel={(id) => rows.find((r) => r.id === id)?.title ?? id}
-                >
-                  {rows.map((row) => (
-                    <DraggablePageCard
-                      key={row.id}
-                      row={row}
-                      view={view}
-                      banner={banner}
-                      nexusId={nexusId}
-                      columns={columns}
-                      ctx={ctx}
-                      labels={labels}
-                      onCommitValue={commitValue}
-                      onStyle={setColumnStyle}
-                      contextOptionsFor={contextOptionsFor}
-                      onOpen={openPage}
-                      loc={locFor(row)}
-                    />
-                  ))}
-                </SortableZone>
-              </div>
-            </Reveal>
-          </section>
+                ))}
+              </SortableZone>
+            </div>
+          </GroupBand>
         )
       })}
     </div>
   )
 }
 
-// The cards view never indents (E-2): a band's descendants' pages roll up flat, in resolved order.
+// The cards view never indents: a band's descendants' pages roll up flat, in resolved order.
 function flattenGroups(groups: ResolvedGroup[]): ViewRow[] {
   const out: ViewRow[] = []
   const walk = (gs: ResolvedGroup[]): void => {
@@ -376,13 +402,13 @@ function flattenGroups(groups: ResolvedGroup[]): ViewRow[] {
   return out
 }
 
-/** Wires a Set Card into the set-cards-row's SortableZone (F-1 reorder → moveSet). */
+/** Wires a Set Card into the set-cards-row's SortableZone (reorder routes through moveSet). */
 function DraggableSetCard({ set }: { set: SetNode }): React.JSX.Element {
   const drag = useDragItem(set.id)
   return <SetCard set={set} drag={drag} />
 }
 
-/** A Set Card (F-1/I-3): banner-only image (placeholder when unset) + icon + title; clicking
+/** A Set Card: banner-only image (placeholder when unset) + icon + title; clicking
  *  navigates to the Set (guarded so a reorder-drop doesn't navigate). Rides the page card's chassis
  *  at the larger set-row size. */
 function SetCard({ set, drag }: { set: SetNode; drag?: DragItem }): React.JSX.Element {
@@ -414,7 +440,7 @@ function SetCard({ set, drag }: { set: SetNode; drag?: DragItem }): React.JSX.El
         </div>
         <div className="page-card-text">
           <OverflowScroll className={cx('page-card-title', text.footnote.semibold)}>
-            <Icon name={iconName} size={14} className="page-card-title-icon" />
+            <Icon name={iconName} className="page-card-title-icon" />
             <span className="page-card-title-text">{set.title}</span>
           </OverflowScroll>
         </div>
@@ -422,8 +448,6 @@ function SetCard({ set, drag }: { set: SetNode; drag?: DragItem }): React.JSX.El
     </div>
   )
 }
-
-type ContextOption = { value: string; label: string; color?: string }
 
 // The whole card is a drag handle (the engine pointer-captures on pointerdown, which would steal an
 // inner element's click). An interactive zone stops pointerdown so its click survives; a container
@@ -446,11 +470,13 @@ interface PageCardProps {
   onStyle: (colId: string, key: keyof ColumnStyle & string, value: string) => void
   contextOptionsFor: (column: ResolvedColumn) => ContextOption[] | null
   onOpen: (row: ViewRow, newTab: boolean) => void
+  onReveal: (id: string) => void
+  onHide: (id: string) => void
 }
 
 /**
- * The card's property body (C-2/C-3): the visible, non-blank columns (`shown`), each an interactive
- * CardValue (the ratified per-kind click matrix). Standard = labeled rows; Compact = the label-less
+ * The card's property body: the visible, non-blank columns (`shown`), each an interactive
+ * CardValue (the per-kind click matrix). Standard = labeled rows; Compact = the label-less
  * clamped value flow in property order. Only rendered when there ARE properties (no empty reserve
  * gap); an empty card's add-input is the breadcrumb. Clicking the flow's empty space adds another.
  */
@@ -463,16 +489,20 @@ function CardProperties({
   onZoneClick,
   onCommitValue,
   onStyle,
+  onHide,
   contextOptionsFor,
 }: Pick<
   PageCardProps,
-  'row' | 'view' | 'ctx' | 'labels' | 'onCommitValue' | 'onStyle' | 'contextOptionsFor'
+  'row' | 'view' | 'ctx' | 'labels' | 'onCommitValue' | 'onStyle' | 'onHide' | 'contextOptionsFor'
 > & {
   shown: ResolvedColumn[]
   onZoneClick: (e: React.MouseEvent) => void
 }): React.JSX.Element | null {
   if (!ctx || !labels) return null
-  const compact = (view.format ?? 'standard') === 'compact'
+  const compact = isCompact(view)
+  // The inline chip-× is kept only at a large-enough card scale (D-1): below it the × zone overlaps a
+  // short chip and steals the picker click, deleting the value. Below the floor a click always picks.
+  const allowInlineRemove = (view.card_size ?? 1) >= 0.8
   const style = (id: string): ColumnStyle => view.column_styles?.[id] ?? {}
   const zoneClick = (e: React.MouseEvent): void => {
     if (e.target === e.currentTarget) onZoneClick(e)
@@ -486,6 +516,8 @@ function CardProperties({
       contextOptions={contextOptionsFor(c)}
       onCommit={(col, v) => onCommitValue(row, col, v)}
       onStyle={onStyle}
+      onHide={onHide}
+      allowInlineRemove={allowInlineRemove}
     />
   )
   return compact ? (
@@ -500,7 +532,7 @@ function CardProperties({
     <div className="card-props" onClick={zoneClick} onPointerDown={stopDragSelf}>
       {shown.map((c) => (
         <div key={c.id} className="card-prop-row">
-          <span className={cx('card-prop-label', text.caption.standard)}>
+          <span className={cx('card-prop-label', text.caption.emphasized)}>
             {columnLabel(c.id, ctx.schema, labels)}
           </span>
           {value(c)}
@@ -510,14 +542,12 @@ function CardProperties({
   )
 }
 
-/** Wires one card into its band's SortableZone — the drag shell rides the card root (NavGallery's
- *  DraggableCard split: the engine owns the root's transform; hover-pop lives on the body inside). */
-function DraggablePageCard(props: PageCardProps): React.JSX.Element {
-  const drag = useDragItem(props.row.id)
-  return <PageCard {...props} drag={drag} />
-}
-
-function PageCard({
+// One card into its band's SortableZone — the drag shell rides the card root (NavGallery's
+// DraggableCard split: the engine owns the root's transform; hover-pop lives on the body inside).
+// Memoized (the table's DataRow idiom): every prop arrives identity-stable, so a card bails on a parent
+// re-render that leaves its inputs untouched — chiefly a band collapse, which repaints its header, not
+// every card. The drag hook lives inside; the dragging band still repaints per frame via its Zone.
+const PageCard = memo(function PageCard({
   row,
   view,
   banner,
@@ -526,16 +556,18 @@ function PageCard({
   ctx,
   labels,
   loc,
-  drag,
   onCommitValue,
   onStyle,
   contextOptionsFor,
   onOpen,
-}: PageCardProps & { drag?: DragItem }): React.JSX.Element {
+  onReveal,
+  onHide,
+}: PageCardProps): React.JSX.Element {
+  const drag = useDragItem(row.id)
   const version = useSession((s) => s.thumbVersions[`page:${row.id}`] ?? 0)
   const [failed, setFailed] = useState(false)
 
-  // The add-picker (G-1): the property zone's empty space AND the location row both open it,
+  // The add-picker: the property zone's empty space AND the location row both open it,
   // anchored to the card's text area. Lists the page's blank, pickable properties.
   const [addOpen, setAddOpen] = useState(false)
   const textRef = useRef<HTMLDivElement>(null)
@@ -544,21 +576,48 @@ function PageCard({
     // Nothing addable → don't pop a dead-end empty picker (the native menu already omits its submenu).
     if (!drag?.isDragging && addable.length > 0) setAddOpen(true)
   }
-  const addable = useMemo(
+  // What shows is the view's VISIBLE property set (`columns` already honors hidden_properties).
+  // Standard keeps a blank one as a labeled, fillable row (add = make it visible); Compact's
+  // label-less flow can't render an empty value, so there it drops blanks — EXCEPT a checkbox, which
+  // renders its own (unchecked) box and is the on-card toggle, so it stays.
+  const compactLayout = isCompact(view)
+  const shown = useMemo(
     () =>
       ctx
-        ? ctx.schema.filter(
-            (d) =>
-              ADDABLE_TYPES.has(d.type) && isBlankValue(resolveFieldValue(row, d.id, ctx.schema)),
+        ? columns.filter(
+            (c) =>
+              c.kind !== 'title' &&
+              (!compactLayout ||
+                !isBlankValue(resolveFieldValue(row, c.id, ctx.schema)) ||
+                ctx.schema.find((d) => d.id === c.id)?.type === 'checkbox'),
           )
         : [],
-    [ctx, row],
+    [ctx, columns, row, compactLayout],
   )
+  // The add menu is everything NOT currently shown: the Visibility hidden list (hidden tiers + hidden/
+  // unaccounted props) plus any schema prop that's revealed-but-blank (compact drops it, so it stays
+  // addable to re-fill). A blank addable-type prop is a `pane` entry (set a value); a tier/context, a
+  // hidden-but-filled prop, or a checkbox (draws its own box) is reveal-only.
+  const addable = useMemo<AddEntry[]>(() => {
+    if (!ctx || !labels) return []
+    const shownIds = new Set(shown.map((c) => c.id))
+    const bySchema = new Map(ctx.schema.map((d) => [d.id, d]))
+    const ids = [...new Set([...hiddenListIds(view, ctx.schema), ...ctx.schema.map((d) => d.id)])]
+    return ids
+      .filter((id) => !shownIds.has(id))
+      .map((id) => {
+        const def = bySchema.get(id) ?? null
+        const type = def?.type ?? 'context'
+        const blank = isBlankValue(resolveFieldValue(row, id, ctx.schema))
+        const revealOnly = !def || !ADDABLE_TYPES.has(type) || type === 'checkbox' || !blank
+        return { id, name: columnLabel(id, ctx.schema, labels), type, def, revealOnly }
+      })
+  }, [ctx, view, row, labels, shown])
   const mutate = useSession((s) => s.mutate)
   const [renameOpen, setRenameOpen] = useState(false)
   const [iconOpen, setIconOpen] = useState(false)
-  const [addPicked, setAddPicked] = useState<PropertyDefinition | null>(null)
-  // The card's native right-click menu (I-6): page meta (Open · Rename · Change Icon · Delete) + an
+  const [addPicked, setAddPicked] = useState<AddEntry | null>(null)
+  // The card's native right-click menu: page meta (Open · Rename · Change Icon · Delete) + an
   // Add Property ▸ submenu — the add path for cards with no in-body add surface. A value right-click
   // is caught by CardValue's own menu (it stops propagation), so this handles the empty/title/thumb.
   const onCardContextMenu = async (e: React.MouseEvent): Promise<void> => {
@@ -567,7 +626,7 @@ function PageCard({
     if (!ctx || drag?.isDragging) return
     const { tabs, pins } = useSession.getState()
     const alreadyOpen = isOpenInTabs(tabs, pins, { kind: 'page', id: row.id, path: row.path })
-    const menuAddable = orderAddableDefs(addable).map((d) => ({ id: d.id, name: d.name }))
+    const menuAddable = orderAddableEntries(addable).map((e) => ({ id: e.id, name: e.name }))
     const action = await window.nexus.cardMenu({ addable: menuAddable, alreadyOpen })
     if (!action) return
     if (action === 'title:newtab') onOpen(row, true)
@@ -575,24 +634,17 @@ function PageCard({
     else if (action === 'title:icon') setIconOpen(true)
     else if (action === 'title:delete') void mutate({ op: 'delete', path: row.path, kind: 'page' })
     else if (action.startsWith('add:')) {
-      const def = addable.find((d) => d.id === action.slice(4))
-      if (def) {
-        setAddPicked(def)
+      const entry = addable.find((e) => e.id === action.slice(4))
+      if (!entry) return
+      // A reveal-only entry (tier/context, hidden-filled, checkbox) just unhides; a pane entry opens
+      // the value pane to set a value.
+      if (entry.revealOnly) onReveal(entry.id)
+      else {
+        setAddPicked(entry)
         setAddOpen(true)
       }
     }
   }
-  // The card's filled properties — the property body renders only when non-empty (no reserve gap),
-  // and the breadcrumb becomes the add surface when empty (G-1).
-  const shown = useMemo(
-    () =>
-      ctx
-        ? columns.filter(
-            (c) => c.kind !== 'title' && !isBlankValue(resolveFieldValue(row, c.id, ctx.schema)),
-          )
-        : [],
-    [ctx, columns, row],
-  )
   const hasProps = shown.length > 0
   const crumbs = loc ?? []
 
@@ -607,7 +659,7 @@ function PageCard({
   const titleBody = (
     <>
       {!(view.hide_page_icons ?? false) && (
-        <Icon name={iconName} size={13} className="page-card-title-icon" />
+        <Icon name={iconName} className="page-card-title-icon" />
       )}
       <span className="page-card-title-text">{row.title}</span>
     </>
@@ -623,7 +675,18 @@ function PageCard({
       {...(drag?.handle ?? { role: 'button', tabIndex: 0 })}
       className={cx('page-card', drag?.isDragging && 'is-dragging')}
       onClick={(e) => {
-        if (!drag?.isDragging) onOpen(row, e.metaKey)
+        if (drag?.isDragging) return
+        // Only the title + banner open the page. A click landing anywhere else — a value's picker that
+        // just dismissed, the reflowed compact flow, the close-animation window — must not navigate.
+        // elementFromPoint reads the real element under the pointer (the drag engine's pointer-capture
+        // retargets the click's own target to this card root, so e.target can't be trusted here).
+        const hit = document.elementFromPoint(e.clientX, e.clientY)
+        if (
+          hit &&
+          e.currentTarget.contains(hit) &&
+          hit.closest('.page-card-title, .page-card-thumb')
+        )
+          onOpen(row, e.metaKey)
       }}
       onContextMenu={onCardContextMenu}
     >
@@ -666,12 +729,13 @@ function PageCard({
               shown={shown}
               onCommitValue={onCommitValue}
               onStyle={onStyle}
+              onHide={onHide}
               contextOptionsFor={contextOptionsFor}
               onZoneClick={openAdd}
             />
           )}
           {crumbs.length > 0 && (
-            // biome-ignore lint/a11y/noStaticElementInteractions: the breadcrumb is ALWAYS an add-property input (G-1) — NavCrumbs is non-navigable here.
+            // biome-ignore lint/a11y/noStaticElementInteractions: the breadcrumb is ALWAYS an add-property input — NavCrumbs is non-navigable here.
             <div className="page-card-loc-zone" onClick={openAdd} onPointerDown={stopDrag}>
               <NavCrumbs path={crumbs} className="page-card-loc" iconSize={11} />
             </div>
@@ -680,12 +744,16 @@ function PageCard({
       </div>
       {addOpen && ctx && (
         <CardAddPicker
-          defs={addable}
-          currentOf={(d) => resolveFieldValue(row, d.id, ctx.schema)}
+          entries={addable}
+          currentOf={(e) => resolveFieldValue(row, e.id, ctx.schema)}
           open={addOpen}
           anchorRef={textRef}
-          initialDef={addPicked}
-          onCommit={(d, v) => onCommitValue(row, { id: d.id, kind: 'property' }, v)}
+          initialEntry={addPicked}
+          onCommit={(e, v) => {
+            onReveal(e.id)
+            onCommitValue(row, { id: e.id, kind: 'property' }, v)
+          }}
+          onReveal={(e) => onReveal(e.id)}
           onDismiss={() => {
             setAddOpen(false)
             setAddPicked(null)
@@ -717,4 +785,4 @@ function PageCard({
       )}
     </div>
   )
-}
+})

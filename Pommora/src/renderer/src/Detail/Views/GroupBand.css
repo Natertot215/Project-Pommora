@@ -1,0 +1,45 @@
+/* Shared group-band chrome — the disclosure head (twisty + glyph + hover "+") over the band body. The
+   table + cards views each scope the divergent bits: the table's gutter chevron + sticky head + section
+   rhythm, the cards' inter-band spacing. The glyph itself resolves identically for both (GroupBand). */
+.group-band-head {
+  display: flex;
+  align-items: center;
+  gap: var(--cell-icon-gap, 6px);
+  min-width: 0;
+  color: var(--text);
+}
+.group-band-glyph {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+/* The icon + label cluster shared by structural, checkbox, date, and fallback glyphs. The glyphs read
+   at the shared icon tone (--label-secondary); the label text stays --text. Direct child only, so a
+   chip glyph (checkbox box) keeps its own colour. */
+.group-name {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cell-icon-gap, 6px);
+}
+.group-name > svg {
+  color: var(--label-secondary);
+}
+.group-band-twisty,
+.group-band-add {
+  display: inline-flex;
+  align-items: center;
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--text-dim);
+  cursor: default;
+}
+/* Hover-revealed structural-band "+" (inert stub — the create-page routing is deferred); the whole band
+   row is the reveal target. */
+.group-band-add {
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-standard);
+}
+.group-band-row:hover .group-band-add {
+  opacity: 1;
+}

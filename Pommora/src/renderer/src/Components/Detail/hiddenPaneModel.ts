@@ -26,15 +26,20 @@ const CONTEXT_TIERS = [
   RESERVED_PROPERTY_ID.tier3,
 ]
 
-/** The hidden group's display order: hidden tiers (fixed tier order), then hidden schema props in
- *  COLLECTION order (never the view's), then Modified. A stale hidden id displays nowhere but stays
- *  in the array (writes only ever filter the toggled id, so foreign keys survive — the loose-sidecar
- *  contract). Title is never here — it can't hide. */
-export function hiddenListIds(hidden: string[], schema: PropertyDefinition[]): string[] {
-  const set = new Set(hidden)
+/** The hidden group's display order: hidden tiers (fixed tier order), then every non-shown schema
+ *  prop in COLLECTION order (never the view's) — explicitly hidden OR unaccounted (not in
+ *  property_order, so the allowlist keeps it off the table), which is what makes a collection prop
+ *  added after the view revealable rather than invisible — then Modified. A stale hidden id displays
+ *  nowhere but stays in the array (writes only ever filter the toggled id, so foreign keys survive —
+ *  the loose-sidecar contract). Title is never here — it can't hide. */
+export function hiddenListIds(view: SavedView, schema: PropertyDefinition[]): string[] {
+  const set = new Set(view.hidden_properties)
+  const shown = new Set(view.property_order)
   return [
     ...CONTEXT_TIERS.filter((id) => set.has(id)),
-    ...schema.filter((d) => set.has(d.id) && !isReservedPropertyId(d.id)).map((d) => d.id),
+    ...schema
+      .filter((d) => !isReservedPropertyId(d.id) && (set.has(d.id) || !shown.has(d.id)))
+      .map((d) => d.id),
     ...(set.has(RESERVED_PROPERTY_ID.modifiedAt) ? [RESERVED_PROPERTY_ID.modifiedAt] : []),
   ]
 }
@@ -70,9 +75,17 @@ export function hideShown(view: SavedView, id: string): Pick<SavedView, 'hidden_
   }
 }
 
-/** Unhide via the eye — the flag lifts and the resolver re-emits the id at its remembered slot. */
-export function unhide(view: SavedView, id: string): Pick<SavedView, 'hidden_properties'> {
-  return { hidden_properties: view.hidden_properties.filter((x) => x !== id) }
+/** Unhide via the eye — lifts the hidden flag AND places the id in the visible order. The allowlist
+ *  (columns.ts) shows a prop only when it's in property_order, so a prop with no remembered slot yet
+ *  (a title-only minted view hides every prop out of the order) must be appended, or the eye would
+ *  clear the flag to no visible effect. A prop that still has its slot re-emits there. */
+export function unhide(view: SavedView, id: string): VisibilityPatch {
+  return {
+    property_order: view.property_order.includes(id)
+      ? view.property_order
+      : [...view.property_order, id],
+    hidden_properties: view.hidden_properties.filter((x) => x !== id),
+  }
 }
 
 /** The pane's slot rule (injected into PaneDnd in place of the Properties paneSlot). The shown

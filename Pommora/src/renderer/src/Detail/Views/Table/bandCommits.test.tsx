@@ -193,15 +193,15 @@ const mountTable = async (source: CollectionNode): Promise<void> => {
 function stubBandRects(): void {
   const box = host.querySelector('.band-dnd')
   if (box) stubRect(box, { top: 0, bottom: 400 })
-  const headers = host.querySelectorAll('.group-header')
+  const headers = host.querySelectorAll('.group-band-head')
   for (const [i, el] of [...headers].entries()) stubRect(el, { top: i * 24, bottom: i * 24 + 24 })
 }
 
 const headerTexts = (): string[] =>
-  [...host.querySelectorAll('.group-header')].map((el) => el.textContent ?? '')
+  [...host.querySelectorAll('.group-band-head')].map((el) => el.textContent ?? '')
 
 const dragBand = async (index: number, toY: number): Promise<void> => {
-  const glyphs = host.querySelectorAll('.band-glyph')
+  const glyphs = host.querySelectorAll('.group-band-glyph')
   await act(async () => {
     firePointer(glyphs[index], 'pointerdown', { x: 10, y: index * 24 + 12 })
   })
@@ -237,7 +237,7 @@ describe('structural band reorder', () => {
     await mountTable(structuralSource())
     await dragBand(2, 2) // B above A
     await drop()
-    const twisty = host.querySelectorAll('.group-twisty')[0]
+    const twisty = host.querySelectorAll('.group-band-twisty')[0]
     await act(async () => {
       ;(twisty as HTMLElement).click()
     })
@@ -519,7 +519,7 @@ describe('band reparent', () => {
     await dragBand(2, 12) // nest B into A — the commit defers behind the fs round-trip
     await drop()
     // Mid-flight, the user collapses a group (a sibling persist with fresh state).
-    const twisty = host.querySelectorAll('.group-twisty')[0]
+    const twisty = host.querySelectorAll('.group-band-twisty')[0]
     await act(async () => {
       ;(twisty as HTMLElement).click()
     })
@@ -548,13 +548,13 @@ describe('band reparent', () => {
 
 describe('band header — the sidebar interaction model', () => {
   const glyphOf = (label: string): HTMLElement => {
-    const header = [...host.querySelectorAll('.group-header')].find((h) =>
+    const header = [...host.querySelectorAll('.group-band-head')].find((h) =>
       h.textContent?.includes(label),
     )
-    return header?.querySelector('.band-glyph') as HTMLElement
+    return header?.querySelector('.group-band-glyph') as HTMLElement
   }
   const headerOf = (label: string): HTMLElement =>
-    [...host.querySelectorAll('.group-header')].find((h) =>
+    [...host.querySelectorAll('.group-band-head')].find((h) =>
       h.textContent?.includes(label),
     ) as HTMLElement
 

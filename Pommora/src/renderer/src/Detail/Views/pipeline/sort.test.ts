@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import type { ViewRow } from '@shared/types'
 import type { PropertyDefinition } from '@shared/properties'
-import { makeSorter, resolvedSortCount } from './sort'
+import { makeSorter, resolveManualOrder, resolvedSortCount } from './sort'
 
 const schema: PropertyDefinition[] = [
   {
@@ -333,5 +333,25 @@ describe('resolvedSortCount', () => {
         schema,
       ),
     ).toBe(2)
+  })
+})
+
+describe('resolveManualOrder', () => {
+  it('returns undefined for a plain view (unsorted, ungrouped, no active drag)', () => {
+    expect(resolveManualOrder(false, null, ['a', 'b'])).toBeUndefined()
+    expect(resolveManualOrder(false, null, undefined)).toBeUndefined()
+  })
+
+  it('an active drag override wins even on a plain view (instant drop feedback)', () => {
+    expect(resolveManualOrder(false, ['x', 'y'], ['a', 'b'])).toEqual(['x', 'y'])
+  })
+
+  it('reads the persisted per-view order when the view is sorted or grouped', () => {
+    expect(resolveManualOrder(true, null, ['a', 'b'])).toEqual(['a', 'b'])
+    expect(resolveManualOrder(true, null, undefined)).toBeUndefined()
+  })
+
+  it('the override still wins over the persisted order when sorted', () => {
+    expect(resolveManualOrder(true, ['x'], ['a', 'b'])).toEqual(['x'])
   })
 })

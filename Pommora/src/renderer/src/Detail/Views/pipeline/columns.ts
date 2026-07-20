@@ -1,16 +1,13 @@
-// Column resolver. Ports Swift TableColumnResolver + VisiblePropertyOrder: a two-pass visible order
-// (propertyOrder VERBATIM, then unaccounted user props), default-on tiers, and a guaranteed Title.
-// React divergences: emits only {id, kind} — column width and the group/sort hoist before Title are
-// Part-2 render concerns; and `_modified_at` is NOT default-on (it appears only when explicitly in
-// propertyOrder). Pure: no fs, no React.
+// Column resolver. A schema property shows iff it's in propertyOrder AND not hidden — an allowlist,
+// so a property added to a collection after a view already exists stays hidden until the user reveals
+// it. Tiers are default-on (shown unless hidden) and Title is always guaranteed. React divergences:
+// emits only {id, kind} — column width and the group/sort hoist before Title are Part-2 render
+// concerns; and `_modified_at` is NOT default-on (it appears only when explicitly in propertyOrder).
+// Pure: no fs, no React.
 
 import type { ColumnKind, ResolvedColumn } from '@shared/types'
 import type { SavedView } from '@shared/views'
-import {
-  type PropertyDefinition,
-  RESERVED_PROPERTY_ID,
-  isReservedPropertyId,
-} from '@shared/properties'
+import { type PropertyDefinition, RESERVED_PROPERTY_ID } from '@shared/properties'
 
 function columnKind(id: string): ColumnKind {
   switch (id) {
@@ -38,9 +35,10 @@ const DEFLESS_RESERVED = new Set<string>([
   RESERVED_PROPERTY_ID.tier3,
 ])
 
-/** Visible property ids: propertyOrder verbatim (hidden honored), then unaccounted non-reserved
- *  schema props appended. Ports Swift VisiblePropertyOrder (table mode: pass 2 excludes reserved —
- *  tiers/Modified are supplied by the resolver's default-on pass instead). */
+/** Visible property ids: propertyOrder verbatim, hidden skipped, stale non-schema ids dropped. A
+ *  schema property shows ONLY if listed here — never auto-appended, so a collection property added
+ *  after the view exists stays off the table until revealed. Tiers and Modified aren't handled here;
+ *  the resolver supplies default-on tiers and an explicitly-placed Modified. */
 function visibleOrder(view: SavedView, schema: PropertyDefinition[]): string[] {
   const hidden = new Set(view.hidden_properties)
   const emitted = new Set<string>()
@@ -55,13 +53,10 @@ function visibleOrder(view: SavedView, schema: PropertyDefinition[]): string[] {
     if (hidden.has(id)) continue
     if (DEFLESS_RESERVED.has(id) || schema.some((d) => d.id === id)) add(id)
   }
-  for (const d of schema) {
-    if (!emitted.has(d.id) && !hidden.has(d.id) && !isReservedPropertyId(d.id)) add(d.id)
-  }
   return out
 }
 
-/** Resolve a view + schema into the ordered columns Part 2 renders: visible order (pass 1+2), then
+/** Resolve a view + schema into the ordered columns Part 2 renders: visible order, then
  *  default-on tiers (tier3→1, unless hidden or already placed), then a guaranteed front Title
  *  (always present, never hidden). Emits {id, kind} only. */
 export function resolveColumns(view: SavedView, schema: PropertyDefinition[]): ResolvedColumn[] {
