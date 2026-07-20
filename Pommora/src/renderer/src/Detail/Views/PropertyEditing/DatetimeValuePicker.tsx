@@ -5,11 +5,9 @@ import { useSession } from '../../../store'
 import { formatDate } from './formatValue'
 
 /**
- * The datetime editing surface every value view shares (cards, table cells, the preview inspector):
- * a range-less CalendarPicker seeded from the value's ISO, formatted through the column's
- * `date_format` (relative maps to short; unset falls to full), reading the nexus-wide time format,
- * and committing typed `datetime` values. The caller owns the mount + dismissal (a PickerMenu, or a
- * pane row); this owns the value↔ISO mapping so no call site rebuilds it.
+ * The shared datetime editing surface (card values, table cells, the preview inspector): owns the
+ * value↔ISO mapping, the date_format remap, and the reactive time format so no call site rebuilds them.
+ * The caller owns the mount + dismissal (a PickerMenu or a pane row).
  */
 export function DatetimeValuePicker({
   value,

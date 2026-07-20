@@ -566,6 +566,10 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
       column_alignments: { ...liveView.column_alignments, ...alignOverride, [id]: align },
     })
   }
+  // Whether a number column can render a bar (percent, or fraction + a denominator) — the ONE gate the
+  // cell render, the cell menu, and the header menu share so all three agree on when Bar is offered.
+  const numberBarCapable = (colId: string, type: ReturnType<typeof declaredType>): boolean =>
+    type === 'number' && numberDivisor(schema.find((d) => d.id === colId)) !== undefined
   // Right-click a header → native column menu (E-1/E-5): Align + Style + Hide. Title is the primary
   // column — fixed left, not hideable, no style — so it pops nothing. The style ctx rides only for a
   // schema-declared property type; the shared builder decides which types actually get items.
@@ -576,9 +580,10 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   ): Promise<void> => {
     e.preventDefault()
     const t = declaredType(id, schema)
+    const barCapable = numberBarCapable(id, t)
     const style =
       t !== undefined && t !== 'title' && t !== 'tier'
-        ? { type: t, current: colStyle(id) }
+        ? { type: t, current: colStyle(id), ...(barCapable ? { barCapable: true } : {}) }
         : undefined
     const action = await window.nexus.columnMenu({
       align: colAlign(id),
@@ -909,8 +914,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     const cellEl = e.currentTarget as HTMLElement
     const filled = !isBlankValue(resolveFieldValue(row, col.id, schema))
     const dt = declaredType(col.id, schema)
-    const barCapable =
-      dt === 'number' && numberDivisor(schema.find((d) => d.id === col.id)) !== undefined
+    const barCapable = numberBarCapable(col.id, dt)
     const ctx = cellMenuContextFor(col, dt, colStyle(col.id), filled, false, barCapable)
     if (!ctx) return
     if (ctx.kind === 'title') {
