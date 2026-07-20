@@ -45,6 +45,7 @@ import { bandShowsAdd } from './cardsBand'
 import { reorderIds } from './cardsOrder'
 import {
   type AddEntry,
+  addColumn,
   addEntriesFor,
   orderAddableEntries,
   shownColumnsFor,
@@ -284,7 +285,22 @@ export function CardsView({ source }: { source: CollectionNode | SetNode }): Rea
   // parent re-render that leaves its own inputs untouched — chiefly a band collapse in a large
   // container, which then repaints its header, not every card.
   const openValuePicker = (req: ValuePickerRequest): void => setValuePicker(req)
-  const openAddPicker = (req: AddPickerRequest): void => setAddPicker(req)
+  // A native Add Property ▸ pick of a DEPENDENT kind (datetime/url) routes straight to the value's
+  // own dropdown — the add menu is never opened just to exit it.
+  const openAddPicker = (req: AddPickerRequest): void => {
+    const t = req.initialEntry?.def?.type
+    if (req.initialEntry && !req.initialEntry.revealOnly && (t === 'datetime' || t === 'url')) {
+      setValuePicker({
+        rowId: req.rowId,
+        column: addColumn(req.initialEntry.id),
+        kind: t === 'datetime' ? 'datetime' : 'link',
+        anchor: req.anchor,
+        revealOnCommit: true,
+      })
+      return
+    }
+    setAddPicker(req)
+  }
   // Re-pull the value batch (a cover write lands in page frontmatter, which loadValues never re-reads
   // mid-session — without this the card's thumb waits for a container reopen).
   const refreshValues = (): void => {
@@ -455,6 +471,7 @@ export function CardsView({ source }: { source: CollectionNode | SetNode }): Rea
           commitValue={commitValue}
           contextOptionsFor={contextOptionsFor}
           onReveal={revealProperty}
+          onOpenValue={setValuePicker}
           onDismissValue={() => setValuePicker(null)}
           onDismissAdd={() => setAddPicker(null)}
         />

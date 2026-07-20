@@ -3,9 +3,12 @@ import type { NexusLabels, ResolvedColumn, ViewRow } from '@shared/types'
 import { isBlankValue, type PropertyValue } from '@shared/propertyValue'
 import { isCompact, type SavedView } from '@shared/views'
 import { PickerMenu } from '@renderer/design-system/components/PickerMenu/PickerMenu'
+import { TextPicker } from '@renderer/design-system/components/TextPicker'
 import type { ContextOption } from '../pipeline/contextOptions'
 import { declaredType, resolveFieldValue } from '../pipeline/value'
 import { styleFor } from '../Table/columnStyles'
+import { parseLink, urlValueFromEdit } from '../Table/linkValue'
+import { solidColorCss } from '../Table/solidColor'
 import type { ResolveContext } from '../Table/resolveContext'
 import { PropertyPicker, syntheticContextDef } from '../PropertyEditing/PropertyPicker'
 import { DatetimeValuePicker } from '../PropertyEditing/DatetimeValuePicker'
@@ -16,9 +19,12 @@ import { addColumn, addEntriesFor, type AddEntry } from './cardValueInput'
 export type ValuePickerRequest = {
   rowId: string
   column: ResolvedColumn
-  kind: 'picker' | 'datetime'
+  kind: 'picker' | 'datetime' | 'link'
   anchor: HTMLElement
   clickX?: number
+  /** An add-menu-originated open: the property reveals on the FIRST commit (never on a dismissed,
+   *  untouched picker — the add flow's never-mind rule). */
+  revealOnCommit?: boolean
 }
 /** A card's request to open the add-property menu — the anchor is the card's text area. */
 export type AddPickerRequest = {
@@ -46,6 +52,7 @@ export function CardPickerHost({
   commitValue,
   contextOptionsFor,
   onReveal,
+  onOpenValue,
   onDismissValue,
   onDismissAdd,
 }: {
@@ -59,6 +66,7 @@ export function CardPickerHost({
   commitValue: (row: ViewRow, column: ResolvedColumn, value: PropertyValue | null) => void
   contextOptionsFor: (column: ResolvedColumn) => ContextOption[] | null
   onReveal: (id: string) => void
+  onOpenValue: (req: ValuePickerRequest) => void
   onDismissValue: () => void
   onDismissAdd: () => void
 }): React.JSX.Element {
@@ -92,6 +100,9 @@ export function CardPickerHost({
     if (!value) return
     const row = rowById.get(value.rowId)
     if (!row) return onDismissValue()
+    // An add-originated open (revealOnCommit) is blank BY DEFINITION until its first commit — the
+    // compact blank-drop close applies only to a value that was visible and just emptied.
+    if (value.revealOnCommit) return
     const cur = resolveFieldValue(row, value.column.id, ctx.schema)
     const isCheckbox = ctx.schema.find((d) => d.id === value.column.id)?.type === 'checkbox'
     if (compactLayout && isBlankValue(cur) && !isCheckbox) onDismissValue()
@@ -105,6 +116,28 @@ export function CardPickerHost({
   const aEntries =
     aRow && labels ? addEntriesFor(aRow, view, ctx, labels, columns) : ([] as AddEntry[])
 
+  // One commit gate for every value-picker surface: an add-originated open reveals on the first
+  // real commit (revealProperty is idempotent + in-flight-deduped, so repeat commits no-op).
+  const commitPicked = (nv: PropertyValue | null): void => {
+    if (!vRow || !vColumn) return
+    if (vReq?.revealOnCommit) onReveal(vColumn.id)
+    commitValue(vRow, vColumn, nv)
+  }
+  // A dependent kind picked in the ADD menu exits it and opens the value's own dropdown at the same
+  // anchor (the calendar's law, generalized): datetime → the calendar, url → the link dropdown.
+  const pickDependent = (entry: AddEntry): void => {
+    if (!aReq) return
+    onDismissAdd()
+    onOpenValue({
+      rowId: aReq.rowId,
+      column: addColumn(entry.id),
+      kind: entry.type === 'datetime' ? 'datetime' : 'link',
+      anchor: aReq.anchor,
+      revealOnCommit: true,
+    })
+  }
+  const vRaw = vCurrent.kind === 'url' ? vCurrent.value : undefined
+
   return (
     <>
       <PickerMenu
@@ -116,11 +149,23 @@ export function CardPickerHost({
         <DatetimeValuePicker
           value={vCurrent}
           dateFormat={vStyle.date_format}
-          onCommit={(nv) => {
-            if (vRow && vColumn) commitValue(vRow, vColumn, nv)
-          }}
+          onCommit={commitPicked}
         />
       </PickerMenu>
+      <TextPicker
+        open={value?.kind === 'link'}
+        onDismiss={onDismissValue}
+        triggerRef={valueAnchorRef}
+        value={vRaw ? parseLink(vRaw).url : ''}
+        accent={solidColorCss(vDef.link_color)}
+        onCommit={(raw) => {
+          // urlValueFromEdit rides an existing alias along; undefined = invalid (no write), null =
+          // cleared — a clear only applies to an EXISTING value (an untouched add stays never-mind).
+          const nv = urlValueFromEdit(raw, vRaw)
+          if (nv !== undefined && (nv !== null || (!vReq?.revealOnCommit && vRaw))) commitPicked(nv)
+          onDismissValue()
+        }}
+      />
       <PropertyPicker
         def={vDef}
         current={vCurrent}
@@ -130,7 +175,7 @@ export function CardPickerHost({
         look={vStyle.look}
         {...(vContextOptions ? { contextOptions: vContextOptions } : {})}
         onCommit={(nv) => {
-          if (vRow && vColumn) commitValue(vRow, vColumn, nv)
+          commitPicked(nv)
           if (vType !== 'multi_select' && vType !== 'context') onDismissValue()
         }}
         onDismiss={onDismissValue}
@@ -147,6 +192,7 @@ export function CardPickerHost({
           if (aRow) commitValue(aRow, addColumn(e.id), v)
         }}
         onReveal={(e) => onReveal(e.id)}
+        onPickDependent={pickDependent}
         onDismiss={onDismissAdd}
       />
     </>

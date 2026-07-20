@@ -9,7 +9,7 @@ import { cx } from '@renderer/design-system/cx'
 import { text } from '@renderer/design-system/tokens/typography.css'
 import { declaredType, resolveFieldValue } from '../pipeline/value'
 import { Cell } from '../Table/Cell'
-import { parseLink, urlClickTarget, urlValueFromEdit, urlValueFromRename } from '../Table/linkValue'
+import { parseLink, urlValueFromEdit, urlValueFromRename } from '../Table/linkValue'
 import { parseEditorValue } from './cardValueInput'
 import type { ResolveContext } from '../Table/resolveContext'
 import { PropertyEditor } from '../PropertyEditing/PropertyEditor'
@@ -45,7 +45,12 @@ export function CardValue({
   onHide: (colId: string) => void
   /** Open this value's portal picker at the GRID-LEVEL host (CardPickerHost) — the picker outlives
    *  this card's remounts. kind 'picker' = the option picker; 'datetime' = the calendar. */
-  onOpenPicker: (column: ResolvedColumn, kind: 'picker' | 'datetime', anchor: HTMLElement, clickX?: number) => void
+  onOpenPicker: (
+    column: ResolvedColumn,
+    kind: 'picker' | 'datetime' | 'link',
+    anchor: HTMLElement,
+    clickX?: number,
+  ) => void
   /** False only when the EMBED zoom shrinks chips (≤0.8 effective — chips don't scale with
    *  card_size). Gates ONLY the multi-select hover-×; select keeps its × always (clears the whole
    *  value) and context keeps its × always (removes that ONE context). The × itself is inert until
@@ -80,7 +85,7 @@ export function CardValue({
     // click just dismissed. Swallow it here (the stopPropagation above still keeps it off the card).
     if (!e.currentTarget.contains(e.target as Node)) return
     // The portal pickers open at the grid-level host, anchored here, dropping from the click point.
-    const openPicker = (kind: 'picker' | 'datetime'): void => {
+    const openPicker = (kind: 'picker' | 'datetime' | 'link'): void => {
       if (anchorRef.current) onOpenPicker(column, kind, anchorRef.current, e.clientX)
     }
     if (t === 'status' && style.look === 'checkbox') {
@@ -102,9 +107,9 @@ export function CardValue({
     } else if (t === 'number') {
       setMode('editor')
     } else if (t === 'url') {
-      const url = urlClickTarget(v.kind === 'url' ? v.value : undefined)
-      if (url) void window.nexus.openExternal(url)
-      else setMode('editor')
+      // The value click opens the LINK DROPDOWN (filled or empty); opening the URL itself belongs to
+      // the rendered anchor inside LinkCell, which stops propagation before this handler.
+      openPicker('link')
     }
     // file: each chip opens its own file (Cell's file branch stops propagation) — no dispatch here.
   }
@@ -125,7 +130,10 @@ export function CardValue({
     if (!action) return
     if (action === 'cell:clear') commit(null)
     else if (action === 'cell:hide') onHide(column.id)
-    else if (action === 'cell:edit') setMode('editor')
+    else if (action === 'cell:edit') {
+      if (t === 'url' && anchorRef.current) onOpenPicker(column, 'link', anchorRef.current)
+      else setMode('editor')
+    }
     else if (action === 'cell:rename')
       setMode('rename') // url alias edit (keeps the URL)
     else if (action.startsWith('style:')) {

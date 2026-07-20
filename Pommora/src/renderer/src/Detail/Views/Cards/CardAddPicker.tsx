@@ -1,7 +1,6 @@
 import { type CSSProperties, type RefObject, useEffect, useState } from 'react'
 import type { PropertyDefinition } from '@shared/properties'
 import type { PropertyValue } from '@shared/propertyValue'
-import { isValidLink } from '@shared/links'
 import { Icon } from '@renderer/design-system/symbols'
 import { PickerMenu } from '@renderer/design-system/components/PickerMenu/PickerMenu'
 import { MenuItem, MenuPaneTopRow } from '@renderer/design-system/components/menu'
@@ -15,7 +14,6 @@ import {
 } from '../PropertyEditing/PropertyPicker'
 import type { ContextOption } from '../pipeline/contextOptions'
 import { PropertyEditor } from '../PropertyEditing/PropertyEditor'
-import { DatetimeValuePicker } from '../PropertyEditing/DatetimeValuePicker'
 import { type AddEntry, orderAddableEntries, parseEditorValue } from './cardValueInput'
 import { compactRow } from './cardAddPicker.css'
 import { cx } from '@renderer/design-system/cx'
@@ -52,25 +50,15 @@ function ValuePane({
   onBack: () => void
 }): React.JSX.Element {
   const topRow = <MenuPaneTopRow label="Properties" current={def.name} onBack={onBack} />
-  if (def.type === 'datetime') {
-    // Stay open on change (mirrors the card value's datetime edit) so day AND time can both be set —
-    // the outside-click dismiss commits the pending via CalendarPicker's unmount flush; routing onDone
-    // through onCommit here would close the pane on the first date click.
-    return (
-      <>
-        {topRow}
-        <DatetimeValuePicker value={current} onCommit={onCommit} />
-      </>
-    )
-  }
-  if (def.type === 'number' || def.type === 'url') {
+  // datetime/url never pane — they're DEPENDENT dropdowns (onPickDependent exits to the calendar /
+  // link dropdown); only number keeps an in-pane editor, chip kinds their option rows.
+  if (def.type === 'number') {
     return (
       <>
         {topRow}
         <PropertyEditor
           initial=""
-          numeric={def.type === 'number'}
-          validate={def.type === 'url' ? isValidLink : undefined}
+          numeric
           onCommit={(raw) => {
             // Empty input in the ADD flow means "never mind" — committing null would still fire the
             // reveal and surface a blank property the user never asked for. Skip both, just close.
@@ -113,6 +101,7 @@ export function CardAddPicker({
   initialEntry,
   onCommit,
   onReveal,
+  onPickDependent,
   onDismiss,
 }: {
   entries: AddEntry[]
@@ -125,6 +114,9 @@ export function CardAddPicker({
   initialEntry?: AddEntry | null
   onCommit: (entry: AddEntry, value: PropertyValue | null) => void
   onReveal: (entry: AddEntry) => void
+  /** A dependent-dropdown kind (datetime/url) picked in the list — the host exits this menu and
+   *  opens the value's own picker at the same anchor. */
+  onPickDependent: (entry: AddEntry) => void
   onDismiss: () => void
 }): React.JSX.Element {
   const [picked, setPicked] = useState<AddEntry | null>(initialEntry ?? null)
@@ -166,7 +158,8 @@ export function CardAddPicker({
                     if (e.revealOnly) {
                       onReveal(e)
                       dismiss()
-                    } else setPicked(e)
+                    } else if (e.type === 'datetime' || e.type === 'url') onPickDependent(e)
+                    else setPicked(e)
                   }}
                 >
                   {e.name}
