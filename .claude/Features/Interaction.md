@@ -99,7 +99,7 @@ Every motion-timing value in the app — CSS `ms`/`s` strings (grepped) **and** 
 - `design-system/showcase/showcase.css:185` · `:245` · `:279` · `:359`
 - `design-system/interactions/Surfaces.tsx:163` (+ `:166`, a 300ms async-reject *demo* promise)
 
-**Not motion (exclude):** `Detail/PageView.tsx:34` + `:35` (400ms autosave + 120ms live-update **debounces**, not transitions); `Sidebar/sidebarDnd.tsx:209` (`setTimeout 0` event-cleanup); `interactions/autoscroll.ts:1` (a comment).
+**Not motion (exclude):** `Detail/pageFlush.ts` (the path-keyed autosave **debounce**) + `Detail/PageView.tsx` (the live-stats debounce — neither is a transition); `Sidebar/sidebarDnd.tsx:209` (`setTimeout 0` event-cleanup); `interactions/autoscroll.ts:1` (a comment).
 
 ### Principles
 
