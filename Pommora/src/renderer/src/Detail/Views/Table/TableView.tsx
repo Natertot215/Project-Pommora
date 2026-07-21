@@ -24,7 +24,7 @@ import { resolvedSortCount, resolveManualOrder } from '../pipeline/sort'
 import { PropertyEditor } from '../PropertyEditing/PropertyEditor'
 import { PropertyPicker, syntheticContextDef } from '../PropertyEditing/PropertyPicker'
 import { DatetimeValuePicker } from '../PropertyEditing/DatetimeValuePicker'
-import { nextCycleValue } from '../PropertyEditing/statusCycle'
+import { sharedValueClickAction } from '../PropertyEditing/valueClick'
 import { useSession } from '../../../store'
 import { findCollectionForSet } from '../../Scope'
 import { isOpenInTabs } from '../../../Tabs/tabsModel'
@@ -292,8 +292,11 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // single-sorted / property-grouped views write the per-view manual tiebreaker (viewOrders). Cross-group
   // reassignment is independent of the sort count.
   const canReorderWithin = sortKeys < 2
+  // Plain location grouping (no sub-group): the bands ARE folders, so a cross-band row drop MOVES the
+  // page into that Set. The sub-grouped case already moves on a set-dimension change (reassignRow).
+  const canRelocate = structuralGrouping && !subGrouped
   const structuralOrder = groupPropId === undefined && sortKeys === 0
-  const dragDisabled = !(canReorderWithin || canReassign)
+  const dragDisabled = !(canReorderWithin || canReassign || canRelocate)
   // Optimistic property patches feed the pipeline so a reassigned row re-groups before the watcher round-trips.
   const effectiveValues = useMemo(
     () => (valueOverride ? { ...values, ...valueOverride } : values),
@@ -666,35 +669,18 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     }
     if (col.kind !== 'property') return
     const t = declaredType(col.id, schema)
-    if (t === 'status' && colStyle(col.id).look === 'checkbox') {
+    // The shared click semantics (cycle/toggle/picker/datetime) live in one router; only the
+    // surface-specific tails (number/url placement) stay here.
+    const shared = sharedValueClickAction(
+      t,
+      colStyle(col.id).look,
+      resolveFieldValue(row, col.id, schema),
+      schema.find((d) => d.id === col.id),
+    )
+    if (shared) {
       e.stopPropagation()
-      const v = resolveFieldValue(row, col.id, schema)
-      const current = v.kind === 'status' || v.kind === 'select' ? v.value : undefined
-      if (!current) {
-        // An EMPTY checkbox-look cell never cycles (a blind write) — it opens the picker to assign.
-        setEditing({ rowId: row.id, colId: col.id, mode: 'picker' })
-        return
-      }
-      const next = nextCycleValue(
-        current,
-        schema.find((d) => d.id === col.id),
-      )
-      if (next !== null) commitCellValue(row, col.id, { kind: 'status', value: next })
-    } else if (t === 'checkbox') {
-      e.stopPropagation()
-      const v = resolveFieldValue(row, col.id, schema)
-      // Checked → strip the key (a checkbox is true-or-absent, never a stored `false`); else set true.
-      const checked = v.kind === 'checkbox' && v.value
-      commitCellValue(row, col.id, checked ? null : { kind: 'checkbox', value: true })
-    } else if (
-      t === 'status' ||
-      t === 'select' ||
-      t === 'multi_select' ||
-      t === 'context' ||
-      t === 'datetime'
-    ) {
-      e.stopPropagation()
-      setEditing({ rowId: row.id, colId: col.id, mode: 'picker' })
+      if (shared.kind === 'commit') commitCellValue(row, col.id, shared.value)
+      else setEditing({ rowId: row.id, colId: col.id, mode: 'picker' })
     } else if (t === 'number') {
       e.stopPropagation()
       // A Bar-look cell has no text to replace in place, so it edits through the TextPicker dropdown (the
@@ -1097,31 +1083,41 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     const startCenter = hr.left + hr.width / 2 // the dragged column's centre, screen px; it tracks the cursor 1:1
     const startX = e.clientX
     const startY = e.clientY
+    // Geometry snapshot: widths can't change mid-drag, so the cumulative offsets are computed once
+    // at grab — a per-move getBoundingClientRect + width loop is a forced layout in the drag hot
+    // path. Only a scroll can shift the grid's origin; the capture listener re-reads it then.
+    let gridLeft = grid.getBoundingClientRect().left
+    const widths = columns.map((c) => colWidth(c.id) * zoom)
+    const lefts: number[] = new Array(columns.length)
+    let acc = 0
+    for (let i = 0; i < columns.length; i++) {
+      lefts[i] = acc
+      acc += widths[i]
+    }
+    const onScroll = (): void => {
+      gridLeft = grid.getBoundingClientRect().left
+    }
     // null until the pointer travels ACTIVATION px — a sub-threshold press is a click, not a drag, so the
     // highlight band never flashes and a jittery click can't reorder.
     let current: { from: number; to: number } | null = null
     const onMove = (ev: PointerEvent): void => {
       if (!current && Math.hypot(ev.clientX - startX, ev.clientY - startY) < ACTIVATION) return
-      const gridLeft = grid.getBoundingClientRect().left
       const projected = startCenter + (ev.clientX - startX)
       const cur = current?.to ?? from
       // Edge-based slot: which column's span the dragged column's centre is actually over. Hold the
       // current slot until the centre leaves its span by COL_SHIFT_HYSTERESIS (a sticky zone — no flicker
       // at a boundary). This is correct for wildly-varying widths where a closest-centre rule would let a
       // far column shift while the dragged one is still mid-traverse over a wide neighbour (e.g. Title).
-      let curLeft = gridLeft
-      for (let i = 0; i < cur; i++) curLeft += colWidth(columns[i].id) * zoom
-      const curRight = curLeft + colWidth(columns[cur].id) * zoom
+      const curLeft = gridLeft + lefts[cur]
+      const curRight = curLeft + widths[cur]
       let to = cur
       if (
         projected < curLeft - COL_SHIFT_HYSTERESIS ||
         projected > curRight + COL_SHIFT_HYSTERESIS
       ) {
-        let edge = gridLeft
         to = columns.length - 1
         for (let i = 0; i < columns.length; i++) {
-          edge += colWidth(columns[i].id) * zoom
-          if (projected < edge) {
+          if (projected < gridLeft + lefts[i] + widths[i]) {
             to = i
             break
           }
@@ -1146,6 +1142,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
       window.removeEventListener('pointercancel', onCancel)
+      window.removeEventListener('scroll', onScroll, true)
       grid.style.removeProperty('--col-drag-x')
       try {
         header.releasePointerCapture(ev.pointerId)
@@ -1165,6 +1162,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp)
     window.addEventListener('pointercancel', onCancel)
+    window.addEventListener('scroll', onScroll, { capture: true, passive: true })
   }
   // The gap-shift translateX for a header during the current drag — the same formula the body cells
   // use (gapShift over the memoized dragShift). The SUBJECT's cursor-follow is not here — it rides
@@ -1215,6 +1213,15 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     }
     setValueOverride((prev) => ({ ...prev, [pageId]: patched }))
     void mutate({ op: 'setProperty', path, propertyId: groupPropId, value })
+  }
+  // Cross-folder move (plain location grouping): a row dropped into a DIFFERENT location band relocates
+  // the page into that band's Set (the root band → the container itself). movePage; the tree reload
+  // reflects it (like the sidebar's reparent — no optimistic value patch, since a move isn't a value).
+  const relocateRow = (pageId: string, destGroupKey: string): void => {
+    const path = rowPath.get(pageId)
+    const destPath = destGroupKey === UNGROUPED ? source.path : setPaths.get(destGroupKey)
+    if (!path || !destPath || destPath === path.slice(0, path.lastIndexOf('/'))) return
+    void mutate({ op: 'movePage', path, newParentPath: destPath })
   }
   // Within-group reorder commit — tableDnd hands the new flat order + the reordered group's key. An
   // unsorted structural/flat view is ordered by the canonical on-disk page_order, so it writes that
@@ -1338,8 +1345,10 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
           disabled={dragDisabled}
           canReorderWithin={canReorderWithin}
           canReassign={canReassign}
+          canRelocate={canRelocate}
           reorderTo={reorderTo}
           reassign={reassignRow}
+          relocate={relocateRow}
         >
           <div
             className={cx(

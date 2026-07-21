@@ -37,6 +37,9 @@ export function LinkCell({
         className={cx('cell-link', def?.link_underline && 'cell-link-underline')}
         style={{ color: solidColorCss(def?.link_color) }}
         href={url}
+        // A card is a whole-surface drag handle; without this an anchor's native link-drag hijacks the
+        // gesture (spawns the OS link ghost + pointercancel) and the card drag dies.
+        draggable={false}
         onClick={(e) => {
           e.preventDefault()
           e.stopPropagation()

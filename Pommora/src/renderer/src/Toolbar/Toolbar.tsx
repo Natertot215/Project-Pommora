@@ -3,7 +3,7 @@ import {
   SegmentedSymbol,
   type Segment,
 } from '@renderer/design-system/components/Segmented-Controls'
-import { useDismiss } from '@renderer/design-system/components/Popover'
+import { useDismiss } from '@renderer/design-system/components/useDismiss'
 import { ToolbarTrio } from './ToolbarTrio'
 import { ViewDropdown } from './ViewDropdown'
 import { NavPane } from './NavPane'

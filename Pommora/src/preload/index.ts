@@ -420,8 +420,9 @@ const api = {
   // zooms, the macOS titlebar convention.
   winDragBy: (dx: number, dy: number): void => ipcRenderer.send('win:dragBy', dx, dy),
   winZoom: (): void => ipcRenderer.send('win:zoom'),
-  // Pop a native "New …" menu (e.g. the context tiers) + run the chosen create main-side.
-  popCreateMenu: (items: { label: string; req: MutateRequest }[]): Promise<void> =>
+  // Pop a native "New …" menu (e.g. the context tiers); resolves with the picked request, or
+  // null if dismissed, for the renderer's store to run.
+  popCreateMenu: (items: { label: string; req: MutateRequest }[]): Promise<MutateRequest | null> =>
     ipcRenderer.invoke('create-menu', items),
   // Surface a failure natively (renderer can't show a native dialog itself).
   showError: (message: string): Promise<void> => ipcRenderer.invoke('error:show', message),
@@ -450,9 +451,11 @@ const api = {
   pickImage: (): Promise<string | null> => ipcRenderer.invoke('nexus:pickImage'),
   // Pop the native Change / Remove banner menu → the chosen action (null if dismissed).
   // `noRemove` drops the Remove item (an inherited banner has nothing of its own to remove).
-  bannerMenu: (
-    opts?: { noRemove?: boolean; noun?: string; add?: boolean },
-  ): Promise<'change' | 'remove' | null> => ipcRenderer.invoke('nexus:bannerMenu', opts),
+  bannerMenu: (opts?: {
+    noRemove?: boolean
+    noun?: string
+    add?: boolean
+  }): Promise<'change' | 'remove' | null> => ipcRenderer.invoke('nexus:bannerMenu', opts),
   // Pop the native Rename / Edit Icon menu for a detail title → the chosen action (null if dismissed).
   titleMenu: (opts?: {
     toggleIcon?: boolean

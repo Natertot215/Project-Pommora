@@ -113,6 +113,8 @@ export async function pathExists(p: string): Promise<boolean> {
  * destination path. The original's relative layout is not preserved.
  */
 export async function trashWithTimestamp(nexusRoot: string, absPath: string): Promise<string> {
+  // The source's unlink echo is our own write (the .trash destination is unwatched).
+  recordWrite(absPath)
   const trash = join(nexusRoot, '.trash')
   await mkdir(trash, { recursive: true })
   const stamp = new Date().toISOString().replace(/[:.]/g, '-')

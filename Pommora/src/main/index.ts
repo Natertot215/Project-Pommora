@@ -1729,34 +1729,29 @@ ipcMain.handle('context-menu', async (e, target: ContextTarget): Promise<void> =
 })
 
 // Pop a native "New …" menu (the section-header "+" for contexts: New Area/Topic/Project).
-// Runs the chosen create main-side, then signals the renderer to refetch + inline-rename the
-// new entity — same pattern as the context menu (act in main, signal the renderer).
+// Resolves with the picked request (null when dismissed) — the renderer's store runs it, so
+// create rides the same one-write-path + optimistic-insert flow as every other renderer
+// mutation instead of acting main-side and forcing a full reload before the rename input.
 ipcMain.handle(
   'create-menu',
-  async (e, items: { label: string; req: MutateRequest }[]): Promise<void> => {
+  async (e, items: { label: string; req: MutateRequest }[]): Promise<MutateRequest | null> => {
     const win = BrowserWindow.fromWebContents(e.sender)
-    if (!win) return
-    const deps = await mutateDeps()
-    const menu = Menu.buildFromTemplate(
-      items.map((it) => ({
-        label: it.label,
-        click: async () => {
-          const res = await handleMutate(it.req, deps)
-          if (win.isDestroyed()) return
-          if (res.ok) {
-            win.webContents.send('menu:action', 'reload-state')
-            if (res.created) win.webContents.send('begin-rename', res.created.path)
-          } else {
-            await dialog.showMessageBox(win, {
-              type: 'error',
-              message: 'Couldn’t create that.',
-              detail: res.error.message,
-            })
-          }
-        },
-      })),
-    )
-    menu.popup({ window: win })
+    if (!win) return null
+    return new Promise((resolve) => {
+      // Settle-once, click first: a pick resolves immediately, and the close callback defers a
+      // tick before resolving null — so no assumption about Electron's click-vs-close ordering
+      // can hang the promise or drop a pick.
+      let settled = false
+      const done = (req: MutateRequest | null): void => {
+        if (settled) return
+        settled = true
+        resolve(req)
+      }
+      const menu = Menu.buildFromTemplate(
+        items.map((it) => ({ label: it.label, click: () => done(it.req) })),
+      )
+      menu.popup({ window: win, callback: () => setTimeout(() => done(null), 0) })
+    })
   },
 )
 
@@ -1965,7 +1960,9 @@ ipcMain.handle(
           ? [{ label: `Add ${noun}`, click: () => choose('change') }]
           : [
               { label: `Change ${noun}`, click: () => choose('change') },
-              ...(opts?.noRemove ? [] : [{ label: `Remove ${noun}`, click: () => choose('remove') }]),
+              ...(opts?.noRemove
+                ? []
+                : [{ label: `Remove ${noun}`, click: () => choose('remove') }]),
             ],
       )
       menu.popup({

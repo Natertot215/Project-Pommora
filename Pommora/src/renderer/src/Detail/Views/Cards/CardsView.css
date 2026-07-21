@@ -58,7 +58,7 @@
   aspect-ratio: 125 / 90;
   align-self: start;
   text-align: left;
-  cursor: default;
+  cursor: pointer;
   border: none;
   background: none;
   padding: 0;
@@ -84,6 +84,12 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(var(--card-min), 1fr));
   gap: var(--card-gap-v) var(--card-gap-h);
+  /* The grid IS the cross-band DragGroup's zone element, a <ul> — strip its list chrome. A floor so an
+     EMPTY band still presents a drop target (a card can be dragged into an empty group to reassign). */
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  min-height: 44px;
 }
 
 /* A page card's image band is a fixed height; title + properties + footing extend below. Cards
@@ -91,13 +97,18 @@
    sibling — a location can't make one card taller than its row-mates (I-5). */
 .page-card {
   text-align: left;
-  cursor: default;
+  cursor: pointer;
   border: none;
   background: none;
   padding: 0;
 }
 .page-card.is-dragging {
   opacity: 0.85;
+}
+/* The drag ghost only — an opaque backing so the lifted card reads solid over the cards it floats
+   above (the real card body stays transparent, showing the page behind it). */
+.page-card-ghost .page-card-body {
+  background: var(--bg-window);
 }
 
 .page-card-body {

@@ -78,7 +78,7 @@ function AddMenuItem(): React.JSX.Element | null {
         ? subSetLabel(labels)
         : 'Sub-Set'
   const onAdd = (): void => {
-    void window.nexus.popCreateMenu([
+    void useSession.getState().createFromMenu([
       { label: 'New Page', req: { op: 'createPage', parentPath, name: DEFAULT_NEW_NAME } },
       {
         label: `New ${containerLabel}`,

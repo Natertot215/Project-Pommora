@@ -113,6 +113,28 @@ export function fencedCodeRanges(text: string): [number, number][] {
   return fenceBlocks(lines, lineStarts).map((b) => [b.from, b.to])
 }
 
+/** Every whole-doc scan the decoration pass reads — pure on `text`, so a caller that runs per
+ *  keystroke/caret-move caches one per doc VERSION (docCache.docScan) instead of re-splitting and
+ *  re-scanning the entire document on every rebuild. */
+export interface DocScan {
+  lines: string[]
+  lineStarts: number[]
+  fences: (FenceInfo | undefined)[]
+  callouts: (CalloutLine | undefined)[]
+  fencedRanges: [number, number][]
+}
+
+export function scanDoc(text: string): DocScan {
+  const { lines, lineStarts } = splitWithOffsets(text)
+  return {
+    lines,
+    lineStarts,
+    fences: scanFencedCode(lines, lineStarts),
+    callouts: calloutLines(lines),
+    fencedRanges: fenceBlocks(lines, lineStarts).map((b) => [b.from, b.to]),
+  }
+}
+
 export type WidgetSpec =
   | { type: 'hr' }
   | { type: 'bullet' }
@@ -158,6 +180,7 @@ export function decorationsFor(
   tokens: Token[],
   active: Set<number>,
   selStart: number,
+  scan?: DocScan,
 ): DecoIntent[] {
   const intents: DecoIntent[] = []
 
@@ -176,9 +199,7 @@ export function decorationsFor(
       for (const [s, e] of tk.markerRanges) intents.push({ kind: 'hide', from: s, to: e })
   })
 
-  const { lines, lineStarts } = splitWithOffsets(text)
-  const fences = scanFencedCode(lines, lineStarts)
-  const callouts = calloutLines(lines)
+  const { lines, lineStarts, fences, callouts } = scan ?? scanDoc(text)
 
   // Per-line list nesting depth (-1 = not a rendered list line) + the rail type-class of the marker there.
   // Fed by pushConstruct's return; the outliner-rail pass below reads them to find run boundaries per level.

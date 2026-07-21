@@ -24,6 +24,7 @@ import { markdownFolding, applySavedFolds, type FoldsApi } from './editor/foldin
 import { applyEditorAction, type EditorMenuApi } from './editor/menu'
 import { formatKeymap } from './editor/formatKeymap'
 import { readFormatState } from './editor/formatState'
+import type { FormatState } from '@shared/editorMenu'
 import { AC_MAX } from './autocomplete'
 import { useConnectionAutocomplete, detectConnectionQuery } from './useConnectionAutocomplete'
 import { AutocompletePanel } from './AutocompletePanel'
@@ -102,7 +103,7 @@ export function MarkdownEditor({
   tableHeadingColsRef.current = tableHeadingColumns
   const menuRef = useRef(menu)
   menuRef.current = menu
-  const lastFormatRef = useRef('')
+  const lastFormatRef = useRef<FormatState | null>(null)
 
   // CM6 extensions are built once at mount, so they read live state + actions through refs. The `[[…]]`
   // autocomplete state machine is shared with table cells; this editor's seams are the candidate source
@@ -217,10 +218,14 @@ export function MarkdownEditor({
         const sel = u.state.selection.main
         if (u.docChanged) onChangeRef.current(doc)
 
+        // FormatState is flat primitives — a field compare beats allocating a JSON string per
+        // caret move just to diff it.
         const fs = readFormatState(doc, sel.from, sel.to, u.view.hasFocus)
-        const json = JSON.stringify(fs)
-        if (json !== lastFormatRef.current) {
-          lastFormatRef.current = json
+        const last = lastFormatRef.current
+        const changed =
+          !last || (Object.keys(fs) as (keyof typeof fs)[]).some((k) => fs[k] !== last[k])
+        if (changed) {
+          lastFormatRef.current = fs
           menuRef.current?.pushState(fs)
         }
 

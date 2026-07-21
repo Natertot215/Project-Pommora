@@ -1,4 +1,11 @@
-import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import {
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from 'react'
 import { GlassPane, PANE_FROST } from '../materials'
 import { cx } from '../cx'
 import * as s from './notchedPane.css'
@@ -130,7 +137,15 @@ export function NotchedPane({
   useLayoutEffect(() => {
     const el = popRef.current
     if (!el) return
-    const measure = (): void => setSize({ w: el.offsetWidth, h: el.offsetHeight })
+    // Bail on unchanged sizes: the RO fires every frame while pane content animates its height,
+    // and an unconditional fresh object per callback re-renders (and re-serializes the path) for
+    // frames where nothing moved. offsetWidth/Height are integral, so jitter can't defeat the bail.
+    const measure = (): void =>
+      setSize((prev) => {
+        const w = el.offsetWidth
+        const h = el.offsetHeight
+        return prev.w === w && prev.h === h ? prev : { w, h }
+      })
     measure()
     const ro = new ResizeObserver(measure)
     ro.observe(el)
@@ -140,24 +155,41 @@ export function NotchedPane({
   const { w, h } = size
   const ready = w > 0 && h > 0
   const vertical = notchSide === 'left' || notchSide === 'right'
-  // Clamp the beak clear of the corner radii (along whichever edge it rides) so it can't break the outline.
-  const along = vertical ? h : w
-  const nMin = radius + notchWidth / 2 + 2
-  const nMax = along - radius - notchWidth / 2 - 2
-  const nRaw = vertical
-    ? notchInsetBottom !== undefined
-      ? h - notchInsetBottom
-      : h / 2
-    : notchInsetRight !== undefined
-      ? w - notchInsetRight
-      : w / 2
-  const n = nMin < nMax ? Math.min(Math.max(nRaw, nMin), nMax) : along / 2
   const flip = notchSide === 'bottom' || notchSide === 'right'
-  const d = ready
-    ? vertical
-      ? panePathVertical(w, h, radius, n, notchHeight, notchWidth, notchCurve, flip)
-      : panePath(w, h, radius, n, notchHeight, notchWidth, notchCurve, flip)
-    : ''
+  // Clamp the beak clear of the corner radii (along whichever edge it rides) so it can't break the
+  // outline. Path + beak position are memoized: a re-render without a geometry change (parent state,
+  // hover) must not re-serialize the cubic path string.
+  const { d, n } = useMemo(() => {
+    const along = vertical ? h : w
+    const nMin = radius + notchWidth / 2 + 2
+    const nMax = along - radius - notchWidth / 2 - 2
+    const nRaw = vertical
+      ? notchInsetBottom !== undefined
+        ? h - notchInsetBottom
+        : h / 2
+      : notchInsetRight !== undefined
+        ? w - notchInsetRight
+        : w / 2
+    const pos = nMin < nMax ? Math.min(Math.max(nRaw, nMin), nMax) : along / 2
+    const path = ready
+      ? vertical
+        ? panePathVertical(w, h, radius, pos, notchHeight, notchWidth, notchCurve, flip)
+        : panePath(w, h, radius, pos, notchHeight, notchWidth, notchCurve, flip)
+      : ''
+    return { d: path, n: pos }
+  }, [
+    w,
+    h,
+    ready,
+    vertical,
+    flip,
+    radius,
+    notchWidth,
+    notchHeight,
+    notchCurve,
+    notchInsetRight,
+    notchInsetBottom,
+  ])
   // The Bloom starts from the beak tip: the sideways tip sits on the near vertical edge, the
   // up/down tip on the near horizontal edge.
   const origin = vertical ? `${flip ? w : 0}px ${n}px` : `${n}px ${flip ? h : 0}px`

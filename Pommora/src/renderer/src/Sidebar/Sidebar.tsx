@@ -489,7 +489,7 @@ function TierDisclosure({
   // Right-click the tier → create into THAT tier (the collection/set row's own right-click idiom),
   // instead of the global three-way menu that never scoped to a tier.
   const onCreate = (): void => {
-    void window.nexus.popCreateMenu([
+    void useSession.getState().createFromMenu([
       {
         label: `New ${singular}`,
         req: { op: 'createContext', tier: TIER_NUM[tierKey], name: DEFAULT_NEW_NAME },
@@ -564,14 +564,14 @@ export function Sidebar({ tree }: { tree: NexusTree }): React.JSX.Element {
   // Right-click a mode's empty area → a native create menu (never auto-create). Contexts offers the
   // three tiers; Collections a single "New Collection" (Add Heading joins it with User Sections CRUD).
   const newContext = (): void => {
-    void window.nexus.popCreateMenu([
+    void useSession.getState().createFromMenu([
       { label: 'New Area', req: { op: 'createContext', tier: 1, name: DEFAULT_NEW_NAME } },
       { label: 'New Topic', req: { op: 'createContext', tier: 2, name: DEFAULT_NEW_NAME } },
       { label: 'New Project', req: { op: 'createContext', tier: 3, name: DEFAULT_NEW_NAME } },
     ])
   }
   const newCollectionMenu = (): void => {
-    void window.nexus.popCreateMenu([
+    void useSession.getState().createFromMenu([
       {
         label: 'New Collection',
         req: { op: 'createContainer', parentPath: '', kind: 'collection', name: DEFAULT_NEW_NAME },

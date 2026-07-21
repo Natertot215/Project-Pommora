@@ -15,7 +15,6 @@ import type { SubfieldScope } from '../Detail/Subfield/subfieldItems'
 import { buildPageIndex, flattenPages, type ConnectionsApi } from '../MarkdownPM/connections'
 import { showConnectionMenu } from '../Embeds/connectionMenu'
 import { useConnectionHover } from '../Embeds/ConnectionHoverCard'
-import { registerPreviewFlush } from '../Detail/pageFlush'
 import { getDetailPaneRect } from '../Detail/DetailPane'
 import { NavCrumbs } from '../Navigation/NavList'
 import { buildResolveIndex, resolveWith } from '../Navigation/navResolve'
@@ -116,6 +115,14 @@ function PreviewWindowBody({
   const [inspectorOpen, setInspectorOpen] = useState(false)
   const [inspW, setInspW] = useState(INSPECTOR.def)
   const [inspResizing, setInspResizing] = useState(false)
+
+  // The corner hit-test's rect, measured lazily and cached — a getBoundingClientRect per mousemove
+  // forces a layout on every pointer travel across the pane. Anything that can move or resize the
+  // pane (a window drag via `style`, the inspector) drops the cache; the next move re-measures.
+  const paneRect = useRef<DOMRect | null>(null)
+  useEffect(() => {
+    paneRect.current = null
+  }, [style, inspectorOpen, inspW])
   useEffect(() => {
     // Skip an Escape a focused surface already handled (mirrors NavWindow / App.tsx).
     const onKey = (e: KeyboardEvent): void => {
@@ -240,10 +247,13 @@ function PreviewWindowBody({
       aria-label="Page Preview"
       onPointerDown={onWindowDown}
       onMouseMove={(e) => {
-        const r = e.currentTarget.getBoundingClientRect()
+        const r = (paneRect.current ??= e.currentTarget.getBoundingClientRect())
         setSubfieldNear(e.clientX > r.right - 260 && e.clientY > r.bottom - 120)
       }}
-      onMouseLeave={() => setSubfieldNear(false)}
+      onMouseLeave={() => {
+        paneRect.current = null
+        setSubfieldNear(false)
+      }}
     >
       <div className="pgpreview-toolbar">
         <div className="pgpreview-actions">
@@ -294,7 +304,6 @@ function PreviewWindowBody({
           editing={editing}
           onBeginEdit={() => setEditing(true)}
           connections={connections}
-          registerFlush={registerPreviewFlush}
           onBody={onPreviewBody}
           warm={warmSeam}
         />

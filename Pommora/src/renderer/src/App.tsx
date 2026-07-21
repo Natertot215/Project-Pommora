@@ -20,30 +20,32 @@ import { Icon } from '@renderer/design-system/symbols'
 import { matchesCommand } from './Commands'
 
 export function App(): React.JSX.Element {
-  const {
-    status,
-    tree,
-    error,
-    sidebarVisible,
-    sidebarWidth,
-    setSidebarWidth,
-    inspectorWidth,
-    setInspectorWidth,
-    load,
-    applyTree,
-    applyNavChanged,
-    choose,
-    openDropped,
-    toggleSidebar,
-    ribbonVisible,
-    toggleRibbon,
-    toggleNav,
-    commands,
-    newPage,
-    openNewTab,
-    beginRename,
-    select,
-  } = useSession()
+  // Per-field selectors, never the bare hook: the shell must not re-render on every store set()
+  // — only when a field it renders actually changes. Actions are stable references (defined
+  // once at store creation), so selecting them individually is safe.
+  const status = useSession((s) => s.status)
+  const tree = useSession((s) => s.tree)
+  const error = useSession((s) => s.error)
+  const sidebarVisible = useSession((s) => s.sidebarVisible)
+  const sidebarWidth = useSession((s) => s.sidebarWidth)
+  const setSidebarWidth = useSession((s) => s.setSidebarWidth)
+  const inspectorWidth = useSession((s) => s.inspectorWidth)
+  const setInspectorWidth = useSession((s) => s.setInspectorWidth)
+  const persistPaneWidths = useSession((s) => s.persistPaneWidths)
+  const load = useSession((s) => s.load)
+  const applyTree = useSession((s) => s.applyTree)
+  const applyNavChanged = useSession((s) => s.applyNavChanged)
+  const choose = useSession((s) => s.choose)
+  const openDropped = useSession((s) => s.openDropped)
+  const toggleSidebar = useSession((s) => s.toggleSidebar)
+  const ribbonVisible = useSession((s) => s.ribbonVisible)
+  const toggleRibbon = useSession((s) => s.toggleRibbon)
+  const toggleNav = useSession((s) => s.toggleNav)
+  const commands = useSession((s) => s.commands)
+  const newPage = useSession((s) => s.newPage)
+  const openNewTab = useSession((s) => s.openNewTab)
+  const beginRename = useSession((s) => s.beginRename)
+  const select = useSession((s) => s.select)
   useNavThumbnails() // capture-on-open detail-pane thumbnails for the gallery
 
   // Inspector toggle — window chrome state. Full-height pane that pushes content when open.
@@ -65,6 +67,7 @@ export function App(): React.JSX.Element {
   const onResizeUp = (): void => {
     drag.current.active = false
     setResizing(false)
+    persistPaneWidths()
   }
 
   // Inspector edge-drag resize — mirror of the sidebar, but the left edge grows the pane
@@ -82,6 +85,7 @@ export function App(): React.JSX.Element {
   const onInspectorResizeUp = (): void => {
     inspectorDrag.current.active = false
     setResizing(false)
+    persistPaneWidths()
   }
 
   useEffect(() => {
@@ -261,6 +265,8 @@ export function App(): React.JSX.Element {
           onPointerDown={onResizeDown}
           onPointerMove={onResizeMove}
           onPointerUp={onResizeUp}
+          onPointerCancel={onResizeUp}
+          onLostPointerCapture={onResizeUp}
           role="separator"
           aria-orientation="vertical"
           aria-label="Resize sidebar"
@@ -291,6 +297,8 @@ export function App(): React.JSX.Element {
           onPointerDown={onInspectorResizeDown}
           onPointerMove={onInspectorResizeMove}
           onPointerUp={onInspectorResizeUp}
+          onPointerCancel={onInspectorResizeUp}
+          onLostPointerCapture={onInspectorResizeUp}
           role="separator"
           aria-orientation="vertical"
           aria-label="Resize inspector"

@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { MarkdownEditor, type WarmSeam } from '@renderer/MarkdownPM'
 import type { ConnectionsApi } from '@renderer/MarkdownPM/connections'
+import { flushPageSave, schedulePageSave } from '@renderer/Detail/pageFlush'
 import './embeds.css'
-
-const SAVE_DEBOUNCE_MS = 400
 /** The embed's fixed zoom-out (G-10), as a LINEAR scale — converted once to the
  *  editor's exponential zoom. The knob. */
 import { EMBED_SCALE, EMBED_ZOOM } from './embedScale'
@@ -22,7 +21,6 @@ export function PageEmbed({
   onBeginEdit,
   connections,
   locked = false,
-  registerFlush,
   onBody,
   warm,
 }: {
@@ -33,8 +31,6 @@ export function PageEmbed({
   connections?: ConnectionsApi
   /** B-5 content lock: a locked embed can't be entered for editing (stays a selectable portal). */
   locked?: boolean
-  /** Opt-in awaitable-flush registration (the pageFlush pattern) for hosts whose close defers unmount. */
-  registerFlush?: (fn: (() => Promise<void>) | null) => void
   /** Opt-in live-body reporting: fires the current editor body on load and on every change. The
    *  floating preview uses it to drive its own Subfield stats from a LOCAL buffer — never the shared
    *  `liveBody` slot (single-owner; a second writer would evict the main pane's live count). */
@@ -51,7 +47,6 @@ export function PageEmbed({
     return typeof doc === 'string' ? { path, body: doc } : null
   })
   const body = loaded?.path === path ? loaded.body : null
-  const pending = useRef<{ timer: ReturnType<typeof setTimeout>; body: string } | null>(null)
 
   // Seed the consumer with the current body once it's known (warm or fetched); edits report via onChange.
   const onBodyRef = useRef(onBody)
@@ -71,30 +66,13 @@ export function PageEmbed({
     }
   }, [path, body])
 
-  const flush = (): Promise<void> => {
-    const p = pending.current
-    if (!p) return Promise.resolve()
-    clearTimeout(p.timer)
-    pending.current = null
-    return window.nexus.updatePageBody(path, p.body).then(() => undefined)
-  }
-  const flushRef = useRef(flush)
-  flushRef.current = flush
-  useEffect(() => () => void flushRef.current(), [])
+  // The debounced write lives in the shared path-keyed autosave (pageFlush) — writes are keyed to
+  // the path they were scheduled under, so a host re-aiming `path` in place can never land the old
+  // page's body on the new one. Exiting edit (or a path swap / unmount) flushes that page now.
   useEffect(() => {
-    if (!editing) void flushRef.current()
-  }, [editing])
-  // Hosts whose close path outlives the world (the preview's exit-presence) register an awaitable
-  // flush so pending writes land BEFORE the world changes — the unmount flush alone fires too late.
-  useEffect(() => {
-    if (!registerFlush) return
-    registerFlush(() => flushRef.current())
-    return () => registerFlush(null)
-  }, [registerFlush])
-  const scheduleSave = (next: string): void => {
-    if (pending.current) clearTimeout(pending.current.timer)
-    pending.current = { body: next, timer: setTimeout(() => flushRef.current(), SAVE_DEBOUNCE_MS) }
-  }
+    if (!editing) void flushPageSave(path)
+    return () => void flushPageSave(path)
+  }, [editing, path])
 
   if (body === null) return <div className="pgembed" />
   return (
@@ -113,7 +91,7 @@ export function PageEmbed({
         initialBody={body}
         onChange={(next) => {
           onBodyRef.current?.(next)
-          scheduleSave(next)
+          schedulePageSave(path, next)
         }}
         connections={connections}
         readOnly={!editing}

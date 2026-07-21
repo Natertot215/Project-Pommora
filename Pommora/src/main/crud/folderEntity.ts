@@ -47,6 +47,11 @@ export async function renameFolderEntity(
   const target = join(dirname(absFolder), newName)
   if (target === absFolder) return ok({ path: absFolder })
   if (await pathExists(target)) return fail('exists', `"${newName}" already exists.`)
+  // Both endpoints recorded BEFORE the rename: the caller refetches explicitly, so the
+  // watcher's unlinkDir/addDir echo (and every child event under a folder) must not
+  // buy a second full walk.
+  recordWrite(absFolder)
+  recordWrite(target)
   await rename(absFolder, target)
   return ok({ path: target })
 }
@@ -61,6 +66,8 @@ export async function moveFolderEntity(
   if (target === absFolder) return ok({ path: absFolder })
   if (await pathExists(target))
     return fail('exists', `"${basename(absFolder)}" already exists there.`)
+  recordWrite(absFolder)
+  recordWrite(target)
   await rename(absFolder, target)
   return ok({ path: target })
 }

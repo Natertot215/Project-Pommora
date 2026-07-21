@@ -4,7 +4,7 @@ import {
   SegmentedButton,
   type Segment,
 } from '@renderer/design-system/components/Segmented-Controls'
-import { useDismiss } from '@renderer/design-system/components/Popover'
+import { useDismiss } from '@renderer/design-system/components/useDismiss'
 import { MenuSurface } from '@renderer/design-system/components/menu'
 import { iconNameOr } from '@renderer/design-system/symbols'
 import { useExitPresence } from '@renderer/design-system/useExitPresence'

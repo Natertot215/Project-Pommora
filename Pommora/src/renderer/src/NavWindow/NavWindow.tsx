@@ -14,7 +14,6 @@ import { PageEmbed } from '../Embeds/PageEmbed'
 import { buildPageIndex, flattenPages, type ConnectionsApi } from '../MarkdownPM/connections'
 import { showConnectionMenu } from '../Embeds/connectionMenu'
 import { useConnectionHover } from '../Embeds/ConnectionHoverCard'
-import { registerPreviewFlush } from '../Detail/pageFlush'
 import { buildResolveIndex } from '../Navigation/navResolve'
 import { useSession } from '../store'
 import { splitSearch, useNavData } from '../Navigation/useNavData'
@@ -167,8 +166,8 @@ function NavWindowBody({ closing }: { closing: boolean }): React.JSX.Element {
   const hasTabs = preview?.flavor === 'nav' && preview.tabs.length > 1
   const resolveIndex = useMemo(() => (tree ? buildResolveIndex(tree) : null), [tree])
 
-  // The page tab's embed: fully editable, same flush + warm seams as the floating preview (D-2:
-  // one preview exists at a time, so the single flush slot serves whichever flavor is open).
+  // The page tab's embed: fully editable, same autosave + warm seams as the floating preview
+  // (writes ride the shared path-keyed page autosave; one preview exists at a time).
   const [editing, setEditing] = useState(false)
   useEffect(() => setEditing(false), [pageTarget?.path])
   const pageScrollRef = useRef<HTMLDivElement>(null)
@@ -282,7 +281,6 @@ function NavWindowBody({ closing }: { closing: boolean }): React.JSX.Element {
                 editing={editing}
                 onBeginEdit={() => setEditing(true)}
                 connections={connections}
-                registerFlush={registerPreviewFlush}
                 warm={warmSeam}
               />
             </div>

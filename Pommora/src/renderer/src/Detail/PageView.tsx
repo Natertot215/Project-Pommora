@@ -7,9 +7,8 @@ import { useConnectionHover } from '../Embeds/ConnectionHoverCard'
 import { IconPicker } from '../Components/IconPicker'
 import { navKey } from '../Navigation/navRecents'
 import { captureWarm, readWarm } from '../Tabs/warmCache'
-import { registerPageFlush } from './pageFlush'
+import { schedulePageSave } from './pageFlush'
 
-const SAVE_DEBOUNCE_MS = 400
 // Live stats settle just behind the keystroke so a long page isn't Markdown-scanned on every char.
 const STATS_DEBOUNCE_MS = 120
 
@@ -26,9 +25,6 @@ export function PageView(): React.JSX.Element {
   // B-6 reads the LIVE personalization slice (setPersonalization updates it before the tree echoes).
   const openInPreview = useSession((s) => s.personalization.connectionsOpenInPreview ?? false)
   const setLiveBody = useSession((s) => s.setLiveBody)
-  const pendingSave = useRef<
-    { path: string; body: string; timer: ReturnType<typeof setTimeout> } | undefined
-  >(undefined)
   const liveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const [iconPickerOpen, setIconPickerOpen] = useState(false)
 
@@ -49,51 +45,9 @@ export function PageView(): React.JSX.Element {
     }
   }, [tree, select, openPreview, openInPreview, hover])
 
-  // The pending save is per-path: rescheduling the SAME page replaces its timer (normal typing debounce),
-  // but a different page's schedule FLUSHES the pending write first — clearing it would silently drop the
-  // previous page's last edits (the timer is shared across switches because PageView never remounts).
-  const flushSave = (): void => {
-    const p = pendingSave.current
-    if (!p) return
-    clearTimeout(p.timer)
-    pendingSave.current = undefined
-    void window.nexus.updatePageBody(p.path, p.body)
-  }
-  // A pending debounced save must survive teardown, not die with it: switching page→collection unmounts
-  // PageView, and closing the window tears down the renderer — both within the 400ms window would otherwise
-  // silently drop the last edit. Flush on unmount and on window close. (Page→page keeps PageView mounted;
-  // scheduleSave's per-path flush covers that path.)
-  const flushRef = useRef(flushSave)
-  flushRef.current = flushSave
-  useEffect(() => {
-    const onUnload = (): void => flushRef.current()
-    window.addEventListener('beforeunload', onUnload)
-    // The adopt path flushes the pending write to the OLD root before flipping (registerPageFlush) — the
-    // unmount-flush below then finds nothing to write into the new nexus.
-    registerPageFlush(async () => {
-      const p = pendingSave.current
-      if (!p) return
-      clearTimeout(p.timer)
-      pendingSave.current = undefined
-      await window.nexus.updatePageBody(p.path, p.body)
-    })
-    return () => {
-      window.removeEventListener('beforeunload', onUnload)
-      registerPageFlush(null)
-      flushRef.current()
-    }
-  }, [])
-  const scheduleSave = (path: string, body: string): void => {
-    if (pendingSave.current) {
-      if (pendingSave.current.path !== path) flushSave()
-      else clearTimeout(pendingSave.current.timer)
-    }
-    const timer = setTimeout(() => {
-      pendingSave.current = undefined
-      void window.nexus.updatePageBody(path, body)
-    }, SAVE_DEBOUNCE_MS)
-    pendingSave.current = { path, body, timer }
-  }
+  // The debounced body write lives in the shared path-keyed autosave (pageFlush) — teardown paths
+  // (unmount inside the debounce, window close, nexus adopt) all flush THERE, so a pending write
+  // survives this component without any per-host flush machinery.
   const pushLiveBody = (path: string, body: string): void => {
     if (liveTimer.current) clearTimeout(liveTimer.current)
     liveTimer.current = setTimeout(() => setLiveBody(path, body), STATS_DEBOUNCE_MS)
@@ -129,7 +83,7 @@ export function PageView(): React.JSX.Element {
             onRename={(newName) => submitRename(pageDetail.path, 'page', newName)}
             onChange={(body) => {
               pushLiveBody(pageDetail.path, body) // debounced live buffer → Subfield stats
-              scheduleSave(pageDetail.path, body)
+              schedulePageSave(pageDetail.path, body)
             }}
             connections={connections}
             folds={{

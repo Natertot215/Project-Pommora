@@ -10,13 +10,8 @@ import {
 import type { Extension, Range } from '@codemirror/state'
 import { chipBoxGeometry } from '../../design-system/tokens'
 import { tokenize, activeTokenIndices, type Token } from '../tokens'
-import { docString } from './docCache'
-import {
-  decorationsFor,
-  fencedCodeRanges,
-  GLYPH_CLASS,
-  type WidgetSpec,
-} from '../decorations/intent'
+import { docScan, docString } from './docCache'
+import { decorationsFor, GLYPH_CLASS, type WidgetSpec } from '../decorations/intent'
 import type { ConnectionsApi } from '../connections'
 import { isValidLink } from '@shared/links'
 
@@ -142,7 +137,7 @@ const NO_ACTIVE = new Set<number>()
 // passes per keystroke/caret-move are what made long docs lag and the caret jitter. Tokens are shifted
 // back to absolute offsets, and any landing inside a fence opened above the viewport are dropped (a
 // viewport-only tokenize can't see that fence). Paired with a rebuild on `viewportChanged` (scroll).
-function visibleInlineTokens(view: EditorView, text: string): Token[] {
+function visibleInlineTokens(view: EditorView, text: string, fences: [number, number][]): Token[] {
   const doc = view.state.doc
   const spans: [number, number][] = []
   for (const { from, to } of view.visibleRanges) {
@@ -152,7 +147,6 @@ function visibleInlineTokens(view: EditorView, text: string): Token[] {
     if (prev && a <= prev[1] + 1) prev[1] = Math.max(prev[1], b)
     else spans.push([a, b])
   }
-  const fences = fencedCodeRanges(text)
   const insideFence = (p: number): boolean => fences.some(([fa, fb]) => p >= fa && p < fb)
   const out: Token[] = []
   for (const [a, b] of spans) {
@@ -172,13 +166,16 @@ function visibleInlineTokens(view: EditorView, text: string): Token[] {
 
 function build(view: EditorView, conn: ConnectionsApi | undefined): DecorationSet {
   const text = docString(view.state.doc)
+  // One whole-doc scan per doc VERSION (docCache) — a caret move / focus flip / scroll reuses it,
+  // so the per-rebuild cost is the viewport tokenize + the line loop, never the O(doc) re-scans.
+  const scan = docScan(view.state.doc)
   const focused = view.hasFocus
   const sel = view.state.selection.main
-  const tokens = visibleInlineTokens(view, text)
+  const tokens = visibleInlineTokens(view, text, scan.fencedRanges)
   const active = focused ? activeTokenIndices(tokens, sel.from, sel.to) : NO_ACTIVE
   const head = focused ? sel.head : -1
   const ranges: Range<Decoration>[] = []
-  for (const it of decorationsFor(text, tokens, active, head)) {
+  for (const it of decorationsFor(text, tokens, active, head, scan)) {
     if (it.kind === 'line') {
       const spec =
         it.level === undefined

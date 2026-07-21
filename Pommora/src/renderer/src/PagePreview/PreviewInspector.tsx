@@ -16,6 +16,9 @@ import { buildContextsById, type ResolveContext } from '../Detail/Views/Table/re
 import { contextOptionsFor } from '../Detail/Views/pipeline/contextOptions'
 import { TIER_LEVEL_BY_ID } from '../Detail/Views/Table/columnLabel'
 import { PropertyEditor } from '../Detail/Views/PropertyEditing/PropertyEditor'
+import { sharedValueClickAction } from '../Detail/Views/PropertyEditing/valueClick'
+import { parseEditorValue } from '../Detail/Views/Cards/cardValueInput'
+import { parseLink, urlValueFromEdit } from '../Detail/Views/Table/linkValue'
 import { PropertyPicker, syntheticContextDef } from '../Detail/Views/PropertyEditing/PropertyPicker'
 import { DatetimeValuePicker } from '../Detail/Views/PropertyEditing/DatetimeValuePicker'
 import { resolveFieldValue } from '../Detail/Views/pipeline/value'
@@ -102,18 +105,22 @@ export function PreviewInspector({ target }: { target: PreviewTarget }): React.J
 
   const editRow = (def: PropertyDefinition, el: HTMLElement): void => {
     triggerRef.current = el
-    if (def.type === 'checkbox') {
-      const v = row ? resolveFieldValue(row, def.id, schema) : { kind: 'null' as const }
-      commitValue(def.id, {
-        kind: 'checkbox',
-        value: !(v.kind === 'checkbox' && v.value),
-      })
+    // The shared click semantics (toggle/picker/datetime — a checkbox is true-or-absent on disk,
+    // never a stored false) live in one router; the inspector's tail keeps number/url inline.
+    const v = row ? resolveFieldValue(row, def.id, schema) : ({ kind: 'null' } as const)
+    const shared = sharedValueClickAction(def.type, undefined, v, def)
+    if (shared) {
+      if (shared.kind === 'commit') {
+        commitValue(def.id, shared.value)
+        // Un-checking clears the key on disk (true-or-absent — never a stored false), which
+        // would also un-assign the row: keep it revealed this session so the box can be
+        // re-checked; the next preview open hides it like any other empty property.
+        if (def.type === 'checkbox' && shared.value === null)
+          setRevealed((prev) => new Set([...prev, def.id]))
+      } else setEditing({ id: def.id, mode: shared.kind === 'datetime' ? 'date' : 'picker' })
       return
     }
-    if (def.type === 'datetime') setEditing({ id: def.id, mode: 'date' })
-    else if (def.type === 'number' || def.type === 'url') setEditing({ id: def.id, mode: 'editor' })
-    else if (def.type === 'file' || def.type === 'last_edited_time') return
-    else setEditing({ id: def.id, mode: 'picker' })
+    if (def.type === 'number' || def.type === 'url') setEditing({ id: def.id, mode: 'editor' })
   }
 
   // The Add picker's shared landing: reveal the row, then open its editor anchored to the value
@@ -209,20 +216,24 @@ export function PreviewInspector({ target }: { target: PreviewTarget }): React.J
                         <PropertyEditor
                           initial={(() => {
                             const v = resolveFieldValue(row, id, schema)
-                            return v.kind === 'number' || v.kind === 'url' ? String(v.value) : ''
+                            if (v.kind === 'number') return String(v.value)
+                            if (v.kind === 'url') return parseLink(v.value).url
+                            return ''
                           })()}
                           numeric={def.type === 'number'}
                           validate={def.type === 'url' ? isValidLink : undefined}
                           onCommit={(raw) => {
-                            const t = raw.trim()
-                            commitValue(
-                              id,
-                              t === ''
-                                ? null
-                                : def.type === 'number'
-                                  ? { kind: 'number', value: Number(t) }
-                                  : { kind: 'url', value: t },
-                            )
+                            // The shared parser: number NaN-gates, url validates/normalizes and
+                            // rides the existing alias along — identical to the cell surfaces.
+                            const cur = resolveFieldValue(row, id, schema)
+                            const next =
+                              def.type === 'url'
+                                ? urlValueFromEdit(
+                                    raw.trim(),
+                                    cur.kind === 'url' ? cur.value : undefined,
+                                  )
+                                : parseEditorValue(def.type, raw)
+                            if (next !== undefined) commitValue(id, next)
                             setEditing(null)
                           }}
                           onCancel={() => setEditing(null)}

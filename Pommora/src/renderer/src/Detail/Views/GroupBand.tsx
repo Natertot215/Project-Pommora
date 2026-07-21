@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { type ReactNode, useEffect, useRef } from 'react'
 import type { CollectionNode, ResolvedGroup, SetNode } from '@shared/types'
 import type { SavedView } from '@shared/views'
 import { chipBox, chipColor, text } from '@renderer/design-system/tokens'
@@ -11,6 +11,7 @@ import {
   iconNameOr,
 } from '@renderer/design-system/symbols'
 import { Reveal } from '@renderer/design-system/components/Reveal'
+import { registerDiscloseTarget } from '@renderer/design-system/interactions/dragDisclose'
 import { Chip, chipShapeForType } from '@renderer/Components/Chip'
 import { RenamableTitle } from '@renderer/Components/RenamableTitle'
 import { declaredType } from './pipeline/value'
@@ -189,12 +190,26 @@ export function GroupBand({
 }): React.JSX.Element {
   const outsideRename = (e: React.MouseEvent): boolean =>
     !(e.target as HTMLElement).closest?.('input')
+  // Spring-load: while collapsed, register the header so a drag dwelling over it discloses the group
+  // (dragDisclose). `toggleRef` keeps the callback fresh without re-registering on every render.
+  const rowRef = useRef<HTMLDivElement>(null)
+  const toggleRef = useRef(onToggle)
+  toggleRef.current = onToggle
+  useEffect(() => {
+    if (headless || !collapsed || !rowRef.current) return
+    return registerDiscloseTarget(rowRef.current, () => toggleRef.current())
+  }, [headless, collapsed])
   return (
     <div className={cx('group-band', subBand && 'sub-band')}>
       {!headless && (
         // The band row carries the section rhythm + indent + zoom (table); the head inside carries the
         // sticky pin + drag — kept on separate elements so zoom never rides the sticky offset.
-        <div className="group-band-row" style={indent ? { paddingLeft: indent } : undefined}>
+        <div
+          className="group-band-row"
+          ref={rowRef}
+          data-disclose={collapsed ? '' : undefined}
+          style={indent ? { paddingLeft: indent } : undefined}
+        >
           <div
             ref={dragHandle?.ref}
             className={cx(

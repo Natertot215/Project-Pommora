@@ -12,10 +12,10 @@ import { createPortal } from 'react-dom'
 import { text } from '@renderer/design-system/tokens'
 import { cx } from '@renderer/design-system/cx'
 import {
-  ACTIVATION,
-  DROP_LINE_INSET,
-  suppressNextClick,
-} from '@renderer/design-system/interactions/shared'
+  beginPointerGesture,
+  type GestureHandle,
+} from '@renderer/design-system/interactions/gesture'
+import { DROP_LINE_INSET, suppressNextClick } from '@renderer/design-system/interactions/shared'
 import { findScroller, startAutoScroll } from '@renderer/design-system/interactions/autoscroll'
 import type { MeasuredRow } from '@renderer/Sidebar/sidebarDndModel'
 import { type PaneDrop, type PaneRow, type PaneSlot, type Region, paneSlot } from './paneDndModel'
@@ -35,24 +35,6 @@ type DragState = {
   lineTop: number
 }
 const IDLE: DragState = { id: null, ghostX: 0, ghostY: 0, slot: null, lineTop: 0 }
-
-type Handlers = {
-  move: (e: PointerEvent) => void
-  up: () => void
-  cancel: () => void
-  key: (e: KeyboardEvent) => void
-}
-type Gesture =
-  | { kind: 'idle' }
-  | {
-      kind: 'pending' | 'active'
-      id: string
-      el: HTMLElement
-      pid: number
-      startX: number
-      startY: number
-      handlers: Handlers
-    }
 
 type Value = {
   draggingId: string | null
@@ -99,7 +81,7 @@ export function PaneDnd({
   const stopScroll = useRef<(() => void) | null>(null)
   const live = useRef<PaneSlot | null>(null)
   const [drag, setDrag] = useState<DragState>(IDLE)
-  const gesture = useRef<Gesture>({ kind: 'idle' })
+  const handle = useRef<GestureHandle | null>(null)
 
   // Frozen at activation: row geometry, the row set, and the region rects ride one snapshot;
   // scroll/content changes dirty it and the next move re-measures (E-4).
@@ -157,24 +139,7 @@ export function PaneDnd({
     regionEls.current[group] = el
   }
 
-  const detach = (): void => {
-    stopScroll.current?.()
-    stopScroll.current = null
-    const g = gesture.current
-    if (g.kind === 'idle') return
-    window.removeEventListener('pointermove', g.handlers.move)
-    window.removeEventListener('pointerup', g.handlers.up)
-    window.removeEventListener('pointercancel', g.handlers.cancel)
-    window.removeEventListener('keydown', g.handlers.key, { capture: true })
-    window.removeEventListener('scroll', markSnapshotDirty, { capture: true })
-    try {
-      g.el.releasePointerCapture(g.pid)
-    } catch {
-      // already released
-    }
-  }
   const reset = (): void => {
-    gesture.current = { kind: 'idle' }
     live.current = null
     snapshot.current = null
     snapshotDirty.current = false
@@ -182,62 +147,9 @@ export function PaneDnd({
     setDrag(IDLE)
   }
 
-  const begin = (id: string, e: ReactPointerEvent): void => {
-    if (e.button !== 0 || !e.isPrimary || gesture.current.kind !== 'idle') return
-    // `button` beyond the band guard: a row's +, the twisty, and rename inputs never arm a drag.
-    if ((e.target as HTMLElement).closest?.('button, input, textarea, [contenteditable="true"]'))
-      return
-    const el = els.current.get(id)
-    if (!el) return
-    const handlers: Handlers = { move: onMove, up: onUp, cancel: onCancel, key: onKey }
-    gesture.current = {
-      kind: 'pending',
-      id,
-      el,
-      pid: e.pointerId,
-      startX: e.clientX,
-      startY: e.clientY,
-      handlers,
-    }
-    window.addEventListener('pointermove', handlers.move)
-    window.addEventListener('pointerup', handlers.up)
-    window.addEventListener('pointercancel', handlers.cancel)
-    // Capture phase so an active drag's Escape is swallowed before the Toolbar's useDismiss
-    // closes the whole dropdown (E-4); a sub-threshold press leaves Escape to the dropdown.
-    window.addEventListener('keydown', handlers.key, { capture: true })
-  }
-
-  function onMove(e: PointerEvent): void {
-    const g = gesture.current
-    if (g.kind === 'idle') return
-    if (g.kind === 'pending') {
-      if (Math.hypot(e.clientX - g.startX, e.clientY - g.startY) < ACTIVATION) return
-      try {
-        g.el.setPointerCapture(g.pid)
-      } catch {
-        // capture unavailable
-      }
-      gesture.current = { ...g, kind: 'active' }
-      ghostLabel.current = labelForRef.current(g.id)
-      scroller.current = findScroller(box.current, 'y')
-      window.addEventListener('scroll', markSnapshotDirty, { capture: true, passive: true })
-      if (scroller.current) {
-        stopScroll.current = startAutoScroll({
-          getPoint: () => lastPoint.current,
-          scroller: scroller.current,
-          dragEl: box.current,
-          axis: 'y',
-          onScrolled: () => resolveSlot(g.id, lastPoint.current.y),
-        })
-      }
-    }
-    lastPoint.current = { x: e.clientX, y: e.clientY }
-    resolveSlot(g.id, e.clientY)
-  }
-
   // Snapshot (lazily, when a scroll dirtied it) then hit-test the pane at a Y. Shared by pointer move
   // and the auto-scroll re-resolve, so a held-still drag near an edge keeps updating as content scrolls.
-  function resolveSlot(id: string, clientY: number): void {
+  const resolveSlot = (id: string, clientY: number): void => {
     if (snapshotDirty.current || !snapshot.current) {
       snapshot.current = takeSnapshot()
       snapshotDirty.current = false
@@ -254,34 +166,58 @@ export function PaneDnd({
       lineTop: liveSlot?.lineY != null ? liveSlot.lineY - snap.boxTop : 0,
     })
   }
-  function onUp(): void {
-    detach()
-    const g = gesture.current
-    if (g.kind !== 'active') {
-      reset()
-      return // a press, never a drag
-    }
-    const slot = live.current
-    if (slot) {
-      onDropRef.current(slot.drop)
-      suppressNextClick() // the release must not also open the row's editor
-    }
-    reset()
-  }
-  function onCancel(): void {
-    detach()
-    reset()
-  }
-  function onKey(e: KeyboardEvent): void {
-    if (e.key !== 'Escape') return
-    if (gesture.current.kind === 'active') {
-      e.stopImmediatePropagation()
-      e.preventDefault()
-    }
-    onCancel()
+
+  const begin = (id: string, e: ReactPointerEvent): void => {
+    // `button` beyond the band guard: a row's +, the twisty, and rename inputs never arm a drag.
+    if ((e.target as HTMLElement).closest?.('button, input, textarea, [contenteditable="true"]'))
+      return
+    const el = els.current.get(id)
+    if (!el) return
+    // swallowActiveEscape: an active drag's Escape must cancel the DRAG, not let the Toolbar's
+    // useDismiss close the whole dropdown; a sub-threshold press leaves Escape to the host.
+    handle.current =
+      beginPointerGesture({
+        el,
+        event: e,
+        swallowActiveEscape: true,
+        onActivate: () => {
+          ghostLabel.current = labelForRef.current(id)
+          scroller.current = findScroller(box.current, 'y')
+          window.addEventListener('scroll', markSnapshotDirty, { capture: true, passive: true })
+          if (scroller.current) {
+            stopScroll.current = startAutoScroll({
+              getPoint: () => lastPoint.current,
+              scroller: scroller.current,
+              dragEl: box.current,
+              axis: 'y',
+              onScrolled: () => resolveSlot(id, lastPoint.current.y),
+            })
+          }
+          return true
+        },
+        onDragMove: (ev) => {
+          lastPoint.current = { x: ev.clientX, y: ev.clientY }
+          resolveSlot(id, ev.clientY)
+        },
+        onDrop: () => {
+          const liveSlot = live.current
+          if (liveSlot) {
+            onDropRef.current(liveSlot.drop)
+            suppressNextClick() // the release must not also open the row's editor
+          }
+          reset()
+        },
+        onAbort: reset,
+        teardown: () => {
+          stopScroll.current?.()
+          stopScroll.current = null
+          window.removeEventListener('scroll', markSnapshotDirty, { capture: true })
+        },
+        // A refused begin must not overwrite a live gesture's handle (see tableDnd).
+      }) ?? handle.current
   }
 
-  useEffect(() => () => detach(), [])
+  useEffect(() => () => handle.current?.abort(), [])
 
   const value = useMemo<Value>(
     () => ({

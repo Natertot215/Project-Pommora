@@ -183,15 +183,27 @@ export function PickerMenu({
       else setPos({ top: t.bottom + GAP, right, notchInset: reserve })
     }
     measure()
+    // The capture-phase scroll listener hears EVERY scroll in the document while the pane is open,
+    // and measure() forces a layout — coalesce to one re-measure per frame so scrolling a grid
+    // behind an open picker doesn't reflow per event.
+    let raf = 0
+    const measureOnFrame = (): void => {
+      if (raf) return
+      raf = requestAnimationFrame(() => {
+        raf = 0
+        measure()
+      })
+    }
     const ro = new ResizeObserver(measure)
     ro.observe(trigger)
     if (paneRef.current) ro.observe(paneRef.current)
-    window.addEventListener('scroll', measure, true)
-    window.addEventListener('resize', measure)
+    window.addEventListener('scroll', measureOnFrame, true)
+    window.addEventListener('resize', measureOnFrame)
     return () => {
       ro.disconnect()
-      window.removeEventListener('scroll', measure, true)
-      window.removeEventListener('resize', measure)
+      if (raf) cancelAnimationFrame(raf)
+      window.removeEventListener('scroll', measureOnFrame, true)
+      window.removeEventListener('resize', measureOnFrame)
     }
   }, [selfManaged, mounted, reserve, triggerRef, closing, center, direction, anchorX])
 

@@ -14,7 +14,7 @@ import { parseEditorValue } from './cardValueInput'
 import type { ResolveContext } from '../Table/resolveContext'
 import { PropertyEditor } from '../PropertyEditing/PropertyEditor'
 import { numberDivisor } from '../PropertyEditing/formatValue'
-import { nextCycleValue } from '../PropertyEditing/statusCycle'
+import { sharedValueClickAction } from '../PropertyEditing/valueClick'
 
 /**
  * One interactive property value on a card — the cell gesture matrix (portable to
@@ -88,22 +88,12 @@ export function CardValue({
     const openPicker = (kind: 'picker' | 'datetime' | 'link'): void => {
       if (anchorRef.current) onOpenPicker(column, kind, anchorRef.current, e.clientX)
     }
-    if (t === 'status' && style.look === 'checkbox') {
-      const current = v.kind === 'status' || v.kind === 'select' ? v.value : undefined
-      if (!current) return openPicker('picker') // empty ('' included) never cycles blind — assign
-      const next = nextCycleValue(current, schemaDef)
-      if (next !== null) commit({ kind: 'status', value: next })
-    } else if (t === 'checkbox') {
-      const checked = v.kind === 'checkbox' && v.value
-      commit(checked ? null : { kind: 'checkbox', value: true })
-    } else if (
-      t === 'status' ||
-      t === 'select' ||
-      t === 'multi_select' ||
-      t === 'context' ||
-      t === 'datetime'
-    ) {
-      openPicker(t === 'datetime' ? 'datetime' : 'picker')
+    // The shared click semantics (cycle/toggle/picker/datetime) live in one router; only the
+    // surface-specific tails (number/url placement) stay here.
+    const shared = sharedValueClickAction(t, style.look, v, schemaDef)
+    if (shared) {
+      if (shared.kind === 'commit') commit(shared.value)
+      else openPicker(shared.kind)
     } else if (t === 'number') {
       setMode('editor')
     } else if (t === 'url') {
@@ -133,8 +123,7 @@ export function CardValue({
     else if (action === 'cell:edit') {
       if (t === 'url' && anchorRef.current) onOpenPicker(column, 'link', anchorRef.current)
       else setMode('editor')
-    }
-    else if (action === 'cell:rename')
+    } else if (action === 'cell:rename')
       setMode('rename') // url alias edit (keeps the URL)
     else if (action.startsWith('style:')) {
       const parsed = parseStyleAction(action)
@@ -164,15 +153,14 @@ export function CardValue({
   const editing = mode === 'editor' || mode === 'rename'
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: the value is the click surface for its picker.
+    // data-drag-slop: the whole card is a drag handle, so a press that begins on a value gets a larger
+    // drag-activation threshold — a tap-wobble opens the picker instead of lifting the card.
     <span
       ref={anchorRef}
       className="card-value"
+      data-drag-slop=""
       onClick={onClick}
       onContextMenu={onContextMenu}
-      // The card is a whole-surface drag handle (it pointer-captures on pointerdown, which would steal
-      // this value's click). Stopping pointerdown keeps the value clickable; the card still drags from
-      // its thumb/title.
-      onPointerDown={(e) => e.stopPropagation()}
     >
       {editing ? (
         <PropertyEditor

@@ -20,6 +20,15 @@ import {
 import { DEFAULT_NEW_NAME, type MutableKind, type MutateRequest } from '@shared/mutate'
 import { buildReconcileIndex, reconcileSelection, reconcileWith } from './selection'
 import {
+  insertCreatedInTree,
+  patchNodeInTree,
+  relocateNodeInTree,
+  removeNodeInTree,
+  renameNodeInTree,
+  reorderChildrenInTree,
+  reorderTopInTree,
+} from './treeMove'
+import {
   closeTabIn,
   deriveTarget,
   openTabIn,
@@ -48,7 +57,7 @@ import {
 import { captureWarm, clearWarm, dropWarmTab, readWarm } from './Tabs/warmCache'
 import { clearPreviewWarm, dropPreviewWarm } from './PagePreview/previewWarm'
 import { stashWindowMorph } from './PagePreview/WindowMorph'
-import { flushActivePage, flushPreviewPage } from './Detail/pageFlush'
+import { flushAllPageSaves } from './Detail/pageFlush'
 import { dropCapturedOutside } from './Navigation/useNavThumbnails'
 import { stabilize } from './treeStabilize'
 import { applyAccent, applySystemAccent } from './design-system/accent'
@@ -141,6 +150,9 @@ interface SessionState {
   /** Sidebar width in px (clamped to the Swift min/max); persisted to localStorage. */
   sidebarWidth: number
   setSidebarWidth: (w: number) => void
+  /** Persist both pane widths — called once on resize-release, never per pointermove (a
+   *  synchronous localStorage write per move is the drag-stutter source). */
+  persistPaneWidths: () => void
   /** Inspector (right pane) width in px (clamped, persisted to localStorage). */
   inspectorWidth: number
   setInspectorWidth: (w: number) => void
@@ -319,6 +331,9 @@ interface SessionState {
   reloadPage: () => Promise<void>
   /** Create a page in the selected container (or the selected page's parent), then select it. */
   newPage: () => Promise<void>
+  /** Pop a native "New …" menu and run the pick through `mutate`, inline-renaming the new row.
+   *  The one create-menu flow — every "+"/right-click create surface routes through here. */
+  createFromMenu: (items: { label: string; req: MutateRequest }[]) => Promise<void>
 
   /** The path of the sidebar row in inline-rename edit mode, or null. */
   renamingPath: string | null
@@ -369,6 +384,10 @@ let coldStampSeq = -1
 // follow-up push to heal it. While a local write is in flight we trust the optimistic value instead.
 let homepageLockWritesInFlight = 0
 
+// The OS accent, cached module-wide: applyTree runs on every tree push and must stay
+// synchronous — undefined = never fetched (first applyTree awaits once); load() refreshes.
+let systemAccentCache: string | null | undefined
+
 export const useSession = create<SessionState>((set, get) => {
   // The wholesale per-nexus session reset (I-10): every adopt path clears the same state —
   // openVia BEFORE its adopt IPC (D-9 ordering), applyTree's foreign-root guard for adopts that
@@ -407,16 +426,14 @@ export const useSession = create<SessionState>((set, get) => {
   // call routes to the error state instead of an unhandled rejection.
   const openVia = async (attempt: () => Promise<boolean>): Promise<void> => {
     try {
-      // Close the preview BEFORE the root can flip (D-9), and AWAIT its registered flush — the
-      // exit presence defers the unmount past the adopt, so the unmount flush alone would bind the
-      // NEW root. Closed even if the adopt is then cancelled: data safety beats window persistence.
+      // Close the preview BEFORE the root can flip — closed even if the adopt is then
+      // cancelled: data safety beats window persistence.
       set({ navOpen: false, preview: null, previewTarget: null })
-      await flushPreviewPage()
-      // Flush the active page's pending body write to the CURRENT nexus before an adopt flips the root —
-      // else the editor's unmount-flush (fired by the selection-clear below, after the root already moved)
-      // writes the old body into the NEW nexus, overwriting a same-relative-path file there. Awaited so main
-      // binds the OLD root; the flush clears the pending save, so that unmount-flush is then a no-op.
-      await flushActivePage()
+      // Flush EVERY pending page-body write to the CURRENT nexus before an adopt flips the root —
+      // else a debounce timer or an embed's exit flush landing after the flip binds the NEW nexus
+      // and overwrites a same-relative-path file there. Awaited so main binds the OLD root; the
+      // flush clears the pending saves, so any later per-path flush is a no-op.
+      await flushAllPageSaves()
       if (await attempt()) {
         // A new nexus was adopted — reset before re-reading, so stale state doesn't linger
         // against the new tree (main drained the outgoing writes during the adopt).
@@ -667,6 +684,11 @@ export const useSession = create<SessionState>((set, get) => {
       // A refetch after a mutation keeps the tree mounted, so the sidebar's expand/collapse
       // state + selection survive the in-place swap instead of flashing + "resetting".
       if (!get().tree) set({ status: 'loading', error: undefined })
+      // Refresh the OS-accent cache alongside the walk (not awaited — applyTree reads the
+      // cache synchronously; a mid-session OS accent change lands by the next load).
+      void window.nexus.systemAccent().then((c) => {
+        systemAccentCache = c
+      })
       try {
         const res = await window.nexus.state()
         switch (res.status) {
@@ -918,9 +940,14 @@ export const useSession = create<SessionState>((set, get) => {
           savePreviewsFile({ ...file, origins })
         }
       }
-      // Always read the OS accent: it feeds --accent only when the setting is `system`,
-      // but --system-accent (external-link color) reflects it unconditionally.
-      const systemColor = await window.nexus.systemAccent()
+      // The OS accent feeds --accent only when the setting is `system`, but --system-accent
+      // (external-link color) reflects it unconditionally. Read from the module cache —
+      // applyTree runs on every watcher push, and an awaited IPC hop here would gate the
+      // whole reconcile behind a renderer↔main round-trip per push. load() refreshes it.
+      const systemColor =
+        systemAccentCache !== undefined
+          ? systemAccentCache
+          : (systemAccentCache = await window.nexus.systemAccent())
       applyAccent(tree.accent, systemColor)
       applySystemAccent(systemColor)
       set({ personalization: tree.personalization, commands: tree.commands ?? DEFAULT_COMMANDS })
@@ -945,24 +972,17 @@ export const useSession = create<SessionState>((set, get) => {
     commands: DEFAULT_COMMANDS,
 
     sidebarWidth: readStoredSidebarWidth(),
-    setSidebarWidth: (w) => {
-      const next = clampSidebar(w)
-      set({ sidebarWidth: next })
-      try {
-        localStorage.setItem(SIDEBAR_WIDTH_KEY, String(next))
-      } catch {
-        // private mode / disabled storage — width just won't persist
-      }
-    },
+    setSidebarWidth: (w) => set({ sidebarWidth: clampSidebar(w) }),
 
     inspectorWidth: readStoredInspectorWidth(),
-    setInspectorWidth: (w) => {
-      const next = clampInspector(w)
-      set({ inspectorWidth: next })
+    setInspectorWidth: (w) => set({ inspectorWidth: clampInspector(w) }),
+
+    persistPaneWidths: () => {
       try {
-        localStorage.setItem(INSPECTOR_WIDTH_KEY, String(next))
+        localStorage.setItem(SIDEBAR_WIDTH_KEY, String(get().sidebarWidth))
+        localStorage.setItem(INSPECTOR_WIDTH_KEY, String(get().inspectorWidth))
       } catch {
-        // private mode / disabled storage — width just won't persist
+        // private mode / disabled storage — widths just won't persist
       }
     },
 
@@ -1597,6 +1617,11 @@ export const useSession = create<SessionState>((set, get) => {
       )
     },
 
+    createFromMenu: async (items) => {
+      const req = await window.nexus.popCreateMenu(items)
+      if (req) await get().mutate(req, (created) => get().beginRename(created.path))
+    },
+
     renamingPath: null,
     beginRename: (path) => set({ renamingPath: path }),
     cancelRename: () => set({ renamingPath: null }),
@@ -1630,12 +1655,63 @@ export const useSession = create<SessionState>((set, get) => {
         await window.nexus.showError(res.error.message)
         return false
       }
+      // Optimistic tree patch: reflect a just-confirmed structural write INSTANTLY (the
+      // drag-to-folder / rename / reorder feel) rather than waiting on the full reload below —
+      // the file is already in its new state, so the patch mirrors disk, and load() then
+      // confirms canon (stabilize makes a matching reload a no-op, so there's no flicker).
+      const cur = get().tree
+      let patched: NexusTree | null = null
+      if (cur) {
+        switch (req.op) {
+          case 'movePage':
+          case 'moveSet':
+            patched = relocateNodeInTree(cur, req.path, req.newParentPath)
+            break
+          case 'rename':
+            patched = renameNodeInTree(cur, req.path, req.newName)
+            break
+          case 'delete':
+            patched = removeNodeInTree(cur, req.path)
+            break
+          case 'reorderChildren':
+            patched = reorderChildrenInTree(cur, req.parentPath, req.order)
+            break
+          case 'reorderTop':
+            patched = reorderTopInTree(cur, req.key, req.order)
+            break
+          case 'setIcon':
+            patched = patchNodeInTree(cur, req.path, { icon: req.icon })
+            break
+          case 'setHeadingIconHidden':
+            patched =
+              req.kind === 'homepage'
+                ? { ...cur, homepage: { ...cur.homepage, headingIconHidden: req.hidden } }
+                : req.kind === 'navview'
+                  ? null
+                  : patchNodeInTree(cur, req.path, { headingIconHidden: req.hidden })
+            break
+        }
+        if (patched) await get().applyTree(patched)
+      }
+      // Optimistic create: the new row lands INSTANTLY — icon in place, rename input focused —
+      // and the confirming reload below settles canon behind it. Without this the rename input
+      // only mounts after the full re-walk, eating the user's first keystrokes on a large vault.
+      let createdShown = false
+      if (cur && res.created && onCreated) {
+        const optimistic = insertCreatedInTree(cur, req, res.created)
+        if (optimistic) {
+          await get().applyTree(optimistic)
+          await onCreated(res.created)
+          createdShown = true
+        }
+      }
       // Value-only writes (a cell edit, a status cycle, a tier pick) never change the TREE —
-      // the caller's optimistic patch shows the change and the fs watcher settles canon, so the
-      // full-nexus re-walk is skipped for them (it's THE "reload the entire Y" on a hot path).
-      // Structural ops still refetch immediately; reconcileSelection refreshes a moved/renamed path.
+      // the caller's optimistic patch already shows the change (the app's own write is
+      // echo-suppressed; only an external edit walks), so the full-nexus re-walk is skipped for
+      // them (it's THE "reload the entire Y" on a hot path). Structural ops still refetch
+      // immediately; reconcileSelection refreshes a moved/renamed path.
       if (req.op !== 'setProperty' && req.op !== 'setTier') await get().load()
-      if (res.created && onCreated) await onCreated(res.created)
+      if (!createdShown && res.created && onCreated) await onCreated(res.created)
       return true
     },
   }
