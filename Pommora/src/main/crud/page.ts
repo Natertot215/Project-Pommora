@@ -8,6 +8,7 @@ import { rename, readFile } from 'node:fs/promises'
 import { newId } from '../ids'
 import { writePageFile, mergeFrontmatter, splitEnvelope } from '../io/pageFile'
 import { atomicWriteFile, trashWithTimestamp } from '../io/atomicWrite'
+import { recordWrite } from '../io/writeEcho'
 import { splitFrontmatter } from '../readNexus'
 import { applyPropertyValue, type PropertyValue } from '@shared/propertyValue'
 import { tierFieldName } from '@shared/properties'
@@ -53,6 +54,8 @@ export async function renamePage(
   const target = join(dirname(absFile), newName + MD)
   if (target === absFile) return ok({ path: absFile })
   if (await pathExists(target)) return fail('exists', `"${newName}" already exists.`, 'page')
+  recordWrite(absFile)
+  recordWrite(target)
   await rename(absFile, target)
   const existing = await readFile(target, 'utf8')
   const content = mergeFrontmatter(
@@ -94,6 +97,8 @@ export async function movePage(
   if (target === absFile) return ok({ path: absFile })
   if (await pathExists(target))
     return fail('exists', `A page named "${basename(absFile)}" already exists there.`, 'page')
+  recordWrite(absFile)
+  recordWrite(target)
   await rename(absFile, target)
   return ok({ path: target })
 }

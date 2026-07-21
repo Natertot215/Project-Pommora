@@ -47,8 +47,6 @@ type ZoneValue = {
   feel: Feel
   activeId: string | null
   overIndex: number
-  delta: { x: number; y: number }
-  scrollComp: { x: number; y: number }
   rects: Box[]
   dropState: DropState
   keyboard: boolean
@@ -115,8 +113,6 @@ export function Zone({
 
   const [activeId, setActiveId] = useState<string | null>(null)
   const [overIndex, setOverIndex] = useState(-1)
-  const [delta, setDelta] = useState({ x: 0, y: 0 })
-  const [scrollComp, setScrollComp] = useState({ x: 0, y: 0 })
   const [rects, setRects] = useState<Box[]>([])
   const [dropState, setDropState] = useState<DropState>('idle')
   const [keyboard, setKeyboard] = useState(false)
@@ -206,8 +202,11 @@ export function Zone({
     })
     const curDist = Math.hypot(d.rects[d.over].cx - px, d.rects[d.over].cy - py)
     const next = best !== d.over && curDist - bestDist > HYSTERESIS ? best : d.over
-    setDelta({ x: dx, y: dy })
-    setScrollComp(comp)
+    // The pointer-follow is written straight to the lifted element — never through React state. A
+    // delta in the context value would re-render EVERY item on EVERY pointermove (each re-running
+    // its O(N) reflow → O(N²) per frame). useZoneItem omits `transform` for the pointer-following
+    // item, so React never clobbers this write.
+    if (d.el) d.el.style.transform = `translate3d(${dx + comp.x}px, ${dy + comp.y}px, 0)`
     if (next !== d.over) {
       d.over = next
       setOverIndex(next)
@@ -238,6 +237,11 @@ export function Zone({
       setOverIndex(activeIdx)
       setDropState('dragging')
       notifyRef.current.onDragStart?.({ activeId: d.id })
+      // The activation commit strips React's managed transform (the follow is imperative from
+      // here) — re-assert after that commit so the first frame can't paint the item at origin.
+      requestAnimationFrame(() => {
+        if (drag.current.active) track(drag.current.lastX, drag.current.lastY)
+      })
       // The module owns the scroll loop; on each scrolled frame it re-runs `track` off the last point,
       // exactly as the old inline `tick` did. The engine folds the scroller's delta into `track`'s
       // collision math (see `comp`), so it passes the SAME scroller explicitly.
@@ -296,8 +300,6 @@ export function Zone({
       setDropState('idle')
       setActiveId(null)
       setOverIndex(-1)
-      setDelta({ x: 0, y: 0 })
-      setScrollComp({ x: 0, y: 0 })
       setKeyboard(false)
       commit()
     }
@@ -472,8 +474,6 @@ export function Zone({
       feel,
       activeId,
       overIndex,
-      delta,
-      scrollComp,
       rects,
       dropState,
       keyboard,
@@ -486,21 +486,9 @@ export function Zone({
     }),
     // register reads only refs; begin/liftKeyboard also close over `disabled` (in deps). Recreating
     // them each render with current values is intentional — not memoized, so identity churn is fine.
+    // Pointer delta deliberately NOT here — the follow is an imperative style write (see track).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [
-      ids,
-      feel,
-      activeId,
-      overIndex,
-      delta,
-      scrollComp,
-      rects,
-      dropState,
-      keyboard,
-      disabled,
-      swap,
-      itemRole,
-    ],
+    [ids, feel, activeId, overIndex, rects, dropState, keyboard, disabled, swap, itemRole],
   )
   return <ZoneCtx.Provider value={value}>{children}</ZoneCtx.Provider>
 }
@@ -534,8 +522,6 @@ export function useZoneItem(id: string): DragItem {
     feel,
     activeId,
     overIndex,
-    delta,
-    scrollComp,
     rects,
     dropState,
     keyboard,
@@ -550,17 +536,18 @@ export function useZoneItem(id: string): DragItem {
   const isDragging = activeId === id
   const activeIdx = activeId ? ids.indexOf(activeId) : -1
 
-  let transform = 'translate3d(0,0,0)'
+  let transform: string | undefined = 'translate3d(0,0,0)'
   if (rects.length && activeIdx !== -1 && index !== -1) {
     if (isDragging) {
       // The lifted item sits on the over-slot for keyboard (eases each arrow step) or on drop;
-      // otherwise it follows the pointer + scroll compensation. (On the slot, no comp — the slot
-      // scrolled with the item, so they cancel.)
+      // during a live pointer drag its follow is an IMPERATIVE style write in track() — transform
+      // is omitted here so a re-render (an over-slot flip) can't clobber the followed position.
+      // (On the slot, no comp — the slot scrolled with the item, so they cancel.)
       const onSlot = keyboard || dropState === 'dropping'
       const t = onSlot ? (rects[overIndex] ?? rects[activeIdx]) : null
-      const x = t ? t.left - rects[activeIdx].left : delta.x + scrollComp.x
-      const y = t ? t.top - rects[activeIdx].top : delta.y + scrollComp.y
-      transform = `translate3d(${px(x)}, ${px(y)}, 0)`
+      transform = t
+        ? `translate3d(${px(t.left - rects[activeIdx].left)}, ${px(t.top - rects[activeIdx].top)}, 0)`
+        : undefined
     } else if (swap) {
       // Swap mode: only the over item moves, exchanging into the active item's slot.
       if (index === overIndex)

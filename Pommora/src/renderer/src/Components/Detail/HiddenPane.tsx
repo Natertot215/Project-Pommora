@@ -166,7 +166,7 @@ export function VisibilityList({
   if (!tree) return null
 
   const shownIds = resolveColumns(view, schema).map((c) => c.id)
-  const hiddenIds = hiddenListIds(view.hidden_properties, schema)
+  const hiddenIds = hiddenListIds(view, schema)
   const hiddenSet = new Set(view.hidden_properties)
   const nameFor = (id: string): string => columnLabel(id, schema, tree.labels)
 

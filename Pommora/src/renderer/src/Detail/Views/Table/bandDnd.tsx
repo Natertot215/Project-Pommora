@@ -11,11 +11,8 @@ import {
 import { createPortal } from 'react-dom'
 import { text } from '@renderer/design-system/tokens'
 import { cx } from '@renderer/design-system/cx'
-import {
-  ACTIVATION,
-  DROP_LINE_INSET,
-  suppressNextClick,
-} from '@renderer/design-system/interactions/shared'
+import { usePointerGesture } from '@renderer/design-system/interactions/gesture'
+import { DROP_LINE_INSET, suppressNextClick } from '@renderer/design-system/interactions/shared'
 import { findScroller, startAutoScroll } from '@renderer/design-system/interactions/autoscroll'
 import type { MeasuredRow } from '@renderer/Sidebar/sidebarDndModel'
 import { type Band, type BandIndex, type BandSlot, bandSlot, buildBandIndex } from './bandDndModel'
@@ -38,24 +35,6 @@ type DragState = {
   lineTop: number
 }
 const IDLE: DragState = { id: null, ghostX: 0, ghostY: 0, slot: null, lineTop: 0 }
-
-type Handlers = {
-  move: (e: PointerEvent) => void
-  up: () => void
-  cancel: () => void
-  key: (e: KeyboardEvent) => void
-}
-type Gesture =
-  | { kind: 'idle' }
-  | {
-      kind: 'pending' | 'active'
-      id: string
-      el: HTMLElement
-      pid: number
-      startX: number
-      startY: number
-      handlers: Handlers
-    }
 
 type Value = {
   draggingId: string | null
@@ -92,7 +71,9 @@ export function BandDnd({
   const box = useRef<HTMLDivElement | null>(null)
   const live = useRef<BandSlot | null>(null)
   const [drag, setDrag] = useState<DragState>(IDLE)
-  const gesture = useRef<Gesture>({ kind: 'idle' })
+  // Set at ACTIVATION (a tap never sets it) — the id the hit-test + drop classification run against.
+  const dragId = useRef<string | null>(null)
+  const beginGesture = usePointerGesture()
 
   // Frozen at activation (C-2): geometry AND the band list ride one snapshot — a mid-drag tree
   // swap re-renders headers, so both go stale together and re-measure together, lazily.
@@ -129,140 +110,94 @@ export function BandDnd({
     else els.current.delete(id)
   }
 
-  const detach = (): void => {
-    stopScroll.current?.()
-    stopScroll.current = null
-    const g = gesture.current
-    if (g.kind === 'idle') return
-    window.removeEventListener('pointermove', g.handlers.move)
-    window.removeEventListener('pointerup', g.handlers.up)
-    window.removeEventListener('pointercancel', g.handlers.cancel)
-    window.removeEventListener('keydown', g.handlers.key)
-    window.removeEventListener('scroll', markSnapshotDirty, { capture: true })
-    try {
-      g.el.releasePointerCapture(g.pid)
-    } catch {
-      // already released
-    }
-  }
   const reset = (): void => {
-    gesture.current = { kind: 'idle' }
+    dragId.current = null
     live.current = null
     snapshot.current = null
     snapshotDirty.current = false
     setDrag(IDLE)
   }
 
-  const begin = (id: string, e: ReactPointerEvent): void => {
-    if (e.button !== 0 || !e.isPrimary || gesture.current.kind !== 'idle') return
-    if ((e.target as HTMLElement).closest?.('input, textarea, [contenteditable="true"]')) return
-    const el = els.current.get(id)
-    if (!el) return
-    const handlers: Handlers = { move: onMove, up: onUp, cancel: onCancel, key: onKey }
-    gesture.current = {
-      kind: 'pending',
-      id,
-      el,
-      pid: e.pointerId,
-      startX: e.clientX,
-      startY: e.clientY,
-      handlers,
-    }
-    // Window listeners drive the whole gesture — the glyph is small, so the first move usually
-    // leaves it. Capture defers to activation so a sub-threshold press stays inert (a documented
-    // no-op: the glyph has no click action to lose).
-    window.addEventListener('pointermove', handlers.move)
-    window.addEventListener('pointerup', handlers.up)
-    window.addEventListener('pointercancel', handlers.cancel)
-    window.addEventListener('keydown', handlers.key)
-  }
-
-  function onMove(e: PointerEvent): void {
-    const g = gesture.current
-    if (g.kind === 'idle') return
-    if (g.kind === 'pending') {
-      if (Math.hypot(e.clientX - g.startX, e.clientY - g.startY) < ACTIVATION) return
-      try {
-        g.el.setPointerCapture(g.pid)
-      } catch {
-        // capture unavailable
-      }
-      gesture.current = { ...g, kind: 'active' }
-      ghostLabel.current = labelForRef.current(g.id)
-      window.addEventListener('scroll', markSnapshotDirty, { capture: true, passive: true })
-      // Auto-scroll the vertical scroller. findScroller('y') skips the x-only '.table-view' to reach
-      // '.detail-scroll' (same B-2 case as the rows). Start at activation; onScrolled re-resolves a
-      // held-still drag as the bands scroll.
-      const sc = findScroller(g.el, 'y')
-      if (sc) {
-        stopScroll.current = startAutoScroll({
-          getPoint: () => lastPoint.current,
-          scroller: sc,
-          dragEl: g.el,
-          axis: 'y',
-          onScrolled: resolveSlot,
-        })
-      }
-    }
-    lastPoint.current = { x: e.clientX, y: e.clientY }
-    resolveSlot()
-  }
-
   // Re-snapshot lazily (a scroll dirties it) then hit-test the bands at the last point. Shared by
   // pointer move and the auto-scroll re-resolve, so a held-still drag keeps tracking as bands scroll.
-  function resolveSlot(): void {
-    const g = gesture.current
-    if (g.kind !== 'active') return
+  const resolveSlot = (): void => {
+    const id = dragId.current
+    if (!id) return
     if (snapshotDirty.current || !snapshot.current) {
       snapshot.current = takeSnapshot()
       snapshotDirty.current = false
     }
     const snap = snapshot.current
     if (!snap) return
-    const slot = bandSlot(snap.index, lastPoint.current.y, g.id, snap.boxBottom)
+    const slot = bandSlot(snap.index, lastPoint.current.y, id, snap.boxBottom)
     live.current = slot
     setDrag({
-      id: g.id,
+      id,
       ghostX: lastPoint.current.x + 12,
       ghostY: lastPoint.current.y + 8,
       slot,
       lineTop: slot ? slot.lineY - snap.boxTop : 0,
     })
   }
-  function onUp(): void {
-    detach()
-    const g = gesture.current
-    if (g.kind !== 'active') {
-      reset()
-      return // a press, never a drag
-    }
-    const slot = live.current
-    const dragged = snapshot.current?.index.byId.get(g.id)
-    if (slot && dragged) {
-      const drop = onDropRef.current
-      if (slot.nestInto)
-        drop(g.id, { kind: 'reparent', targetParentId: slot.nestInto, beforeId: null })
-      else if (slot.impliedParentId === dragged.parentId)
-        drop(g.id, { kind: 'reorder', beforeId: slot.beforeId })
-      else
-        drop(g.id, {
-          kind: 'reparent',
-          targetParentId: slot.impliedParentId,
-          beforeId: slot.beforeId,
-        })
-      suppressNextClick() // the drop's release must not also fire the glyph's toggle
-    }
-    reset()
-  }
-  function onCancel(): void {
-    detach()
-    reset()
-  }
-  function onKey(e: KeyboardEvent): void {
-    if (e.key === 'Escape') onCancel()
-  }
 
-  useEffect(() => () => detach(), [])
+  const begin = (id: string, e: ReactPointerEvent): void => {
+    if ((e.target as HTMLElement).closest?.('input, textarea, [contenteditable="true"]')) return
+    const el = els.current.get(id)
+    if (!el) return
+    // The shared gesture: window listeners drive it (the glyph is small, the first move usually
+    // leaves it); capture defers to activation so a sub-threshold press stays inert.
+    beginGesture({
+      el,
+      event: e,
+      onActivate: () => {
+        dragId.current = id
+        ghostLabel.current = labelForRef.current(id)
+        window.addEventListener('scroll', markSnapshotDirty, { capture: true, passive: true })
+        // Auto-scroll the vertical scroller. findScroller('y') skips the x-only '.table-view' to
+        // reach '.detail-scroll'; onScrolled re-resolves a held-still drag as the bands scroll.
+        const sc = findScroller(el, 'y')
+        if (sc) {
+          stopScroll.current = startAutoScroll({
+            getPoint: () => lastPoint.current,
+            scroller: sc,
+            dragEl: el,
+            axis: 'y',
+            onScrolled: resolveSlot,
+          })
+        }
+        return true
+      },
+      onDragMove: (ev) => {
+        lastPoint.current = { x: ev.clientX, y: ev.clientY }
+        resolveSlot()
+      },
+      onDrop: () => {
+        const slot = live.current
+        const dragged = snapshot.current?.index.byId.get(id)
+        if (slot && dragged) {
+          const drop = onDropRef.current
+          if (slot.nestInto)
+            drop(id, { kind: 'reparent', targetParentId: slot.nestInto, beforeId: null })
+          else if (slot.impliedParentId === dragged.parentId)
+            drop(id, { kind: 'reorder', beforeId: slot.beforeId })
+          else
+            drop(id, {
+              kind: 'reparent',
+              targetParentId: slot.impliedParentId,
+              beforeId: slot.beforeId,
+            })
+          suppressNextClick() // the drop's release must not also fire the glyph's toggle
+        }
+        reset()
+      },
+      onAbort: reset,
+      teardown: () => {
+        stopScroll.current?.()
+        stopScroll.current = null
+        window.removeEventListener('scroll', markSnapshotDirty, { capture: true })
+      },
+    })
+  }
 
   const value = useMemo<Value>(
     () => ({ draggingId: drag.id, nestTargetId: drag.slot?.nestInto ?? null, registerBand, begin }),

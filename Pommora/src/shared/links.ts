@@ -2,8 +2,9 @@
 // renderer (the decoration that styles valid vs invalid), so a link's appearance can never disagree
 // with whether it actually opens.
 
-/** The `[alias](url)` markdown-link shape — a URL property's Renamed (aliased) form. Shared by the
- *  value codec (so it reads the aliased form back as a url, not a select) and the renderer's link parse.
+/** The `[alias](url)` markdown-link shape — a URL property's Renamed (aliased) form. The codec stores
+ *  it as a plain string (the declared-type coercion re-tags it as a url at read time); this regex backs
+ *  the renderer's link parse + the Edit/Rename writes.
  *  Group 1 = the (still-escaped) alias, group 2 = the target URL. The alias group allows escape
  *  sequences (`\]`, `\\`) so a user title containing `]` survives — see escape/unescapeAlias. */
 export const MD_LINK = /^\[((?:[^\]\\]|\\.)*)\]\((.*)\)$/

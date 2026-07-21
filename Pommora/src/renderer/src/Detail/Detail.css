@@ -68,6 +68,19 @@
   padding-top: 0;
   padding-left: calc(var(--content-inset) - var(--fold-gutter));
 }
+/* A cards content-view (collection/set): the card grid runs the tight surface inset — cards carry no
+   grips/chevron lane, so no views gutter is reserved — with the block surfaces' 8px banner clearance.
+   Same whole-page scoping as the table rule: a tile that embeds a cards view never flips its body. */
+.detail-scroll.has-header .detail-body:has(.cards-view):not(:has(.blk-surface)) {
+  padding-top: 8px;
+  padding-left: var(--surface-inset);
+  padding-right: var(--surface-inset-right);
+}
+/* Embedded cards run the tight inter-tile lane bare: the whole-page rule's --surface-inset adds that
+   lane to a floating-sidebar clearance, but a tile has no sidebar to clear (its surface already did). */
+.blk-surface .cards-view {
+  padding-inline: var(--surface-lane);
+}
 /* A block-based surface (Homepage, contexts): tiles run the tight --surface-inset (8px gutter lane)
    instead of the content inset + fold-gutter — the tile handles supply the grip/chevron actions, so no
    reserved lane is needed. Driven by kind (is-surface), so a context with no live block surface still

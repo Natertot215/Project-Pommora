@@ -1,135 +1,90 @@
 ## Handoff — Pommora React
 
+> **User Prompt:** *"write a full post-compact plan to commit the past work, then consolidate the usepointergesture"* — land the certified cleanup campaign as explicit-path commits with the docs swept true, then extract `usePointerGesture()` across the four DnD consumers under the same fix → gate → build-breaker loop, and commit that too. After both: Nathan's live pass, then merge `cards-view` → `main`.
+
 > ⚡ **Cornerstone — carry into every handoff, unchanged (Nathan's voice).**
 > *"You do NOT guess — you LOOK, and you ASK. Open the file and read the code before you assert anything; ask me when you're unsure. A plan built on an unverified claim is a liability, not progress — treat every doc, every `file:line`, every 'it works like X' as a hypothesis until you've read the code that proves it. Honesty over confidence; confidence is earned through evidence."*
 
-### Recent Work
-
-Prior arcs, compressed — detail lives in `Features/*` + `History.md`.
-
-- **Navigation Surface + NavPane redesign + gallery (shipped, on `nav-gallery-pins`).** The per-Nexus nav-state layer (recents/pins/favorites in synced sidecars + `.nexus/pins/` per-pin store, resolved live via `navResolve`, render-prune-never-storage-prune), a `useNavData` read side both surfaces share, client-side fuzzy search, the movable `GlassPane` NavPane (now renamed **NavWindow**), and its Figma gallery card form + list rows + inset pin marker + thumbnail-capture pipeline. → [[Navigation]] + `History.md`.
-
-- **Block Surfaces — SurfacePM (shipped + merged to main).** Host-agnostic block/tile system: split-tree layout, window-style edge resize, PommoraDND feel, markdown/page/view tiles behind the BlockHost seam, CM6-portal page embeds, block `[[links]]` as edges, geometry-only homepage lock, per-block Scale. → [[SurfacePM]] + `History.md`.
-
-- **App-wide auto-scroll (shipped, on main).** One shared `interactions/autoscroll.ts` singleton rAF loop drives every drag's edge-scroll — one fixed scroller resolved once, px/sec × dt (ProMotion-safe), distance-accel + direction-intent. → [[PommoraDND]] §II. Autoscroll.
-
-- **Tables · PropertiesV2 · Multi-View · Icon Picker + Sidebar Ribbon.** The cell-gesture matrix + per-view looks + band drag + grouping/sorting + borderless toggle; nexus-wide property registry; ViewDropdown/Pane/Settings; full-Lucide picker; ribbon + mode-switched sidebar. → [[TableView]] · [[Views]] · [[Properties]] · [[Icons]] · [[Sidebar]].
-
-### Session Summary — Multi-Tab Nexus: Brainstormed → Ratified → SHIPPED
+### Session Summary — Cards view: prototype → ratified plan → executed + hardened
 
 **Session ID:** 1968ae09-ee23-4a88-9c0d-3a665384fd8e
-**Dates:** 07-14-2026 → 07-16-2026
+**Dates:** 07-14-2026 → 07-20-2026
 **Model:** Opus 4.8 (1M)
-**Compactions:** 5
+**Compactions:** 16
 **Connectors:** none
-**Commands:** /compact · /handoff
-**Agents:** build-breaking-agent (11x - review) · code-simplifier (3x - simplify) · Explore (4x - grounding) · feature-dev:code-explorer (1x - warm-trace) · general-purpose (1x - simplify)
-**Skills:** studio-brainstorm · superpowers:writing-plans · handoff
+**Commands:** /compact · /code-review · /handoff · /model
+**Agents:** general-purpose (≈30 — the 8-type interaction audit, the 11-agent verification sweep, menu-bug + drag-ghost-unify + context-create-bug dispatches) · Fable (×3 — 2 drag-jank explorations + the drag-ghost unification) · build-breaking-agent (≈20 — the six sector scopes + the per-fixture certification loops) · code-simplifier (×6) · comment-killer-agent (×1) · Explore (×3 — commit/docs recon)
+**Skills:** studio-brainstorm · superpowers:writing-plans · superpowers:systematic-debugging · coderabbit:code-review · handoff · project-context
 
-The session ran the full arc: the navigation model's deferred paradigm fork (**B-1**) was brainstormed, ratified, and then **built end-to-end** — all six plan phases shipped green with per-phase review folds, a final full-diff review (two build-breakers + a simplifier), and a live CDP pass against an isolated test nexus. The feature is on `nav-gallery-pins`, pushed to origin; the full morning report (divergences + the dangling sweep + the knob table + screenshots) closed the session.
+**What Started:** This long-running session (same ID since 07-14) shipped Multi-Tab Nexus, Page Previews, and Unified Subfield + Scan-Promote to **v0.5.0**, restructured the project docs, then brainstormed + ratified the **Cards view** and built it visuals-first as a prototype. It resumed post-compaction on the ratified [[Cards View — Implementation Plan]] (V4) with one directive: execute all 8 phases inline on `cards-view`, hardening the prototype into the complete renderer. Nathan then went to bed mid-run with a standing brief — do it as perfectly as possible without hand-rolling, commit the intentional doc reorg, live-test the value interaction on the real Ideas nexus, and report at the end.
 
-**The spec arc (first half):** Warm, state-preserving Toolbar Tabs, grounded against real code, ratified through three review rounds — the phantom `foldField` serialization, the capture-identity race, and the two-drag-engines reality all caught pre-code. **One view mounted, a per-tab serialized cache** (seed a fresh CM6 mount from a cached `historyField`; folds ride `folds.json`); pins ARE the pinned-tab set (`isPinned` derived, never stored); the set persists + syncs (`tabs.json`); per-tab Back/Forward; one `openTab` predicate. → `Planning/Multi-Tab Nexus — Decision Log.md`.
+**What Happened Along the Way:** Executed the plan phase-by-phase, each green + committed with explicit paths: P1 hardening, P2 value interaction (right-click value menu reusing the lifted `cellMenuContextFor`, add-picker panes for date/number/url/checkbox, inert heading-"+", property-picker grouping per Nathan's mid-flight spec — pane-kinds on top), P6 per-type icon, P4 Sort-by-Location flatten, P5 Set-Card drag via `moveSet`, P3 native card menu + `viewFormatMenu` retirement. Two plan claims proved softer than written and were folded honestly rather than manufactured: the `card_size` non-finite guard was already enforced by **Zod 4's `z.number()`** (shipped as an invariant test), and the manual-order "read gap" matched the table verbatim (extracted `resolveManualOrder`, kept the gate). Mid-execution Nathan live-reported the real blocker — clicking a card value/breadcrumb did nothing. Root-caused via CDP against real Ideas: the whole card is a drag handle and the drag engine **pointer-captures on pointerdown** (`engine.tsx:387`), retargeting every inner click to `.page-card`, so it opened the page instead of the picker. Fixed by stopping pointerdown on the interactive zones (containers only on their own empty space, so the title still drags); **verified live** — the Status picker opens. Closed with a code-simplifier pass (single-sourced the page-meta menu into `@shared/pageMenu.ts`) and a build-breaker pass that caught **F1** — `manualOverride` leaking across a cards→cards view switch (the reset sat in the `[source.path]` effect, not `[view.id]`, and two cards views share the instance) — folded, plus F3 (empty add-picker guard). Then a live-driving pass with Nathan redirected the design: Sort-by-Location moved from a switch to standard controls — **flatten via Group By: None** (the `flat` kind, headerless) and a **Sort By: Location** entry (Order Location/Custom), the `location_flatten` field dropped; the property picker gained the **chevron-on-top** order (checkbox sinks) and a **more compact** layout; `Cards.md` → `CardView.md`. All re-verified live on real Ideas (headerless flatten, fs order, chevron order, compact picker) via a sidecar-driven relaunch — the settings-pane toggles proved un-CDP-drivable.
 
-**The build arc (second half):** Six phases, each gated (typecheck + full vitest) and review-folded before the next: the surface rename (`NavPane`→NavWindow, `NavMenu`→NavPane) · the pure `tabsModel` + tab-aware `select` (zero caller churn — every genuine nav maintains the set; `record:false` re-selects don't) · the synced `tabs.json` sidecar with lenient sanitize + both drains · the warm seam (a 20-per-tab LRU keyed `(tabId, navKey)`; `pageDetail` captured at switch-initiation, editorState/scroll at unmount under mount-frozen identity; warm-instant renders with no fetch and no flash) · the four stateful "Open in New Tab" points · the tab bar (pinned compact icons + accent pin badge, min/pref/max strip + edge fade, chip-× plain fade, trailing +, within-zone drag per zone, Ctrl+Tab cycling, ghost-based width-collapse close, reveal-on-hover setting) · NavView (the new-tab page = the empty state, full-window gallery + search; a NavView tab reads "New Tab" under the copy glyph) · the thumbnail capture gate.
+The back half was a hardening campaign in three waves, each agent-fanned then hand-verified. **Wave 1 — the interaction sweep** (8 read-only agents, one per property type): killed the compact chip ×-steal value-loss class, gave cards the table's alias-preserving link seam (Edit rode the alias, Rename became a real alias editor), redesigned the add menu around "list exactly what's not shown, picking reveals," and landed the perf caches (Intl formatters, tier context-options, the datetime-gate). **Wave 2 — features on top:** the number Bar look (full-width own-row, `numberDivisor` gating all four surfaces), the cross-file DRY hoists (DatetimeValuePicker, pickSemantics merge, tierWrite), body-semibold titles via one `cardTitleType`, the imageless 2-row reserve, the always-footing breadcrumb, the context-×'s own color, and one `--chip-pad-x` across every text-chip shape. **Wave 3 — the verification sweep** (11 agents: 8 types × Compact+Standard, picker-lifecycle, merge-scope, perf): its confirmed catch-list — a P0 calendar sub-menu z-burial regressed on 07-15, the dead remove-only menu, the add-pane Back blur-commit, a StrictMode spurious calendar write, compact's un-settable blank tiers — all folded. Nathan's four closing directives landed as the **Bloom architecture**: the inert-until-revealed chip ×, the ×-drop gate re-keyed on measured embed zoom, calendar sub-menu exit presence, and `CardPickerHost` — ONE grid-level home for the value/calendar/add pickers so row churn can never tear one open (dev-guard enforced in PickerMenu). Two settings-menu bugs closed the run (a shared `DragGhost` for the grouping/option/status drags that had NO lifted chip — the "behind the glass" read — and menu titles restored to the ratified label-primary a stale comment had baited to control), plus the card image band's native Add/Change/Remove Cover-or-Banner menu on the PageHeader flow.
 
-**Review folds that earned their keep:** the Back/Forward target-lockstep fence (a stale `tab.target` mis-deduped the next click, destroying the Forward stack); the main-side `adopting` gate (a mid-adopt renderer save could land in the NEW nexus's synced sidecars — recents had the same hole); the stale-fetch fence (warm-instant made an old benign fetch race deterministically clobber the shown page — reproduced against the real store); C-6's live twin (`graduatePinCovered` — pinning an open entity from ANY surface graduates its tab instead of duplicating, synced-in pins included); store-first ghost close (the 350ms animate-then-mutate limbo let a dying tab be dedup-focused and cycled into); the capture-gate markers dying with evicted files.
+The commits closed at **`3ab0bd51`**; everything after is a large UNCOMMITTED drag-polish + feature run driven by Nathan live-testing. **The Bloom/interaction cleanup landed as committed work** (`968854e0`→`3ab0bd51`: verification sweep + CardPickerHost + banner menu + link dropdown + dependent-kind add exits + the settings-menu drag-ghost/label-primary fixes). **Then the uncommitted campaign:** the card drag was rebuilt end-to-end because Nathan called it "very finicky." Two Fable agents + a build-breaker traced the finicky feel to the cross-zone engine (`interactions/group.tsx`) reintroducing everything the proven standalone engine already solved — so it got a full rework: **row-bucketed hysteresis** (kills the index flip-flop on top-aligned unequal-height cards, THE finicky source), **cached zone bounds** (no per-move `getBoundingClientRect`), a **sync per-band-entry pad** replacing the fragile per-move `useEffect` that caused a build-breaker-caught stale-rect bug, **dead-window fast-forward**, **interactive-press slop** (`data-drag-slop`), `suppressNextClick`, an `onUp` button-up/blur stranded-drag guard, `cellAt` grid-cell positioning (a "space-to-the-right" append no longer reads "below"), and single-row vertical tiebreak. The lifted card became a **faithful full-card ghost** — extracted `CardFace` (shared by the live card + the overlay) inside a `.cards-view`-classed carrier so the knob vars/zoom resolve (the overlay was portaled to body, thumb-collapsed). Whole-card drag was enabled by switching the engine off pointer capture to WINDOW listeners + removing every pointerdown stopper. Then **features on the hardened base:** cross-band displacement restored (cards part on a foreign drop); **spring-loaded group headers** (`interactions/dragDisclose.ts` — a capture-proof `elementFromPoint` hit-test, ~500ms dwell, GroupBand registers collapsed headers, both view engines wired, re-measures the engine on disclose so the revealed group is a clean drop target); **cross-folder row/card drag** (`canRelocate` + `relocateRow` movePage under plain location grouping, table + cards); and the **shared optimistic tree-move** (`treeMove.ts` pure transform + `store.mutate` integration for movePage/moveSet — a relocation reflects INSTANTLY, the reload confirms via `stabilize`). Closed by a general-purpose agent's verified diagnosis of the "very buggy" context create/rename — which the next arc built.
 
-**Live verification (isolated):** the built app ran against `~/Test` with Nathan's `pommora.json` backed up and restored byte-identical. Verified live: NavView as the fresh-nexus empty state; the bar blank at one tab (D-6); menu spawns appending right; warm switch with `loading:false`; pin graduation + the divider; ×-close MRU focus; the `+` → NavView; and the D-8 headline — **quit → relaunch restored the pinned tab + both unpinned tabs + the active pointer, cold**. `tabs.json` on disk matches the contract exactly (unpinned only).
+The final arc was the **certified cleanup campaign**. The context-create fix landed first (the native `create-menu` now *returns* the picked request via a settle-once promise; the store executes it with an optimistic insert — instant row, settled icon, focused rename, one walk), then a 6-agent sector scoping pass produced a fixture list Nathan re-scoped twice: first "DONT do them… present them first" (sized, categorized fixtures lead planning), then "loop. Fix each, send a build breaker to confirm in a loop till each task is bulletproof." All eight fixtures executed and breaker-certified CLEAR: the create flow, the one-walk mutation program (optimistic tree patches for move/rename/delete/reorder/icon + `writeEcho`'s exact+prefix self-write suppression), the drag refactor onto the new `beginPointerGesture` primitive (`gesture.ts`; engine.tsx imperative pointer-follow, group.tsx shared autoscroll), the editor hot-path caches (per-doc-version scan + FormatState field-compare), the shared value-click router (`valueClick.ts`, checkbox true-or-absent), the path-keyed autosave registry (`pageFlush.ts`), the Popover deletion (`useDismiss` extracted), and the hygiene sweep (App.tsx per-field selectors, interrupted-resize guards, storage-keyed caches). Breaker loops caught and folded real bugs throughout — `reparentPaths` grandchild corruption, `parentOf` eating root-path chars, the null-handle clobber, the settle fast-forward dead code, the inspector stored-`false` checkbox — then a simplification loop (code-simplifier + comment-killer, breaker CLEAR round 1) closed it.
 
-**Lessons Learned**
+**What It Ended With:** Cards view + the full cleanup campaign are complete on `cards-view`, gated green — **1770 tests across 176 files** (`treeMove` + `valueClick` unit suites new), typecheck clean, build exits 0. The campaign (56 changed paths — 8 new files, the Popover folder deleted) is committed as one certified code commit with a docs commit alongside; `usePointerGesture` consolidation follows as its own commit. The drag/menu/main-process surfaces remain ASSUMED (built + gated + breaker-certified, not live-driven) — they land at the next full dev launch.
 
-- **Ground a "reuse" claim in the actual mechanism before budgeting it as free** — all three named DRY reuses (drag / chip-× / group-+) transferred only partially; the spec's phrasing survived because the reviews traced what each component actually does.
+**Next Session:** Nathan's live pass — drag feel on every surface (table rows, bands, cards, panes, grouping), context/collection create → instant row + rename, board autoscroll, spring-load disclose — then merge `cards-view` → `main`.
 
-- **Verify every agent finding in code — and the reviews keep earning it.** Eleven build-breaker dispatches across the session; every fold was self-verified at the cited `file:line` first. The heavy Phase-2 pass reproduced its HIGH against the real store (not a hypothesis); the final pair found the two-writers desyncs (`pinTarget` vs `pinTab`, marker vs file) no single-phase review could see.
+**Session Pointers**
 
-- **Two writers for one fact is THE recurring defect class this feature bred:** tab.target vs navStack cursor, the tab set vs the pins set, the capture marker vs the thumbnail file, the store vs the closing animation. Every real MED+ finding reduced to one of these; the fix was always "one writer, or a lockstep rule."
+- **Cards renderer:** `Detail/Views/Cards/` — CardsView · CardValue · CardAddPicker · `cardsOrder.ts` · `cardValueInput.ts` · `cardsBand.ts` (the pure seams are unit-tested). The shared menu model lives in `@shared/cellMenu.ts` (`cellMenuContextFor`, lifted from TableView) + `@shared/cardMenu.ts` + `@shared/pageMenu.ts` (the single-sourced page-meta block).
+- **Flatten + location order:** Group By: None (the `flat` kind → headerless in cards) + a Sort By: Location entry (reserved `LOCATION_SORT` in `shared/views.ts`, Order Location/Custom, `locationFlat` in `pipeline/group.ts` for its fs order), both cards-gated via `flattenStructural`. This replaced the earlier `location_flatten` switch (field dropped) on Nathan's redirect.
+- **CDP live-drive harness:** scratchpad `cdp.mjs` (Node's global `WebSocket` → `:9222`, `Runtime.evaluate` + `Input.dispatchMouseEvent` + `Page.captureScreenshot`); launch an isolated instance via `--user-data-dir=<scratch>` with a seeded `pommora.json` pointing `lastNexusPath` at the real nexus (no single-instance lock, so it coexists with the dev app).
+- **Picker architecture:** `Cards/CardPickerHost.tsx` — the ONE grid-level home for the value picker + calendar + add menu (requests via cardApi `onOpenValuePicker`/`onOpenAddPicker`); `cardValueInput.ts` holds the pure `shownColumnsFor`/`addEntriesFor`/`addColumn` seams + `ADDABLE_TYPES`. PickerMenu dev-errors if unmounted mid-open — mount persistently, ride `open`.
+- **Drag ghosts:** `Components/Detail/DragGhost.tsx` (the table-band chip recipe) rendered from `useGroupingListDrag` / `useOptionReorder` / `useStatusReorder`; the ghost coords ride each hook's `ghost` field.
+- **The cross-zone drag engine** (`design-system/interactions/group.tsx`) is now the load-bearing cards engine: window listeners (no pointer capture), `rowsOf` row-bucketing + `HYSTERESIS` on `overIndex`, `cellAt` grid-cell positioning, `bounds`/`measureBounds` cache (refreshed by `onScroll`), the sync `setPad` on band-entry, `data-drag-slop` interactive-press slop. Its only other consumer is the showcase `Board`. `CardFace` (shared by `PageCard` + the drag overlay) lives in `CardsView.tsx`.
+- **Spring-load + optimistic move:** `interactions/dragDisclose.ts` (engine-agnostic; engines call `beginDragDisclose(remeasure)`/`endDragDisclose`, GroupBand registers collapsed headers via `data-disclose`). `treeMove.ts` (`relocateNodeInTree`, unit-tested) is the pure move transform; `store.mutate` applies it optimistically for movePage/moveSet after the write.
+- **Deferred gap:** the cross-zone engine has NO autoscroll — you can't drag a card to a band scrolled below the fold (Phase-2 / a follow-up port of `engine.tsx`'s autoscroll).
+- **Docs:** [[CardView]] is the feature doc (reconciled through the hardening); [[Views]] reconciled to Table+Cards drawing.
 
-- **CDP synthetic clicks don't fire PickerMenu MenuItems** (they hit the right element per elementFromPoint but the onClick never runs; tab/row/button clicks work fine) — drive menu items via `el.click()` in `Runtime.evaluate`. Same harness-quirk family as the chip-melt CDP lessons.
+**Landmines**
 
-**Key Files & Insights**
-
-- **The feature lives under `Tabs/`:** `tabsModel.ts` (pure, 30+ tests) · `warmCache.ts` (session LRU) · `TabBar.tsx`+`tabBar.css` (every visual knob in the `.tab-bar` block) · `TabContextMenu.tsx` · `NavView.tsx`. Store wiring inline in `store.ts`; the sidecar in `main/io/tabsState.ts`.
-- **`select` is the one nav entry:** the record path maintains the tab set via the pure model; `record:false` (activate/Back/refetch) only refreshes the shown detail. The warm-instant short-circuit + stale-fetch fence live in its page case.
-- **`applyTree` reconciles every tab** off ONE `buildReconcileIndex` (`selection.ts` split into index + `reconcileWith`); deleted entities close unpinned tabs and render-hide pinned ones.
-- **Persistence:** `tabs.json` synced (in `NEXUS_CONFIG_FILES`, deliberately NOT device-local), debounced main-side, drained at `before-quit` + `adoptNexus`, sanitized on read (`readTab` enforces every store invariant for the cross-version file).
+- **`FrameworkPM.md` mirror-script bug** (Nathan: "don't worry") — reappears untracked in `.claude/`; never commit it.
+- **CDP-driving the cards pickers commits to real frontmatter** (same class as the editor-autosave rule in `Context.md`) — revert what you set, or point the isolated instance at `~/Test`.
+- **The chip remove-× is opacity-gated in JS** (`ChipRemoveButton` reads computed opacity at click time) — a CDP click can't hover-reveal it first, so drives always fall through to the picker; only a real mouse exercises the remove path.
+- **A rename that re-sorts the grid can still clip the TextPicker's exit** (it rides the card; accepted edge) — the value/add pickers are host-owned and immune.
 
 **User Feedback**
 
-- Nathan drip-feeds mid-turn design calls — fold each immediately; his effect-words are literal. This session's morning drops: the NavView tab wears the lucide `copy` icon; the Homepage tab wears the nexus photo (home glyph only when unset); pinned-tab Back/Forward is simply disabled (ratifying my flag).
-- Documents correct errors traceless; the final report must disclose every divergence + the knob table.
-- Point to UIX knobs, don't tune — all tab-bar values sit in `tabBar.css`'s `.tab-bar` block.
+- **"do it as perfectly as possible while not handrolling anything you dont have to"** — reuse over reinvent drove the whole run (the `cellMenuContextFor` lift, IconPicker/TextPicker reuse, the `.group-add` pattern, the Switch row).
+- **"commit the doc deletions + changes (those are intentional)"** — the parallel doc reorg was authorized; committed it (Design→DesignPM, Deployment→Resources).
+- **"test... my live nexus in Ideas... apply them across a row so you can compare... read them instead of senduserfile — i cannot see senduserfile on mobile, only read."** — live-verify on real data; Read screenshots yourself, never SendUserFile on mobile.
+- **Property-picker order:** pane-kinds (status/select/multi-select/context) to the top, the simpler kinds below, property order within each group; the native Add-Property menu reads the same.
+- **"No matter what, a picker when closed must have its bloom-in/out animation"** — the Bloom law is absolute; the host + persistent mounts + the dev-guard are its enforcement, and a regroup tearing a picker was "a real issue that must not be deferred."
+- **The × stays if inert** — keep the chip × everywhere once un-hovered clicks pass through; the drop-entirely gate keys on embed zoom (~0.8), "since that's where chips can get sized down."
+- **Calendar sub-menu clicks should NOT ladder** — one outside click closes submenu + picker together (Escape still ladders innermost-first).
+- **The drag must feel right, iteratively** — Nathan live-drove the whole drag rework by feel: "very finicky" → the hysteresis/engine rework; "the entire surface [must] hover and drag… like NavView" → whole-card handle; "dragged, not a glyph" → the `CardFace` overlay; "still show the individual drop locations" + "displacement of adjacent cards" → per-slot placement + restored parting. Fix the root, don't band-aid — he rejected the band-highlight compromise and the below-not-beside slot both times.
+- **Cross-folder drag is intentional-gap, not bug** — under plain location grouping a cross-band row drop was a deliberate no-op; Nathan asked to make it a first-class `movePage`, then queued the optimistic tree-move ("the sidebar work") so it + the sidebar reparent feel instant.
+- **Spring-load dwell** — hover a collapsed group header while dragging → discloses after ~half a second (`--duration-standard` he named doesn't exist; used a 500ms constant); "works on all views."
 
 **Uncertain**
 
-- Nathan's "'New Tab' uses lucide copy icon" was read as the NavView **tab's** icon (built that way, verified live); if he meant the trailing `+` affordance too, it's a one-line swap in `TabBar.tsx` (the `+` renders `plus`).
-- `Compactions: 5` is best-effort; may be off by one.
+- The ENTIRE drag + campaign stack (engine rework, `CardFace` ghost, spring-load, cross-folder drag, optimistic tree patches, the create fix) is gated-green + breaker-certified but ASSUMED — none is live-driven; the main-process/menu/drag surfaces land only at the next full dev launch. The optimistic patches' exact match with the reload output (order, path format) is untested against a live op — the confirming `load()` heals any mismatch, but a brief flash is possible.
+- The band-grow on a cross-band drop snaps (no ease) — deliberately un-transitioned so the sync measure isn't corrupted; if it reads abrupt, animate it the safe way (measure the target value, don't read it back).
+- The PreviewInspector's raw `alias|url` blob editing was deliberately removed as a serialization-format leak (alias editing lives in the table/cards link rename) — flagged for Nathan, accepted as the shipped shape unless he objects.
+- `Compactions: 16` is best-effort across this multi-day session.
 
 ---
 
+### Recent Sessions
+
+- 07-14 → 16 · `nav-gallery-pins` · Navigation surface + NavPane/NavWindow redesign + gallery, then Multi-Tab Nexus shipped end-to-end.
+- 07-16 → 17 · `main` · Page Previews (floating tabbed mini-app) + Unified Subfield + Scan-Promote shipped; closed the rebuild at v0.5.0.
+- 07-10 → 13 · `surfacepm` · SurfacePM block surfaces shipped + merged.
+
 ### Working Notes
 
-- **UI iteration runs in dev mode (HMR)** — CSS hot-swaps, React Fast-Refreshes, but **CM6 extension code needs ⌘R**, and **`src/main`/preload need a full dev-process restart**. Nathan runs his own `env -u ELECTRON_RUN_AS_NODE npm run dev`.
+- **Gates:** `env -u ELECTRON_RUN_AS_NODE npm run typecheck` (the ONLY type gate) + `npx vitest run` + `… npm run build`; read the summary line, never a piped exit code (`set -o pipefail`). Biome auto-formats on write — never run it, never hand-align.
+- **Cards CDP live-drive:** the reusable harness (`cdp.mjs` + isolated `--user-data-dir` on the real nexus) is in this session's scratchpad; native menus + settings-pane toggles are NOT drivable — verify those by hand.
 
-- **HMR is NOT trustworthy for two classes:** (1) vanilla-extract `*.css.ts` — a style edit can serve stale CSS; a plain restart heals it, ⌘R never does. (2) A component's focus effect / handler / attribute change — Fast-Refresh often skips it. Plain `.css` DOES HMR reliably.
+### Rules
 
-- **The dev app runs against Nathan's REAL Nexus** (`/Users/nathantaichman/The Nexus`). UI value writes are his data; CDP must open + Esc only, never pick/commit unless authorized. Native OS menus don't render in the DOM; reach those ops through `window.nexus.*` via `Runtime.evaluate`.
-
-- **Isolated live runs:** back up `~/Library/Application Support/pommora-react/pommora.json`, point `lastNexusPath` at `~/Test`, launch the BUILT app with `--remote-debugging-port`, restore byte-identical after. CDP synthetic clicks work on tabs/rows/buttons but NOT on PickerMenu MenuItems — drive those via `el.click()` in `Runtime.evaluate`. Native menus BLOCK headless (never pop one via CDP).
-
-- **Gates:** `env -u ELECTRON_RUN_AS_NODE npm run typecheck` (the ONLY type gate) + `npx vitest run` + `env -u ELECTRON_RUN_AS_NODE npm run build`. Read the summary line, never a piped exit code. Biome auto-formats on write — never run it, never hand-align.
-
-- **Parallel sessions / edits** — stage explicit paths, never `-A`. Unattributed `M`/`D` files are almost always Nathan's. **main is ahead of origin, unpushed** — Nathan pushes in batches; merge ≠ push. *(This session pushed `nav-gallery-pins` to origin per explicit instruction — a deliberate exception.)*
-
-### Next Session
-
-**Multi-Tab Nexus shipped — the next session starts with Nathan's live drive.** He runs the real app against the bar (the session-report screenshots preview it) and tunes the knobs himself: every visual value sits in `tabBar.css`'s `.tab-bar` block (+ `navView.css` for the new-tab page). The §J repass values were built as best-record starting points — expect nudges to `--tab-pref`/`--tab-max`, the pinned width, and the `+` gutter.
-
-- **Design calls awaiting his eye (all disclosed in the session report):** the active-tab treatment is a color-fade, not the prototype's clip-slide (interactive ×s fight the duplicate-track pattern); pinned name-on-hover is a native tooltip; the `+` parks at the trailing edge even when the strip is sparse; the pinned zone clips (no collapse UI) past its width.
-- **Deferred with eyes open:** a failed mid-adopt leaves a short window where an old-nexus save could land in the new nexus's sidecars (LOW; the error screen blocks most paths); NavWindow's list-mode Remove on a pinned row is a pre-existing no-op quirk.
-- **Prospects unlocked, not built:** cross-divider drag-to-pin, drag-reorder recents, per-window tab sets, tab tear-out, `⌘1–9`/`⌘W`/`⌘T` (need per-shortcut sign-off).
-
-**Nav surface follow-ups (lower priority):** NavPane (the toolbar dropdown) content is still an open call — what a compact nav dropdown holds vs the fuller NavWindow.
-
-### Pending Focuses
-
-- **Multi-Tab UIX repass (Nathan-driven)** — the live knob-tuning drive over the shipped bar; fold his nudges, then close the arc.
-
-- **NavPane dropdown content decision** — the toolbar nav dropdown (renamed from NavMenu) is a blank placeholder; settle what it's for before building into it.
-
-- **User Sections CRUD (the "Add Heading" feature).** Collections render user sections but there's no way to make one (`mutate.ts` has zero section ops). Own brainstorm→plan→build. → `Sidebar.md`.
-
-- **"None"/flat grouping + Flatten + Hide Location** — the flattened-mode bundle, deferred (→ [[Views]]; `flat` GroupConfig kind stays reserved).
-
-- **(Perf) Standing debt:** no row virtualization (every row MOUNTS — bites at thousands); external VALUE edits don't live-refresh an open table. (The multi-tab warm-B design deliberately avoids needing table virtualization — one view mounted.)
-
-- **Canvas** — spec at `Planning/6-26 - Canvas Spec.md`, pending adversarial review → plan → build.
-
-- **Biome config vs code** — `biome.json` declares double-quote/organizeImports but the code is single-quote/no-semicolon. Settle once, in a tree with no parallel edits.
-
-- **iCloud-sync readiness (future):** `serializeOnFile` can't coordinate with the iCloud daemon (LWW); `.nexus/index.db` needs sync-exclusion; the walk must skip `.icloud` placeholders. *(The multi-tab `tabs.json` is deliberately synced under this same LWW model — single-user, concurrent live edits out of threat model.)*
-
-- **Mobile iOS companion (parked):** spec at `.claude/Mobile/MobileSpec.md`; no build commitment.
-
-### Fix Log
-
-- **`.nexus/activeViews.json` + per-machine siblings aren't gitignored (live).** Neither it nor `folds`/`viewOrders`/`tableHeadingColumns`/`linkTitles` are ignored — using the switcher on a fresh container creates a would-sync file. Add to the Nexus `.gitignore`. *(Note for the multi-tab build: `tabs.json` is intentionally synced, so it should NOT be added to this ignore list.)*
-
-- **The "File" property icon gets clipped** by its vertical row padding on the ViewPane.
-
-- **The link rename field shows a leading empty space (DEPRIORITIZED)** — a visual inset, not a stored char.
-
-- **Block-math `$$…blank…$$` drag corrupts the doc (open).** A multi-line block-math span with a blank line parses as two halves with orphaned `$$`; block-dragging corrupts the doc (`MarkdownPM/editor/blockModel.ts`, test-pinned, unguarded).
-
-- **Bullet single-word wrap drops the word below the marker** — only the `line-height` cap shipped. → [[MarkdownPM]].
-
-### Handoff Rules
-
-- **Never record a correction-to-obvious as a discovery.** Write the durable truth as if always so; silently fix what contradicts it — a fresh agent shouldn't be able to tell a mistake was made.
-
-- **Resolve = delete + route, never tag.** When an entry's done, push its outcome to the canonical doc and delete the line — no `(Resolved)` tombstones.
-
-- **One block per session, updated in place.** Compactions bump the count; a merged arc compresses into Recent Work. Carry still-open Pending + Fix Log forward.
-
-- **Markdown only, no new folder** (per Nathan) — this stays the single `.claude/Handoff.md`, not a routed `Handoffs/` dir.
-
-- **Parallel sessions share this doc** — a concurrent session adds its own labeled block; Cornerstone + footer shared; never edit another's block.
+- Resolve = delete + route, never tag — no (resolved) / (fixed) tombstones.
+- No standing content here — Pending Focuses / Fix Log / durable rules live in `Context.md`.
+- One block per session, in place; parallels share the doc, never edit another's block.
+- Verify before finalizing — run the no-stale-state checklist.

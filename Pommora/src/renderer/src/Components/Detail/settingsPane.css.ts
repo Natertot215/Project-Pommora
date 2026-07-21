@@ -189,10 +189,9 @@ export const allRow = style({ color: COLOR.allRow })
 // with a 0-3-0 scope so an unassigned row's title settles one tier down at secondary, matching its icon.
 globalStyle(`.${surface} .${allRow} .${titleText}`, { color: c.label.secondary })
 
-/** The Layout toggle rows (Column Icons · Page Icons) — a marker class whose label reads at control, a
- *  step under the nav rows' primary, matching the config rows in the property editors (Nathan's call). */
+/** The Layout / Cards toggle rows (Column Icons · Page Icons · …) — a marker class; their labels ride
+ *  the surface's primary titleText tone like every other nav/settings row. */
 export const toggleRow = style({})
-globalStyle(`.${surface} .${toggleRow} .${titleText}`, { color: c.label.control })
 
 /** The per-row `+` promote affordance (A-5) — the shared accessory recipe at the 16px box. */
 export const rowPlus = accessoryButton

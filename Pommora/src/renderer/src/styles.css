@@ -72,6 +72,10 @@ textarea,
 .hover-pop {
   position: relative;
   transition: transform var(--duration-slow) var(--ease-standard);
+  /* Standing compositor layer: the swell AND its return both run on the element's own texture, so
+     text never re-snaps per glyph against the scaling chassis (a hover-scoped hint drops the layer
+     at un-hover and the return jitters). Raster is viewport-tiled, so offscreen pops cost nothing. */
+  will-change: transform;
 }
 .hover-pop:hover {
   transform: scale(var(--pop-scale, 1.0175));
@@ -114,8 +118,11 @@ textarea,
      gutter PORTION of the content inset swaps for a tight value; the floating sidebar/inspector clearance
      stays. The tile BODY runs the unique 8px inter-tile lane; the banner title sits a touch looser at
      12px (its own value, kept from the homepage). */
-  --surface-inset: calc(var(--content-inset) - var(--gutter) + 8px);
-  --surface-inset-right: calc(var(--content-inset-right) - var(--gutter) + 8px);
+  /* The tight inter-tile lane — the gutter a view runs once its container has already cleared the
+     floating sidebar/inspector (a whole-page view adds it to that clearance; a tile embed runs it bare). */
+  --surface-lane: 8px;
+  --surface-inset: calc(var(--content-inset) - var(--gutter) + var(--surface-lane));
+  --surface-inset-right: calc(var(--content-inset-right) - var(--gutter) + var(--surface-lane));
   --surface-banner-inset: calc(var(--content-inset) - var(--gutter) + 12px);
   --surface-banner-inset-right: calc(var(--content-inset-right) - var(--gutter) + 12px);
 }

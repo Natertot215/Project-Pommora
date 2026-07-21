@@ -279,6 +279,55 @@ function structural(
   )
 }
 
+/** Cards variant (E-2: cards never indent): each TOP-LEVEL set is ONE flat band — its whole subtree's
+ *  pages roll into a single sorted items list with no nested children, so a manual reorder spans the
+ *  whole band instead of snapping back within a sub-set. Loose root pages stay the ungrouped tail. */
+function structuralFlat(
+  rows: ViewRow[],
+  setTree: SetTreeNode[],
+  sorter: Sorter | null,
+  collapsed: Set<string>,
+  placement: EmptyPlacement,
+): ResolvedGroup[] {
+  const byParent = groupRows(rows, (r) => r.parentSetId)
+  const rootRows = byParent.get(undefined) ?? []
+  const groups: ResolvedGroup[] = setTree.map((node) => ({
+    key: node.id,
+    kind: 'structural-set',
+    items: applySort(
+      subtreeIds(node).flatMap((id) => byParent.get(id) ?? []),
+      sorter,
+    ),
+    isCollapsed: collapsed.has(node.id),
+  }))
+  if (rootRows.length === 0) return groups
+  return placeTail(
+    groups,
+    {
+      key: UNGROUPED,
+      kind: 'ungrouped',
+      items: applySort(rootRows, sorter),
+      isCollapsed: collapsed.has(UNGROUPED),
+    },
+    placement,
+  )
+}
+
+/** Sort by Location (E-4): resolve structurally-flat, then concatenate every band's items — set
+ *  bands in tree order plus the root tail per `placement` — into ONE headerless, force-open
+ *  UNGROUPED band. Location order without the bands; the sorter still ranks within. */
+function locationFlat(
+  rows: ViewRow[],
+  setTree: SetTreeNode[],
+  sorter: Sorter | null,
+  placement: EmptyPlacement,
+): ResolvedGroup[] {
+  const bands = structuralFlat(rows, setTree, sorter, new Set(), placement)
+  return [
+    { key: UNGROUPED, kind: 'ungrouped', items: bands.flatMap((g) => g.items), isCollapsed: false },
+  ]
+}
+
 /** Composite collapse key for a sub-group region — set ids are ULIDs, never containing `/`, so
  *  one set's collapse never bleeds into its twin bucket in another set (D-11a). */
 export const subGroupKey = (setId: string, bucket: string): string => `${setId}/${bucket}`
@@ -394,11 +443,18 @@ export function resolveGroups(
   collapsed: string[] = [],
   placement: EmptyPlacement = 'bottom',
   subGroup?: SubGroupConfig,
+  flattenStructural = false,
+  locationFlatten = false,
 ): ResolvedGroup[] {
   const collapsedSet = new Set(collapsed)
+  // Sort by Location (E-4) forces structural resolution and flattens every band into one — it wins
+  // over a property group (mutually exclusive) and over collapse state (force-open).
+  if (locationFlatten) return locationFlat(rows, setTree, sorter, placement)
   if (group?.kind === 'flat') return flat(rows, sorter, collapsedSet)
   if (!groupsStructurally(group, schema))
     return property(rows, group as PropertyGroup, schema, sorter, collapsedSet, placement)
+  // Cards flatten each top-level set's subtree into one band (E-2), so their manual order spans it.
+  if (flattenStructural) return structuralFlat(rows, setTree, sorter, collapsedSet, placement)
   const t = subGroup ? declaredType(subGroup.property_id, schema) : undefined
   if (subGroup && t !== undefined && GROUPABLE.has(t))
     return structuralSubGrouped(rows, setTree, subGroup, schema, sorter, collapsedSet, placement)

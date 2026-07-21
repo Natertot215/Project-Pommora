@@ -1,7 +1,7 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import type { CollectionNode, SetNode } from '@shared/types'
 import type { PropertyDefinition } from '@shared/properties'
-import { DEFAULT_VIEW_ID, type SavedView, type ViewFormat, type ViewType } from '@shared/views'
+import { DEFAULT_VIEW_ID, isCompact, type SavedView, type ViewType } from '@shared/views'
 import { Icon, type IconName } from '@renderer/design-system/symbols'
 import {
   MenuItem,
@@ -16,22 +16,25 @@ import {
   flushTrailing,
   footingLabel,
   footingSymbol,
+  item,
   side,
 } from '../../design-system/components/menu/menu.css'
-import { PickerMenu } from '../../design-system/components/PickerMenu'
+import { Slider } from '../../design-system/components/Slider/Slider'
 import { useSession } from '../../store'
 import { useSaveView } from '@renderer/Embeds/ViewEmbedScope'
 import { InlineEditHeader } from './InlineEditHeader'
 import { VisibilityList } from './HiddenPane'
 import { LayoutToggles } from './LayoutToggles'
+import { CardsOptions } from './CardsOptions'
 import { GroupingPane } from './GroupingPane'
 import { SortingPane } from './SortingPane'
 import { PaneSlider } from './PaneSlider'
+import { iconForTypeSwitch } from './viewIcon'
 import { cx } from '../../design-system/cx'
 import * as vs from './viewSettings.css'
 
-// Grid order (D-4) + each type's glyph (D-5). Only Table is buildable this cycle; the rest render at
-// full weight but their tiles are inert.
+// Grid order (D-4) + each type's glyph (D-5). Unimplemented types render at full weight but their
+// tiles are inert.
 const TYPE_ORDER: ViewType[] = ['table', 'cards', 'list', 'gallery', 'calendar', 'timeline']
 const TYPE_GLYPH: Record<ViewType, IconName> = {
   table: 'table',
@@ -41,8 +44,19 @@ const TYPE_GLYPH: Record<ViewType, IconName> = {
   calendar: 'calendar-days',
   timeline: 'chart-gantt',
 }
-const IMPLEMENTED: ReadonlySet<ViewType> = new Set(['table'])
-const isMac = navigator.platform.toLowerCase().includes('mac')
+const IMPLEMENTED: ReadonlySet<ViewType> = new Set(['table', 'cards'])
+
+// The cards Scale slider's range — the card-size factor. Steps of 0.05; default 1.
+const SCALE_MIN = 0.5
+const SCALE_MAX = 1.5
+
+// Live scrub: while the Scale knob drags, push the factor straight onto the configured view's mounted
+// cards root(s) — scoped by data-view-id so a sibling cards view on the same surface isn't dragged
+// along (its own card_size never changed, so React wouldn't reassert it). No per-tick save, no churn.
+const scrubCardScale = (v: number, viewId: string): void => {
+  for (const el of document.querySelectorAll<HTMLElement>(`.cards-view[data-view-id="${viewId}"]`))
+    el.style.setProperty('--card-scale', String(v))
+}
 
 // ── KNOB — ViewSettings' own height ceiling (its own, not the shared MENU_MAX_HEIGHT): the full door
 // stacks the tallest content (title + grid + four leaf rows + the pinned Format), so it earns more
@@ -93,11 +107,8 @@ export function ViewSettings({
 }): React.JSX.Element {
   const load = useSession((s) => s.load)
   const [leaf, setLeaf] = useState<Leaf | null>(null)
-  const [formatOpen, setFormatOpen] = useState(false)
-  const formatRef = useRef<HTMLDivElement>(null)
   const views = source.views ?? []
   const canDelete = views.length > 1 && view.id !== DEFAULT_VIEW_ID
-  const format: ViewFormat = view.format ?? 'standard'
 
   const saveView = useSaveView(source, load)
   const write = (patch: Partial<SavedView>): void => void saveView({ ...view, ...patch })
@@ -105,9 +116,14 @@ export function ViewSettings({
     if (name && name !== view.name) write({ name })
   }
   const setType = (type: ViewType): void => {
-    if (type !== view.type) write({ type })
+    if (type === view.type) return
+    // Re-icon to the new type's glyph only when the view still wears the old default (Decision B);
+    // a custom icon is preserved.
+    const icon = iconForTypeSwitch(view.icon, view.type, type, TYPE_GLYPH)
+    write(icon ? { type, icon } : { type })
   }
-  const setFormat = (f: ViewFormat): void => write({ format: f })
+  // Two-option double-chevron = a direct toggle, never a dropdown (the Open In idiom).
+  const toggleFormat = (): void => write({ format: isCompact(view) ? 'standard' : 'compact' })
 
   const openItemMenu = async (): Promise<void> => {
     const action = await window.nexus.viewItemMenu(canDelete)
@@ -130,35 +146,89 @@ export function ViewSettings({
     }
   }
 
-  const openFormat = async (): Promise<void> => {
-    if (isMac) {
-      const f = await window.nexus.viewFormatMenu(format)
-      if (f) setFormat(f)
-    } else {
-      setFormatOpen(true)
-    }
-  }
+  // The format double-chevron (D-8): the two-option Compact ⇄ Standard toggle, rendered as the cards
+  // footing ("Style", cards-grid glyph) and the table footer ("Format", layers-2 glyph) — one control.
+  const formatToggle = (glyph: IconName, label: string): React.JSX.Element => (
+    <MenuItem
+      className={flushTrailing}
+      leading={
+        <span className={footingSymbol}>
+          <Icon name={glyph} size={12} />
+        </span>
+      }
+      trailing={
+        <span className={side}>
+          <span className={detail}>{isCompact(view) ? 'Compact' : 'Standard'}</span>
+          <span className={footingSymbol}>
+            <Icon name="chevrons-up-down" size={12} />
+          </span>
+        </span>
+      }
+      onClick={toggleFormat}
+    >
+      <span className={footingLabel}>{label}</span>
+    </MenuItem>
+  )
+
+  // The cards footing (K-2): Style over Scale (the ProgressBar-logic slider with the glass knob).
+  // Pinned on the editor in both doors, the Format slot.
+  const cardsFooting =
+    view.type === 'cards' ? (
+      <MenuBottomRow>
+        {formatToggle('cards-grid', 'Style')}
+        <div className={cx(item, flushTrailing, vs.scaleRow)}>
+          <span className={side}>
+            <span className={footingSymbol}>
+              <Icon name="scaling" size={12} />
+            </span>
+          </span>
+          <span className={footingLabel}>Scale</span>
+          <Slider
+            value={view.card_size ?? 1}
+            min={SCALE_MIN}
+            max={SCALE_MAX}
+            step={0.05}
+            ariaLabel="Scale"
+            onInput={(v) => scrubCardScale(v, view.id)}
+            onCommit={(v) => write({ card_size: v })}
+            format={(v) => `${v.toFixed(2)}x`}
+            readoutClassName={detail}
+          />
+        </div>
+      </MenuBottomRow>
+    ) : null
 
   // Full-door leaves — the detail slot of the leaf slider (below). Layout opens the visibility list
-  // (+ its icon toggles). Only mounted while a leaf is open, so a push measures it before the flip.
+  // (+ its icon toggles) for tables, the cards options for cards. Only mounted while a leaf is open,
+  // so a push measures it before the flip.
   const leafPane =
     leaf === 'layout' ? (
-      <VisibilityList
-        source={source}
-        schema={schema}
-        view={view}
-        label="Views"
-        current="Layout"
-        maxHeight={VIEWSETTINGS_MAX_HEIGHT}
-        onBack={() => setLeaf(null)}
-        footer={<LayoutToggles source={source} view={view} />}
-      />
+      view.type === 'cards' ? (
+        <MenuScrollFrame
+          header={<MenuPaneTopRow label="Views" current="Layout" onBack={() => setLeaf(null)} />}
+          maxHeight={VIEWSETTINGS_MAX_HEIGHT}
+        >
+          <CardsOptions source={source} view={view} />
+        </MenuScrollFrame>
+      ) : (
+        <VisibilityList
+          source={source}
+          schema={schema}
+          view={view}
+          label="Views"
+          current="Layout"
+          maxHeight={VIEWSETTINGS_MAX_HEIGHT}
+          onBack={() => setLeaf(null)}
+          footer={<LayoutToggles source={source} view={view} />}
+        />
+      )
     ) : leaf === 'group' ? (
       <GroupingPane
         source={source}
         view={view}
         schema={schema}
         label="Views"
+        subGrouping={view.type !== 'cards'}
         onBack={() => setLeaf(null)}
       />
     ) : leaf === 'sort' ? (
@@ -190,53 +260,10 @@ export function ViewSettings({
     </div>
   )
 
-  // Format — the pinned footer (D-8): persists, dual-wired (native menu on mac, PickerMenu else), inert
-  // visually this cycle. Table-only.
+  // Format — the pinned footer (D-8): persists, inert visually this cycle. Table-only.
   const formatRow =
     view.type === 'table' ? (
-      <MenuBottomRow>
-        <div ref={formatRef}>
-          <MenuItem
-            className={flushTrailing}
-            leading={
-              <span className={footingSymbol}>
-                <Icon name="layers-2" size={12} />
-              </span>
-            }
-            trailing={
-              <span className={side}>
-                <span className={detail}>{format === 'compact' ? 'Compact' : 'Standard'}</span>
-                <span className={footingSymbol}>
-                  <Icon name="chevrons-up-down" size={12} />
-                </span>
-              </span>
-            }
-            onClick={() => void openFormat()}
-          >
-            <span className={footingLabel}>Format</span>
-          </MenuItem>
-          {formatOpen && (
-            <PickerMenu
-              open={formatOpen}
-              onDismiss={() => setFormatOpen(false)}
-              triggerRef={formatRef}
-            >
-              {(['standard', 'compact'] as ViewFormat[]).map((f) => (
-                <button
-                  key={f}
-                  type="button"
-                  onClick={() => {
-                    setFormat(f)
-                    setFormatOpen(false)
-                  }}
-                >
-                  {f === 'compact' ? 'Compact' : 'Standard'}
-                </button>
-              ))}
-            </PickerMenu>
-          )}
-        </div>
-      </MenuBottomRow>
+      <MenuBottomRow>{formatToggle('layers-2', 'Format')}</MenuBottomRow>
     ) : null
 
   const header =
@@ -258,8 +285,23 @@ export function ViewSettings({
       <MenuPaneTopRow label="Settings" current="Layout" onBack={onBack} />
     )
 
+  const leafRow = (r: (typeof LEAF_ROWS)[number]): React.JSX.Element => (
+    <MenuItem
+      key={r.id}
+      className={flushTrailing}
+      leading={<Icon name={r.icon} size={16} />}
+      trailing={<Icon name="chevron-right" size={16} />}
+      onClick={() => setLeaf(r.id)}
+    >
+      {r.label}
+    </MenuItem>
+  )
   const mainFrame = (
-    <MenuScrollFrame header={header} footer={formatRow} maxHeight={VIEWSETTINGS_MAX_HEIGHT}>
+    <MenuScrollFrame
+      header={header}
+      footer={view.type === 'cards' ? cardsFooting : formatRow}
+      maxHeight={VIEWSETTINGS_MAX_HEIGHT}
+    >
       {/* The full door carries its own click-to-edit identity; the flat door (SettingsPane → Layout)
           drops it — the TopRow already names the view, so a second title + divider is redundant. */}
       {door === 'full' && (
@@ -269,22 +311,13 @@ export function ViewSettings({
         </>
       )}
       {grid}
-      {view.type === 'table' &&
-        (door === 'full' ? (
-          LEAF_ROWS.map((r) => (
-            <MenuItem
-              key={r.id}
-              className={flushTrailing}
-              leading={<Icon name={r.icon} size={16} />}
-              trailing={<Icon name="chevron-right" size={16} />}
-              onClick={() => setLeaf(r.id)}
-            >
-              {r.label}
-            </MenuItem>
-          ))
-        ) : (
-          <LayoutToggles source={source} view={view} />
-        ))}
+      {door === 'full' ? (
+        LEAF_ROWS.map(leafRow)
+      ) : view.type === 'table' ? (
+        <LayoutToggles source={source} view={view} />
+      ) : (
+        <CardsOptions source={source} view={view} />
+      )}
     </MenuScrollFrame>
   )
 

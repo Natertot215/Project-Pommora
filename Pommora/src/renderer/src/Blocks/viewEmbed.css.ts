@@ -1,7 +1,7 @@
 import { globalStyle, keyframes, style } from '@vanilla-extract/css'
 import { vars as colorVars } from '../design-system/tokens/color.css'
 import { text } from '../design-system/tokens/typography.css'
-import { VIEW_EMBED_ZOOM } from '../Embeds/embedScale'
+import { EMBED_ZOOM, VIEW_EMBED_ZOOM } from '../Embeds/embedScale'
 
 const c = colorVars.color
 
@@ -214,6 +214,14 @@ export const body = style({
  *  .table-view (table-tokens.css), so only a descendant-scoped redeclaration outranks it. */
 globalStyle(`${body} .table-view, ${body} .table-empty`, {
   vars: { '--zoom': String(VIEW_EMBED_ZOOM) },
+})
+
+/** Cards ride the SAME embed-zoom seam (.cards-view reads `zoom: --zoom * --block-zoom`), but take the
+ *  BASE EMBED_ZOOM — not the table's VIEW_EMBED_ZOOM, whose 15/13 factor normalizes the table's 13px
+ *  body. Cards have no single body-font base, so they scale like a page embed instead of inheriting the
+ *  table's text-normalization; without this the card grid rendered at full detail-pane size in a tile. */
+globalStyle(`${body} .cards-view`, {
+  vars: { '--zoom': String(EMBED_ZOOM) },
 })
 
 /** Embedded tables shed the column-header band chrome — no heading fill, no divider under it;

@@ -7,14 +7,24 @@ type OpenMap = Record<string, boolean>
 
 export const DISCLOSURE_KEY = 'pommora.sidebar.disclosure'
 
+// The map is parsed once per storage object and mutated through saveOpen thereafter — expanding a
+// container mounts one Disclosure per child, and a full-blob JSON.parse per mount is the kind of
+// per-mount cost that adds up fast. A different storage (each test passes a fresh fake) misses the
+// cache and re-reads.
+let cached: { storage: Pick<Storage, 'getItem'>; map: OpenMap } | null = null
+
 function readMap(storage: Pick<Storage, 'getItem'>): OpenMap {
+  if (cached?.storage === storage) return cached.map
+  let map: OpenMap = {}
   try {
     const raw = storage.getItem(DISCLOSURE_KEY)
     const parsed: unknown = raw ? JSON.parse(raw) : null
-    return parsed !== null && typeof parsed === 'object' ? (parsed as OpenMap) : {}
+    if (parsed !== null && typeof parsed === 'object') map = parsed as OpenMap
   } catch {
-    return {}
+    // unreadable/corrupt map — start empty
   }
+  cached = { storage, map }
+  return map
 }
 
 /** A disclosure's saved open state, or `fallback` when unset. */
@@ -33,8 +43,10 @@ export function saveOpen(
   key: string,
   open: boolean,
 ): void {
+  const map = readMap(storage)
+  map[key] = open
   try {
-    storage.setItem(DISCLOSURE_KEY, JSON.stringify({ ...readMap(storage), [key]: open }))
+    storage.setItem(DISCLOSURE_KEY, JSON.stringify(map))
   } catch {
     // Best-effort chrome: localStorage may be unavailable / over quota.
   }

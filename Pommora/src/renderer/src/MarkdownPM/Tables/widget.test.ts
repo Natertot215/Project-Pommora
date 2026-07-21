@@ -1,8 +1,24 @@
 import { describe, it, expect } from 'vitest'
 import { EditorState } from '@codemirror/state'
-import { buildWidgetDecorations } from './widget'
+import { type DecorationSet, EditorView } from '@codemirror/view'
+import { buildWidgetDecorations, tableWidgetExtension } from './widget'
+import { cellCommitChange, tableSelfEdit } from './sync'
+import type { TableModel } from './model'
 
 const make = (doc: string): number => buildWidgetDecorations(EditorState.create({ doc })).size
+
+// Reach the widget field's live decoration set (via the decorations facet) and return the first table
+// widget's stored text + model — what TableView renders its static cells from.
+function firstTableWidget(state: EditorState): { text: string; model: TableModel } {
+  for (const provider of state.facet(EditorView.decorations)) {
+    if (typeof provider === 'function') continue
+    for (const it = (provider as DecorationSet).iter(); it.value; it.next()) {
+      const w = it.value.spec.widget as unknown as { text: string; model: TableModel } | null
+      if (w && 'model' in w) return w
+    }
+  }
+  throw new Error('no table widget in decoration set')
+}
 
 describe('table widget decorations', () => {
   it('emits one block-replace per valid table', () => {
@@ -28,5 +44,22 @@ describe('table widget decorations', () => {
       to = t
     })
     expect(doc.slice(from, to)).toBe('| a | b |\n| --- | --- |\n| 1 | 2 |')
+  })
+
+  it('refreshes the widget model on a cell self-edit so static cells repaint live', () => {
+    const doc = '| a | b |\n| --- | --- |\n| 1 | 2 |'
+    const start = EditorState.create({ doc, extensions: [tableWidgetExtension()] })
+    expect(firstTableWidget(start).model.rows[0][0]).toBe('1')
+
+    const change = cellCommitChange(doc, 0, 1, 0, 'hello')
+    expect(change).not.toBeNull()
+    const next = start.update({
+      changes: change ?? undefined,
+      annotations: tableSelfEdit.of(true),
+    }).state
+
+    const w = firstTableWidget(next)
+    expect(w.model.rows[0][0]).toBe('hello')
+    expect(w.text).toContain('hello')
   })
 })

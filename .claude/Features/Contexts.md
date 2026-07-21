@@ -24,7 +24,7 @@ There's no `parents` field and no containment. The folder name is the title — 
 
 In the sidebar's **Contexts mode** (opened from the ribbon), the three tiers surface as three disclosure rows, top to bottom Areas → Topics → Projects. A tier row is a structural disclosure — never selectable, open by default, and clicking it toggles its own disclosure only. Each tier's entities render as flat, draggable leaf rows inside it, reordered within the tier. All three tiers' entities default to the grid icon; a per-entity icon overrides it.
 
-Tier labels read from the per-Nexus label settings. Creation is a right-click in the Contexts mode area — a native picker offering New Area / Topic / Project, each scoped to its own tier. Full sidebar layout → `Sidebar.md`.
+Tier labels read from the per-Nexus label settings. Creation is a right-click in the Contexts mode area — a native picker offering New Area / Topic / Project, each scoped to its own tier. The picker returns the choice to the store, which writes and optimistically inserts the new row with a focused rename input — instant, one walk. Full sidebar layout → `Sidebar.md`.
 
 #### II. Cross-Layer Relations
 

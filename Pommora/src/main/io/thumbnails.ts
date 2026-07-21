@@ -2,7 +2,7 @@
 // after the view settles), downscaled, and written under the SYNCED `.nexus/assets/<nexusId>/thumbnails/`
 // tree so the existing `nexus-asset://` protocol serves it and a second machine gets real previews.
 // Full-page capturePage then crop (rect × scaleFactor) sidesteps the HiDPI rect-crop bug; JPEG has no
-// alpha (dodges the transparent→black resize bug). Membership eviction keeps the folder to the live set.
+// alpha (dodges the transparent→black resize bug). Existence eviction drops only orphans (entity gone).
 
 import { mkdir, readdir, rm } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
@@ -106,8 +106,9 @@ export async function captureThumbnail(
   return `nexus-asset://nexus/${rel}`
 }
 
-/** Delete thumbnails whose key isn't in the live set (recents ∪ pins) — bounds the synced folder to
- *  the working set with no orphan accumulation. No-op when the folder doesn't exist yet. */
+/** Delete thumbnails whose key isn't in `liveKeys` — the caller passes every navKey that still exists
+ *  (∪ recents/pins as a fault guard), so this drops only orphans (a deleted entity's leftover), never a
+ *  live cover. No-op when the folder doesn't exist yet. */
 export async function evictThumbnails(root: string, liveKeys: string[]): Promise<void> {
   const { id: nexusId } = await ensureIdentity(root)
   const dir = thumbsDir(root, nexusId)

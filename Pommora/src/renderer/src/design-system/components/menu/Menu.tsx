@@ -17,6 +17,7 @@ type MenuItemProps = {
   indent?: number
   onClick?: (e: React.MouseEvent) => void
   onContextMenu?: (e: MouseEvent) => void
+  onPointerDown?: (e: React.PointerEvent) => void
   className?: string
   /** The title line. */
   children: ReactNode
@@ -33,6 +34,7 @@ export function MenuItem({
   indent = 0,
   onClick,
   onContextMenu,
+  onPointerDown,
   className,
   children,
 }: MenuItemProps): React.JSX.Element {
@@ -44,6 +46,7 @@ export function MenuItem({
       style={rowStyle}
       onClick={onClick}
       onContextMenu={onContextMenu}
+      onPointerDown={onPointerDown}
     >
       {leading != null && <span className={s.side}>{leading}</span>}
       <span className={s.titleWrap}>
@@ -127,6 +130,9 @@ export function MenuTopRow({
       }
       trailing={trailing}
       onClick={onClick}
+      // A press must not steal focus: the value panes commit-on-blur, so an unguarded mousedown here
+      // would commit-and-dismiss before this row's click (Back) ever lands.
+      onPointerDown={(e) => e.preventDefault()}
     >
       <span className={s.topBarLeadingLabel}>{label}</span>
     </MenuItem>

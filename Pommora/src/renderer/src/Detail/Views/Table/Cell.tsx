@@ -79,7 +79,7 @@ export function Cell({
       </span>
     ) : (
       <span
-        className={cx(chipBox, checked ? undefined : chipColor.default)}
+        className={cx(chipBox, checked ? undefined : chipColor.default, 'cell-checkbox')}
         style={checkboxBoxStyle(checked, color)}
       >
         {checked ? <Icon name="check" size={12} strokeWidth={3} /> : null}

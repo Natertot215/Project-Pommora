@@ -207,6 +207,20 @@ describe('SavedView format', () => {
   })
 })
 
+describe('card_size codec', () => {
+  const base = { id: 'view_c', name: 'C', type: 'table', property_order: [], hidden_properties: [] }
+  it('round-trips a finite scale factor', () => {
+    expect(savedView.parse({ ...base, card_size: 0.75 }).card_size).toBe(0.75)
+  })
+  it('maps a legacy size name to its factor', () => {
+    expect(savedView.parse({ ...base, card_size: 'large' }).card_size).toBe(1.25)
+  })
+  it('drops a non-finite card_size instead of persisting Infinity/NaN', () => {
+    expect(savedView.parse({ ...base, card_size: 1e400 }).card_size).toBeUndefined()
+    expect(savedView.parse({ ...base, card_size: Number.NaN }).card_size).toBeUndefined()
+  })
+})
+
 describe('mint seam', () => {
   const schema = [{ id: 'prop_a' }, { id: 'prop_b' }] as never[]
   it('mintNewView is title-only: schema ids and all three tiers hidden', () => {
@@ -223,10 +237,16 @@ describe('mint seam', () => {
       RESERVED_PROPERTY_ID.tier3,
     ])
   })
-  it('mintDefaultView stays all-shown with the table glyph', () => {
+  it('mintDefaultView mints title-only (every prop + tier hidden) with the table glyph', () => {
     const v = mintDefaultView(schema)
-    expect(v.hidden_properties).toEqual([])
-    expect(v.property_order).toEqual([RESERVED_PROPERTY_ID.title, 'prop_a', 'prop_b'])
+    expect(v.hidden_properties).toEqual([
+      'prop_a',
+      'prop_b',
+      RESERVED_PROPERTY_ID.tier1,
+      RESERVED_PROPERTY_ID.tier2,
+      RESERVED_PROPERTY_ID.tier3,
+    ])
+    expect(v.property_order).toEqual([RESERVED_PROPERTY_ID.title])
     expect(v.icon).toBe('table')
   })
 })

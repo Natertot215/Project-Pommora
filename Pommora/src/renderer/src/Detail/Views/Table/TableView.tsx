@@ -8,26 +8,23 @@ import type {
   SetNode,
   ViewRow,
 } from '@shared/types'
-import {
-  type PropertyDefinition,
-  type PropertyType,
-  RESERVED_PROPERTY_ID,
-} from '@shared/properties'
+import { type PropertyDefinition, RESERVED_PROPERTY_ID } from '@shared/properties'
 import type { PageFrontmatter } from '@shared/schemas'
 import type { ColumnStyle } from '@shared/columnStyles'
-import type { CellMenuContext } from '@shared/cellMenu'
+import { cellMenuContextFor } from '@shared/cellMenu'
 import { parseStyleAction } from '@shared/columnMenu'
 import { type ColumnAlign, type SavedView, mintDefaultView } from '@shared/views'
 import { applyPropertyValue, isBlankValue, type PropertyValue } from '@shared/propertyValue'
-import { isValidLink, normalizeLinkUrl } from '@shared/links'
+import { isValidLink } from '@shared/links'
 import { flattenContainer, groupsStructurally } from '../pipeline/group'
 import { resolveView } from '../pipeline/resolveView'
 import { contextOptionsFor as contextOptionsForTier } from '../pipeline/contextOptions'
 import { declaredType, resolveFieldValue } from '../pipeline/value'
-import { resolvedSortCount } from '../pipeline/sort'
+import { resolvedSortCount, resolveManualOrder } from '../pipeline/sort'
 import { PropertyEditor } from '../PropertyEditing/PropertyEditor'
-import { PropertyPicker } from '../PropertyEditing/PropertyPicker'
-import { nextCycleValue } from '../PropertyEditing/statusCycle'
+import { PropertyPicker, syntheticContextDef } from '../PropertyEditing/PropertyPicker'
+import { DatetimeValuePicker } from '../PropertyEditing/DatetimeValuePicker'
+import { sharedValueClickAction } from '../PropertyEditing/valueClick'
 import { useSession } from '../../../store'
 import { findCollectionForSet } from '../../Scope'
 import { isOpenInTabs } from '../../../Tabs/tabsModel'
@@ -35,7 +32,8 @@ import { useActiveView } from '../useActiveView'
 import { useSaveView } from '@renderer/Embeds/ViewEmbedScope'
 import type { SetTreeNode } from '../pipeline/group'
 import { buildResolveContext, type ResolveContext } from './resolveContext'
-import { buildSetIcons, buildSetNames, buildSetPaths, groupLabel } from './cellResolve'
+import { writeTierValue } from '../tierWrite'
+import { buildSetIcons, buildSetNames, buildSetPaths } from './cellResolve'
 import { BandDnd, type BandDrop } from './bandDnd'
 import {
   allStructuralIds,
@@ -47,7 +45,8 @@ import {
 import { nextOrder } from '@renderer/Sidebar/sidebarDndModel'
 import { Cell } from './Cell'
 import { PropertyTypeIcon } from '@renderer/Components/Detail/PropertyTypes'
-import { GroupHeader } from './GroupHeader'
+import { TableGroupBand } from './TableGroupBand'
+import { resolveBandHead } from '../GroupBand'
 import { columnLabel, TIER_LEVEL_BY_ID } from './columnLabel'
 import { clampWidth, widthFor } from './columnWidths'
 import { alignFor } from './columnAlign'
@@ -59,15 +58,13 @@ import { cx } from '@renderer/design-system/cx'
 import { text } from '@renderer/design-system/tokens'
 import { IconPicker } from '@renderer/Components/IconPicker'
 import { Icon } from '@renderer/design-system/symbols'
-import { CalendarPicker } from '@renderer/design-system/components/CalendarPicker/CalendarPicker'
 import { PickerMenu } from '@renderer/design-system/components/PickerMenu/PickerMenu'
 import { TextPicker } from '@renderer/design-system/components/TextPicker'
-import { condensedDate, formatDate, numberDivisor } from '../PropertyEditing/formatValue'
-import { Reveal } from '@renderer/design-system/components/Reveal'
+import { numberDivisor } from '../PropertyEditing/formatValue'
 import { ACTIVATION } from '@renderer/design-system/interactions/shared'
 import { TableRowDnd, useTableRowDrag } from './tableDnd'
 import { solidColorCss } from './solidColor'
-import { parseLink, serializeLink } from './linkValue'
+import { parseLink, urlClickTarget, urlValueFromEdit, urlValueFromRename } from './linkValue'
 
 // ── TUNABLE ── how far past a column's edge the dragged column's centre must travel before the slot
 // flips (the sticky zone around the current slot). Larger = more deliberate / harder to leave a slot;
@@ -97,7 +94,7 @@ function DatetimeCellPicker({
 
 /** A Collection uses its own schema; a Set inherits its ancestor Collection's (schema lives only on
  *  the Collection). [] when the owning Collection can't be found. */
-function resolveContainerSchema(
+export function resolveContainerSchema(
   tree: NexusTree,
   source: CollectionNode | SetNode,
 ): PropertyDefinition[] {
@@ -123,32 +120,6 @@ export function pickView(
 
 const sameIds = (a: string[], b: string[]): boolean =>
   a.length === b.length && a.every((x, i) => x === b[i])
-
-/** The right-click menu context for a cell (A-13): title = page meta; url/file = the column's Style
- *  radios + Edit; status/datetime (picker-based) = Style + Clear; the inline-clearable style types
- *  (checkbox/number/last_edited_time) = Style alone; tier and select/multi/context = Clear alone.
- *  Clear is offered ONLY on a `filled` cell — a clear-only cell with no value has no menu at all, and
- *  a styleable one drops just its Clear. Anything else has no menu (null). */
-function cellMenuContextFor(
-  col: ResolvedColumn,
-  type: PropertyType | 'title' | 'tier' | undefined,
-  style: ColumnStyle,
-  filled: boolean,
-): CellMenuContext | null {
-  if (col.kind === 'title') return { kind: 'title' }
-  if (col.kind === 'tier') return filled ? { kind: 'clear-only' } : null
-  if (type === 'url') return { kind: 'link', filled }
-  if (type === 'file') return { kind: 'style-edit', type: 'file', current: style }
-  if (type === 'status' || type === 'datetime')
-    return { kind: 'style-only', type, current: style, clearable: filled }
-  if (type === 'checkbox' || type === 'number' || type === 'last_edited_time') {
-    return { kind: 'style-only', type, current: style }
-  }
-  if (type === 'select' || type === 'multi_select' || type === 'context') {
-    return filled ? { kind: 'clear-only' } : null
-  }
-  return null
-}
 
 export function TableView({ source }: { source: CollectionNode | SetNode }): React.JSX.Element {
   const tree = useSession((s) => s.tree)
@@ -298,8 +269,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // retire row drag or flip the manual-order gates.
   const sortKeys = useMemo(() => resolvedSortCount(liveView.sort, schema), [liveView.sort, schema])
   const sortedOrGrouped = sortKeys > 0 || liveView.group != null
-  const manualOrder =
-    sortedOrGrouped || manualOverride ? (manualOverride ?? viewOrders[view.id]) : undefined
+  const manualOrder = resolveManualOrder(sortedOrGrouped, manualOverride, viewOrders[view.id])
   // The grouped property + whether a cross-group drop can reassign it (D-4): status/select/checkbox map
   // a group key straight to a value; a date bucket doesn't, so date grouping isn't reassignable.
   // The property lives in TWO homes: top-level property grouping, or the view-level sub-group
@@ -322,8 +292,11 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // single-sorted / property-grouped views write the per-view manual tiebreaker (viewOrders). Cross-group
   // reassignment is independent of the sort count.
   const canReorderWithin = sortKeys < 2
+  // Plain location grouping (no sub-group): the bands ARE folders, so a cross-band row drop MOVES the
+  // page into that Set. The sub-grouped case already moves on a set-dimension change (reassignRow).
+  const canRelocate = structuralGrouping && !subGrouped
   const structuralOrder = groupPropId === undefined && sortKeys === 0
-  const dragDisabled = !(canReorderWithin || canReassign)
+  const dragDisabled = !(canReorderWithin || canReassign || canRelocate)
   // Optimistic property patches feed the pipeline so a reassigned row re-groups before the watcher round-trips.
   const effectiveValues = useMemo(
     () => (valueOverride ? { ...values, ...valueOverride } : values),
@@ -377,7 +350,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
       return undefined
     }
     const g = find(groups)
-    return g && ctx ? groupLabel(g, liveView, ctx, setNames) : id
+    return g && ctx ? resolveBandHead(g, liveView, ctx, setNames, setIcons, source).label : id
   }
   // The band drop router (already classified by BandDnd): structural reorder → the view-level
   // group_order (merged over the FULL tree so collapsed siblings survive) · property reorder →
@@ -493,11 +466,14 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
 
   // Persist the saved view + every live override (order + collapse) + a patch, so no one mutation
   // clobbers another's unsaved state — the exact Swift reorder/resize data-loss H-2 guards against.
-  const persistView = (patch: Partial<SavedView>): void => {
-    // Adopt-only (G-1): if this fires while the entry-mint is still in flight, it awaits the minted id
-    // and saves against it — never mints a rival default from its own sentinel.
+  // Adopt-only (G-1): if this fires while the entry-mint is still in flight, it awaits the minted id and
+  // saves against it — never mints a rival default from its own sentinel. skipRefetch defaults true:
+  // order/width/align/collapse/style all show through a live override, so a refetch would only repaint
+  // redundantly. A patch with NO optimistic layer (hide_column_icons) passes false so it actually reflects.
+  const persistView = (patch: Partial<SavedView>, skipRefetch = true): void => {
     void saveView(
       mergeOverrides(liveView, widthOverride, alignOverride, collapsed, patch, styleOverride),
+      { skipRefetch },
     )
   }
   const toggleCollapse = (key: string): void => {
@@ -593,6 +569,10 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
       column_alignments: { ...liveView.column_alignments, ...alignOverride, [id]: align },
     })
   }
+  // Whether a number column can render a bar (percent, or fraction + a denominator) — the ONE gate the
+  // cell render, the cell menu, and the header menu share so all three agree on when Bar is offered.
+  const numberBarCapable = (colId: string, type: ReturnType<typeof declaredType>): boolean =>
+    type === 'number' && numberDivisor(schema.find((d) => d.id === colId)) !== undefined
   // Right-click a header → native column menu (E-1/E-5): Align + Style + Hide. Title is the primary
   // column — fixed left, not hideable, no style — so it pops nothing. The style ctx rides only for a
   // schema-declared property type; the shared builder decides which types actually get items.
@@ -603,9 +583,10 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   ): Promise<void> => {
     e.preventDefault()
     const t = declaredType(id, schema)
+    const barCapable = numberBarCapable(id, t)
     const style =
       t !== undefined && t !== 'title' && t !== 'tier'
-        ? { type: t, current: colStyle(id) }
+        ? { type: t, current: colStyle(id), ...(barCapable ? { barCapable: true } : {}) }
         : undefined
     const action = await window.nexus.columnMenu({
       align: colAlign(id),
@@ -616,7 +597,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     })
     if (action === 'column:hide') hideColumn(id)
     else if (action === 'column:toggle-icons')
-      persistView({ hide_column_icons: !(liveView.hide_column_icons ?? true) })
+      persistView({ hide_column_icons: !(liveView.hide_column_icons ?? true) }, false)
     else if (action?.startsWith('align:'))
       setColumnAlign(id, action.slice('align:'.length) as ColumnAlign)
     else if (action?.startsWith('style:')) {
@@ -649,10 +630,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
   // A reserved tier column writes the BARE frontmatter array (`tier1/2/3`) through its own op;
   // a user context prop writes through setProperty like every other property value.
   const commitTierValue = (row: ViewRow, colId: string, ids: string[]): void => {
-    const tier = TIER_LEVEL_BY_ID[colId]
-    const patched = { ...row.frontmatter, [`tier${tier}`]: ids } as PageFrontmatter
-    setValueOverride((prev) => ({ ...prev, [row.id]: patched }))
-    void mutate({ op: 'setTier', path: row.path, tier, contextIds: ids })
+    writeTierValue(row, colId, ids, row.frontmatter, setValueOverride, mutate)
   }
   // A chip's hover × commits whatever remains after that chip (Phase 3): the picker's exact
   // routing — a reserved tier column through setTier, everything else through setProperty.
@@ -691,35 +669,18 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     }
     if (col.kind !== 'property') return
     const t = declaredType(col.id, schema)
-    if (t === 'status' && colStyle(col.id).look === 'checkbox') {
+    // The shared click semantics (cycle/toggle/picker/datetime) live in one router; only the
+    // surface-specific tails (number/url placement) stay here.
+    const shared = sharedValueClickAction(
+      t,
+      colStyle(col.id).look,
+      resolveFieldValue(row, col.id, schema),
+      schema.find((d) => d.id === col.id),
+    )
+    if (shared) {
       e.stopPropagation()
-      const v = resolveFieldValue(row, col.id, schema)
-      const current = v.kind === 'status' || v.kind === 'select' ? v.value : undefined
-      if (current === undefined) {
-        // An EMPTY checkbox-look cell never cycles (a blind write) — it opens the picker to assign.
-        setEditing({ rowId: row.id, colId: col.id, mode: 'picker' })
-        return
-      }
-      const next = nextCycleValue(
-        current,
-        schema.find((d) => d.id === col.id),
-      )
-      if (next !== null) commitCellValue(row, col.id, { kind: 'status', value: next })
-    } else if (t === 'checkbox') {
-      e.stopPropagation()
-      const v = resolveFieldValue(row, col.id, schema)
-      // Checked → strip the key (a checkbox is true-or-absent, never a stored `false`); else set true.
-      const checked = v.kind === 'checkbox' && v.value
-      commitCellValue(row, col.id, checked ? null : { kind: 'checkbox', value: true })
-    } else if (
-      t === 'status' ||
-      t === 'select' ||
-      t === 'multi_select' ||
-      t === 'context' ||
-      t === 'datetime'
-    ) {
-      e.stopPropagation()
-      setEditing({ rowId: row.id, colId: col.id, mode: 'picker' })
+      if (shared.kind === 'commit') commitCellValue(row, col.id, shared.value)
+      else setEditing({ rowId: row.id, colId: col.id, mode: 'picker' })
     } else if (t === 'number') {
       e.stopPropagation()
       // A Bar-look cell has no text to replace in place, so it edits through the TextPicker dropdown (the
@@ -734,7 +695,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
       e.stopPropagation()
       // Filled → open the link (matching the rendered <a>); empty → the inline field to type one in.
       const v = resolveFieldValue(row, col.id, schema)
-      const url = v.kind === 'url' ? parseLink(v.value).url : ''
+      const url = urlClickTarget(v.kind === 'url' ? v.value : undefined)
       if (url) void window.nexus.openExternal(url)
       else setEditing({ rowId: row.id, colId: col.id, mode: 'editor' })
     }
@@ -765,15 +726,10 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
       const n = Number.parseFloat(trimmed)
       if (!Number.isNaN(n)) commitCellValue(row, col.id, { kind: 'number', value: n })
     } else if (t === 'url') {
-      if (trimmed === '') return commitCellValue(row, col.id, null)
-      // Edit rewrites only the URL; a rename-set alias rides along (parsed from the current value).
+      // Edit rewrites the URL but rides the current alias along (urlValueFromEdit); empty clears.
       const cur = resolveFieldValue(row, col.id, schema)
-      const alias = cur.kind === 'url' ? parseLink(cur.value).alias : undefined
-      if (isValidLink(trimmed))
-        commitCellValue(row, col.id, {
-          kind: 'url',
-          value: serializeLink({ url: normalizeLinkUrl(trimmed), alias }),
-        })
+      const next = urlValueFromEdit(trimmed, cur.kind === 'url' ? cur.value : undefined)
+      if (next !== undefined) commitCellValue(row, col.id, next)
     } else if (t === 'file') {
       const v = resolveFieldValue(row, col.id, schema)
       const refs = v.kind === 'file' ? v.value : []
@@ -841,22 +797,12 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     const dismiss = (): void => setEditing(null)
     if (col.kind === 'property' && declaredType(col.id, schema) === 'datetime') {
       const v = resolveFieldValue(row, col.id, schema)
-      const rawFmt = colStyle(col.id).date_format ?? 'full'
-      const dateFmt = rawFmt === 'relative' ? 'short' : rawFmt
       return (
         <DatetimeCellPicker key={key} open={open} triggerRef={triggerElRef} onDismiss={dismiss}>
-          <CalendarPicker
-            range={false}
-            value={v.kind === 'datetime' ? v.value : null}
-            timeFormat={tree?.timeFormat}
-            formatDateValue={(k, condensed) =>
-              condensed
-                ? condensedDate(k, dateFmt, condensed.withYear)
-                : formatDate(k, dateFmt, 'none')
-            }
-            onChange={(iso) =>
-              commitCellValue(row, col.id, iso ? { kind: 'datetime', value: iso } : null)
-            }
+          <DatetimeValuePicker
+            value={v}
+            dateFormat={colStyle(col.id).date_format}
+            onCommit={(nv) => commitCellValue(row, col.id, nv)}
           />
         </DatetimeCellPicker>
       )
@@ -866,7 +812,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     // whose options come from `contextOptions` anyway.
     const def =
       schema.find((d) => d.id === col.id) ??
-      (contextOptions ? { id: col.id, name: '', type: 'context' as const } : undefined)
+      (contextOptions ? syntheticContextDef(col.id) : undefined)
     if (!def) return null
     return (
       <PropertyPicker
@@ -932,10 +878,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
         value={parseLink(raw).alias ?? ''}
         accent={solidColorCss(linkDef?.link_color)}
         onCommit={(alias) => {
-          commitCellValue(row, col.id, {
-            kind: 'url',
-            value: serializeLink({ url: parseLink(raw).url, alias: alias.trim() || undefined }),
-          })
+          commitCellValue(row, col.id, urlValueFromRename(alias, raw))
           setEditing(null)
         }}
         onDismiss={() => setEditing(null)}
@@ -956,7 +899,9 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     // the rename popover can't read `e.currentTarget` then (it anchors the TextPicker off this cell).
     const cellEl = e.currentTarget as HTMLElement
     const filled = !isBlankValue(resolveFieldValue(row, col.id, schema))
-    const ctx = cellMenuContextFor(col, declaredType(col.id, schema), colStyle(col.id), filled)
+    const dt = declaredType(col.id, schema)
+    const barCapable = numberBarCapable(col.id, dt)
+    const ctx = cellMenuContextFor(col, dt, colStyle(col.id), filled, false, barCapable)
     if (!ctx) return
     if (ctx.kind === 'title') {
       const { tabs, pins } = useSession.getState()
@@ -1138,31 +1083,41 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     const startCenter = hr.left + hr.width / 2 // the dragged column's centre, screen px; it tracks the cursor 1:1
     const startX = e.clientX
     const startY = e.clientY
+    // Geometry snapshot: widths can't change mid-drag, so the cumulative offsets are computed once
+    // at grab — a per-move getBoundingClientRect + width loop is a forced layout in the drag hot
+    // path. Only a scroll can shift the grid's origin; the capture listener re-reads it then.
+    let gridLeft = grid.getBoundingClientRect().left
+    const widths = columns.map((c) => colWidth(c.id) * zoom)
+    const lefts: number[] = new Array(columns.length)
+    let acc = 0
+    for (let i = 0; i < columns.length; i++) {
+      lefts[i] = acc
+      acc += widths[i]
+    }
+    const onScroll = (): void => {
+      gridLeft = grid.getBoundingClientRect().left
+    }
     // null until the pointer travels ACTIVATION px — a sub-threshold press is a click, not a drag, so the
     // highlight band never flashes and a jittery click can't reorder.
     let current: { from: number; to: number } | null = null
     const onMove = (ev: PointerEvent): void => {
       if (!current && Math.hypot(ev.clientX - startX, ev.clientY - startY) < ACTIVATION) return
-      const gridLeft = grid.getBoundingClientRect().left
       const projected = startCenter + (ev.clientX - startX)
       const cur = current?.to ?? from
       // Edge-based slot: which column's span the dragged column's centre is actually over. Hold the
       // current slot until the centre leaves its span by COL_SHIFT_HYSTERESIS (a sticky zone — no flicker
       // at a boundary). This is correct for wildly-varying widths where a closest-centre rule would let a
       // far column shift while the dragged one is still mid-traverse over a wide neighbour (e.g. Title).
-      let curLeft = gridLeft
-      for (let i = 0; i < cur; i++) curLeft += colWidth(columns[i].id) * zoom
-      const curRight = curLeft + colWidth(columns[cur].id) * zoom
+      const curLeft = gridLeft + lefts[cur]
+      const curRight = curLeft + widths[cur]
       let to = cur
       if (
         projected < curLeft - COL_SHIFT_HYSTERESIS ||
         projected > curRight + COL_SHIFT_HYSTERESIS
       ) {
-        let edge = gridLeft
         to = columns.length - 1
         for (let i = 0; i < columns.length; i++) {
-          edge += colWidth(columns[i].id) * zoom
-          if (projected < edge) {
+          if (projected < gridLeft + lefts[i] + widths[i]) {
             to = i
             break
           }
@@ -1187,6 +1142,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
       window.removeEventListener('pointercancel', onCancel)
+      window.removeEventListener('scroll', onScroll, true)
       grid.style.removeProperty('--col-drag-x')
       try {
         header.releasePointerCapture(ev.pointerId)
@@ -1206,6 +1162,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp)
     window.addEventListener('pointercancel', onCancel)
+    window.addEventListener('scroll', onScroll, { capture: true, passive: true })
   }
   // The gap-shift translateX for a header during the current drag — the same formula the body cells
   // use (gapShift over the memoized dragShift). The SUBJECT's cursor-follow is not here — it rides
@@ -1256,6 +1213,15 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     }
     setValueOverride((prev) => ({ ...prev, [pageId]: patched }))
     void mutate({ op: 'setProperty', path, propertyId: groupPropId, value })
+  }
+  // Cross-folder move (plain location grouping): a row dropped into a DIFFERENT location band relocates
+  // the page into that band's Set (the root band → the container itself). movePage; the tree reload
+  // reflects it (like the sidebar's reparent — no optimistic value patch, since a move isn't a value).
+  const relocateRow = (pageId: string, destGroupKey: string): void => {
+    const path = rowPath.get(pageId)
+    const destPath = destGroupKey === UNGROUPED ? source.path : setPaths.get(destGroupKey)
+    if (!path || !destPath || destPath === path.slice(0, path.lastIndexOf('/'))) return
+    void mutate({ op: 'movePage', path, newParentPath: destPath })
   }
   // Within-group reorder commit — tableDnd hands the new flat order + the reordered group's key. An
   // unsorted structural/flat view is ordered by the canonical on-disk page_order, so it writes that
@@ -1329,40 +1295,36 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
     ]
     // Ungrouped root band: no header, no disclosure — its rows sit flush in the grid.
     if (g.kind === 'ungrouped') return members
-    // Headered group: the header stays put; its members live in a Reveal so collapse/expand animates the
+    // Headered group: the head stays put; its members live in a Reveal so collapse/expand animates the
     // rows (grid-rows 0fr↔1fr) on the same --disclosure motion as the chevron, and collapsed rows leave
     // the DOM. Each row keeps its own grid reading the inherited --cols, so wrapping never breaks the
     // column alignment (A-2).
     return [
-      <div
-        key={`gh-${g.key}`}
-        className={cx('group-header-row', g.bucket !== undefined && 'sub-band')}
-        style={{ paddingLeft: groupIndent(depth) }}
+      <TableGroupBand
+        key={`gb-${g.key}`}
+        group={g}
+        view={liveView}
+        ctx={ctx}
+        setNames={setNames}
+        setIcons={setIcons}
+        source={source}
+        setPath={g.kind === 'structural-set' ? setPaths.get(g.key) : undefined}
+        // Only a Collection's direct-child Sets open (the sidebar's selectable rule) — deeper sub-Sets
+        // are expand-only organizing folders.
+        onOpen={
+          g.kind === 'structural-set' &&
+          source.kind === 'collection' &&
+          depth === 0 &&
+          setPaths.has(g.key)
+            ? () => void select({ kind: 'set', id: g.key, path: setPaths.get(g.key) as string })
+            : undefined
+        }
+        collapsed={isCollapsed}
+        onToggle={() => toggleCollapse(g.key)}
+        indent={groupIndent(depth)}
       >
-        <GroupHeader
-          group={g}
-          view={liveView}
-          ctx={ctx}
-          setNames={setNames}
-          setIcons={setIcons}
-          setPath={g.kind === 'structural-set' ? setPaths.get(g.key) : undefined}
-          // Only a Collection's direct-child Sets open (the sidebar's selectable rule) — deeper
-          // sub-Sets are expand-only organizing folders.
-          onOpen={
-            g.kind === 'structural-set' &&
-            source.kind === 'collection' &&
-            depth === 0 &&
-            setPaths.has(g.key)
-              ? () => void select({ kind: 'set', id: g.key, path: setPaths.get(g.key) as string })
-              : undefined
-          }
-          collapsed={isCollapsed}
-          onToggle={() => toggleCollapse(g.key)}
-        />
-      </div>,
-      <Reveal key={`rv-${g.key}`} open={!isCollapsed}>
         {members}
-      </Reveal>,
+      </TableGroupBand>,
     ]
   }
 
@@ -1383,8 +1345,10 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
           disabled={dragDisabled}
           canReorderWithin={canReorderWithin}
           canReassign={canReassign}
+          canRelocate={canRelocate}
           reorderTo={reorderTo}
           reassign={reassignRow}
+          relocate={relocateRow}
         >
           <div
             className={cx(
@@ -1431,7 +1395,7 @@ export function TableView({ source }: { source: CollectionNode | SetNode }): Rea
                 column's right divider (Table.css). Empty but load-bearing; don't remove. */}
               <div className="cell-filler" aria-hidden="true" />
             </div>
-            {/* Rows (E-3) — the drop-line DnD (tableDnd) wraps the whole grid; group-header rows aren't
+            {/* Rows (E-3) — the drop-line DnD (tableDnd) wraps the whole grid; band heads aren't row
               drag items. */}
             {groups.flatMap((g) => renderRows(g, 0, true))}
           </div>

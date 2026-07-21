@@ -173,10 +173,11 @@ export function CellEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mount once; the cell IS the live editor
   }, [])
 
-  // The model can re-render this positional cell with different text (a reorder moves content between
-  // cells; a page undo reverts it). Sync the live editor to it. Safe even while focused: the model only
-  // changes on a rebuild, never mid-keystroke (cell edits remap without rebuilding), so nothing in
-  // progress is stomped — and a focused undo MUST update the cell the caret sits in.
+  // The model can re-render this positional cell with different text — a reorder moves content between
+  // cells, a page undo reverts it, a cell edit rebuilds its own table. Sync the live editor to it. Safe
+  // even while focused: a cell keystroke makes `initial` equal the text just typed (identical to the
+  // live doc, so the guard below no-ops); a reorder or focused undo brings genuinely different text and
+  // the sync applies — a focused undo MUST update the cell the caret sits in.
   useLayoutEffect(() => {
     const view = viewRef.current
     if (!view || view.state.doc.toString() === initial) return

@@ -4,6 +4,7 @@ import { Icon } from '../../symbols'
 import { Switch } from '../Switches/Switch'
 import { OverflowScroll } from '../OverflowScroll'
 import { PickerMenu, PickerOption } from '../PickerMenu/PickerMenu'
+import { useExitPresence } from '../../useExitPresence'
 import { cx } from '../../cx'
 import * as s from './calendarPicker.css'
 
@@ -38,7 +39,9 @@ function PortalMenu({
         top: rect.y,
         width: rect.w,
         height: rect.h,
-        zIndex: 100,
+        // Above the hosting picker pane AND its dismiss backdrop (1100/1099) — below that, the
+        // month/year/time menus render behind the pane and their clicks hit the grid or the dismiss.
+        zIndex: 1200,
         pointerEvents: 'none',
       }}
     >
@@ -127,6 +130,14 @@ export function CalendarPicker({
     part: 'h' | 'm'
     rect: TriggerRect
   } | null>(null)
+  // Exit presence for BOTH sub-menus, so closing one Blooms out instead of hard-unmounting (the
+  // pickers' one motion law). The last non-null state renders through the closing frames.
+  const menuPresence = useExitPresence(menu !== null)
+  const timeMenuPresence = useExitPresence(timeMenu !== null)
+  const lastMenu = useRef(menu)
+  if (menu) lastMenu.current = menu
+  const lastTimeMenu = useRef(timeMenu)
+  if (timeMenu) lastTimeMenu.current = timeMenu
   // Double-click a segment → caret editing in place (select-all drives replace-on-type, but the
   // selection paints transparent — highlighting disabled per Nathan).
   const [segEdit, setSegEdit] = useState<{
@@ -184,13 +195,22 @@ export function CalendarPicker({
   onChangeRef.current = onChange
   const emitTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const pendingEmit = useRef<string | null | undefined>(undefined)
-  const firstEmit = useRef(true)
+  // Changed-state guard (not a consumed-once flag): emit only after the state actually leaves its
+  // mount value. A once-flag breaks under StrictMode's dev remount — the second effect pass sees it
+  // consumed and debounce-writes the UNCHANGED state (a spurious commit on every open).
+  const initial = useRef({ start, timeOn, startMin })
+  const armed = useRef(false)
   useEffect(() => {
     if (!onChangeRef.current) return
-    if (firstEmit.current) {
-      firstEmit.current = false
+    if (
+      !armed.current &&
+      start === initial.current.start &&
+      timeOn === initial.current.timeOn &&
+      startMin === initial.current.startMin
+    ) {
       return
     }
+    armed.current = true
     const iso = start
       ? timeOn
         ? `${start}T${pad(Math.floor(startMin / 60))}:${pad(startMin % 60)}:00`
@@ -401,7 +421,7 @@ export function CalendarPicker({
   const hourText = (v: number): string => (twelve ? String(v) : pad(v))
 
   const timeOptions = (which: 'start' | 'end', part: 'h' | 'm'): React.JSX.Element | null => {
-    if (!timeMenu) return null
+    if (!timeMenuPresence.mounted || !lastTimeMenu.current) return null
     const mins = minsOf(which)
     const setMins = setMinsFor(which)
     const current = part === 'h' ? hourShown(mins) : mins % 60
@@ -410,9 +430,13 @@ export function CalendarPicker({
       setTimeMenu(null)
     }
     return (
-      <PortalMenu rect={timeMenu.rect}>
-        <span className={s.ddWrap} onClick={(e) => e.stopPropagation()}>
-          <PickerMenu solid direction="up">
+      <PortalMenu rect={lastTimeMenu.current.rect}>
+        <span
+          className={s.ddWrap}
+          style={timeMenuPresence.closing ? { pointerEvents: 'none' } : undefined}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <PickerMenu solid direction="up" closing={timeMenuPresence.closing}>
             <div className={cx(s.menuList, 'edge-fade')}>
               {(part === 'h' ? (twelve ? HOURS_12 : HOURS_24) : MINUTES).map((v) => (
                 <PickerOption key={v} selected={v === current} onClick={() => choose(v)}>
@@ -478,7 +502,10 @@ export function CalendarPicker({
         }}
       >
         {part === 'h' ? hourText(hourShown(mins)) : pad(mins % 60)}
-        {timeMenu?.which === which && timeMenu.part === part && timeOptions(which, part)}
+        {timeMenuPresence.mounted &&
+          lastTimeMenu.current?.which === which &&
+          lastTimeMenu.current.part === part &&
+          timeOptions(which, part)}
       </button>
     )
   // The Swift-style meridiem segment — a plain click-toggle, no affordance glyph (Nathan's call;
@@ -540,10 +567,14 @@ export function CalendarPicker({
     </span>
   )
   const selectionMenu = (kind: 'month' | 'year'): React.JSX.Element | null =>
-    menu && (
-      <PortalMenu rect={menu.rect}>
-        <span className={s.ddWrap} onClick={(e) => e.stopPropagation()}>
-          <PickerMenu solid>
+    menuPresence.mounted && lastMenu.current ? (
+      <PortalMenu rect={lastMenu.current.rect}>
+        <span
+          className={s.ddWrap}
+          style={menuPresence.closing ? { pointerEvents: 'none' } : undefined}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <PickerMenu solid closing={menuPresence.closing}>
             <div className={cx(s.menuList, 'edge-fade')}>
               {kind === 'month'
                 ? Array.from({ length: 12 }, (_, m) => (
@@ -568,7 +599,7 @@ export function CalendarPicker({
           </PickerMenu>
         </span>
       </PortalMenu>
-    )
+    ) : null
 
   return (
     <div className={s.root} ref={rootRef}>

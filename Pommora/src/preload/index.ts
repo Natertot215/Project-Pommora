@@ -30,6 +30,7 @@ import type { FormatState } from '@shared/editorMenu'
 import type { TableMenuAction, TableMenuContext } from '@shared/tableMenu'
 import type { CalloutMenuAction } from '@shared/calloutMenu'
 import type { CellMenuAction, CellMenuContext } from '@shared/cellMenu'
+import type { CardMenuAction, CardMenuContext } from '@shared/cardMenu'
 import type { ConnMenuAction } from '@shared/connections'
 import type { TabMenuAction, TabMenuContext } from '@shared/tabMenu'
 import type { NavRowMenuAction, NavRowMenuContext } from '@shared/navRowMenu'
@@ -143,9 +144,6 @@ const api = {
     canDelete: boolean,
   ): Promise<'view:rename' | 'view:edit-icon' | 'view:delete' | null> =>
     ipcRenderer.invoke('view-row-menu', canDelete),
-  // The ViewSettings Format native menu (Standard / Compact).
-  viewFormatMenu: (current: 'standard' | 'compact'): Promise<'standard' | 'compact' | null> =>
-    ipcRenderer.invoke('view-format-menu', current),
   // The icon picker's right-click Favorite/Remove menu — resolves 'toggle' on click, null on dismiss.
   iconFavoriteMenu: (favorited: boolean): Promise<'toggle' | null> =>
     ipcRenderer.invoke('icon-favorite-menu', favorited),
@@ -422,8 +420,9 @@ const api = {
   // zooms, the macOS titlebar convention.
   winDragBy: (dx: number, dy: number): void => ipcRenderer.send('win:dragBy', dx, dy),
   winZoom: (): void => ipcRenderer.send('win:zoom'),
-  // Pop a native "New …" menu (e.g. the context tiers) + run the chosen create main-side.
-  popCreateMenu: (items: { label: string; req: MutateRequest }[]): Promise<void> =>
+  // Pop a native "New …" menu (e.g. the context tiers); resolves with the picked request, or
+  // null if dismissed, for the renderer's store to run.
+  popCreateMenu: (items: { label: string; req: MutateRequest }[]): Promise<MutateRequest | null> =>
     ipcRenderer.invoke('create-menu', items),
   // Surface a failure natively (renderer can't show a native dialog itself).
   showError: (message: string): Promise<void> => ipcRenderer.invoke('error:show', message),
@@ -452,8 +451,11 @@ const api = {
   pickImage: (): Promise<string | null> => ipcRenderer.invoke('nexus:pickImage'),
   // Pop the native Change / Remove banner menu → the chosen action (null if dismissed).
   // `noRemove` drops the Remove item (an inherited banner has nothing of its own to remove).
-  bannerMenu: (opts?: { noRemove?: boolean }): Promise<'change' | 'remove' | null> =>
-    ipcRenderer.invoke('nexus:bannerMenu', opts),
+  bannerMenu: (opts?: {
+    noRemove?: boolean
+    noun?: string
+    add?: boolean
+  }): Promise<'change' | 'remove' | null> => ipcRenderer.invoke('nexus:bannerMenu', opts),
   // Pop the native Rename / Edit Icon menu for a detail title → the chosen action (null if dismissed).
   titleMenu: (opts?: {
     toggleIcon?: boolean
@@ -472,6 +474,9 @@ const api = {
   // Pop a table cell's native right-click menu (title meta / per-type Style / Edit) — same contract.
   cellMenu: (ctx: CellMenuContext): Promise<CellMenuAction | null> =>
     ipcRenderer.invoke('cell-menu', ctx),
+  // Pop a card's native right-click menu (page meta + Add Property ▸) → the chosen action.
+  cardMenu: (ctx: CardMenuContext): Promise<CardMenuAction | null> =>
+    ipcRenderer.invoke('card-menu', ctx),
   tabMenu: (ctx: TabMenuContext): Promise<TabMenuAction | null> =>
     ipcRenderer.invoke('tab-menu', ctx),
   // Pop a NavWindow row/card's native right-click menu (Open · Pin · Favorite · Remove) → the action.

@@ -18,18 +18,31 @@ const view = (property_order: string[], hidden_properties: string[]): SavedView 
 })
 
 describe('hiddenListIds', () => {
-  it('orders by the COLLECTION schema, not the hidden array', () => {
+  it('orders hidden props by the COLLECTION schema, not the hidden array', () => {
     const schema = [def('a'), def('b'), def('c')]
-    expect(hiddenListIds(['c', 'a'], schema)).toEqual(['a', 'c'])
+    // b is shown (in property_order); a and c are hidden
+    expect(hiddenListIds(view(['b'], ['c', 'a']), schema)).toEqual(['a', 'c'])
   })
 
   it('lists hidden tiers first (fixed order), then props, trails Modified, drops stale ids', () => {
     const schema = [def('a')]
-    expect(hiddenListIds([tier1, modifiedAt, 'stale', 'a'], schema)).toEqual([
+    expect(hiddenListIds(view([], [tier1, modifiedAt, 'stale', 'a']), schema)).toEqual([
       tier1,
       'a',
       modifiedAt,
     ])
+  })
+
+  it('surfaces an unaccounted prop (in schema, in neither list) so it stays revealable', () => {
+    const schema = [def('a'), def('b')]
+    // a is shown; b was added to the collection after the view existed → hidden, not lost
+    expect(hiddenListIds(view(['a'], []), schema)).toEqual(['b'])
+  })
+
+  it('interleaves hidden and unaccounted props in collection order', () => {
+    const schema = [def('a'), def('b'), def('c')]
+    // a hidden, b shown, c unaccounted → hidden zone is a then c
+    expect(hiddenListIds(view(['b'], ['a']), schema)).toEqual(['a', 'c'])
   })
 })
 
@@ -68,6 +81,14 @@ describe('placeInShown', () => {
     })
   })
 
+  it('reveals an unaccounted prop — drag-in writes it into property_order (then it shows)', () => {
+    const v = view([title, 'a'], []) // 'new' is in neither list
+    expect(placeInShown(v, [title, 'a'], [title, 'a'], 'new', 2)).toEqual({
+      property_order: [title, 'a', 'new'],
+      hidden_properties: [],
+    })
+  })
+
   it('preserves foreign property_order ids at the tail', () => {
     const v = view(['a', 'future_key', 'b'], [])
     expect(placeInShown(v, ['a', 'b'], ['a', 'b'], 'b', 0).property_order).toEqual([
@@ -85,8 +106,17 @@ describe('hideShown / unhide', () => {
     expect(hideShown(view(['a'], ['a']), 'a')).toEqual({ hidden_properties: ['a'] })
   })
 
-  it('unhide lifts only the toggled flag', () => {
-    expect(unhide(view([], ['a', 'b']), 'a')).toEqual({ hidden_properties: ['b'] })
+  it('unhide lifts the flag AND places an unplaced prop in the order (allowlist reveal)', () => {
+    // No remembered slot (a title-only minted view) → appended, so the allowlist actually shows it.
+    expect(unhide(view([], ['a', 'b']), 'a')).toEqual({
+      property_order: ['a'],
+      hidden_properties: ['b'],
+    })
+    // Still has its slot → re-emits there, order unchanged.
+    expect(unhide(view(['a'], ['a']), 'a')).toEqual({
+      property_order: ['a'],
+      hidden_properties: [],
+    })
   })
 })
 

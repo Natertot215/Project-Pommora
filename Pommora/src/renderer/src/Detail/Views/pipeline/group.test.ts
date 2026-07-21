@@ -77,6 +77,103 @@ describe('flattenContainer + structural grouping', () => {
     expect(itemIds(groups[2])).toEqual(['p_root'])
   })
 
+  it('flattenStructural (cards): rolls each top set’s whole subtree into one flat band, no children', () => {
+    const sub = set('sub', [page('p_sub')])
+    const setA = set('setA', [page('p_a')], [sub])
+    const setB = set('setB', [page('p_b')])
+    const col = collection([setA, setB], [page('p_root')])
+    const { rows, setTree } = flattenContainer(col, {})
+    const groups = resolveGroups(
+      rows,
+      { kind: 'structural' },
+      [],
+      setTree,
+      null,
+      [],
+      'bottom',
+      undefined,
+      true,
+    )
+
+    expect(groups.map((g) => [g.key, g.kind])).toEqual([
+      ['setA', 'structural-set'],
+      ['setB', 'structural-set'],
+      ['_ungrouped', 'ungrouped'],
+    ])
+    expect(itemIds(groups[0])).toEqual(['p_a', 'p_sub']) // subtree flat in the band, not nested
+    expect(groups[0].children).toBeUndefined()
+    expect(itemIds(groups[1])).toEqual(['p_b'])
+    expect(itemIds(groups[2])).toEqual(['p_root'])
+  })
+
+  it('flattenStructural: a manual sorter spans the whole flat band (a cross-level order sticks)', () => {
+    const setA = set('setA', [page('p_a')], [set('sub', [page('p_sub')])])
+    const { rows, setTree } = flattenContainer(collection([setA], []), {})
+    const order = ['p_sub', 'p_a']
+    const bySpec = (r: ViewRow[]): ViewRow[] =>
+      [...r].sort((x, y) => order.indexOf(x.id) - order.indexOf(y.id))
+    const groups = resolveGroups(
+      rows,
+      { kind: 'structural' },
+      [],
+      setTree,
+      bySpec,
+      [],
+      'bottom',
+      undefined,
+      true,
+    )
+    expect(itemIds(groups[0])).toEqual(['p_sub', 'p_a']) // a sub-set page ordered before the top set's own
+  })
+
+  it('locationFlatten (Sort by Location): concatenates every band into one force-open headerless band', () => {
+    const sub = set('sub', [page('p_sub')])
+    const setA = set('setA', [page('p_a')], [sub])
+    const setB = set('setB', [page('p_b')])
+    const col = collection([setA, setB], [page('p_root')])
+    const { rows, setTree } = flattenContainer(col, {})
+    const groups = resolveGroups(
+      rows,
+      { kind: 'structural' },
+      [],
+      setTree,
+      null,
+      ['_ungrouped'], // a stale collapse from structural mode must NOT hide the flattened band
+      'bottom',
+      undefined,
+      true, // flattenStructural
+      true, // locationFlatten
+    )
+    expect(groups.map((g) => [g.key, g.kind])).toEqual([['_ungrouped', 'ungrouped']])
+    // location order: setA's subtree (p_a, p_sub), then setB (p_b), then the root tail (bottom)
+    expect(itemIds(groups[0])).toEqual(['p_a', 'p_sub', 'p_b', 'p_root'])
+    expect(groups[0].isCollapsed).toBe(false) // force-open despite the stale _ungrouped collapse
+  })
+
+  it('locationFlatten wins over a property group (mutually exclusive)', () => {
+    const col = collection([set('setA', [page('p_a')])], [page('p_root')])
+    const { rows, setTree } = flattenContainer(col, {})
+    const groups = resolveGroups(
+      rows,
+      {
+        kind: 'property',
+        property_id: 'x',
+        order_mode: 'configured',
+        empty_placement: 'bottom',
+        hide_empty_groups: false,
+      },
+      statusSchema,
+      setTree,
+      null,
+      [],
+      'bottom',
+      undefined,
+      false,
+      true, // locationFlatten forces flat regardless of the property group
+    )
+    expect(groups.map((g) => g.kind)).toEqual(['ungrouped'])
+  })
+
   it('groups a Set container identically — Sub-Sets become top groups, own pages band (shared path)', () => {
     const container = set(
       'setC',

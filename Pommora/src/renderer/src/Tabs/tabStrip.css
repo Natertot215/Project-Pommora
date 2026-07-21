@@ -112,10 +112,12 @@
 .tab-label {
   flex: 1;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  /* Reserve the ×'s lane so a long title ellipsizes cleanly BEFORE it — no fuzzy fade under the glyph. */
-  padding-right: 14px;
+  /* The sidebar's OverflowScroll mechanism (nav-item-title): eclipse-fade + hover-scroll at the shared
+     16px fade. The ×'s lane reserve is trimmed (14px → 8px) so the title gets more width before it
+     eclipses — padding-right is the × clearance knob. */
+  padding-right: 8px;
+  --edge-fade: 16px;
+  --scroll-fade: 16px;
 }
 
 /* The hover-fade × (J-1: the chip glyph, a plain fade — no melt on glass). It sits in the label's

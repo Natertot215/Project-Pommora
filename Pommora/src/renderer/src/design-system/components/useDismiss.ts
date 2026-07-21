@@ -1,25 +1,4 @@
-import { useEffect, type ReactNode, type RefObject } from 'react'
-import { GlassSurface } from '../../materials'
-import * as s from './popover.css'
-
-/**
- * A glass panel anchored below its trigger. Presentational only — render it inside
- * a `position: relative` container and toggle it with open state; pair with
- * `useDismiss` on that container for outside-click / Esc handling.
- */
-export function Popover({
-  align = 'right',
-  children,
-}: {
-  align?: 'left' | 'right'
-  children: ReactNode
-}): React.JSX.Element {
-  return (
-    <div className={`${s.anchor} ${align === 'right' ? s.alignRight : s.alignLeft}`}>
-      <GlassSurface className={s.panel}>{children}</GlassSurface>
-    </div>
-  )
-}
+import { useEffect, type RefObject } from 'react'
 
 /**
  * Close on a pointerdown outside `ref` (its element + descendants) or on Escape,

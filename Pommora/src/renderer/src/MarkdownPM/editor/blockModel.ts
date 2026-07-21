@@ -101,6 +101,7 @@ function blockContext(doc: string): BlockContext {
   // Box-first precedence: a callout/quote line resolves to its box; code/table beat heading/list so a `#`/`-`
   // inside a fence or table isn't mis-read; hr beats paragraph so it's never absorbed. paragraph is the catch-all.
   const kindAt = (i: number): BlockKind | null => {
+    if (i < 0 || i >= n) return null // a neighbour-lookup off either doc edge owns no block
     if (lines[i].trim() === '') return null
     if (callout[i]) return 'callout'
     if (bq[i]) return 'blockquote'

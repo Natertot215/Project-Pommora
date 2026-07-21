@@ -3,7 +3,15 @@
 // alias ALWAYS wins at render — it overrides the property's Full URL / Title look. This is the one
 // seam that parses/serializes that shape; Cell render + the cell Edit/Rename writes both go through it.
 
-import { MD_LINK, escapeAlias, unescapeAlias, linkDomain } from '@shared/links'
+import {
+  MD_LINK,
+  escapeAlias,
+  isValidLink,
+  linkDomain,
+  normalizeLinkUrl,
+  unescapeAlias,
+} from '@shared/links'
+import type { PropertyValue } from '@shared/propertyValue'
 
 export type LinkValue = { url: string; alias?: string }
 
@@ -20,6 +28,36 @@ export function parseLink(raw: string): LinkValue {
  *  escaped so a title containing `]` / `\` can't break the shape (silent corruption otherwise). */
 export function serializeLink(v: LinkValue): string {
   return v.alias ? `[${escapeAlias(v.alias)}](${v.url})` : v.url
+}
+
+/** The click target for a url value: the URL to open when filled, else null (→ open the editor to
+ *  type one in). Shared by the card + table cell click handlers. */
+export function urlClickTarget(value: string | undefined): string | null {
+  if (!value) return null
+  return parseLink(value).url || null
+}
+
+/** Commit an EDITED url — the raw text is the new URL; a rename-set alias on the current value rides
+ *  along (so editing the URL never silently drops the title). `null` clears (empty), `undefined` =
+ *  invalid, don't commit. Shared by the card + table cell editors. */
+export function urlValueFromEdit(
+  raw: string,
+  current: string | undefined,
+): PropertyValue | null | undefined {
+  const trimmed = raw.trim()
+  if (trimmed === '') return null
+  if (!isValidLink(trimmed)) return undefined
+  const alias = current ? parseLink(current).alias : undefined
+  return { kind: 'url', value: serializeLink({ url: normalizeLinkUrl(trimmed), alias }) }
+}
+
+/** Commit a RENAMED url — the raw text is the new alias; the current URL is preserved. An empty alias
+ *  drops back to the bare URL. Shared by the card + table rename surfaces. */
+export function urlValueFromRename(alias: string, current: string): PropertyValue {
+  return {
+    kind: 'url',
+    value: serializeLink({ url: parseLink(current).url, alias: alias.trim() || undefined }),
+  }
 }
 
 /** The text to render for a URL value. An alias always wins. Otherwise the look is the property's:

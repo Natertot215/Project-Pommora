@@ -18,7 +18,7 @@ import { activeRow } from '@renderer/Toolbar/viewDropdown.css'
 import { EditableInput } from '@renderer/Components/EditableInput'
 import { IconPicker } from '@renderer/Components/IconPicker'
 import { findCollection, findCollectionForSet, findSet } from '@renderer/Detail/Scope'
-import { TableView } from '@renderer/Detail/Views/Table/TableView'
+import { ViewRenderer } from '@renderer/Detail/Views/ViewRenderer'
 import { SettingsPane } from '@renderer/Components/Detail/SettingsPane'
 import { ViewEmbedScopeProvider } from '@renderer/Embeds/ViewEmbedScope'
 import { useSession } from '@renderer/store'
@@ -476,7 +476,7 @@ export function ViewEmbedBlock({
             className={s.slideWrap}
             style={{ '--slide-from': slideFrom } as React.CSSProperties}
           >
-            <TableView key={source.id} source={source} />
+            <ViewRenderer key={source.id} source={source} />
           </div>
         </div>
         {/* PickerMenu owns the anchoring — body portal (H-11), scroll/resize re-measure,

@@ -144,6 +144,8 @@ import type { OptionMenuContext } from '@shared/optionMenu'
 import { popCalloutMenu } from './calloutMenu'
 import { popColumnMenu } from './columnMenu'
 import { popCellMenu } from './cellMenu'
+import { popCardMenu } from './cardMenu'
+import type { CardMenuContext } from '@shared/cardMenu'
 import { popConnMenu } from './connMenu'
 import { popTabMenu } from './tabMenu'
 import type { TabMenuContext } from '@shared/tabMenu'
@@ -161,10 +163,8 @@ import {
 } from './viewEmbedMenu'
 import { popViewItemMenu, type ViewItemMenuAction } from './viewItemMenu'
 import { popViewRowMenu, type ViewRowMenuAction } from './viewRowMenu'
-import { popViewFormatMenu } from './viewFormatMenu'
 import type { ViewButton, ViewStyle } from '@shared/types'
 import { VIEW_SCALE_DEFAULT } from '@shared/types'
-import type { ViewFormat } from '@shared/views'
 import { installEditorContextMenu, setFormatState, setCalloutGrip } from './editorMenu'
 import type { FormatState } from '@shared/editorMenu'
 import { isValidLink, normalizeLinkUrl } from '@shared/links'
@@ -1729,34 +1729,29 @@ ipcMain.handle('context-menu', async (e, target: ContextTarget): Promise<void> =
 })
 
 // Pop a native "New …" menu (the section-header "+" for contexts: New Area/Topic/Project).
-// Runs the chosen create main-side, then signals the renderer to refetch + inline-rename the
-// new entity — same pattern as the context menu (act in main, signal the renderer).
+// Resolves with the picked request (null when dismissed) — the renderer's store runs it, so
+// create rides the same one-write-path + optimistic-insert flow as every other renderer
+// mutation instead of acting main-side and forcing a full reload before the rename input.
 ipcMain.handle(
   'create-menu',
-  async (e, items: { label: string; req: MutateRequest }[]): Promise<void> => {
+  async (e, items: { label: string; req: MutateRequest }[]): Promise<MutateRequest | null> => {
     const win = BrowserWindow.fromWebContents(e.sender)
-    if (!win) return
-    const deps = await mutateDeps()
-    const menu = Menu.buildFromTemplate(
-      items.map((it) => ({
-        label: it.label,
-        click: async () => {
-          const res = await handleMutate(it.req, deps)
-          if (win.isDestroyed()) return
-          if (res.ok) {
-            win.webContents.send('menu:action', 'reload-state')
-            if (res.created) win.webContents.send('begin-rename', res.created.path)
-          } else {
-            await dialog.showMessageBox(win, {
-              type: 'error',
-              message: 'Couldn’t create that.',
-              detail: res.error.message,
-            })
-          }
-        },
-      })),
-    )
-    menu.popup({ window: win })
+    if (!win) return null
+    return new Promise((resolve) => {
+      // Settle-once, click first: a pick resolves immediately, and the close callback defers a
+      // tick before resolving null — so no assumption about Electron's click-vs-close ordering
+      // can hang the promise or drop a pick.
+      let settled = false
+      const done = (req: MutateRequest | null): void => {
+        if (settled) return
+        settled = true
+        resolve(req)
+      }
+      const menu = Menu.buildFromTemplate(
+        items.map((it) => ({ label: it.label, click: () => done(it.req) })),
+      )
+      menu.popup({ window: win, callback: () => setTimeout(() => done(null), 0) })
+    })
   },
 )
 
@@ -1895,13 +1890,6 @@ ipcMain.handle(
   },
 )
 
-// The ViewSettings Format control's native menu (Standard / Compact).
-ipcMain.handle('view-format-menu', async (e, current: unknown): Promise<ViewFormat | null> => {
-  const win = BrowserWindow.fromWebContents(e.sender)
-  if (!win) return null
-  return popViewFormatMenu(win, current === 'compact' ? 'compact' : 'standard')
-})
-
 // The icon picker's right-click Favorite menu — resolves 'toggle' to the renderer, which owns the
 // favoriteIcons write. Native (not a hand-rolled popover) so it matches every other right-click menu.
 ipcMain.handle('icon-favorite-menu', async (e, favorited: unknown): Promise<'toggle' | null> => {
@@ -1948,23 +1936,35 @@ ipcMain.handle('nexus:pickImage', async (e): Promise<string | null> => {
   return win ? pickImageDataUrl(win) : null
 })
 
-// Pop a native macOS Change / Remove menu for an existing banner (mirrors Swift's .contextMenu).
-// Resolves the chosen action, or null if the menu is dismissed.
+// Pop a native macOS banner menu (mirrors Swift's .contextMenu): Change/Remove for an existing
+// image, a single Add item when `add`. The noun follows the surface's vocabulary (Banner by
+// default; the cards' Cover-mode thumb passes "Cover"). Resolves the action, null on dismissal —
+// Add resolves 'change' (both routes open the image picker).
 ipcMain.handle(
   'nexus:bannerMenu',
-  async (e, opts?: { noRemove?: boolean }): Promise<'change' | 'remove' | null> => {
+  async (
+    e,
+    opts?: { noRemove?: boolean; noun?: string; add?: boolean },
+  ): Promise<'change' | 'remove' | null> => {
     const win = BrowserWindow.fromWebContents(e.sender)
     if (!win) return null
+    const noun = opts?.noun ?? 'Banner'
     return await new Promise<'change' | 'remove' | null>((resolve) => {
       let acted = false
       const choose = (action: 'change' | 'remove'): void => {
         acted = true
         resolve(action)
       }
-      const menu = Menu.buildFromTemplate([
-        { label: 'Change Banner', click: () => choose('change') },
-        ...(opts?.noRemove ? [] : [{ label: 'Remove Banner', click: () => choose('remove') }]),
-      ])
+      const menu = Menu.buildFromTemplate(
+        opts?.add
+          ? [{ label: `Add ${noun}`, click: () => choose('change') }]
+          : [
+              { label: `Change ${noun}`, click: () => choose('change') },
+              ...(opts?.noRemove
+                ? []
+                : [{ label: `Remove ${noun}`, click: () => choose('remove') }]),
+            ],
+      )
       menu.popup({
         window: win,
         callback: () => {
@@ -2026,6 +2026,12 @@ ipcMain.handle('column-menu', async (e, ctx: ColumnMenuContext) => {
 ipcMain.handle('cell-menu', async (e, ctx: CellMenuContext) => {
   const win = BrowserWindow.fromWebContents(e.sender)
   return win ? popCellMenu(win, ctx) : null
+})
+
+// Pop a card's native right-click menu (page meta + Add Property ▸) → the chosen action, null if dismissed.
+ipcMain.handle('card-menu', async (e, ctx: CardMenuContext) => {
+  const win = BrowserWindow.fromWebContents(e.sender)
+  return win ? popCardMenu(win, ctx) : null
 })
 
 // Pop a tab's native right-click menu (Pin/Unpin · Close · Close to the Right) → the chosen action.

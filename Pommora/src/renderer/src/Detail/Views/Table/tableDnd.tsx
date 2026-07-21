@@ -1,7 +1,6 @@
 import {
   createContext,
   useContext,
-  useEffect,
   useMemo,
   useRef,
   useState,
@@ -9,10 +8,11 @@ import {
   type ReactNode,
 } from 'react'
 import {
-  ACTIVATION,
-  DROP_LINE_INSET,
-  suppressNextClick,
-} from '@renderer/design-system/interactions/shared'
+  beginDragDisclose,
+  endDragDisclose,
+} from '@renderer/design-system/interactions/dragDisclose'
+import { usePointerGesture } from '@renderer/design-system/interactions/gesture'
+import { DROP_LINE_INSET, suppressNextClick } from '@renderer/design-system/interactions/shared'
 import { findScroller, startAutoScroll } from '@renderer/design-system/interactions/autoscroll'
 
 // Table row drag — the sidebar drop-line gesture (B): an accent insertion LINE marks the exact slot,
@@ -34,24 +34,6 @@ type MeasuredRow = {
 type DragState = { id: string | null; slot: Slot | null }
 const IDLE: DragState = { id: null, slot: null }
 
-type Handlers = {
-  move: (e: PointerEvent) => void
-  up: () => void
-  cancel: () => void
-  key: (e: KeyboardEvent) => void
-}
-type Gesture =
-  | { kind: 'idle' }
-  | {
-      kind: 'pending' | 'active'
-      id: string
-      el: HTMLElement
-      pid: number
-      startX: number
-      startY: number
-      handlers: Handlers
-    }
-
 type Value = {
   draggingId: string | null
   registerRow: (id: string, el: HTMLElement | null) => void
@@ -64,8 +46,10 @@ export function TableRowDnd({
   disabled,
   canReorderWithin,
   canReassign,
+  canRelocate = false,
   reorderTo,
   reassign,
+  relocate = () => {},
   children,
 }: {
   /** The flat visible data-row order + each row's group key. */
@@ -73,12 +57,16 @@ export function TableRowDnd({
   disabled: boolean
   canReorderWithin: boolean
   canReassign: boolean
+  /** True under plain location grouping: the bands ARE folders, so a cross-band drop MOVES the page. */
+  canRelocate?: boolean
   /** Commit a within-group reorder: the new flat order of row ids + the reordered group's key (so the
    *  caller can map a structural group to its on-disk container for the page_order write) + the dragged
    *  row's id (for callers whose commit is (active, over)-shaped). */
   reorderTo: (orderIds: string[], groupKey: string, activeId: string) => void
   /** Commit a cross-group reassign (write the dragged row's grouped property to the target group). */
   reassign: (activeId: string, targetGroupKey: string) => void
+  /** Commit a cross-folder move: relocate the dragged page into the target location band's Set. */
+  relocate?: (activeId: string, targetGroupKey: string) => void
   children: ReactNode
 }): React.JSX.Element {
   const rowsRef = useRef(rows)
@@ -86,8 +74,24 @@ export function TableRowDnd({
   // The context value memoizes on drag.id, freezing `begin` (and the gesture's whole closure chain)
   // at an old render — so the mutable config rides a per-render ref, the rowsRef/commitBandRef
   // discipline: a drop always commits through the CURRENT props, never a mount-time snapshot.
-  const cfg = useRef({ disabled, canReorderWithin, canReassign, reorderTo, reassign })
-  cfg.current = { disabled, canReorderWithin, canReassign, reorderTo, reassign }
+  const cfg = useRef({
+    disabled,
+    canReorderWithin,
+    canReassign,
+    canRelocate,
+    reorderTo,
+    reassign,
+    relocate,
+  })
+  cfg.current = {
+    disabled,
+    canReorderWithin,
+    canReassign,
+    canRelocate,
+    reorderTo,
+    reassign,
+    relocate,
+  }
   const els = useRef(new Map<string, HTMLElement>())
   const content = useRef<HTMLDivElement | null>(null)
   const live = useRef<Slot | null>(null)
@@ -98,7 +102,9 @@ export function TableRowDnd({
   const stopScroll = useRef<(() => void) | null>(null)
   const snapshotDirty = useRef(false)
   const [drag, setDrag] = useState<DragState>(IDLE)
-  const gesture = useRef<Gesture>({ kind: 'idle' })
+  // Set at ACTIVATION (a tap never sets it) — the id the hit-test + commits run against.
+  const dragId = useRef<string | null>(null)
+  const beginGesture = usePointerGesture()
 
   const registerRow = (id: string, el: HTMLElement | null): void => {
     if (el) els.current.set(id, el)
@@ -141,10 +147,10 @@ export function TableRowDnd({
   // slot; that row's group is the target group (drop above row R or below it, the slot sits in R's group
   // either way).
   const computeSlot = (clientY: number): Slot | null => {
-    const g = gesture.current
+    const id = dragId.current
     const snap = snapshot.current
-    if (g.kind === 'idle' || !snap) return null
-    const activeGroup = rowsRef.current.find((r) => r.id === g.id)?.groupKey
+    if (!id || !snap) return null
+    const activeGroup = rowsRef.current.find((r) => r.id === id)?.groupKey
     if (activeGroup === undefined) return null
     const measured = snap.rows
     if (measured.length === 0) return null
@@ -166,163 +172,134 @@ export function TableRowDnd({
       // before `near` (above) or before the row after `near` in the flat order (below).
       const order = rowsRef.current.map((x) => x.id)
       const beforeId = above ? near.id : (order[order.indexOf(near.id) + 1] ?? null)
-      const without = order.filter((id) => id !== g.id)
+      const without = order.filter((x) => x !== id)
       const idx = beforeId ? without.indexOf(beforeId) : without.length
-      const next = [...without.slice(0, idx), g.id, ...without.slice(idx)]
-      const noop = next.length === order.length && next.every((id, i) => id === order[i])
+      const next = [...without.slice(0, idx), id, ...without.slice(idx)]
+      const noop = next.length === order.length && next.every((x, i) => x === order[i])
       return {
         lineY,
         left,
         width,
         noop,
-        commit: () => cfg.current.reorderTo(next, activeGroup, g.id),
+        commit: () => cfg.current.reorderTo(next, activeGroup, id),
       }
     }
+    // A drop in a DIFFERENT band: under location grouping the bands are folders (move the page);
+    // under a reassignable property grouping it rewrites the grouped value; otherwise it's inert.
+    if (cfg.current.canRelocate)
+      return {
+        lineY,
+        left,
+        width,
+        noop: false,
+        commit: () => cfg.current.relocate(id, targetGroup),
+      }
     if (!cfg.current.canReassign) return null
     return {
       lineY,
       left,
       width,
       noop: false,
-      commit: () => cfg.current.reassign(g.id, targetGroup),
+      commit: () => cfg.current.reassign(id, targetGroup),
     }
   }
 
-  const detach = (): void => {
-    stopScroll.current?.()
-    stopScroll.current = null
-    const g = gesture.current
-    if (g.kind === 'idle') return
-    window.removeEventListener('pointermove', g.handlers.move)
-    window.removeEventListener('pointerup', g.handlers.up)
-    window.removeEventListener('pointercancel', g.handlers.cancel)
-    window.removeEventListener('keydown', g.handlers.key)
-    if (onDragScroll.current) {
-      window.removeEventListener('scroll', onDragScroll.current, { capture: true })
-      onDragScroll.current = null
-    }
-    snapshot.current = null
-    try {
-      g.el.releasePointerCapture(g.pid)
-    } catch {
-      // already released
-    }
-  }
   const reset = (): void => {
-    gesture.current = { kind: 'idle' }
+    dragId.current = null
     live.current = null
     setDrag(IDLE)
-  }
-
-  const begin = (id: string, e: ReactPointerEvent): void => {
-    if (cfg.current.disabled || e.button !== 0 || !e.isPrimary || gesture.current.kind !== 'idle')
-      return
-    const el = els.current.get(id)
-    if (!el) return
-    const handlers: Handlers = { move: onMove, up: onUp, cancel: onCancel, key: onKey }
-    gesture.current = {
-      kind: 'pending',
-      id,
-      el,
-      pid: e.pointerId,
-      startX: e.clientX,
-      startY: e.clientY,
-      handlers,
-    }
-    // Listen on window, not the row: the grip sits out in the gutter (absolutely placed left of the row),
-    // so a first move that drifts off the row would never fire a row-bound pointermove — the drag would
-    // fail to activate. Capture is still deferred to activation (capturing on pointerdown eats the click,
-    // so a tap could never select the row); until then window listeners drive the activation check.
-    window.addEventListener('pointermove', handlers.move)
-    window.addEventListener('pointerup', handlers.up)
-    window.addEventListener('pointercancel', handlers.cancel)
-    window.addEventListener('keydown', handlers.key)
-  }
-
-  function onMove(e: PointerEvent): void {
-    const g = gesture.current
-    if (g.kind === 'idle') return
-    if (g.kind === 'pending') {
-      if (Math.hypot(e.clientX - g.startX, e.clientY - g.startY) < ACTIVATION) return
-      try {
-        g.el.setPointerCapture(g.pid)
-      } catch {
-        // capture unavailable
-      }
-      gesture.current = { ...g, kind: 'active' }
-      // Snapshot geometry now that the drag is real, then re-snapshot only when a scroll shifts the rects
-      // (rows never displace mid-drag, so hit-testing reads the cache — no per-move reflow over every row).
-      measure(g.id)
-      // A scroll that moves the rows (wheel OR the auto-scroll loop below — its scrollBy fires this same
-      // native event) dirties the snapshot and re-resolves the slot from the last point, so a held-still
-      // drag near an edge keeps tracking. Dirty-gate + a target guard (skip a scroll that doesn't contain
-      // the row content, e.g. an inner cell) so the O(rows) re-measure runs at most once per frame and
-      // never on an unrelated scroll — resolveSlot re-measures lazily off the flag.
-      const onScroll = (e: Event): void => {
-        if (e.target instanceof Element && content.current && !e.target.contains(content.current))
-          return
-        snapshotDirty.current = true
-        resolveSlot(lastPoint.current.y)
-      }
-      onDragScroll.current = onScroll
-      window.addEventListener('scroll', onScroll, { capture: true, passive: true })
-      // Auto-scroll the vertical scroller. findScroller('y') is load-bearing: it SKIPS the x-only
-      // '.table-view' to reach '.detail-scroll' (the table row's real y-scroller). No onScrolled — the
-      // native onScroll above already re-resolves off the module's scrollBy.
-      const sc = findScroller(g.el, 'y')
-      if (sc) {
-        stopScroll.current = startAutoScroll({
-          getPoint: () => lastPoint.current,
-          scroller: sc,
-          dragEl: g.el,
-          axis: 'y',
-        })
-      }
-    }
-    lastPoint.current = { x: e.clientX, y: e.clientY }
-    resolveSlot(e.clientY)
   }
 
   // Hit-test at a Y → the slot + line. Shared by pointer move and the scroll re-resolve (wheel +
   // auto-scroll). Re-measures lazily, only when a scroll dirtied the snapshot — a pointer move reads
   // the cache (rows don't displace mid-drag), a scroll re-measures once.
-  function resolveSlot(clientY: number): void {
-    const g = gesture.current
-    if (g.kind === 'idle') return
+  const resolveSlot = (clientY: number): void => {
+    const id = dragId.current
+    if (!id) return
     if (snapshotDirty.current) {
-      measure(g.id)
+      measure(id)
       snapshotDirty.current = false
     }
     const slot = computeSlot(clientY)
     live.current = slot
-    setDrag({ id: g.id, slot })
-  }
-  function onUp(): void {
-    detach()
-    const g = gesture.current
-    if (g.kind !== 'active') {
-      reset()
-      return // a click, never a drag
-    }
-    const slot = live.current
-    if (slot && !slot.noop) {
-      slot.commit()
-      suppressNextClick()
-    }
-    reset()
-  }
-  function onCancel(): void {
-    detach()
-    reset()
-  }
-  function onKey(e: KeyboardEvent): void {
-    if (e.key === 'Escape') onCancel()
+    setDrag({ id, slot })
   }
 
-  // Unmount mid-drag (a watcher re-walk swaps the collection, a view change): pull window listeners +
-  // stop the auto-scroll loop so neither dangles for the session. lostpointercapture on the removed node
-  // fires no pointerup/blur, so detach is the only guaranteed teardown.
-  useEffect(() => () => detach(), []) // eslint-disable-line react-hooks/exhaustive-deps
+  const begin = (id: string, e: ReactPointerEvent): void => {
+    if (cfg.current.disabled) return
+    const el = els.current.get(id)
+    if (!el) return
+    // The shared gesture listens on window, not the row: the grip sits out in the gutter, so a
+    // first move drifting off the row must still activate. Capture defers to activation (a tap
+    // keeps its row-select click).
+    const started = beginGesture({
+      el,
+      event: e,
+      onActivate: () => {
+        dragId.current = id
+        // Snapshot geometry now that the drag is real, then re-snapshot only when a scroll shifts
+        // the rects (rows never displace mid-drag — hit-testing reads the cache, no per-move reflow).
+        measure(id)
+        // A scroll that moves the rows (wheel OR the auto-scroll loop below — its scrollBy fires
+        // this same native event) dirties the snapshot and re-resolves from the last point, so a
+        // held-still drag near an edge keeps tracking. Target-guarded so an unrelated inner scroll
+        // never costs the O(rows) re-measure.
+        const onScroll = (ev: Event): void => {
+          if (
+            ev.target instanceof Element &&
+            content.current &&
+            !ev.target.contains(content.current)
+          )
+            return
+          snapshotDirty.current = true
+          resolveSlot(lastPoint.current.y)
+        }
+        onDragScroll.current = onScroll
+        window.addEventListener('scroll', onScroll, { capture: true, passive: true })
+        // Auto-scroll the vertical scroller. findScroller('y') is load-bearing: it SKIPS the x-only
+        // '.table-view' to reach '.detail-scroll'. No onScrolled — the native onScroll above already
+        // re-resolves off the module's scrollBy.
+        const sc = findScroller(el, 'y')
+        if (sc) {
+          stopScroll.current = startAutoScroll({
+            getPoint: () => lastPoint.current,
+            scroller: sc,
+            dragEl: el,
+            axis: 'y',
+          })
+        }
+        return true
+      },
+      onDragMove: (ev) => {
+        lastPoint.current = { x: ev.clientX, y: ev.clientY }
+        resolveSlot(ev.clientY)
+      },
+      onDrop: () => {
+        const slot = live.current
+        if (slot && !slot.noop) {
+          slot.commit()
+          suppressNextClick()
+        }
+        reset()
+      },
+      onAbort: reset,
+      teardown: () => {
+        endDragDisclose()
+        stopScroll.current?.()
+        stopScroll.current = null
+        if (onDragScroll.current) {
+          window.removeEventListener('scroll', onDragScroll.current, { capture: true })
+          onDragScroll.current = null
+        }
+        snapshot.current = null
+      },
+    })
+    if (started) {
+      beginDragDisclose(() => {
+        if (dragId.current) measure(dragId.current)
+      })
+    }
+  }
 
   const value = useMemo<Value>(() => ({ draggingId: drag.id, registerRow, begin }), [drag.id]) // eslint-disable-line react-hooks/exhaustive-deps
 

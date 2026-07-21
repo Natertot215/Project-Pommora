@@ -28,20 +28,21 @@ const chipBase = style([
   },
 ])
 
-/** chip-pill — the standard text chip (status/select/multi/context labels). */
+/** chip-pill — the standard text chip (status/select/multi/context labels). Horizontal padding
+ *  rides the SAME `--chip-pad-x` knob as every text-chip shape (ONE padding source — a surface
+ *  retunes them together; the icon-only capsule keeps its own separate knob). */
 export const chipPill = style([
   chipBase,
   {
     height: '20px',
-    padding: '0 6px',
+    padding: '0 var(--chip-pad-x, 6px)',
     borderRadius: '10px',
     borderWidth: '2px',
   },
 ])
 
 /** chip-label — the select / multi-select shape: the pill's geometry squared off to a
- *  6px radius, so option chips read apart from status pills. Horizontal padding rides a var
- *  (default 6px) so a surface can retune it in context (the option editor's chip-padding knob). */
+ *  6px radius, so option chips read apart from status pills. Same `--chip-pad-x` source. */
 export const chipLabel = style([
   chipBase,
   {
@@ -71,12 +72,13 @@ export const chipContext = style([
 ])
 
 /** chip-capsule — the icon-only shape (a single small glyph, no label; the showcase's
- *  "Select" row). Pill geometry with the glyph centered. */
+ *  "Select" row). Pill geometry with the glyph centered. Deliberately OFF the shared
+ *  `--chip-pad-x` — it's the smaller glyph-only shape, so it keeps its own knob. */
 export const chipCapsule = style([
   chipBase,
   {
     height: '20px',
-    padding: '0 6px',
+    padding: '0 var(--chip-capsule-pad-x, 6px)',
     borderRadius: '10px',
     borderWidth: '2px',
     gap: 0,
@@ -166,6 +168,9 @@ export const chipRemove = style({
   transition: 'opacity var(--duration-fast) var(--ease-standard)',
   selectors: {
     '&:hover': { opacity: 1 },
+    // On a Context chip (neutral fill), inherit reads the mostly-neutral text mix — paint the × in the
+    // context's own saturated color instead, so it reads as part of the colored chip.
+    [`${chipContext} &`]: { color: 'var(--chip-accent)' },
   },
 })
 
@@ -238,7 +243,13 @@ export const chipLabelBlur = style({
  *  the fill (ContextChip's neutral quaternary) must override `--chip-fill` alongside it. */
 const chipTint = (base: string): ReturnType<typeof tint> & { vars: Record<string, string> } => ({
   ...tint(base),
-  vars: { '--chip-fill': tintAt(base, TINT_STEPS.primary) },
+  vars: {
+    '--chip-fill': tintAt(base, TINT_STEPS.primary),
+    // The chip's saturated identity color, for surfaces that want the color itself rather than tint's
+    // mostly-neutral text mix — the ContextChip's × paints in it (see chipRemove) so the remove reads
+    // as the context's color over the neutral fill instead of a colorless glyph.
+    '--chip-accent': base,
+  },
 })
 
 export const chipColor = styleVariants({

@@ -273,7 +273,14 @@ export function SettingsPane(): React.JSX.Element | null {
         onClose={back}
       />
     ) : detailId === 'group' ? (
-      <GroupingPane source={node} view={view} schema={schema} label="Settings" onBack={back} />
+      <GroupingPane
+        source={node}
+        view={view}
+        schema={schema}
+        label="Settings"
+        subGrouping={view.type !== 'cards'}
+        onBack={back}
+      />
     ) : detailId === 'sort' ? (
       <SortingPane source={node} view={view} schema={schema} label="Settings" onBack={back} />
     ) : (

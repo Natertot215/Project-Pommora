@@ -23,7 +23,7 @@ The content column renders one mode at a time. A ribbon switch plays the **overt
 
 #### II. Creation
 
-Creation is right-click-first: right-click a mode's empty area for its native "New" menu — a single **New Collection** in Collections mode, the three-tier **New Area / Topic / Project** picker in Contexts mode. Right-clicking a row instead pops that row's own menu, and ⌘N makes a new Page.
+Creation is right-click-first: right-click a mode's empty area for its native "New" menu — a single **New Collection** in Collections mode, the three-tier **New Area / Topic / Project** picker in Contexts mode. Right-clicking a row instead pops that row's own menu, and ⌘N makes a new Page. The native menu only *picks* — it hands the chosen request back to the renderer, and the store executes it with an **optimistic tree insert**: the new row lands instantly, icon settled and rename input focused, while the confirming re-walk follows behind (one walk per create, no keystroke lost to it).
 
 #### II. Drag and Drop
 

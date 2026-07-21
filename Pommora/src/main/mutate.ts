@@ -31,6 +31,7 @@ import {
   atomicWriteBinary,
   atomicWriteFile,
 } from './io/atomicWrite'
+import { recordWrite } from './io/writeEcho'
 import { serializeOnFile } from './io/fileLock'
 import { splitEnvelope, mergeFrontmatter, readFrontmatterFields } from './io/pageFile'
 import { basenameNoMd } from './coerce'
@@ -571,7 +572,9 @@ async function dispatch(req: MutateRequest, deps: MutateDeps, root: string): Pro
  *  uses; this adds the mode branch the crud helpers don't cover. */
 async function removeViaMode(root: string, abs: string, deps: MutateDeps): Promise<Result<null>> {
   if (!(await pathExists(abs))) return fail('not-found', 'Nothing to delete.')
-  if (deps.trashMode === 'system') await deps.trashToSystem(abs)
-  else await trashWithTimestamp(root, abs)
+  if (deps.trashMode === 'system') {
+    recordWrite(abs) // in-nexus trash records inside trashWithTimestamp; the OS route records here
+    await deps.trashToSystem(abs)
+  } else await trashWithTimestamp(root, abs)
   return ok(null)
 }

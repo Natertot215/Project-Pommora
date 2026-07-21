@@ -1,0 +1,294 @@
+/* CardsView — the Collection/Set cards renderer's ONE CSS home. The card chassis (aspect, border,
+   radius, gaps, title-area) starts from NavGallery's values — the title/property area is allowed to
+   diverge as the card design settles. The pane insets live in Detail.css (the `:has(.cards-view)`
+   body rule — the block-surface inset regime, no views gutter); the embed zoom law rides here so a
+   view embed scales the grid as a unit. `.is-compact` = Card Banner: None — imageless cards, and
+   the band rhythm tightens with them (B-3). */
+.cards-view {
+  --card-min: calc(180px * var(--card-scale, 1)); /* KNOB — column-width floor × the Scale factor */
+  --set-card-min: calc(var(--card-min) * 1.5); /* KNOB — the Set Cards row's larger floor */
+  --card-gap-h: 10px; /* KNOB — inter-card spacing */
+  --card-gap-v: 10px;
+  --cover-zoom: 1; /* KNOB — cover image zoom; >1 zooms into the top (previews read at 1.25) */
+  --thumb-h: calc(
+    104px *
+    var(--card-scale, 1)
+  ); /* KNOB — page-card image band height (fixed; the card grows below it) */
+  --thumb-share: 65%; /* KNOB — the SET card's image share (set cards keep their fixed aspect) */
+  /* KNOB — the body-area's reserved floor (0.54 ≈ the old 35:65 body:image split). An empty card keeps
+     that image:body proportion instead of collapsing to the title; a content-heavy card still grows
+     past it (no aspect clip). */
+  --card-body-min: calc(var(--thumb-h) * 0.54);
+  --band-gap: 22px; /* KNOB — vertical rhythm between disclosure bands */
+  /* ONE padding source for everything in a card's value flow: the chip tokens' own vars. Chips read
+     them natively; the text-shaped values (dates, numbers, links) are re-pointed at the same vars
+     below — so C-3's tight packing is a single knob pair. */
+  --chip-zoom: 0.85; /* KNOB — chip density on cards (the chip tokens' global zoom var) */
+  --chip-pad-x: 4px; /* KNOB — horizontal padding of chips AND text values (tight, C-3) */
+  --switch-zoom: 0.75; /* KNOB — the Switch checkbox-look's card scale (its native 54×24 towers over chips raw) */
+  zoom: calc(var(--zoom, 1) * var(--block-zoom, 1));
+}
+.cards-view.is-compact {
+  --band-gap: 14px; /* KNOB — the tightened band rhythm under imageless cards */
+  /* Imageless cards reserve a bottom area of the title + TWO property-value rows (the location toggle is
+     excluded) — so they read as cards, and the first two properties fill the reserve before the card
+     grows. = body padding + title row + title-gap + the flow row-gap + 2 property rows. */
+  --card-row-h: 17px; /* KNOB — a compact property-value row (chip height × --chip-zoom) */
+  --card-foot-h: calc(
+    1.5px +
+    5px +
+    14px
+  ); /* the breadcrumb footing (divider + clearance + caption line) */
+  --card-body-min: calc(16px + 18px + 4px + 3px + 2 * var(--card-row-h));
+}
+/* With the breadcrumb footing present, add its height so the 2-row reserve still sits ABOVE it. */
+.cards-view.is-compact .page-card-text:has(.page-card-loc-zone) {
+  min-height: calc(var(--card-body-min) + var(--card-foot-h));
+}
+
+/* ── The Set Cards row (F-1): larger cards at a FIXED size — set-scale tracks (no stretch, unlike
+   the page grid's auto-fit fill); they wrap left-aligned as rows fill. ── */
+.set-cards-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, var(--set-card-min));
+  gap: var(--card-gap-v) var(--card-gap-h);
+  margin-bottom: var(--band-gap);
+}
+.set-card {
+  aspect-ratio: 125 / 90;
+  align-self: start;
+  text-align: left;
+  cursor: pointer;
+  border: none;
+  background: none;
+  padding: 0;
+}
+.set-card.is-dragging {
+  opacity: 0.85;
+}
+
+/* ── Disclosure bands (shared GroupBand chrome): the heading over the band's card grid. The chrome +
+   glyph resolve identically to the table's (GroupBand); cards scopes only the inter-band rhythm and the
+   heading-to-cards clearance. ── */
+.cards-view .group-band + .group-band {
+  margin-top: var(--band-gap);
+}
+.cards-view .group-band-row {
+  padding-bottom: 8px; /* KNOB — heading-to-cards clearance */
+}
+
+.cards-grid {
+  /* auto-FILL (not auto-fit): every band lays the same track set regardless of how many cards it
+     holds — empty tracks hold their space, so a 3-card band's cards stay the same size as a full
+     band's instead of ballooning to fill the row (NavGallery's is-fill rationale). */
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--card-min), 1fr));
+  gap: var(--card-gap-v) var(--card-gap-h);
+  /* The grid IS the cross-band DragGroup's zone element, a <ul> — strip its list chrome. A floor so an
+     EMPTY band still presents a drop target (a card can be dragged into an empty group to reassign). */
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  min-height: 44px;
+}
+
+/* A page card's image band is a fixed height; title + properties + footing extend below. Cards
+   STRETCH to their grid row's height (the default), so every card in a row matches its tallest
+   sibling — a location can't make one card taller than its row-mates (I-5). */
+.page-card {
+  text-align: left;
+  cursor: pointer;
+  border: none;
+  background: none;
+  padding: 0;
+}
+.page-card.is-dragging {
+  opacity: 0.85;
+}
+/* The drag ghost only — an opaque backing so the lifted card reads solid over the cards it floats
+   above (the real card body stays transparent, showing the page behind it). */
+.page-card-ghost .page-card-body {
+  background: var(--bg-window);
+}
+
+.page-card-body {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  border: 1.5px solid var(--separator-border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: none;
+  transition:
+    border-color var(--duration-base) var(--ease-standard),
+    transform var(--duration-slow) var(--ease-standard);
+}
+
+.page-card-thumb {
+  position: relative;
+  flex: 0 0 var(--thumb-h);
+  min-height: 0;
+  overflow: hidden;
+  background: var(--fill-tertiary);
+}
+/* Set cards keep the fixed aspect, so their image band stays a SHARE of the card height. */
+.set-card .page-card-thumb {
+  flex: 0 0 var(--thumb-share);
+}
+.page-card-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
+  transform: scale(var(--cover-zoom, 1));
+  transform-origin: top left;
+  -webkit-user-drag: none;
+}
+.page-card-ph {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--label-tertiary);
+  background: var(--fill-quaternary);
+}
+
+.page-card-text {
+  flex: 1;
+  min-height: var(--card-body-min);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 4px;
+  padding: 8px 9px;
+  min-width: 0;
+  background: var(--state-muted);
+  border-top: 1.5px solid var(--separator-border);
+}
+.cards-view.is-compact .page-card .page-card-text {
+  border-top: none;
+}
+
+.page-card-title,
+.page-card-loc {
+  flex: 0 0 auto; /* each is its own fixed row — the title never grows to fill / recenter */
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  --edge-fade: 14px;
+  --scroll-fade: 14px;
+}
+.page-card-title {
+  gap: 5px;
+  color: var(--label-primary);
+  /* overflow-y:hidden (truncateHoverScroll) clips at the padding box; descenders sit at the content
+     edge and get sliced when the line-box rounds tight at zoom. A hair of vertical padding pushes the
+     clip past them without touching the horizontal truncation fade. */
+  padding-block: 1px;
+}
+.page-card-title.is-wrap {
+  display: inline;
+}
+.page-card-title.is-wrap .page-card-title-icon {
+  vertical-align: -2px;
+  margin-right: 5px;
+}
+.page-card-title-icon {
+  flex: 0 0 auto;
+  color: var(--label-secondary);
+}
+/* ── Properties (C-2/C-3): the card body between title and footing — rendered ONLY when the card
+   has values (an empty card shows no gap; its add trigger scopes to the breadcrumb, G-1). Empty
+   flow space inside stays the click surface for adding another. ── */
+.card-props {
+  display: flex;
+  flex-direction: column;
+  gap: 3px; /* KNOB — Standard row rhythm */
+  min-width: 0;
+}
+.card-props.is-flow {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px 4px; /* KNOB — Compact flow packing */
+}
+/* Each compact value is a bare <span> wrapper; make it a flex centerer so every property type — text,
+   chips, AND the fixed checkbox box — shares one vertical band. Without this the box (no text, so its
+   baseline is its bottom edge) rides high on the line baseline while text/chips sit correctly. */
+.card-props.is-flow > span {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+/* Standard rows: label left, value pushed to the card's right edge. */
+.card-prop-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
+}
+.card-prop-label {
+  flex: 0 0 auto;
+  color: var(--label-secondary);
+}
+/* A value never wraps (I-4) — it clamps at the card's width; chips inside keep their own
+   hover-scroll/melt mechanics. */
+.card-value {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+}
+/* The DRY padding link: text-shaped values read the chip tokens' pad var, so dates/numbers/links
+   pack at the same rhythm as the chips beside them. */
+.card-value .cell-text-scroll,
+.card-value .cell-control {
+  padding: 0 var(--chip-pad-x, 6px);
+}
+/* A checkbox/switch is a fixed-size control (internal padding would distort it), so its OUTER value cell
+   takes the chip-pad-x — it then sits at the same horizontal rhythm as the padded text/chip values. */
+.card-value:has(.cell-checkbox, .cell-switch) {
+  padding-inline: var(--chip-pad-x, 6px);
+}
+/* The Switch checkbox-look is natively 54×24 — scale it to the card's density so it sits near chip
+   height in the flow instead of towering over the chips. */
+.card-value .cell-switch {
+  zoom: var(--switch-zoom);
+}
+/* Bar takes the full row width: its ProgressBar track is width:100%, which would otherwise collapse to a
+   sliver inside the shrink-to-fit value (Compact breaks it onto its own line, Standard fills beside the label). */
+.card-props.is-flow > span:has(.cell-bar) {
+  flex-basis: 100%;
+}
+.card-value:has(.cell-bar) {
+  flex: 1;
+  width: 100%;
+  overflow: visible;
+}
+/* A visible-but-empty property row's placeholder (Standard) — a "--" fill-me affordance in the label's
+   own emphasized tone (it reads as the row's empty half); the whole .card-value stays the click target. */
+.card-value-empty {
+  padding: 0 var(--chip-pad-x, 6px);
+  color: var(--label-secondary);
+}
+
+/* The location footing (E-3): NavCrumbs — the house breadcrumb formula (caption type, per-crumb
+   icons, › separators). */
+.page-card-loc {
+  color: var(--label-secondary);
+}
+/* The breadcrumb is ALWAYS the card's footing — pinned to the bottom (margin-top:auto) with a divider
+   above it. ONE unconditional rule: the divider no longer depends on properties sitting above it. */
+.page-card-loc-zone {
+  display: flex;
+  min-width: 0;
+  margin-top: auto;
+  border-top: 1.5px solid var(--separator-border);
+  padding-top: 5px; /* KNOB — divider-to-crumbs clearance */
+}

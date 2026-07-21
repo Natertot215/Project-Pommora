@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type RefObject } from 'react'
 import type { EditorView } from '@codemirror/view'
 import type { ConnPage } from './connections'
 import { autocompleteQuery, connectionInsert, acPanelTop } from './autocomplete'
+import { docString } from './editor/docCache'
 
 export interface AcState {
   query: string
@@ -81,7 +82,9 @@ export function detectConnectionQuery(view: EditorView, setAc: (s: AcState | nul
   const sel = view.state.selection.main
   let next: AcState | null = null
   if (sel.empty) {
-    const q = autocompleteQuery(view.state.doc.toString(), sel.head)
+    // docString hits the per-doc-version cache — a raw toString() re-joins the whole rope on
+    // every keystroke/caret-move for a read that only touches the caret's line.
+    const q = autocompleteQuery(docString(view.state.doc), sel.head)
     const c = q && view.coordsAtPos(sel.head)
     if (q && c)
       next = {

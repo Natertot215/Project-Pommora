@@ -5,6 +5,7 @@
 // so old versions collect with the history.
 import type { Text } from '@codemirror/state'
 import { calloutLines, type CalloutLine } from '../detect'
+import { scanDoc, type DocScan } from '../decorations/intent'
 
 const strings = new WeakMap<Text, string>()
 export function docString(doc: Text): string {
@@ -29,4 +30,16 @@ export function calloutScan(doc: Text): CalloutScan {
     callouts.set(doc, c)
   }
   return c
+}
+
+// The decoration pass's whole-doc scans (split + fences + callouts + fence ranges), one per doc
+// VERSION — a caret move must never pay an O(doc) re-scan for line chrome that only the text defines.
+const scans = new WeakMap<Text, DocScan>()
+export function docScan(doc: Text): DocScan {
+  let s = scans.get(doc)
+  if (!s) {
+    s = scanDoc(docString(doc))
+    scans.set(doc, s)
+  }
+  return s
 }

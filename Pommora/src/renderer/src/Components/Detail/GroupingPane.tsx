@@ -33,6 +33,7 @@ import {
   footingSymbol,
 } from '../../design-system/components/menu/menu.css'
 import { Reveal } from '../../design-system/components/Reveal'
+import { DragGhost } from './DragGhost'
 import { useSaveView } from '@renderer/Embeds/ViewEmbedScope'
 import { declaredType } from '../../Detail/Views/pipeline/value'
 import { bucketOrder, groupsStructurally } from '../../Detail/Views/pipeline/group'
@@ -111,6 +112,7 @@ export function GroupingPane({
   view,
   schema,
   label,
+  subGrouping = true,
   onBack,
 }: {
   source: CollectionNode | SetNode
@@ -118,6 +120,8 @@ export function GroupingPane({
   schema: PropertyDefinition[]
   /** The back-destination breadcrumb — 'Settings' from SettingsPane, 'Views' from ViewSettings. */
   label: string
+  /** Cards views drop the Sub-Group tier entirely — same pane, no second grouping level. */
+  subGrouping?: boolean
   onBack: () => void
 }): React.JSX.Element {
   const load = useSession((st) => st.load)
@@ -134,7 +138,7 @@ export function GroupingPane({
   const groupable = schema.filter((d) => GROUPABLE_PANE.has(declaredType(d.id, schema) ?? ''))
   const activeDef =
     group.kind === 'property' ? schema.find((d) => d.id === group.property_id) : undefined
-  const subGroup = structural ? view.sub_group : undefined
+  const subGroup = structural && subGrouping ? view.sub_group : undefined
   // The property whose date buckets head bands right now (top-level date grouping, or the date
   // sub-group) — the Separation footing appears only when its column wears a numeric format (D-8).
   const dateHeadingProp =
@@ -146,8 +150,13 @@ export function GroupingPane({
 
   // E-3 preservation is free: structural_order_mode / sub_group are view-level, so switching the
   // one group slot never touches them — flip back to Location and they're still in force.
-  const pickGroupBy = (target: 'location' | PropertyDefinition): void => {
+  const pickGroupBy = (target: 'location' | 'none' | PropertyDefinition): void => {
     setGroupByOpen(false)
+    if (target === 'none') {
+      // Group By: None = the flat GroupConfig (cards render it as one headerless band).
+      if (group.kind !== 'flat') saveGroup({ kind: 'flat' })
+      return
+    }
     if (target === 'location') {
       // Keyed on the RAW kind: a dead-property config renders structurally but still sits on disk,
       // and picking Location must heal it.
@@ -230,7 +239,11 @@ export function GroupingPane({
         leading={<Icon name="layers" size={14} />}
         trailing={
           <span className={gp.groupByValue}>
-            {structural ? 'Location' : (activeDef?.name ?? 'Location')}
+            {group.kind === 'flat'
+              ? 'None'
+              : structural
+                ? 'Location'
+                : (activeDef?.name ?? 'Location')}
             <Icon name="chevrons-up-down" size={12} />
           </span>
         }
@@ -240,6 +253,15 @@ export function GroupingPane({
       </MenuItem>
       <Reveal open={groupByOpen}>
         <div>
+          {view.type === 'cards' && (
+            <MenuItem
+              leading={<Icon name="circle-off" size={13} />}
+              trailing={group.kind === 'flat' ? <Icon name="check" size={12} /> : undefined}
+              onClick={() => pickGroupBy('none')}
+            >
+              None
+            </MenuItem>
+          )}
           <MenuItem
             leading={<Icon name="folder" size={13} />}
             trailing={structural ? <Icon name="check" size={12} /> : undefined}
@@ -297,7 +319,7 @@ export function GroupingPane({
               onPick={(m) => save({ structural_order_mode: m })}
             />
           )}
-          {structural && (
+          {structural && subGrouping && (
             <>
               <SubGroupRow subGroup={subGroup} groupable={groupable} onSave={saveSub} />
               {subGroup && declaredType(subGroup.property_id, schema) === 'datetime' && (
@@ -472,6 +494,11 @@ export function CustomList({
         ]
       })}
       {dnd.line && <div className={gp.dropLine} style={{ top: dnd.line.y }} />}
+      <DragGhost
+        x={dnd.ghost?.x ?? null}
+        y={dnd.ghost?.y ?? null}
+        label={dnd.draggingId ? (byValue.get(dnd.draggingId)?.label ?? dnd.draggingId) : null}
+      />
     </div>
   )
 }
@@ -703,10 +730,28 @@ function LocationHierarchy({
     )
   }
 
+  const ghostLabel = (): string | null => {
+    const id = dnd.draggingId
+    if (!id) return null
+    if (id.startsWith('sub:')) {
+      const value = id.split(':').slice(2).join(':')
+      return subChips.find((o) => o.value === value)?.label ?? value
+    }
+    const bySet = (sets: SetNode[]): string | null => {
+      for (const s of sets) {
+        if (s.id === id) return s.title
+        const hit = bySet(s.sets ?? [])
+        if (hit) return hit
+      }
+      return null
+    }
+    return bySet(source.sets ?? [])
+  }
   return (
     <div ref={dnd.containerRef} style={{ position: 'relative' }}>
       {(source.sets ?? []).map(renderSet)}
       {dnd.line && <div className={gp.dropLine} style={{ top: dnd.line.y }} />}
+      <DragGhost x={dnd.ghost?.x ?? null} y={dnd.ghost?.y ?? null} label={ghostLabel()} />
     </div>
   )
 }

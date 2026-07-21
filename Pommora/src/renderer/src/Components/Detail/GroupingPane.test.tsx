@@ -237,15 +237,12 @@ describe('GroupingPane rows', () => {
     expect(texts()).toContain('Separation')
   })
 
-  it('the Ungrouped footing writes ungrouped_placement through its picker', async () => {
+  it('the Ungrouped footing toggles ungrouped_placement in place (dual-option control)', async () => {
     await mount(view())
     const trigger = host.querySelector('button[aria-label="Ungrouped"]') as HTMLElement
+    // Two options → a toggleable double-chevron: one click flips the default 'bottom' to 'top'.
     await act(async () => {
       trigger.click()
-    })
-    const top = [...document.querySelectorAll('button')].find((el) => el.textContent === 'Top')
-    await act(async () => {
-      top!.click()
     })
     expect(lastSaved().ungrouped_placement).toBe('top')
   })
