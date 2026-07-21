@@ -2,17 +2,8 @@
 // is SHARED (bandDndModel: slots, nest cycle-guard, order math); only the pointer wiring and the
 // insertion line live here. paneDnd doesn't fit: its two-region assigned/all vocabulary has no
 // parent/nest concept, and the hierarchy list needs reparent drops (F-4).
-import {
-  useEffect,
-  useRef,
-  useState,
-  type PointerEvent as ReactPointerEvent,
-  type ReactNode,
-} from 'react'
-import {
-  beginPointerGesture,
-  type GestureHandle,
-} from '@renderer/design-system/interactions/gesture'
+import { useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import { usePointerGesture } from '@renderer/design-system/interactions/gesture'
 import { suppressNextClick } from '@renderer/design-system/interactions/shared'
 import type { Band, BandIndex, BandSlot } from '../../Detail/Views/Table/bandDndModel'
 import { bandSlot, buildBandIndex, canNest } from '../../Detail/Views/Table/bandDndModel'
@@ -48,7 +39,7 @@ export function useGroupingListDrag({
   const index = useRef<BandIndex | null>(null)
   const boxTop = useRef(0)
   const endY = useRef(0)
-  const handle = useRef<GestureHandle | null>(null)
+  const beginGesture = usePointerGesture()
   const live = useRef<BandSlot | null>(null)
   const cfg = useRef({ bands, nestable, onDrop })
   cfg.current = { bands, nestable, onDrop }
@@ -66,8 +57,6 @@ export function useGroupingListDrag({
     setGhost(null)
   }
 
-  useEffect(() => () => handle.current?.abort(), [])
-
   return {
     containerRef: (el) => {
       container.current = el
@@ -79,59 +68,57 @@ export function useGroupingListDrag({
     rowHandle: (id) => ({
       onPointerDown: (e) => {
         const anchor = els.current.get(id) ?? (e.currentTarget as HTMLElement)
-        // A refused begin must not overwrite a live gesture's handle (see tableDnd).
-        handle.current =
-          beginPointerGesture({
-            el: anchor,
-            event: e,
-            capture: false,
-            onActivate: () => {
-              const measured = cfg.current.bands.flatMap((b) => {
-                const el = els.current.get(b.id)
-                if (!el) return []
-                const r = el.getBoundingClientRect()
-                return [{ id: b.id, top: r.top, bottom: r.bottom, mid: r.top + r.height / 2 }]
+        beginGesture({
+          el: anchor,
+          event: e,
+          capture: false,
+          onActivate: () => {
+            const measured = cfg.current.bands.flatMap((b) => {
+              const el = els.current.get(b.id)
+              if (!el) return []
+              const r = el.getBoundingClientRect()
+              return [{ id: b.id, top: r.top, bottom: r.bottom, mid: r.top + r.height / 2 }]
+            })
+            index.current = buildBandIndex(cfg.current.bands, measured)
+            const box = container.current?.getBoundingClientRect()
+            boxTop.current = box?.top ?? 0
+            endY.current = measured.at(-1)?.bottom ?? box?.bottom ?? 0
+            setDraggingId(id)
+            return true
+          },
+          onDragMove: (ev) => {
+            setGhost({ x: ev.clientX + 12, y: ev.clientY + 8 })
+            const idx = index.current
+            if (!idx) return
+            let slot = bandSlot(idx, ev.clientY, id, endY.current)
+            // A non-nestable list (the flat Custom chips / flat sub-grouped sets) demotes a nest
+            // slot to an after-slot at the same line; an illegal nest dies.
+            if (slot?.nestInto) {
+              if (!cfg.current.nestable || !canNest(id, slot.nestInto, cfg.current.bands))
+                slot = null
+            }
+            live.current = slot
+            setLine(slot && !slot.nestInto ? { y: slot.lineY - boxTop.current } : null)
+            setNestTarget(slot?.nestInto ?? null)
+          },
+          onDrop: () => {
+            const slot = live.current
+            if (slot) {
+              suppressNextClick() // the release must not also fire the row's disclosure toggle
+              cfg.current.onDrop(id, {
+                kind: slot.nestInto
+                  ? 'reparent'
+                  : slot.impliedParentId === cfg.current.bands.find((b) => b.id === id)?.parentId
+                    ? 'reorder'
+                    : 'reparent',
+                targetParentId: slot.nestInto ?? slot.impliedParentId,
+                beforeId: slot.beforeId,
               })
-              index.current = buildBandIndex(cfg.current.bands, measured)
-              const box = container.current?.getBoundingClientRect()
-              boxTop.current = box?.top ?? 0
-              endY.current = measured.at(-1)?.bottom ?? box?.bottom ?? 0
-              setDraggingId(id)
-              return true
-            },
-            onDragMove: (ev) => {
-              setGhost({ x: ev.clientX + 12, y: ev.clientY + 8 })
-              const idx = index.current
-              if (!idx) return
-              let slot = bandSlot(idx, ev.clientY, id, endY.current)
-              // A non-nestable list (the flat Custom chips / flat sub-grouped sets) demotes a nest
-              // slot to an after-slot at the same line; an illegal nest dies.
-              if (slot?.nestInto) {
-                if (!cfg.current.nestable || !canNest(id, slot.nestInto, cfg.current.bands))
-                  slot = null
-              }
-              live.current = slot
-              setLine(slot && !slot.nestInto ? { y: slot.lineY - boxTop.current } : null)
-              setNestTarget(slot?.nestInto ?? null)
-            },
-            onDrop: () => {
-              const slot = live.current
-              if (slot) {
-                suppressNextClick() // the release must not also fire the row's disclosure toggle
-                cfg.current.onDrop(id, {
-                  kind: slot.nestInto
-                    ? 'reparent'
-                    : slot.impliedParentId === cfg.current.bands.find((b) => b.id === id)?.parentId
-                      ? 'reorder'
-                      : 'reparent',
-                  targetParentId: slot.nestInto ?? slot.impliedParentId,
-                  beforeId: slot.beforeId,
-                })
-              }
-              reset()
-            },
-            onAbort: reset,
-          }) ?? handle.current
+            }
+            reset()
+          },
+          onAbort: reset,
+        })
       },
     }),
     draggingId,

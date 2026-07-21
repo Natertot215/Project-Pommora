@@ -1,7 +1,6 @@
 import {
   createContext,
   useContext,
-  useEffect,
   useMemo,
   useRef,
   useState,
@@ -12,10 +11,7 @@ import {
   beginDragDisclose,
   endDragDisclose,
 } from '@renderer/design-system/interactions/dragDisclose'
-import {
-  beginPointerGesture,
-  type GestureHandle,
-} from '@renderer/design-system/interactions/gesture'
+import { usePointerGesture } from '@renderer/design-system/interactions/gesture'
 import { DROP_LINE_INSET, suppressNextClick } from '@renderer/design-system/interactions/shared'
 import { findScroller, startAutoScroll } from '@renderer/design-system/interactions/autoscroll'
 
@@ -108,7 +104,7 @@ export function TableRowDnd({
   const [drag, setDrag] = useState<DragState>(IDLE)
   // Set at ACTIVATION (a tap never sets it) — the id the hit-test + commits run against.
   const dragId = useRef<string | null>(null)
-  const handle = useRef<GestureHandle | null>(null)
+  const beginGesture = usePointerGesture()
 
   const registerRow = (id: string, el: HTMLElement | null): void => {
     if (el) els.current.set(id, el)
@@ -236,9 +232,7 @@ export function TableRowDnd({
     // The shared gesture listens on window, not the row: the grip sits out in the gutter, so a
     // first move drifting off the row must still activate. Capture defers to activation (a tap
     // keeps its row-select click).
-    // A refused begin (a gesture already live) must NOT overwrite the live gesture's handle —
-    // the unmount abort would then no-op and leak that gesture's listeners.
-    const h = beginPointerGesture({
+    const started = beginGesture({
       el,
       event: e,
       onActivate: () => {
@@ -300,17 +294,12 @@ export function TableRowDnd({
         snapshot.current = null
       },
     })
-    if (h) {
-      handle.current = h
+    if (started) {
       beginDragDisclose(() => {
         if (dragId.current) measure(dragId.current)
       })
     }
   }
-
-  // Unmount mid-drag (a watcher re-walk swaps the collection, a view change): abort THIS surface's
-  // gesture so its listeners + auto-scroll loop don't dangle for the session.
-  useEffect(() => () => handle.current?.abort(), [])
 
   const value = useMemo<Value>(() => ({ draggingId: drag.id, registerRow, begin }), [drag.id]) // eslint-disable-line react-hooks/exhaustive-deps
 

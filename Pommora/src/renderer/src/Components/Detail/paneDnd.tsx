@@ -11,10 +11,7 @@ import {
 import { createPortal } from 'react-dom'
 import { text } from '@renderer/design-system/tokens'
 import { cx } from '@renderer/design-system/cx'
-import {
-  beginPointerGesture,
-  type GestureHandle,
-} from '@renderer/design-system/interactions/gesture'
+import { usePointerGesture } from '@renderer/design-system/interactions/gesture'
 import { DROP_LINE_INSET, suppressNextClick } from '@renderer/design-system/interactions/shared'
 import { findScroller, startAutoScroll } from '@renderer/design-system/interactions/autoscroll'
 import type { MeasuredRow } from '@renderer/Sidebar/sidebarDndModel'
@@ -81,7 +78,7 @@ export function PaneDnd({
   const stopScroll = useRef<(() => void) | null>(null)
   const live = useRef<PaneSlot | null>(null)
   const [drag, setDrag] = useState<DragState>(IDLE)
-  const handle = useRef<GestureHandle | null>(null)
+  const beginGesture = usePointerGesture()
 
   // Frozen at activation: row geometry, the row set, and the region rects ride one snapshot;
   // scroll/content changes dirty it and the next move re-measures (E-4).
@@ -175,49 +172,45 @@ export function PaneDnd({
     if (!el) return
     // swallowActiveEscape: an active drag's Escape must cancel the DRAG, not let the Toolbar's
     // useDismiss close the whole dropdown; a sub-threshold press leaves Escape to the host.
-    handle.current =
-      beginPointerGesture({
-        el,
-        event: e,
-        swallowActiveEscape: true,
-        onActivate: () => {
-          ghostLabel.current = labelForRef.current(id)
-          scroller.current = findScroller(box.current, 'y')
-          window.addEventListener('scroll', markSnapshotDirty, { capture: true, passive: true })
-          if (scroller.current) {
-            stopScroll.current = startAutoScroll({
-              getPoint: () => lastPoint.current,
-              scroller: scroller.current,
-              dragEl: box.current,
-              axis: 'y',
-              onScrolled: () => resolveSlot(id, lastPoint.current.y),
-            })
-          }
-          return true
-        },
-        onDragMove: (ev) => {
-          lastPoint.current = { x: ev.clientX, y: ev.clientY }
-          resolveSlot(id, ev.clientY)
-        },
-        onDrop: () => {
-          const liveSlot = live.current
-          if (liveSlot) {
-            onDropRef.current(liveSlot.drop)
-            suppressNextClick() // the release must not also open the row's editor
-          }
-          reset()
-        },
-        onAbort: reset,
-        teardown: () => {
-          stopScroll.current?.()
-          stopScroll.current = null
-          window.removeEventListener('scroll', markSnapshotDirty, { capture: true })
-        },
-        // A refused begin must not overwrite a live gesture's handle (see tableDnd).
-      }) ?? handle.current
+    beginGesture({
+      el,
+      event: e,
+      swallowActiveEscape: true,
+      onActivate: () => {
+        ghostLabel.current = labelForRef.current(id)
+        scroller.current = findScroller(box.current, 'y')
+        window.addEventListener('scroll', markSnapshotDirty, { capture: true, passive: true })
+        if (scroller.current) {
+          stopScroll.current = startAutoScroll({
+            getPoint: () => lastPoint.current,
+            scroller: scroller.current,
+            dragEl: box.current,
+            axis: 'y',
+            onScrolled: () => resolveSlot(id, lastPoint.current.y),
+          })
+        }
+        return true
+      },
+      onDragMove: (ev) => {
+        lastPoint.current = { x: ev.clientX, y: ev.clientY }
+        resolveSlot(id, ev.clientY)
+      },
+      onDrop: () => {
+        const liveSlot = live.current
+        if (liveSlot) {
+          onDropRef.current(liveSlot.drop)
+          suppressNextClick() // the release must not also open the row's editor
+        }
+        reset()
+      },
+      onAbort: reset,
+      teardown: () => {
+        stopScroll.current?.()
+        stopScroll.current = null
+        window.removeEventListener('scroll', markSnapshotDirty, { capture: true })
+      },
+    })
   }
-
-  useEffect(() => () => handle.current?.abort(), [])
 
   const value = useMemo<Value>(
     () => ({

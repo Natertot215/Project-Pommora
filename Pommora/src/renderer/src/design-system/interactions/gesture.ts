@@ -5,7 +5,7 @@
 // module owns exactly that skeleton and nothing else: geometry models, snapshots, autoscroll, and
 // drop chrome stay with the caller, wired through the hooks below.
 
-import type { PointerEvent as ReactPointerEvent } from 'react'
+import { type PointerEvent as ReactPointerEvent, useCallback, useEffect, useRef } from 'react'
 import { ACTIVATION } from './shared'
 
 export type PointerGestureSpec = {
@@ -138,4 +138,20 @@ export function beginPointerGesture(spec: PointerGestureSpec): GestureHandle | n
       if (live === g) g.handlers.cancel()
     },
   }
+}
+
+/**
+ * A surface's side of the ritual: hold the live handle, abort it on unmount, and honor the
+ * refusal rule — a refused begin (a gesture already live) must never overwrite the live
+ * gesture's handle, or the unmount abort would no-op and leak that gesture's listeners.
+ * Returns whether the gesture actually started.
+ */
+export function usePointerGesture(): (spec: PointerGestureSpec) => boolean {
+  const handle = useRef<GestureHandle | null>(null)
+  useEffect(() => () => handle.current?.abort(), [])
+  return useCallback((spec) => {
+    const h = beginPointerGesture(spec)
+    if (h) handle.current = h
+    return h !== null
+  }, [])
 }

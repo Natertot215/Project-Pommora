@@ -11,10 +11,7 @@ import {
 import { createPortal } from 'react-dom'
 import { text } from '@renderer/design-system/tokens'
 import { cx } from '@renderer/design-system/cx'
-import {
-  beginPointerGesture,
-  type GestureHandle,
-} from '@renderer/design-system/interactions/gesture'
+import { usePointerGesture } from '@renderer/design-system/interactions/gesture'
 import { DROP_LINE_INSET, suppressNextClick } from '@renderer/design-system/interactions/shared'
 import { findScroller, startAutoScroll } from '@renderer/design-system/interactions/autoscroll'
 import type { MeasuredRow } from '@renderer/Sidebar/sidebarDndModel'
@@ -76,7 +73,7 @@ export function BandDnd({
   const [drag, setDrag] = useState<DragState>(IDLE)
   // Set at ACTIVATION (a tap never sets it) — the id the hit-test + drop classification run against.
   const dragId = useRef<string | null>(null)
-  const handle = useRef<GestureHandle | null>(null)
+  const beginGesture = usePointerGesture()
 
   // Frozen at activation (C-2): geometry AND the band list ride one snapshot — a mid-drag tree
   // swap re-renders headers, so both go stale together and re-measure together, lazily.
@@ -149,62 +146,58 @@ export function BandDnd({
     if (!el) return
     // The shared gesture: window listeners drive it (the glyph is small, the first move usually
     // leaves it); capture defers to activation so a sub-threshold press stays inert.
-    // A refused begin must not overwrite a live gesture's handle (see tableDnd).
-    handle.current =
-      beginPointerGesture({
-        el,
-        event: e,
-        onActivate: () => {
-          dragId.current = id
-          ghostLabel.current = labelForRef.current(id)
-          window.addEventListener('scroll', markSnapshotDirty, { capture: true, passive: true })
-          // Auto-scroll the vertical scroller. findScroller('y') skips the x-only '.table-view' to
-          // reach '.detail-scroll'; onScrolled re-resolves a held-still drag as the bands scroll.
-          const sc = findScroller(el, 'y')
-          if (sc) {
-            stopScroll.current = startAutoScroll({
-              getPoint: () => lastPoint.current,
-              scroller: sc,
-              dragEl: el,
-              axis: 'y',
-              onScrolled: resolveSlot,
+    beginGesture({
+      el,
+      event: e,
+      onActivate: () => {
+        dragId.current = id
+        ghostLabel.current = labelForRef.current(id)
+        window.addEventListener('scroll', markSnapshotDirty, { capture: true, passive: true })
+        // Auto-scroll the vertical scroller. findScroller('y') skips the x-only '.table-view' to
+        // reach '.detail-scroll'; onScrolled re-resolves a held-still drag as the bands scroll.
+        const sc = findScroller(el, 'y')
+        if (sc) {
+          stopScroll.current = startAutoScroll({
+            getPoint: () => lastPoint.current,
+            scroller: sc,
+            dragEl: el,
+            axis: 'y',
+            onScrolled: resolveSlot,
+          })
+        }
+        return true
+      },
+      onDragMove: (ev) => {
+        lastPoint.current = { x: ev.clientX, y: ev.clientY }
+        resolveSlot()
+      },
+      onDrop: () => {
+        const slot = live.current
+        const dragged = snapshot.current?.index.byId.get(id)
+        if (slot && dragged) {
+          const drop = onDropRef.current
+          if (slot.nestInto)
+            drop(id, { kind: 'reparent', targetParentId: slot.nestInto, beforeId: null })
+          else if (slot.impliedParentId === dragged.parentId)
+            drop(id, { kind: 'reorder', beforeId: slot.beforeId })
+          else
+            drop(id, {
+              kind: 'reparent',
+              targetParentId: slot.impliedParentId,
+              beforeId: slot.beforeId,
             })
-          }
-          return true
-        },
-        onDragMove: (ev) => {
-          lastPoint.current = { x: ev.clientX, y: ev.clientY }
-          resolveSlot()
-        },
-        onDrop: () => {
-          const slot = live.current
-          const dragged = snapshot.current?.index.byId.get(id)
-          if (slot && dragged) {
-            const drop = onDropRef.current
-            if (slot.nestInto)
-              drop(id, { kind: 'reparent', targetParentId: slot.nestInto, beforeId: null })
-            else if (slot.impliedParentId === dragged.parentId)
-              drop(id, { kind: 'reorder', beforeId: slot.beforeId })
-            else
-              drop(id, {
-                kind: 'reparent',
-                targetParentId: slot.impliedParentId,
-                beforeId: slot.beforeId,
-              })
-            suppressNextClick() // the drop's release must not also fire the glyph's toggle
-          }
-          reset()
-        },
-        onAbort: reset,
-        teardown: () => {
-          stopScroll.current?.()
-          stopScroll.current = null
-          window.removeEventListener('scroll', markSnapshotDirty, { capture: true })
-        },
-      }) ?? handle.current
+          suppressNextClick() // the drop's release must not also fire the glyph's toggle
+        }
+        reset()
+      },
+      onAbort: reset,
+      teardown: () => {
+        stopScroll.current?.()
+        stopScroll.current = null
+        window.removeEventListener('scroll', markSnapshotDirty, { capture: true })
+      },
+    })
   }
-
-  useEffect(() => () => handle.current?.abort(), [])
 
   const value = useMemo<Value>(
     () => ({ draggingId: drag.id, nestTargetId: drag.slot?.nestInto ?? null, registerBand, begin }),

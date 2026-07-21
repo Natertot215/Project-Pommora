@@ -6,7 +6,7 @@ Pommora's drag-and-drop is an **in-house engine, PommoraDND**, built to replace 
 
 Surfaces import only from the interaction layer's **two shared entry points** — never `@dnd-kit` directly. That boundary is what lets the internals be replaced without touching callers.
 
-**`design-system/interactions/gesture.ts`** is the raw-pointer primitive under the bespoke surfaces: `beginPointerGesture` owns the pending→active activation gate, the window listener set, pointer capture, Esc cancel (optionally swallowed so a parent pane doesn't also dismiss), teardown, and a per-gesture abort handle. Exactly one gesture can be live at a time — a begin while one is live is refused, and a refused begin must never overwrite the live gesture's handle. Consumers: the table row drag, the band drag, the properties-pane reorder, and the grouping-list reorder.
+**`design-system/interactions/gesture.ts`** is the raw-pointer primitive under the bespoke surfaces: `beginPointerGesture` owns the pending→active activation gate, the window listener set, pointer capture, Esc cancel (optionally swallowed so a parent pane doesn't also dismiss), teardown, and a per-gesture abort handle. Exactly one gesture can be live at a time — a begin while one is live is refused. Surfaces wire it through **`usePointerGesture()`**, which owns each consumer's side of the ritual — the live handle, the unmount abort, and the refusal rule (a refused begin never overwrites the live gesture's handle) — and returns whether the gesture started. Consumers: the table row drag, the band drag, the properties-pane reorder, and the grouping-list reorder.
 
 **`design-system/interactions/drag.tsx`** is the sort-engine seam:
 
